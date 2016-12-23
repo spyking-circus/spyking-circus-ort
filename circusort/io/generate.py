@@ -66,3 +66,96 @@ def synthetic(path, nb_channels=3, duration=60.0, sampling_rate=20000.0):
     syn.save()
     data = syn.load()
     return data
+
+
+
+class Channel(object):
+    '''TODO add doc...'''
+
+    def __init__(self, id, x, y):
+        self.id = id
+        self.x = x
+        self.y = y
+
+    def __repr__(self):
+        repr = "Channel {} (".format(self.id)
+        repr += " x: {}".format(self.x)
+        repr += " y: {}".format(self.y)
+        repr += ")"
+        return repr
+
+class Cell(object):
+    '''TODO add doc...'''
+
+    def __init__(self, id, x, y, lam=1.0):
+        self.id = id
+        self.x = x
+        self.y = y
+        self.lam = lam # expectation of Poisson interval
+        self.times = self.initialize_times()
+
+    def __repr__(self):
+        repr = "Cell {} (".format(self.id)
+        repr += " x: {}".format(self.x)
+        repr += " y: {}".format(self.y)
+        repr += ")"
+        return repr
+
+    def initialize_times(self):
+        times = np.random.poisson(lam=self.lam, size=10)
+        times = np.cumsum(times)
+        return times
+
+
+class SyntheticGrid(object):
+    '''TODO add doc...'''
+
+    def __init__(self, path, size, duration, sampling_rate):
+        self.path = path
+        self.size = size
+        self.nb_channels = size * size
+        self.length = int(np.ceil(duration * sampling_rate))
+        self.sampling_rate = sampling_rate
+        self.duration = float(self.length) / self.sampling_rate
+        self.nb_cells = 1
+        # ...
+        self.chunk_length = 40000
+        self.channels = self.initialize_channels()
+        self.cells = self.initilize_cells()
+
+    def initialize_channels(self):
+        channels = dict()
+        for k in range(0, self.nb_channels):
+            x = float(k % self.nb_channels)
+            x -= 0.5 * float(self.size - 1)
+            x *= 1.0e-4
+            y = float(k / self.nb_channels)
+            y -= 0.5 * float(self.size - 1)
+            y *= 1.0e-4
+            channels[k] = Channel(k, x, y)
+        return channels
+
+    def initialize_cells(self):
+        cells = dict()
+        for k in range(0, self.nb_cells):
+            # TODO correct the following lines...
+            x = np.random.uniform(0.0, float(self.size - 1))
+            y = np.random.uniform(0.0, float(self.size - 1))
+            cells[k] = Cell(k, x, y)
+        return cells
+
+    def save(self):
+        return
+
+    def load(self):
+        return
+
+
+
+def synthetic_grid(path, size=2, duration=60.0, sampling_rate=20000.0):
+    '''TODO add doc...'''
+    path = os.path.expanduser(path)
+    syn_grid = SyntheticGrid(path, size, duration, sampling_rate)
+    syn_grid.save()
+    data = syn_grid.load()
+    return data
