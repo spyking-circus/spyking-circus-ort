@@ -91,10 +91,11 @@ class Cell(object):
         self.id = id
         self.x = x # x-position
         self.y = y # y-position
-        self.t = t # lifetime
+        self.t = t # cell lifetime
         self.scale = scale # expectation of exponential intervals
         self.refactory_period = refactory_period
-        self.tau = 0.7e-3 # s
+        self.duration = 5.0e-3 # s
+        self.tau = 1.0e-3 # s
         self.alpha = 10.0e-3
         self.times = self.initialize_times()
 
@@ -144,36 +145,44 @@ class SyntheticGrid(object):
         self.size = size
         self.nb_channels = size * size
         self.inter_electrode_distance = 5.0e-5
-        self.length = int(np.ceil(duration * sampling_rate))
+        self.duration = duration
+        self.length = int(duration * sampling_rate) + 1
         self.sampling_rate = sampling_rate
-        self.duration = float(self.length) / self.sampling_rate
+        self.mu = 0.0 # V # noise mean
+        self.sigma = 1.0e-3 # V # noise standard deviation
         self.nb_cells = 4
-        # ...
         self.chunk_length = 40000
         self.channels = self.initialize_channels()
         self.cells = self.initialize_cells()
 
     def initialize_channels(self):
         channels = dict()
+        xref = 0.5 * float(self.size - 1)
+        yref = 0.5 * float(self.size - 1)
         for k in range(0, self.nb_channels):
             x = float(k % self.size)
-            x -= 0.5 * float(self.size - 1)
+            x -= xref
             x *= self.inter_electrode_distance
             y = float(k / self.size)
-            y -= 0.5 * float(self.size - 1)
+            y -= yref
             y *= self.inter_electrode_distance
             channels[k] = Channel(k, x, y)
         return channels
 
     def initialize_cells(self):
         cells = dict()
+        xmin = -0.5
+        xref = 0.5 * float(self.size - 1)
+        xmax = float(self.size - 1) + 0.5
+        ymin = -0.5
+        yref = 0.5 * float(self.size - 1)
+        ymax = float(self.size - 1) + 0.5
         for k in range(0, self.nb_cells):
-            # TODO correct the following lines...
-            x = np.random.uniform(-0.5, float(self.size - 1) + 0.5)
-            x -= 0.5 * float(self.size - 1)
+            x = np.random.uniform(xmin, xmax)
+            x -= xref
             x *= self.inter_electrode_distance
-            y = np.random.uniform(-0.5, float(self.size - 1) + 0.5)
-            y -= 0.5 * float(self.size - 1)
+            y = np.random.uniform(ymin, ymax)
+            y -= yref
             y *= self.inter_electrode_distance
             t = self.duration
             cells[k] = Cell(k, x, y, t)
@@ -265,18 +274,16 @@ class SyntheticGrid(object):
     def save(self):
         shape = (self.length, self.nb_channels)
         f = np.memmap(self.path, dtype='float32', mode='w+', shape=shape)
-        # First: generate the gaussian noise chunk by chunk...
+        # First: generate the noise chunk by chunk...
         i_start = 0
         i_end = self.chunk_length
-        mu = 0.0 # V
-        sigma = 1.0e-3 # V
         ## Save each chunk
         while i_end < self.length:
             if __debug__:
                 print("Save chunk form {} to {}".format(i_start, i_end))
             chunk_length = self.chunk_length
             shape = (chunk_length, self.nb_channels)
-            data = np.random.normal(mu, sigma, shape)
+            data = np.random.normal(self.mu, self.sigma, shape)
             f[i_start:i_end, :] = data[:, :]
             f.flush()
             # Update indices
@@ -287,33 +294,48 @@ class SyntheticGrid(object):
             print("Save final chunk form {} to {}".format(i_start, self.length))
         chunk_length = self.length - i_start
         shape = (chunk_length, self.nb_channels)
-        data = np.random.normal(mu, sigma, shape)
+        data = np.random.normal(self.mu, self.sigma, shape)
         f[i_start:self.length, :] = data[:, :]
         f.flush()
         # Second: add some spikes chunk by chunk...
         i_start = 0
         i_end = self.chunk_length
+        ## For each chunk
         while i_end < self.length:
             data = f[i_start:i_end, :]
             for cell in self.cells.itervalues():
-                t_start = float(i_start) / self.sampling_rate
-                t_end = float(i_end) / self.sampling_rate
+                # Filter spike times falling into the current chunk
                 times = cell.times
+                t_ref = float(i_start) / self.sampling_rate
+                t_start = t_ref - cell.duration
+                t_end = float(i_end - 1) / self.sampling_rate
                 times = times[t_start <= times]
-                times = times[times < t_end]
-                times = times - t_start
+                times = times[times <= t_end]
+                # Set chunk start time as reference
+                times = times - t_ref
+                # For each spike time
                 for time in times:
+                    # For each channel
                     for channel in self.channels.itervalues():
                         d = cell.distance_to(channel)
-                        j_min = int(time * self.sampling_rate)
-                        j_max = j_min + 80
+                        if time < 0:
+                            t_min = 0.0
+                        else:
+                            t_min = time
+                        if time + cell.duration <= t_end:
+                            t_max = time + cell.duration
+                        else:
+                            t_max = t_end
+                        j_min = int(np.ceil(t_min * self.sampling_rate))
+                        j_max = int(np.floor(t_max * self.sampling_rate)) + 1
                         t_min = float(j_min) / self.sampling_rate
-                        t_max = float(j_max) / self.sampling_rate
-                        t = np.linspace(t_min, t_max, num=81)
+                        t_max = float(j_max - 1) / self.sampling_rate
+                        num = j_max - j_min
+                        t = np.linspace(t_min, t_max, num=num)
                         w = cell.sample(time, t)
-                        v = data[j_min:j_max+1, channel.id]
+                        v = data[j_min:j_max, channel.id]
                         v += w * np.exp(- d / 50.0e-6)
-                        data[j_min:j_max+1, channel.id] = v
+                        data[j_min:j_max, channel.id] = v
             f[i_start:i_end] = data
             f.flush()
             # Update indices
@@ -321,7 +343,6 @@ class SyntheticGrid(object):
             i_end += self.chunk_length
         i_end = self.chunk_length - i_start
         data = f[i_start:i_end]
-        # ...
         f[i_start:i_end] = data
         f.flush()
         return
