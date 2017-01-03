@@ -63,7 +63,6 @@ def synthetic(path, nb_channels=3, duration=60.0, sampling_rate=20000.0):
     '''TODO add doc...'''
     path = os.path.expanduser(path)
     syn = Synthetic(path, nb_channels, duration, sampling_rate)
-    print(syn)
     syn.save()
     data = syn.load()
     return data
@@ -88,13 +87,15 @@ class Channel(object):
 class Cell(object):
     '''TODO add doc...'''
 
-    def __init__(self, id, x, y, t, scale=1.0, refactory_period=0.5):
+    def __init__(self, id, x, y, t, scale=0.5, refactory_period=20.0e-3):
         self.id = id
         self.x = x # x-position
         self.y = y # y-position
         self.t = t # lifetime
         self.scale = scale # expectation of exponential intervals
         self.refactory_period = refactory_period
+        self.tau = 0.7e-3 # s
+        self.alpha = 10.0e-3
         self.times = self.initialize_times()
 
     def __repr__(self):
@@ -120,6 +121,20 @@ class Cell(object):
         times = times[times < self.t]
         return times
 
+    def distance_to(self, channel):
+        dx = channel.x - self.x
+        dy = channel.y - self.y
+        d = np.linalg.norm([dx, dy])
+        return d
+
+    def sample(self, spike_time, times):
+        w = np.zeros_like(times)
+        m = spike_time <= times
+        t = times - spike_time
+        w[m] -= np.sin(2.0 * np.pi * t[m] / t[m][-1])
+        w[m] *= (t[m] / self.tau) * np.exp(1.0 - (t[m] / self.tau))
+        w[m] *= self.alpha
+        return w
 
 class SyntheticGrid(object):
     '''TODO add doc...'''
@@ -132,7 +147,7 @@ class SyntheticGrid(object):
         self.length = int(np.ceil(duration * sampling_rate))
         self.sampling_rate = sampling_rate
         self.duration = float(self.length) / self.sampling_rate
-        self.nb_cells = 5
+        self.nb_cells = 4
         # ...
         self.chunk_length = 40000
         self.channels = self.initialize_channels()
@@ -168,9 +183,8 @@ class SyntheticGrid(object):
         plt.rc('text', usetex=True)
         plt.rc('font', family='serif')
         self.plot_spatial_configuration()
-        # TODO plot spatial configuration (electrodes + cells)...
-        self.plot_temporal_configuration()
-        # TODO plot temporal configuration (spike times for each cell)...
+        self.plot_temporal_configuration(t_start=0.0, t_end=1.0)
+        self.plot_waveforms()
         return
 
     def plot_spatial_configuration(self):
@@ -205,22 +219,47 @@ class SyntheticGrid(object):
         plt.axes().set_aspect('equal', adjustable='box')
         return
 
-    def plot_temporal_configuration(self):
+    def plot_temporal_configuration(self, t_start=None, t_end=None):
+        if t_start is None:
+            t_start = 0.0 # s
+        if t_end is None:
+            t_end = self.duration # s
         plt.figure()
         plt.subplot(1, 1, 1)
         # Plot spike times of each cell
         for cell in self.cells.itervalues():
-            x = cell.times
+            m = np.logical_and(t_start <= cell.times, cell.times < t_end)
+            x = cell.times[m]
             y = (float(cell.id) + 0.8) * np.ones_like(x)
             bottom = cell.id
-            x = np.insert(x, [0, len(x)], [0.0, self.duration])
+            x = np.insert(x, [0, len(x)], [t_start, t_end])
             y = np.insert(y, [0, len(y)], [bottom] * 2)
             plt.stem(x, y, linefmt='k-', markerfmt='k ', basefmt='k-', bottom=bottom)
-        plt.xlim(0.0, self.duration)
+        yticks = [cell.id for cell in self.cells.itervalues()]
+        ylabels = [str(cell.id) for cell in self.cells.itervalues()]
+        plt.yticks(yticks, ylabels)
+        plt.xlim(t_start, t_end)
         plt.ylim(-0.1, float(len(self.cells)) - 0.1)
         plt.xlabel(r"time $(s)$")
         plt.ylabel(r"cell")
-        plt.title("Temporal configuration")
+        plt.title(r"Temporal configuration")
+        return
+
+    def plot_waveforms(self):
+        nb_cells = len(self.cells)
+        nb_cols = int(np.sqrt(nb_cells - 1)) + 1
+        nb_rows = (nb_cells - 1) / nb_cols + 1
+        plt.figure()
+        for cell in self.cells.itervalues():
+            plt.subplot(nb_rows, nb_cols, cell.id + 1)
+            t_min = 0.0
+            t_max = float(81) / self.sampling_rate
+            t = np.linspace(t_min, t_max, num=81)
+            w = cell.sample(0.0, t)
+            t = 1.0e3 * t
+            plt.plot(t, w)
+            plt.xlim(t[0], t[-1])
+        plt.suptitle(r"Waveforms")
         return
 
     def save(self):
@@ -257,12 +296,24 @@ class SyntheticGrid(object):
         while i_end < self.length:
             data = f[i_start:i_end, :]
             for cell in self.cells.itervalues():
-                times = cell.times * self.sampling_rate
-                times = times[float(i_start) <= times]
-                times = times[times < float(i_end)]
-                times = times - float(i_start)
+                t_start = float(i_start) / self.sampling_rate
+                t_end = float(i_end) / self.sampling_rate
+                times = cell.times
+                times = times[t_start <= times]
+                times = times[times < t_end]
+                times = times - t_start
                 for time in times:
-                    data[int(time), :] = 7.5e-3
+                    for channel in self.channels.itervalues():
+                        d = cell.distance_to(channel)
+                        j_min = int(time * self.sampling_rate)
+                        j_max = j_min + 80
+                        t_min = float(j_min) / self.sampling_rate
+                        t_max = float(j_max) / self.sampling_rate
+                        t = np.linspace(t_min, t_max, num=81)
+                        w = cell.sample(time, t)
+                        v = data[j_min:j_max+1, channel.id]
+                        v += w * np.exp(- d / 50.0e-6)
+                        data[j_min:j_max+1, channel.id] = v
             f[i_start:i_end] = data
             f.flush()
             # Update indices
