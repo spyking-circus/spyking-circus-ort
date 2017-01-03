@@ -72,8 +72,9 @@ def synthetic(path, nb_channels=3, duration=60.0, sampling_rate=20000.0):
 class Channel(object):
     '''TODO add doc...'''
 
-    def __init__(self, id, x, y):
+    def __init__(self, id, c, x, y):
         self.id = id
+        self.color = c
         self.x = x
         self.y = y
 
@@ -87,8 +88,9 @@ class Channel(object):
 class Cell(object):
     '''TODO add doc...'''
 
-    def __init__(self, id, x, y, t, scale=0.5, refactory_period=20.0e-3):
+    def __init__(self, id, c, x, y, t, scale=0.5, refactory_period=20.0e-3):
         self.id = id
+        self.color = c
         self.x = x # x-position
         self.y = y # y-position
         self.t = t # cell lifetime
@@ -150,7 +152,7 @@ class SyntheticGrid(object):
         self.sampling_rate = sampling_rate
         self.mu = 0.0 # V # noise mean
         self.sigma = 1.0e-3 # V # noise standard deviation
-        self.nb_cells = 4
+        self.nb_cells = 9
         self.chunk_length = 40000
         self.channels = self.initialize_channels()
         self.cells = self.initialize_cells()
@@ -160,13 +162,14 @@ class SyntheticGrid(object):
         xref = 0.5 * float(self.size - 1)
         yref = 0.5 * float(self.size - 1)
         for k in range(0, self.nb_channels):
+            c = plt.cm.viridis(float(k) / float(self.nb_channels - 1))
             x = float(k % self.size)
             x -= xref
             x *= self.inter_electrode_distance
             y = float(k / self.size)
             y -= yref
             y *= self.inter_electrode_distance
-            channels[k] = Channel(k, x, y)
+            channels[k] = Channel(k, c, x, y)
         return channels
 
     def initialize_cells(self):
@@ -178,6 +181,7 @@ class SyntheticGrid(object):
         yref = 0.5 * float(self.size - 1)
         ymax = float(self.size - 1) + 0.5
         for k in range(0, self.nb_cells):
+            c = plt.cm.viridis(float(k) / float(self.nb_cells - 1))
             x = np.random.uniform(xmin, xmax)
             x -= xref
             x *= self.inter_electrode_distance
@@ -185,7 +189,7 @@ class SyntheticGrid(object):
             y -= yref
             y *= self.inter_electrode_distance
             t = self.duration
-            cells[k] = Cell(k, x, y, t)
+            cells[k] = Cell(k, c, x, y, t)
         return cells
 
     def plot(self):
@@ -201,25 +205,27 @@ class SyntheticGrid(object):
         vmax = + 0.5 * float(self.size) * self.inter_electrode_distance * 1.0e6
         plt.figure()
         plt.subplot(1, 1, 1)
-        # Plot each channel
+        # Plot grid
+        ## Plot each channel
         x = [channel.x * 1.0e6 for channel in self.channels.itervalues()]
         y = [channel.y * 1.0e6 for channel in self.channels.itervalues()]
-        plt.scatter(x, y, s=10, c='k')
-        # Draw horizontal lines
+        c = [channel.color for channel in self.channels.itervalues()]
+        plt.scatter(x, y, s=20, c=c, zorder=2, marker='s')
+        ## Plot horizontal lines
         for k in range(0, self.size):
             k_start = k * self.size
             k_end = (k + 1) * self.size - 1
-            plt.plot([x[k_start], x[k_end]], [y[k_start], y[k_end]], color='black', linestyle='dashed')
-        # Draw vertical lines
+            plt.plot([x[k_start], x[k_end]], [y[k_start], y[k_end]], zorder=1, color='black', linestyle='dashed')
+        ## Plot vertical lines
         for k in range(0, self.size):
             k_start = k
             k_end = k + (self.size - 1) * self.size
-            plt.plot([x[k_start], x[k_end]], [y[k_start], y[k_end]], color='black', linestyle='dashed')
-        # Plot each cell
+            plt.plot([x[k_start], x[k_end]], [y[k_start], y[k_end]], zorder=1, color='black', linestyle='dashed')
+        # Plot cells
         x = [cell.x * 1.0e6 for cell in self.cells.itervalues()]
         y = [cell.y * 1.0e6 for cell in self.cells.itervalues()]
-        c = [cell.id for cell in self.cells.itervalues()]
-        plt.scatter(x, y, s=50, c=c, cmap='viridis')
+        c = [cell.color for cell in self.cells.itervalues()]
+        plt.scatter(x, y, s=50, c=c, zorder=3)
         plt.xlim(vmin, vmax)
         plt.ylim(vmin, vmax)
         plt.xlabel(r"$x$ $(\mu{}m)$")
@@ -243,7 +249,11 @@ class SyntheticGrid(object):
             bottom = cell.id
             x = np.insert(x, [0, len(x)], [t_start, t_end])
             y = np.insert(y, [0, len(y)], [bottom] * 2)
-            plt.stem(x, y, linefmt='k-', markerfmt='k ', basefmt='k-', bottom=bottom)
+            markerline, stemlines, baseline = plt.stem(x, y, bottom=bottom)
+            plt.setp(markerline, 'marker', None)
+            plt.setp(markerline, 'color', cell.color)
+            plt.setp(stemlines, 'color', cell.color)
+            plt.setp(baseline, 'color', cell.color)
         yticks = [cell.id for cell in self.cells.itervalues()]
         ylabels = [str(cell.id) for cell in self.cells.itervalues()]
         plt.yticks(yticks, ylabels)
@@ -266,7 +276,7 @@ class SyntheticGrid(object):
             t = np.linspace(t_min, t_max, num=81)
             w = cell.sample(0.0, t)
             t = 1.0e3 * t
-            plt.plot(t, w)
+            plt.plot(t, w, color=cell.color)
             plt.xlim(t[0], t[-1])
         plt.suptitle(r"Waveforms")
         return
@@ -313,6 +323,8 @@ class SyntheticGrid(object):
                 times = times[times <= t_end]
                 # Set chunk start time as reference
                 times = times - t_ref
+                t_start -= t_ref
+                t_end -= t_ref
                 # For each spike time
                 for time in times:
                     # For each channel
@@ -343,6 +355,41 @@ class SyntheticGrid(object):
             i_end += self.chunk_length
         i_end = self.chunk_length - i_start
         data = f[i_start:i_end]
+        for cell in self.cells.itervalues():
+            # Filter spike times falling into the current chunk
+            times = cell.times
+            t_ref = float(i_start) / self.sampling_rate
+            t_start = t_ref - cell.duration
+            t_end = float(i_end - 1) / self.sampling_rate
+            times = times[t_start <= times]
+            times = times[times <= t_end]
+            # Set chunk start time as reference
+            times = times - t_ref
+            t_start -= t_ref
+            t_end -= t_ref
+            # For each spike time
+            for time in times:
+                # For each channel
+                for channel in self.channels.itervalues():
+                    d = cell.distance_to(channel)
+                    if time < 0:
+                        t_min = 0.0
+                    else:
+                        t_min = time
+                    if time + cell.duration <= t_end:
+                        t_max = time + cell.duration
+                    else:
+                        t_max = t_end
+                    j_min = int(np.ceil(t_min * self.sampling_rate))
+                    j_max = int(np.floor(t_max * self.sampling_rate)) + 1
+                    t_min = float(j_min) / self.sampling_rate
+                    t_max = float(j_max - 1) / self.sampling_rate
+                    num = j_max - j_min
+                    t = np.linspace(t_min, t_max, num=num)
+                    w = cell.sample(time, t)
+                    v = data[j_min:j_max, channel.id]
+                    v += w * np.exp(- d / 50.0e-6)
+                    data[j_min:j_max, channel.id] = v
         f[i_start:i_end] = data
         f.flush()
         return

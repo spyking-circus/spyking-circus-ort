@@ -21,10 +21,10 @@ t_start = 0.0
 t_end = 1.0
 i_start = int(t_start * desc.sampling_rate)
 i_end = int(t_end * desc.sampling_rate)
-for channel in range(0, nb_channels):
+for channel in desc.channels.itervalues():
     x = np.arange(i_start, i_end).astype('float') / desc.sampling_rate
-    y = data[i_start:i_end, channel] + 20.0e-3 * float(channel)
-    plt.plot(x, y, color='blue')
+    y = data[i_start:i_end, channel.id] + 20.0e-3 * float(channel.id)
+    plt.plot(x, y, color=channel.color)
 yticks = [20.0e-3 * float(channel) for channel in range(0, nb_channels)]
 ylabels = [str(channel) for channel in range(0, nb_channels)]
 plt.yticks(yticks, ylabels)
