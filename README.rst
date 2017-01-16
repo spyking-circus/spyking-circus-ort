@@ -16,7 +16,7 @@ that cells firing at more than 0.5Hz can be detected, and their spikes recovered
 rates at around 1%, even resolving overlapping spikes and synchronous firing. It seems to 
 be compatible with optogenetic stimulation, based on experimental data obtained in the retina.
 
-SpyKING CIRCUS is currently still under development. Please do not hesitate to report issues with the issue tracker
+The online implementation of SpyKING CIRCUS is currently still under development. Please do not hesitate to report issues with the issue tracker
 
 * Documentation can be found at http://spyking-circus.rtfd.org
 * A Google group can be found at http://groups.google.com/forum/#!forum/spyking-circus-users
