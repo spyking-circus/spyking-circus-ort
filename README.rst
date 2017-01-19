@@ -16,26 +16,7 @@ that cells firing at more than 0.5Hz can be detected, and their spikes recovered
 rates at around 1%, even resolving overlapping spikes and synchronous firing. It seems to 
 be compatible with optogenetic stimulation, based on experimental data obtained in the retina.
 
-The online implementation of SpyKING CIRCUS is currently still under development. Please do not hesitate to report issues with the issue tracker
-
-* Documentation can be found at http://spyking-circus.rtfd.org
-* A Google group can be found at http://groups.google.com/forum/#!forum/spyking-circus-users
-* A bug tracker can be found at https://github.com/spyking-circus/spyking-circus/issues
+The **online** implementation of SpyKING CIRCUS is currently still under development. Please do not hesitate to report issues with the issue tracker
 
 :copyright: Copyright 2006-2016 by the SpyKING CIRCUS team, see AUTHORS.
 :license: CeCILL, see LICENSE for details.
-
-.. image::  https://anaconda.org/spyking-circus/spyking-circus/badges/version.svg
-    :target: https://anaconda.org/spyking-circus/spyking-circus
-
-.. image::  https://badge.fury.io/py/spyking-circus.svg
-    :target: https://badge.fury.io/py/spyking-circus
-
-.. image:: https://img.shields.io/badge/docs-latest-brightgreen.svg?style=flat
-    :target: http://spyking-circus.readthedocs.io/en/latest/?badge=latest
-
-.. image:: https://ci.appveyor.com/api/projects/status/crb1gm862985hieq?svg=true
-    :target: https://ci.appveyor.com/project/spyking-circus/spyking-circus
-
-.. image:: https://travis-ci.org/spyking-circus/spyking-circus.svg?branch=master
-    :target: https://travis-ci.org/spyking-circus/spyking-circus

@@ -1,8 +1,8 @@
 import ConfigParser as configparser
-from messages import print_and_log
-from circus.shared.probes import read_probe
-from circus.shared.mpi import comm
-from circus.files import __supported_data_files__
+from circusort.utils.messages import print_and_log
+from circusort.params.probes import read_probe
+from circusort.utils.mpi import comm
+from circusort.files import __supported_data_files__
 
 import os, sys, copy, numpy, logging
 
@@ -44,29 +44,7 @@ class CircusParser(object):
                           ['clustering', 'cc_merge', 'float', '0.975'],
                           ['clustering', 'extraction', 'string', 'median-raw'],
                           ['clustering', 'remove_mixture', 'bool', 'True'],
-                          ['clustering', 'dispersion', 'string', '(5, 5)'],
-                          ['extracting', 'cc_merge', 'float', '0.95'],
-                          ['extracting', 'noise_thr', 'float', '1.'],
-                          ['merging', 'cc_overlap', 'float', '0.5'],
-                          ['merging', 'cc_bin', 'float', '2'],
-                          ['merging', 'correct_lag', 'bool', 'False'],
-                          ['converting', 'export_pcs', 'string', 'prompt'],
-                          ['converting', 'erase_all', 'bool', 'True'],
-                          ['converting', 'export_all', 'bool', 'False'],
-                          ['converting', 'sparse_export', 'bool', 'False'],
-                          ['validating', 'nearest_elec', 'string', 'auto'],
-                          ['validating', 'max_iter', 'int', '200'],
-                          ['validating', 'learning_rate', 'float', '1.0e-3'],
-                          ['validating', 'roc_sampling', 'int', '10'],
-                          ['validating', 'make_plots', 'string', 'png'],
-                          ['validating', 'test_size', 'float', '0.3'],
-                          ['validating', 'radius_factor', 'float', '0.5'],
-                          ['validating', 'juxta_dtype', 'string', 'uint16'],
-                          ['validating', 'juxta_thresh', 'float', '6.0'],
-                          ['validating', 'juxta_valley', 'bool', 'False'],
-                          ['validating', 'matching_jitter', 'float', '2.0'],
-                          ['noedits', 'median_done', 'bool', 'False'],
-                          ['noedits', 'artefacts_done', 'bool', 'False']]
+                          ['clustering', 'dispersion', 'string', '(5, 5)']]
 
     __extra_values__ = [['fitting', 'space_explo', 'float', '0.5'],
                         ['fitting', 'nb_chances', 'int', '3'],

@@ -1,6 +1,6 @@
 import numpy, os, sys, logging
-from messages import print_and_log
-from mpi import comm
+from circusort.utils.messages import print_and_log
+from circusort.utils.mpi import comm
 
 logger = logging.getLogger(__name__)
 

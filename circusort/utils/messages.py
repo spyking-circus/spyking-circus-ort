@@ -1,5 +1,5 @@
 from colorama import Fore
-import sys, os, logging
+import sys, os, logging, tqdm
 
 def get_header():
 
@@ -42,6 +42,9 @@ def init_logging(logfile, debug=True, level=None):
                         filemode='a')
     return logging.getLogger("circus")
 
+def get_tqdm_progressbar(iterator):
+    sys.stderr.flush()
+    return tqdm.tqdm(iterator, bar_format='{desc}{percentage:3.0f}%|{bar}|[{elapsed}<{remaining}, {rate_fmt}]'  , ncols=72)
 
 def write_to_logger(logger, to_write, level='info'):
     for line in to_write:

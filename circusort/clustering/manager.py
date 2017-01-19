@@ -1,5 +1,7 @@
 import numpy
 
+logger = logging.getLogger(__name__)
+
 class OnlineClusteringManager(object):
 
     def __init__(self, datastream, decay_time=0.35, mu=4, nb_init=10000, sim_same_elec=3, verbose=False, radius=3, snapshot=200, display=True, t_stop=numpy.inf):
