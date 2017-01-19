@@ -249,9 +249,12 @@ class OnlineClusteringManager(object):
         if self.verbose:
             print "Time gap reached, time to clean clusters..."
 
-        for cluster in self.all_clusters:
-            if cluster.density < self.D_thred:
-                cluster.set_label('sparse')
+        to_remove = []
+        
+        for cluster in self.dense_clusters:
+            #if cluster.density < self.D_thred:
+            #    cluster.set_label('sparse')
+            to_remove += [cluster]
 
         to_remove = []
         for cluster in self.sparse_clusters:

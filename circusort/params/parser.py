@@ -10,9 +10,8 @@ logger = logging.getLogger(__name__)
 
 class CircusParser(object):
 
-    __all_sections__ = ['data', 'whitening', 'extracting', 'clustering', 
-                       'fitting', 'filtering', 'merging', 'noedits', 'triggers', 
-                       'detection', 'validating', 'converting']
+    __all_sections__ = ['data', 'whitening', 'clustering', 
+                       'fitting', 'filtering', 'detection']
 
     __default_values__ = [['fitting', 'amp_auto', 'bool', 'True'], 
                           ['fitting', 'refractory', 'float', '0.5'],
@@ -26,10 +25,6 @@ class CircusParser(object):
                           ['detection', 'matched_thresh', 'float', '5'],
                           ['detection', 'peaks', 'string', 'negative'],
                           ['detection', 'spike_thresh', 'float', '6'],
-                          ['triggers', 'clean_artefact', 'bool', 'False'],
-                          ['triggers', 'make_plots', 'string', 'png'],
-                          ['triggers', 'trig_file', 'string', ''],
-                          ['triggers', 'trig_windows', 'string', ''],
                           ['whitening', 'chunk_size', 'int', '30'],
                           ['filtering', 'remove_median', 'bool', 'False'],
                           ['clustering', 'max_clusters', 'int', '10'],
