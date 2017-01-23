@@ -156,7 +156,7 @@ class SyntheticGrid(object):
         self.dtype = 'float32'
         self.inter_electrode_distance = 5.0e-5
         self.duration = duration
-        self.length = int(duration * sampling_rate) + 1
+        self.length = int(duration * sampling_rate)
         self.sampling_rate = sampling_rate
         self.mu = 0.0 # V # noise mean
         self.sigma = 1.0e-3 # V # noise standard deviation
@@ -408,6 +408,7 @@ class SyntheticGrid(object):
         header.set('header', 'dtype', self.dtype)
         header.set('header', 'length', self.length)
         header.set('header', 'nb_channels', self.nb_channels)
+        header.set('header', 'duration', self.duration)
         header.set('header', 'sampling_rate', self.sampling_rate)
         header.write(header_stream)
         header_stream.close()
