@@ -3,6 +3,11 @@ import os.path
 
 
 
+def load(path):
+    data = raw_binary(path)
+    return data
+
+
 class RawBinary(object):
     '''TODO add doc...'''
 

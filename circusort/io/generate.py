@@ -6,6 +6,12 @@ from . import load
 
 
 
+def default(path):
+    syn_grid = synthetic_grid(path)
+    return
+
+
+
 class Synthetic(object):
     '''TODO add doc...'''
 
