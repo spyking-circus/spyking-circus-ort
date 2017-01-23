@@ -8,7 +8,7 @@ force = True
 if not circusort.io.isdata(path) or force:
     # Generate data if necessary
     print("Generate data at '{}'...".format(path))
-    circusort.io.generate.default(path)
+    circusort.io.generate.default(path, visualization=True)
     print("Done.")
 
 # Load data

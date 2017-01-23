@@ -8,8 +8,8 @@ from .utils import *
 
 
 
-def default(path):
-    syn_grid = synthetic_grid(path)
+def default(path, visualization=False):
+    syn_grid = synthetic_grid(path, visualization=visualization)
     return
 
 
@@ -414,11 +414,36 @@ class SyntheticGrid(object):
         header_stream.close()
         return
 
+    def save_visualization(self):
+        '''TODO add docstring...'''
+        # Save visualization files
+        ## Create visualization directory if necessary
+        make_local_directory(self.path)
+        ## Save visualization of the spatial configuration
+        spatial_configuration_path = get_spatial_configuration_path(self.path)
+        self.plot_spatial_configuration()
+        plt.savefig(spatial_configuration_path)
+        plt.close()
+        ## Save visualization of the temporal configuration
+        temporal_configuration_path = get_temporal_configuration_path(self.path)
+        self.plot_temporal_configuration()
+        plt.savefig(temporal_configuration_path)
+        plt.close()
+        ## Save visualization of the waveforms
+        waveforms_path = get_waveforms_path(self.path)
+        self.plot_waveforms()
+        plt.savefig(waveforms_path)
+        plt.close()
+        return
 
-def synthetic_grid(path, size=2, duration=60.0, sampling_rate=20000.0):
+
+def synthetic_grid(path, size=2, duration=60.0, sampling_rate=20000.0, visualization=False):
     '''TODO add doc...'''
     path = os.path.expanduser(path)
     syn_grid = SyntheticGrid(path, size, duration, sampling_rate)
-    syn_grid.plot()
     syn_grid.save()
+    if visualization:
+        syn_grid.save_visualization()
+    else:
+        pass
     return syn_grid
