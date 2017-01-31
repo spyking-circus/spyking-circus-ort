@@ -2,14 +2,14 @@ import zmq
 
 
 
-def spawn_server():
+def spawn_server(interface, port=5556):
     '''TODO add doctring...'''
-    port = "5556"
+    protocol = "tcp"
 
     context = zmq.Context()
 
     socket = context.socket(zmq.PAIR)
-    socket.bind("tcp://*:{}".format(port))
+    socket.bind("{}://{}:{}".format(protocol, interface, port))
 
     while True:
         message = "Hello world!"

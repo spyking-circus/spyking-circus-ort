@@ -2,18 +2,16 @@ import zmq
 
 
 
-def spawn_client():
+def spawn_client(port=5556):
     '''TODO add docstring...'''
-    port = "5556"
-
     context = zmq.Context()
 
     socket = context.socket(zmq.PAIR)
-    socket.connect("tcp://localhost:%s" % port)
+    socket.connect("tcp://localhost:{}".format(port))
 
     while True:
-        msg = socket.recv()
-        print("message: {}".format(msg))
+        messsage = socket.recv()
+        print("message: {}".format(message))
         socket.send("client message to server1")
         socket.send("client message to server2")
         time.sleep(1)
