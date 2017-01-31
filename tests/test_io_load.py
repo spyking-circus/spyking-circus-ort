@@ -3,7 +3,7 @@ import circusort
 
 
 path = "/data/tmp/test.raw"
-force = True
+force = False
 
 if not circusort.io.isdata(path) or force:
     # Generate data if necessary
@@ -15,3 +15,13 @@ if not circusort.io.isdata(path) or force:
 print("Load data from '{}'...".format(path))
 data = circusort.io.load(path)
 print("Done.".format(path))
+
+
+circusort.plot.traces(data)
+
+# import matplotlib.pyplot as plt
+#
+# plt.figure()
+# for k in range(0, data.shape[1]):
+#     plt.plot(data[:, k] + 0.03 * float(k))
+# plt.show()
