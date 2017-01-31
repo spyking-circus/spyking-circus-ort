@@ -2,12 +2,15 @@ import zmq
 
 
 
-def spawn_client(port=5556):
+def spawn_client(interface, port):
     '''TODO add docstring...'''
+    protocol = "tcp"
+    address = "{}://{}:{}".format(protocol, interface, port)
+
     context = zmq.Context()
 
     socket = context.socket(zmq.PAIR)
-    socket.connect("tcp://localhost:{}".format(port))
+    socket.connect("{}://{}:{}".format(protocol, interface, port))
 
     while True:
         messsage = socket.recv()

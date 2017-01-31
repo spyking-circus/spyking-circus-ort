@@ -9,10 +9,10 @@ def load_configuration():
     '''TODO add docstring...'''
     path = CONFIGURATION_PATH
     path = os.path.expanduser(path)
-    if not os.path.exists(path):
-        config = Configuration()
-    else:
+    if os.path.exists(path):
         config = Configuration(path=path)
+    else:
+        config = Configuration()
     return config
 
 def create():
@@ -108,6 +108,11 @@ class Configuration(object):
             self.path = path
             self.parser = configparser.ConfigParser()
             self.parser.read(self.path)
+            for section_key in self.parser.sections():
+                section_value = self.parser.items(section_key)
+                section_value = dict(section_value)
+                section_value = ConfigurationSection(section_value)
+            setattr(self, section_key, section_value)
 
     def list_sections(self):
         sections_list = self.__default_settings__.keys()
