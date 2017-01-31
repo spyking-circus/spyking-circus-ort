@@ -13,7 +13,7 @@ def spawn_client(interface, port):
     socket.connect("{}://{}:{}".format(protocol, interface, port))
 
     while True:
-        messsage = socket.recv()
+        message = socket.recv()
         print("message: {}".format(message))
         socket.send("client message to server1")
         socket.send("client message to server2")
