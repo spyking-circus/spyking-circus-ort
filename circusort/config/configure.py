@@ -1,6 +1,8 @@
 import os
 import logging
+import sys
 import ConfigParser as configparser
+from circusort.config.probe import Probe
 
 logger = logging.getLogger(__name__)
 
@@ -102,12 +104,18 @@ class Configuration(object):
         }
     }
 
+    __special_objects__ = {
+        'data' : {'mapping' : Probe}
+    }
+
     def __init__(self, filename=None):
         for section_key, section_value in self.__default_settings__.items():
             section_value = ConfigurationSection(section_value)
             setattr(self, section_key, section_value)
         if filename is not None:
-            self.path = os.path.abspath(filename)
+            self.path = os.path.abspath(os.path.expanduser(filename))
+            if not os.path.exists(self.path):
+                logger.error("%s does not exist" %self.path)
             self.parser = configparser.ConfigParser()
             self.parser.read(self.path)
             for section_key in self.parser.sections():
@@ -115,6 +123,12 @@ class Configuration(object):
                 section_value = dict(section_value)
                 section_value = ConfigurationSection(section_value)
                 self.__default_settings__[section_key] = {}
+
+                if section_key in self.__special_objects__.keys():
+                    for key, value in self.__special_objects__[section_key].items():
+                        if key in section_value.options:
+                            setattr(section_value, key, self.__special_objects__[section_key][key](getattr(section_value, key))) 
+
                 setattr(self, section_key, section_value)
 
     @property
@@ -134,7 +148,7 @@ class Configuration(object):
 class ConfigurationSection(object):
     '''TODO add docstring...'''
     def __init__(self, section):
-        self.section = section
+        self._section = section
         for option_key, option_value in section.items():
             value    = option_value.split('#')[0].replace(' ', '').replace('\t', '')
             if value.lower() in ['true', 'false']:
@@ -148,10 +162,10 @@ class ConfigurationSection(object):
 
     @property
     def options(self):
-        options_list = self.section.keys()
+        options_list = self._section.keys()
         return options_list
 
     @property
     def values(self):
-        options_list = dict([(option_key, getattr(self, option_key)) for option_key in self.options])
-        return options_list
+        values_list = dict([(option_key, getattr(self, option_key)) for option_key in self.options])
+        return values_list
