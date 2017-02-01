@@ -102,12 +102,12 @@ class Configuration(object):
         }
     }
 
-    def __init__(self, path=None):
+    def __init__(self, filename=None):
         for section_key, section_value in self.__default_settings__.items():
             section_value = ConfigurationSection(section_value)
             setattr(self, section_key, section_value)
-        if path is not None:
-            self.path = path
+        if filename is not None:
+            self.path = os.path.abspath(filename)
             self.parser = configparser.ConfigParser()
             self.parser.read(self.path)
             for section_key in self.parser.sections():
@@ -117,24 +117,41 @@ class Configuration(object):
                 self.__default_settings__[section_key] = {}
                 setattr(self, section_key, section_value)
 
-    def list_sections(self):
-        sections_list = self.__default_settings__.keys()
-        return sections_list
+    @property
+    def sections(self):
+        return self.__default_settings__.keys()
 
-    def list_options(self):
-        sections_list = self.list_sections()
-        options_list = [(section_key, getattr(self, section_key).list_options()) for section_key in sections_list]
-        options_list = dict(options_list)
+    @property
+    def options(self):
+        options_list  = dict([(section_key, getattr(self, section_key).options) for section_key in self.sections])
         return options_list
 
+    @property
+    def values(self):
+        values_list  = dict([(section_key, getattr(self, section_key).values) for section_key in self.sections])
+        return values_list
 
 class ConfigurationSection(object):
     '''TODO add docstring...'''
     def __init__(self, section):
         self.section = section
         for option_key, option_value in section.items():
-            setattr(self, option_key, option_value.split('#')[0].replace(' ', '').replace('\t', ''))
+            value    = option_value.split('#')[0].replace(' ', '').replace('\t', '')
+            if value.lower() in ['true', 'false']:
+                value = bool(value)
+            else:
+                try:
+                    value = float(value)
+                except Exception:
+                    pass
+            setattr(self, option_key, value)
 
-    def list_options(self):
+    @property
+    def options(self):
         options_list = self.section.keys()
+        return options_list
+
+    @property
+    def values(self):
+        options_list = dict([(option_key, getattr(self, option_key)) for option_key in self.options])
         return options_list
