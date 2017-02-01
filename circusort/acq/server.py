@@ -72,7 +72,7 @@ class DataServerNode(Node):
         '''TODO add docstring...'''
         self.address = "{}://{}:{}".format(self.protocol, self.interface, self.port)
         context = zmq.Context()
-        socket  = context.socket(zmq.PAIR)
+        socket  = context.socket(zmq.PUB)
         socket.bind(self.address)
 
         logger.debug("Server's socket Send data on network port:\n  {}".format(self.address))
@@ -83,7 +83,7 @@ class DataServerNode(Node):
             socket.send(message)
             #message = socket.recv()
             #print("message: {}".format(message))
-            #time.sleep(1)
+            time.sleep(1)
 
     def set_data_source(self, source):
         assert isinstance(source, DataSource), "source should be a DataSource object"

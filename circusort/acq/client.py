@@ -18,7 +18,8 @@ class DataReceiverNode(Node):
         '''TODO add docstring...'''
         self.address = "{}://{}:{}".format(self.protocol, self.interface, self.port)
         context = zmq.Context()
-        socket  = context.socket(zmq.PAIR)
+        socket  = context.socket(zmq.SUB)
+        socket.setsockopt(zmq.SUBSCRIBE, '')
         socket.connect(self.address)
 
         logger.debug("Client socket listens on network port:\n  {}".format(self.address))
