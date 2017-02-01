@@ -153,8 +153,8 @@ class Configuration(object):
     @property
     def nb_channels(self):
         N_e = 0
-        for key in self.data.mapping['channel_groups'].keys():
-            N_e += len(self.data.mapping['channel_groups'][key]['channels'])
+        for key in self.data.mapping.channel_groups.keys():
+            N_e += len(self.data.mapping.channel_groups[key]['channels'])
 
         return N_e    
 

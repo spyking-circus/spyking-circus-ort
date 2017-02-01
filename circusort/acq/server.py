@@ -10,7 +10,7 @@ class DataSource(object):
 
     def __init__(self, config):
         self.config      = config
-        self.buffer      = int(self.config.acquisition.buffer_size)
+        self.buffer      = int(self.config.acquisition.buffer)
         self.nb_channels = self.config.nb_channels 
         self._time       = 0
 
@@ -29,7 +29,7 @@ class RNGSource(DataSource):
         DataSource.__init__(self, config)
 
     def _get_buffer(self):
-        return numpy.random.randn((self.nb_channels, self.buffer), dtype=numpy.float32)
+        return numpy.random.randn(self.nb_channels, self.buffer).astype(numpy.float32)
 
 
 class FileSource(DataSource):
@@ -78,8 +78,8 @@ class DataServerNode(Node):
         logger.debug("Server's socket Send data on network port:\n  {}".format(self.address))
 
         while True:
-            message = "Hello world!"
-            #message = self.source.get_next_buffer()
+            #message = "Hello world!"
+            message = self.source.get_next_buffer()
             socket.send(message)
             #message = socket.recv()
             #print("message: {}".format(message))
