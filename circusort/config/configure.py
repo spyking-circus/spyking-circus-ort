@@ -102,8 +102,10 @@ class Configuration(object):
         'acquisition': {
             'server_ip' : "127.0.1.1",
             'port'      : '5557',
-            'protocol'  : 'tcp',
-            'buffer'    : '1024'
+            'protocol'  : 'tcp', #Could be ipc if on the same machine
+            'buffer'    : '1024',
+            'file'      : 'tmp.dat',
+            'data_dtype': 'float32'
         }
     }
 
@@ -147,6 +149,14 @@ class Configuration(object):
     def values(self):
         values_list  = dict([(section_key, getattr(self, section_key).values) for section_key in self.sections])
         return values_list
+
+    @property
+    def nb_channels(self):
+        N_e = 0
+        for key in self.data.mapping['channel_groups'].keys():
+            N_e += len(self.data.mapping['channel_groups'][key]['channels'])
+
+        return N_e    
 
 class ConfigurationSection(object):
     '''TODO add docstring...'''

@@ -26,4 +26,4 @@ class DataReceiverNode(Node):
         while True:
             message = socket.recv()
             print("message: {}".format(message))
-            socket.send("client message to server1")
+            #socket.send("client message to server1")
