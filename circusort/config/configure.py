@@ -100,7 +100,10 @@ class Configuration(object):
     '''TODO add docstring...'''
     __default_settings__ = {
         'acquisition': {
-            'server_interface': "*"
+            'server_ip' : "127.0.1.1",
+            'port'      : '5557',
+            'protocol'  : 'tcp',
+            'buffer'    : '1024'
         }
     }
 

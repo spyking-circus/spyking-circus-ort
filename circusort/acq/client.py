@@ -1,23 +1,29 @@
 import time
 import zmq
+import logging
+from circusort.nodes.nodes import Node
+
+logger = logging.getLogger(__name__)
 
 
+class DataReceiverNode(Node):
 
-def spawn_client(interface, port):
-    '''TODO add docstring...'''
-    protocol = "tcp"
-    address = "{}://{}:{}".format(protocol, interface, port)
+    def __init__(self, config):
+        Node.__init__(self, config, name="data_receiver")
+        self.interface = self.config.acquisition.server_ip
+        self.port      = self.config.acquisition.port
+        self.protocol  = self.config.acquisition.protocol
 
-    context = zmq.Context()
+    def _start(self):
+        '''TODO add docstring...'''
+        self.address = "{}://{}:{}".format(self.protocol, self.interface, self.port)
+        context = zmq.Context()
+        socket  = context.socket(zmq.PAIR)
+        socket.connect(self.address)
 
-    socket = context.socket(zmq.PAIR)
-    socket.connect("{}://{}:{}".format(protocol, interface, port))
+        logger.debug("Client socket listens on network port:\n  {}".format(self.address))
 
-    while True:
-        message = socket.recv()
-        print("message: {}".format(message))
-        socket.send("client message to server1")
-        socket.send("client message to server2")
-        time.sleep(1)
-
-    return
+        while True:
+            message = socket.recv()
+            print("message: {}".format(message))
+            socket.send("client message to server1")
