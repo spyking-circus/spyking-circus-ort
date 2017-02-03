@@ -6,6 +6,8 @@ import time
 import zmq
 
 from .io import load_configuration
+from .io.configure import CONFIGURATION_PATH
+from .io.configure import add, remove_option, remove_section, delete
 
 
 PID_FILE_PATH = "~/.spyking-circus-ort/spyking-circus-ort.pid"
@@ -34,7 +36,7 @@ class Deamon(object):
         if os.path.isfile(self.pid_file_path):
             raise Exception("Failed to start, looks like the deamon is already running.")
         else:
-            pid = self.fork()
+            pid = os.fork()
             if pid == 0: # Child process (i.e. deamon process)
                 if not os.path.exists(self.directory_path):
                     os.makedirs(self.directory_path)
@@ -47,11 +49,6 @@ class Deamon(object):
             else: # Parent process
                 time.sleep(1.0)
                 return
-
-    def fork(self):
-        '''Forks the process'''
-        pid = os.fork()
-        return pid
 
     def run(self):
         '''Run the deamon'''
@@ -69,7 +66,7 @@ class Deamon(object):
         return
 
     def stop(self):
-        '''Stop deamon'''
+        '''Stop the deamon'''
         context = zmq.Context()
         socket = context.socket(zmq.REQ)
         socket.connect(self.address)
@@ -95,6 +92,45 @@ def main_deamon_stop(args):
     print("Done.")
     return
 
+def main_configure_file(args):
+    path = os.path.expanduser(CONFIGURATION_PATH)
+    print(path)
+    return
+
+def main_configure_show(args):
+    config = load_configuration()
+    if args.section is None:
+        print(config)
+    else:
+        if hasattr(config, args.section):
+            section = getattr(config, args.section)
+            if args.option is None:
+                print(section)
+            else:
+                if hasattr(section, args.option):
+                    option = getattr(section, args.option)
+                    print(option)
+                else:
+                    pass
+        else:
+            pass
+    return
+
+def main_configure_set(args):
+    add(args.section, args.option, args.value)
+    return
+
+def main_configure_remove(args):
+    if args.section is None:
+        remove()
+    else:
+        if args.option is None:
+            remove_section(args.section)
+        else:
+            remove_option(args.section, args.option)
+    return
+
+
 def main():
 
     prog = "spyking-circus-ort"
@@ -102,6 +138,7 @@ def main():
     help_deamon = "help deamon"
     help_deamon_start = "help deamon start"
     help_deamon_stop = "help deamon stop"
+    help_configure = "help configure"
 
     parser = argparse.ArgumentParser(prog=prog)
 
@@ -113,6 +150,28 @@ def main():
     parser_deamon_start.set_defaults(main=main_deamon_start)
     parser_deamon_stop = subparsers_deamon.add_parser('stop', help=help_deamon_stop)
     parser_deamon_stop.set_defaults(main=main_deamon_stop)
+
+    parser_configure = subparsers.add_parser('configure', help=help_configure)
+    subparsers_configure = parser_configure.add_subparsers()
+    parser_configure_file = subparsers_configure.add_parser('file')
+    parser_configure_file.set_defaults(main=main_configure_file)
+    parser_configure_show = subparsers_configure.add_parser('show')
+    parser_configure_show.add_argument('section', nargs='?')
+    parser_configure_show.add_argument('option', nargs='?')
+    parser_configure_show.set_defaults(main=main_configure_show)
+    parser_configure_set = subparsers_configure.add_parser('set')
+    parser_configure_set.add_argument('section')
+    parser_configure_set.add_argument('option')
+    parser_configure_set.add_argument('value')
+    parser_configure_set.set_defaults(main=main_configure_set)
+    parser_configure_remove = subparsers_configure.add_parser('remove')
+    parser_configure_remove.add_argument('section', nargs='?')
+    parser_configure_remove.add_argument('option', nargs='?')
+    parser_configure_remove.set_defaults(main=main_configure_remove)
+    # TODO: complete...
+    # show [section [option]]
+    # set section option value
+    # remove [section [option]]
 
     args = parser.parse_args()
 

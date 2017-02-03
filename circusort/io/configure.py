@@ -97,6 +97,11 @@ class Configuration(object):
     __default_settings__ = {
         'acquisition': {
             'server_interface': "*"
+        },
+        'deamon': {
+            'protocol': None,
+            'interface': None,
+            'port': None
         }
     }
 
@@ -113,6 +118,11 @@ class Configuration(object):
                 section_value = dict(section_value)
                 section_value = ConfigurationSection(section_value)
             setattr(self, section_key, section_value)
+
+    def __repr__(self):
+        l = ["[{}]\n{}".format(key, getattr(self, key)) for key in self.__default_settings__.keys()]
+        s = '\n\n'.join(l)
+        return s
 
     def list_sections(self):
         sections_list = self.__default_settings__.keys()
@@ -131,6 +141,11 @@ class ConfigurationSection(object):
         self.section = section
         for option_key, option_value in section.items():
             setattr(self, option_key, option_value)
+
+    def __repr__(self):
+        l = ["{} = {}".format(key, value) for key, value in self.section.items()]
+        s = '\n'.join(l)
+        return s
 
     def list_options(self):
         options_list = self.section.keys()
