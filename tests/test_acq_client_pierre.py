@@ -18,4 +18,3 @@ if (socket.gethostbyname(socket.gethostname()) == config.acquisition.server_ip):
 #    pass
 #Here we are also listening on the same machine
 receiver.run()
-

@@ -6,4 +6,6 @@ config = circusort.io.load_configuration()
 interface = config.acquisition.interface
 port = config.acquisition.port
 
-circusort.acq.spawn_server(interface, port)
+# circusort.acq.spawn_server(interface, port)
+server = circusort.acq.DataServerNode(config)
+server.run()

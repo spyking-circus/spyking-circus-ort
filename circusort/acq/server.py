@@ -11,7 +11,7 @@ class DataSource(object):
     def __init__(self, config):
         self.config      = config
         self.buffer      = int(self.config.acquisition.buffer)
-        self.nb_channels = self.config.nb_channels 
+        self.nb_channels = self.config.nb_channels
         self._time       = 0
 
     def get_next_buffer(self):
@@ -41,7 +41,7 @@ class FileSource(DataSource):
         self._offset    = 0
 
     def _get_buffer(self):
-        return 
+        return
 
     def __del__(self):
         self.file.close()

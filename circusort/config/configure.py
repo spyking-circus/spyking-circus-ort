@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 CONFIGURATION_PATH = "~/.config/spyking-circus-ort/base.conf"
 
-def load_configuration():
+def load():
     '''TODO add docstring...'''
     path = CONFIGURATION_PATH
     path = os.path.expanduser(path)
@@ -110,7 +110,9 @@ class Configuration(object):
     }
 
     __special_objects__ = {
-        'data' : {'mapping' : Probe}
+        'data' : {
+            'mapping' : Probe
+        }
     }
 
     def __init__(self, filename=None):
@@ -132,7 +134,7 @@ class Configuration(object):
                 if section_key in self.__special_objects__.keys():
                     for key, value in self.__special_objects__[section_key].items():
                         if key in section_value.options:
-                            setattr(section_value, key, self.__special_objects__[section_key][key](getattr(section_value, key))) 
+                            setattr(section_value, key, self.__special_objects__[section_key][key](getattr(section_value, key)))
 
                 setattr(self, section_key, section_value)
 
@@ -156,7 +158,7 @@ class Configuration(object):
         for key in self.data.mapping.channel_groups.keys():
             N_e += len(self.data.mapping.channel_groups[key]['channels'])
 
-        return N_e    
+        return N_e
 
 class ConfigurationSection(object):
     '''TODO add docstring...'''
