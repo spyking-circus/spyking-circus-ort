@@ -5,15 +5,23 @@ import sys
 import time
 import zmq
 
-from .io import load_configuration
-from .io.configure import CONFIGURATION_PATH
-from .io.configure import add, remove_option, remove_section, delete
+from circusort.io import load_configuration
+from circusort.io.configure import CONFIGURATION_PATH
+from circusort.io.configure import add, remove_option, remove_section, delete
+
+from .director import Director
 
 
 PID_FILE_PATH = "~/.spyking-circus-ort/spyking-circus-ort.pid"
 
 ACKNOWLEDGEMENT = b"acknowledgement"
 STOP = b"stop"
+
+
+def create_director():
+    director = Director()
+    return director
+
 
 class Deamon(object):
     '''Deamon class'''
@@ -178,3 +186,7 @@ def main():
     args.main(args)
 
     return
+
+
+if __name__ == '__main__':
+    main()

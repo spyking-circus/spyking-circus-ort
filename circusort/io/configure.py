@@ -1,9 +1,16 @@
 import os
 import ConfigParser as configparser
+import re
 
 
 
-CONFIGURATION_PATH = "~/.config/spyking-circus-ort/base.conf"
+# CONFIGURATION_PATH = "~/.config/spyking-circus-ort/base.conf"
+# CONFIGURATION_PATH = "~/.config/spyking-circus-ort/hosts.conf"
+CONFIGURATION_PATH = "~/.config/spyking-circus-ort"
+CONFIGURATION_FILES = {
+    'base': "base.conf",
+    'hosts': "hosts.conf",
+}
 
 def load_configuration():
     '''TODO add docstring...'''
@@ -92,6 +99,38 @@ def delete():
     return
 
 
+
+class Host(object):
+    '''TODO add docstring...'''
+    def __init__(self, host):
+        if '@' in host:
+            host = host.split('@')
+            self.name = host[1]
+            self.username = host[0]
+        else:
+            self.name = host
+            self.username = None
+
+    def __repr__(self):
+        fmt = "Host (name: {}, username: {})"
+        return fmt.format(self.name, self.username)
+
+class HostsParser(object):
+    '''TODO add doctring...'''
+    def __init__(self):
+        self.parameters = dict()
+
+    def read(self, path):
+        self.path = path
+        f = open(self.path, mode='r')
+        text = f.read()
+        pattern = re.compile('\S+') # \S matches any non-whitspace character
+        hosts = pattern.findall(text)
+        f.close()
+        hosts = [Host(host) for host in hosts]
+        self.parameters['hosts'] = hosts
+        return
+
 class Configuration(object):
     '''TODO add docstring...'''
     __default_settings__ = {
@@ -111,13 +150,20 @@ class Configuration(object):
             setattr(self, section_key, section_value)
         if path is not None:
             self.path = path
+            # Parse base configuration
             self.parser = configparser.ConfigParser()
-            self.parser.read(self.path)
+            base_path = os.path.join(self.path, CONFIGURATION_FILES['base'])
+            self.parser.read(base_path)
             for section_key in self.parser.sections():
                 section_value = self.parser.items(section_key)
                 section_value = dict(section_value)
                 section_value = ConfigurationSection(section_value)
             setattr(self, section_key, section_value)
+            # Parser hosts configuration
+            hosts_parser = HostsParser()
+            hosts_path = os.path.join(self.path, CONFIGURATION_FILES['hosts'])
+            hosts_parser.read(hosts_path)
+            self.update(hosts_parser.parameters)
 
     def __repr__(self):
         l = ["[{}]\n{}".format(key, getattr(self, key)) for key in self.__default_settings__.keys()]
@@ -133,6 +179,13 @@ class Configuration(object):
         options_list = [(section_key, getattr(self, section_key).list_options()) for section_key in sections_list]
         options_list = dict(options_list)
         return options_list
+
+    def update(self, parameters):
+        for key, value in parameters.iteritems():
+            if isinstance(value, dict):
+                value = ConfigurationSection(value)
+            setattr(self, key, value)
+        return
 
 
 class ConfigurationSection(object):
