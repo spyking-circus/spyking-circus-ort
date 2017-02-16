@@ -50,6 +50,7 @@ class Manager(object):
             self.client = None
         else: # create new process remotely
             # 1. create temporary socket
+            print("Create temporary socket...")
             tmp_interface = utils.find_ethernet_interface()
             tmp_address = 'tcp://{}:*'.format(tmp_interface)
             tmp_context = zmq.Context.instance()
@@ -60,18 +61,20 @@ class Manager(object):
             tmp_address = tmp_socket.getsockopt(zmq.LAST_ENDPOINT)
             tmp_port = utils.extract_port(tmp_address)
             # 2. spawn manager remotely
+            print("Spawn manager remotely...")
             command = ['/usr/bin/python']
             command += ['-m', 'circusort.cli.manager']
             command += ['-i', tmp_interface]
             command += ['-p', tmp_port]
             command = ' '.join(command)
             configuration = load_configuration()
+            print("Create SSH connection...")
             ssh_client = paramiko.SSHClient() # basic interface to instantiate server connections and file transfers
             ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy()) # auto-accept inbound host keys
             ssh_client.connect(self.interface, username=configuration.ssh.username) # connect to the local SSH server
             _, stdout, stderr = ssh_client.exec_command(command) # run command
-            print(stdout.readlines())
-            print(stderr.readlines())
+            # print(stdout.readlines())
+            # print(stderr.readlines())
             # TODO create manager client
             self.client = None
         self.workers = {}

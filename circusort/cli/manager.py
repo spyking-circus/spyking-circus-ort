@@ -17,9 +17,11 @@ from circusort.manager import Manager
 
 def main(arguments):
     # Load configuration options
-    message = sys.stdin.read()
-    configuration = json.loads(message)
-    configuration.update(arguments)
+    # TODO remove 3 following lines...
+    # message = sys.stdin.read()
+    # configuration = json.loads(message)
+    # configuration.update(arguments)
+    configuration = arguments
     interface = configuration['interface']
     port = configuration['port']
     # Save configuration to file
@@ -56,8 +58,8 @@ def main(arguments):
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('-i', '--interface')
-    parser.add_argument('-p', '--port')
+    parser.add_argument('-i', '--interface', required=True)
+    parser.add_argument('-p', '--port', required=True)
 
     args = parser.parse_args()
     args = vars(args)
