@@ -13,13 +13,12 @@ class ReaderProcess(Process):
     def __init__(self, path):
         super(ReaderProcess, self).__init__()
         self.path = path
-        self.address = "tcp://*:4242"
 
     def bind(self):
         print("Reader.bind...")
         self.context = zmq.Context()
         self.output = self.context.socket(zmq.PUSH)
-        self.output.bind(self.address)
+        self.output.bind("tcp://*:4242")
         sleep(1.0)
         return
 
@@ -27,7 +26,7 @@ class ReaderProcess(Process):
         print("Reader.connect...")
         # Create file if necessary
         if not os.path.isfile(self.path):
-            size = 1000
+            size = 10000
             a = 256.0 * numpy.random.rand(size)
             a = a.astype('uint8')
             a.tofile(self.path)
@@ -79,7 +78,8 @@ class ReaderProcess(Process):
 
 class Reader(object):
 
-    def __init__(self):
+    def __init__(self, manager):
+        self.manager = manager
         self.output = Receptacle()
 
     def configure(self, path=None):
@@ -92,13 +92,20 @@ class Reader(object):
 
     def initialize(self):
         self.process = ReaderProcess(self.path)
+        self.process.start()
+        self.manager.check_worker(self)
+        self.manager.send(self, 'bind')
+        self.manager.send(self, 'connect')
         return
 
     def start(self):
-        self.process.start()
+        self.manager.send(self, 'begin')
         return
 
     def stop(self):
         self.process.terminate()
         self.process.join()
+        self.manager.send(self, 'stop')
+        self.manager.send(self, 'disconnect')
+        self.manager.send(self, 'unbind')
         return

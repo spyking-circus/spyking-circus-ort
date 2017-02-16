@@ -1,4 +1,5 @@
-##### Local version
+import sys
+
 import circusort
 
 
@@ -7,6 +8,8 @@ director = circusort.create_director()
 manager = director.create_manager()
 # or
 # manager = director.create_manager(address='local')
+
+sys.exit(0)
 
 reader = manager.create_reader()
 computer = manager.create_computer()

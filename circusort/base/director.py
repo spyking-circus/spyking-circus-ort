@@ -1,6 +1,7 @@
 import time
 
 from .manager import Manager
+from .process import Process
 
 
 
@@ -13,12 +14,21 @@ class Director(object):
     def nb_managers(self):
         return len(self.managers)
 
-    def create_manager(self, address=None):
-        if address is None:
-            manager = Manager()
-        else:
-            # TODO create manager proxy/client...
-            raise NotImplementedError()
+    def create_manager(self, interface=None):
+        '''Create a new manager process and return a proxy to this process.
+
+        A manager is a process that manages workers.
+        '''
+        # TODO check if address is local or not...
+        # 1. local -> create new process locally (if necessary)            [cli]
+        # 2. network -> create new process remotely (if necessary)   [ssh + cli]
+
+        # TODO remove code attempt...
+        # process = Process(address=address)
+        # module = process.client._import('circusort.base.manager')
+        # manager = module.Manager(director=self)
+
+        manager = Manager(interface=interface)
         self.register_manager(manager)
         return manager
 
