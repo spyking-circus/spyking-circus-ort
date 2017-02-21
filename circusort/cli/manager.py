@@ -36,14 +36,15 @@ def main(arguments):
     tmp_socket.connect(tmp_address)
     tmp_socket.linger = 1000
 
-    status = {
-        'address': '...'.decode(),
+    message = {
+        'kind': 'greetings',
+        'address': '...',
     }
     # Report status
     start = time.time()
     while time.time() < start + 10.0:
         # send status repeatedly until we receive a reply
-        tmp_socket.send_json(status)
+        tmp_socket.send_json(message)
         try:
             tmp_socket.recv(zmq.NOBLOCK)
             break

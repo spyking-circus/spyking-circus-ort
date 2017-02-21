@@ -49,7 +49,9 @@ class Director(object):
         return
 
     def sleep(self, duration=None):
+        print("Director start sleeping ({d} sec)...".format(d=duration))
         time.sleep(duration)
+        return
 
     def stop_all(self):
         for manager in self.managers.itervalues():
