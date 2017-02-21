@@ -49,9 +49,12 @@ def find_loopback_interface():
 
 def find_ethernet_interface():
     interfaces = find_interfaces()
-    del interfaces['lo']
-    key = random.choice(interfaces.keys())
-    return interfaces[key]
+    if 'eth0' in interfaces:
+        return interfaces['eth0']
+    elif 'enp0s25' in interfaces:
+        return interfaces['enp0s25']
+    else:
+        raise Exception("Can't find ethernet interfaces 'eth0' or 'enp0s25'.")
 
 
 def extract_port(address):

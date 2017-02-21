@@ -72,9 +72,12 @@ class Manager(object):
             ssh_client = paramiko.SSHClient() # basic interface to instantiate server connections and file transfers
             ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy()) # auto-accept inbound host keys
             ssh_client.connect(self.interface, username=configuration.ssh.username) # connect to the local SSH server
-            _, stdout, stderr = ssh_client.exec_command(command) # run command
-            # print(stdout.readlines())
-            # print(stderr.readlines())
+            ssh_client.exec_command(command) # run command
+            # 3. receive greetings from the manager process
+            message = tmp_socket.recv_json()
+            kind = message['kind']
+            assert(kind == 'greetings')
+            address = message['address']
             # TODO create manager client
             self.client = None
         self.workers = {}
