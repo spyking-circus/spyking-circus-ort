@@ -1,9 +1,13 @@
 import argparse
 import json
+from logging import DEBUG, INFO, WARN, ERROR, CRITICAL, Formatter, getLogger, Handler
+# from logging.handlers import SocketHandler
 from subprocess import Popen
 import sys
 import time
 import zmq
+from zmq import Context, PUB
+from zmq.log.handlers import PUBHandler
 
 from circusort.manager import Manager
 from circusort.base import utils
@@ -17,8 +21,82 @@ from circusort.base import utils
 #     parser.add_argument('-p', '--port', help='specify the port number')
 #     return parser
 
+class LogHandler(Handler):
+    '''A basic logging handler that emits log messages through a PUB socket.'''
+
+    def __init__(self, address):
+
+        Handler.__init__(self)
+
+        self.address = address
+
+        self.hostname = 'host'
+        # self.form = "%(message)s" # default formatter
+        # self.form = "%(levelname)s %(filename)s %(lineno)d: %(message)s"
+        # self.form = "%(levelname)s {h}:%(process)s %(pathname)s %(lineno)d: %(message)s".format(h=self.hostname)
+        self.form = "%(levelname)s {h}:%(process)s %(name)s: %(message)s".format(h=self.hostname)
+        self.formatters = {
+            DEBUG: Formatter(self.form),
+            INFO: Formatter(self.form),
+            WARN: Formatter(self.form),
+            ERROR: Formatter(self.form),
+            CRITICAL: Formatter(self.form),
+        }
+
+        # Set up data connection
+        self.context = Context.instance()
+        self.socket = self.context.socket(PUB)
+        self.socket.connect(self.address)
+
+    def __del__(self):
+        self.close()
+
+    def format(self, record):
+        '''Format a record.'''
+        return self.formatters[record.levelno].format(record)
+
+    def emit(self, record):
+        '''Emit a log message on the PUB socket.'''
+        # message = {
+        #     'kind': 'log',
+        #     'record': self.format(record),
+        # }
+        # TODO try to send an unformatted pickle instead...
+        message = {
+            'kind': 'log',
+            'record': record.__dict__,
+        }
+        self.socket.send_json(message)
+        return
+
+    def handle(self, record):
+        super(LogHandler, self).handle(record)
+        return
+
+    def close(self):
+        message = {
+            'kind': 'order',
+            'action': 'stop',
+        }
+        self.socket.send_json(message)
+        self.socket.close()
+        super(LogHandler, self).close()
+        return
+
+
 def main(arguments):
+
     zmq_context = zmq.Context.instance()
+
+    log_address = arguments['log_address']
+
+    handler = LogHandler(log_address)
+
+    logger = getLogger(__name__)
+    logger.setLevel(DEBUG)
+    # logger.setFormatter(formatter)
+    logger.addHandler(handler)
+
     # Load configuration options
     # TODO remove 3 following lines...
     # message = sys.stdin.read()
@@ -28,19 +106,15 @@ def main(arguments):
     interface = configuration['interface']
     port = configuration['port']
     # Save configuration to file
-    f = open("/tmp/circusort_cli_manager.txt", mode="w")
-    f.write("interface: {}\n".format(interface))
-    f.write("port: {}\n".format(port))
-    f.close()
+    logger.debug("interface: {i}".format(i=interface))
+    logger.debug("port: {p}".format(p=port))
     # Open a socket to parent process to inform it of the address
     tmp_address = "tcp://{i}:{p}".format(i=interface, p=port)
     tmp_socket = zmq_context.socket(zmq.PAIR)
     tmp_socket.connect(tmp_address)
     tmp_socket.linger = 1000 # ?
     # Save configuration to file
-    f = open("/tmp/circusort_cli_manager_bis.txt", mode="w")
-    f.write("...")
-    f.close()
+    logger.debug("...")
 
     # Create RPC socket
     rpc_interface = utils.find_ethernet_interface()
@@ -59,16 +133,12 @@ def main(arguments):
     }
     tmp_socket.send_json(message)
     # Receive greetings
-    f = open("/tmp/circusort_cli_manager_ter.txt", mode="w")
-    f.write("rpc address: {}\n".format(rpc_address))
-    f.close()
+    logger.debug("rpc address: {a}".format(a=rpc_address))
     message = rpc_socket.recv_json()
     kind = message['kind']
     misc = message['misc']
     assert(kind == 'greetings')
-    f = open("/tmp/circusort_cli_manager_qua.txt", mode="w")
-    f.write("misc: {}\n".format(misc))
-    f.close()
+    logger.debug("misc: {m}".format(m=misc))
     # TODO close the temporary socket
     tmp_socket.close()
 
@@ -84,39 +154,29 @@ def main(arguments):
                 tmp_transport = "ipc"
                 tmp_endpoint = "circusort_tmp"
                 tmp_address = "{t}://{e}".format(t=tmp_transport, e=tmp_endpoint)
-                f = open("/tmp/circusort_cli_manager_qui.txt", mode='w')
-                f.write("tmp_endpoint: {e}\n".format(e=tmp_endpoint))
-                f.close()
+                logger.debug("tmp_endpoint: {e}".format(e=tmp_endpoint))
                 try:
                     tmp_socket = zmq_context.socket(zmq.PAIR)
                     tmp_socket.setsockopt(zmq.RCVTIMEO, 10000)
                     tmp_socket.bind(tmp_address)
                     tmp_socket.linger = 1000 # ?
                 except Exception as exception:
-                    f = open("/tmp/circusort_cli_manager_sec.txt", mode='w')
-                    f.write("exception\n")
-                    f.write("{e}\n".format(e=exception))
-                    f.close()
+                    logger.debug("exception")
+                    logger.debug("{e}".format(e=exception))
                     raise exception
                 # TODO spawn the new worker...
                 command = ['/usr/bin/python']
                 command += ['-m', 'circusort.cli.reader']
                 command += ['-e', tmp_endpoint]
-                f = open("/tmp/circusort_cli_manager_sec.txt", mode='w')
-                f.write("command: {c}\n".format(c=' '.join(command)))
-                f.close()
+                logger.debug("command: {c}".format(c=' '.join(command)))
                 process = Popen(command)
                 # TODO receive greetings from the new worker...
                 message = tmp_socket.recv_json()
-                f = open("/tmp/circusort_cli_manager_sep.txt", mode='w')
-                f.write("recv_json\n")
-                f.close()
+                logger.debug("recv_json")
                 kind = message['kind']
                 assert kind == 'greetings', "kind: {}".format(kind)
                 rpc2_endpoint = message['rpc endpoint']
-                f = open("/tmp/circusort_cli_manager_oct.txt", mode='w')
-                f.write("rpc2_endpoint: {e}\n".format(e=rpc2_endpoint))
-                f.close()
+                logger.debug("rpc2_endpoint: {e}".format(e=rpc2_endpoint))
                 # TODO connect to the RPC socket of the new worker...
                 rpc2_transport = "ipc"
                 rpc2_address = "{t}://{e}".format(t=rpc2_transport, e=rpc2_endpoint)
@@ -128,9 +188,7 @@ def main(arguments):
                     'kind': 'greetings',
                 }
                 rpc2_socket.send_json(message)
-                f = open("/tmp/circusort_cli_manager_send_greetings.txt", mode='w')
-                f.write("rpc2_address: {a}\n".format(a=rpc2_address))
-                f.close()
+                logger.debug("rpc2_address: {a}".format(a=rpc2_address))
                 message = rpc2_socket.recv_json()
                 kind = message['kind']
                 assert kind == 'acknowledgement', "kind: {k}".format(k=kind)
