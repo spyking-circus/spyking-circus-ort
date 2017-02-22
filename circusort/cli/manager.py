@@ -1,5 +1,7 @@
 import argparse
 import json
+from logging import DEBUG, getLogger, Handler
+# from logging.handlers import SocketHandler
 from subprocess import Popen
 import sys
 import time
@@ -17,7 +19,61 @@ from circusort.base import utils
 #     parser.add_argument('-p', '--port', help='specify the port number')
 #     return parser
 
+class LogHandler(Handler)
+
+    def __init__(self):
+
+        self.host = '134.157.180.205'
+        self.port = 9020
+
+        super(LogHandler, self).__init__(self)
+
+        # Set up data connection
+        self.context = zmq.Context.instance()
+        self.socket = self.context.socket(zmq.PUB)
+        self.socket.connect(self.address)
+
+    def __del__(self):
+        self.close()
+
+    @property
+    def address(self):
+        transport = 'tcp'
+        endpoint = '{h}:{p}'.format(h=self.host, p=self.port)
+        return '{t}://{e}'.format(t=transport, e=endpoint)
+
+    def emit(self, record):
+        message = {
+            'kind': 'log',
+            'record': self.format(record),
+        }
+        self.socket.send_json(message)
+        return
+
+    def handle(self, record):
+        super(LogHandler, self).handle(record)
+        return
+
+    def close(self):
+        message = {
+            'kind': 'order',
+            'action': 'stop',
+        }
+        self.socket.send_json(message)
+        self.socket.close()
+        super(LogHandler, self).close()
+        return
+
+
 def main(arguments):
+
+    handler = LogHandler()
+
+    logger = getLogger(__name__)
+    logger.setLevel(DEBUG)
+    # logger.setFormatter(formatter)
+    logger.addHandler(handler)
+
     zmq_context = zmq.Context.instance()
     # Load configuration options
     # TODO remove 3 following lines...
@@ -28,6 +84,7 @@ def main(arguments):
     interface = configuration['interface']
     port = configuration['port']
     # Save configuration to file
+    logger.debug("interface: {i}".format(i=interface))
     f = open("/tmp/circusort_cli_manager.txt", mode="w")
     f.write("interface: {}\n".format(interface))
     f.write("port: {}\n".format(port))
