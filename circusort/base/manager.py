@@ -16,7 +16,17 @@ from circusort.io import load_configuration
 
 class Manager(object):
 
-    def __init__(self, interface=None):
+    def __init__(self, interface=None, log_addr=None):
+
+        if log_addr is None:
+            raise NotImplementedError()
+
+        self.log = utils.get_log(log_addr, name=__name__)
+        import time
+        time.sleep(2.0)
+        self.log.info("Manager's info test.")
+        self.log.debug("Manager's debug test.")
+
         self.interface = interface
         self.zmq_context = zmq.Context.instance()
         if self.interface is None: # create new process locally
@@ -50,7 +60,7 @@ class Manager(object):
             self.client = None
         else: # create new process remotely
             # 1. create temporary socket
-            print("Create temporary socket...")
+            self.log.debug("Create temporary socket...")
             tmp_interface = utils.find_ethernet_interface()
             tmp_address = 'tcp://{}:*'.format(tmp_interface)
             tmp_socket = self.zmq_context.socket(zmq.PAIR)
@@ -59,16 +69,17 @@ class Manager(object):
             tmp_socket.linger = 1000
             tmp_address = tmp_socket.getsockopt(zmq.LAST_ENDPOINT)
             tmp_port = utils.extract_port(tmp_address)
-            print("  tmp_address: {}".format(tmp_address))
+            self.log.debug("tmp_address={a}".format(a=tmp_address))
             # 2. spawn manager remotely
-            print("Spawn manager remotely...")
+            self.log.debug("Spawn manager remotely...")
             command = ['/usr/bin/python']
-            command += ['-m', 'circusort.cli.manager']
+            command += ['-m', 'circusort.cli.launch_manager']
             command += ['-i', tmp_interface]
             command += ['-p', tmp_port]
+            command += ['-l', log_addr]
             command = ' '.join(command)
             configuration = load_configuration()
-            print("Create SSH connection...")
+            self.log.debug("Create SSH connnection...")
             ssh_client = paramiko.SSHClient() # basic interface to instantiate server connections and file transfers
             ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy()) # auto-accept inbound host keys
             ssh_client.connect(self.interface, username=configuration.ssh.username) # connect to the local SSH server
@@ -77,16 +88,16 @@ class Manager(object):
             # ssh_channel = ssh_transport.open_session()
             # ssh_channel.exec_command(commande) # run command asynchronously
             # 3. receive greetings from the manager process
-            print("Receive greetings...")
+            self.log.debug("Receive greetings...")
             message = tmp_socket.recv_json()
             kind = message['kind']
             assert kind == 'greetings', "kind: {k}".format(k=kind)
             self.rpc_interface = message['rpc interface']
             self.rpc_port = message['rpc port']
-            print("  rpc interface: {}".format(self.rpc_interface))
-            print("  rpc port: {}".format(self.rpc_port))
+            self.log.debug("rpc_interface={i}".format(i=self.rpc_interface))
+            self.log.debug("rpc_port={p}".format(p=self.rpc_port))
             # 4. send greetings to the manager process
-            print("Send greetings...")
+            self.log.debug("Send greetings...")
             self.rpc_socket = self.zmq_context.socket(zmq.PAIR)
             self.rpc_socket.connect(self.rpc_address)
             self.rpc_socket.linger = 1000 # ?
@@ -123,7 +134,7 @@ class Manager(object):
         return len(self.workers)
 
     def create_reader(self):
-        print("Create reader...")
+        self.log.debug("Create reader...")
         # TODO remove the two following lines...
         # reader = Reader(self)
         # self.register_worker(reader)

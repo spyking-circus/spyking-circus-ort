@@ -1,10 +1,64 @@
 import array
 import fcntl
+import logging
 import random
 import re
 import socket
 import struct
+import zmq
 
+
+
+class LogHandler(logging.Handler):
+
+    def __init__(self, address):
+
+        logging.Handler.__init__(self)
+
+        self.address = address
+
+        self.form = "%(levelname)s %(process)s %(name)s: %(message)s"
+        self.formatter = logging.Formatter(self.form)
+
+        # Set up logging connection
+        self.context = zmq.Context()
+        self.socket = self.context.socket(zmq.PUB)
+        self.socket.connect(self.address)
+
+    def __del__(self):
+
+        self.socket.close()
+        self.context.term()
+        super(LogHandler, self).close()
+
+    def format(self, record):
+        '''Format a record.'''
+        return self.formatter.format(record)
+
+    def emit(self, record):
+        '''Emit a log message on the PUB socket.'''
+        message = {
+            'kind': 'log',
+            'record': record.__dict__,
+        }
+        self.socket.send_json(message)
+        return
+
+    def handle(self, record):
+        super(LogHandler, self).handle(record)
+        return
+
+
+def get_log(address, name=None):
+
+    handler = LogHandler(address)
+
+    logger = logging.getLogger(name=name)
+    logger.setLevel(logging.DEBUG)
+    # logger.setFormatter(formatter)
+    logger.addHandler(handler)
+
+    return logger
 
 
 def find_interfaces(format=True):
