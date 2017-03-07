@@ -1,7 +1,5 @@
 # Test file
-tests/test_deamon_creation.py
-tests/test_network.py
-tests/test_read_compute_write.py
+tests/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
