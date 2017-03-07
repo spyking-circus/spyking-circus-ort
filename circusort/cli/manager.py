@@ -1,5 +1,6 @@
 import argparse
 import subprocess
+import sys
 import zmq
 
 from circusort.manager import Manager
@@ -78,10 +79,10 @@ def main(arguments):
                     logger.debug("{e}".format(e=exception))
                     raise exception
                 # TODO spawn the new worker...
-                command = ['/usr/bin/python']
+                command = [sys.executable]
                 command += ['-m', 'circusort.cli.reader']
                 command += ['-e', tmp_endpoint]
-                logger.debug("spawn reader locally with:\n{c}".format(c=' '.join(command)))
+                logger.debug("spawn reader locally with: {c}".format(c=' '.join(command)))
                 process = subprocess.Popen(command)
                 # TODO receive greetings from the new worker...
                 message = tmp_socket.recv_json()
