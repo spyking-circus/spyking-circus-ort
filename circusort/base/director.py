@@ -35,6 +35,7 @@ class Director(object):
 
         A manager is a process that manages workers.
         '''
+        self.log.info("director at {i} creates new manager".format(i=self.interface))
         # TODO check if address is local or not...
         # 1. local -> create new process locally (if necessary)            [cli]
         # 2. network -> create new process remotely (if necessary)   [ssh + cli]

@@ -153,7 +153,7 @@ class Manager(object):
         return len(self.workers)
 
     def create_reader(self):
-        self.log.info("manager at {i} create a new reader".format(i=self.rpc_interface))
+        self.log.info("manager at {i} creates new reader".format(i=self.rpc_interface))
         # # TODO remove the two following lines...
         # reader = Reader(self)
         # self.register_worker(reader)
@@ -172,7 +172,7 @@ class Manager(object):
         return reader
 
     def create_computer(self):
-        self.log.info("manager at {i} create a new computer".format(i=self.rpc_interface))
+        self.log.info("manager at {i} creates new computer".format(i=self.rpc_interface))
         # # TODO remove the following two lines...
         # computer = Computer()
         # self.register_worker(computer)
@@ -190,7 +190,7 @@ class Manager(object):
         return computer
 
     def create_writer(self):
-        self.log.info("manager at {i} create a new writer".format(i=self.rpc_interface))
+        self.log.info("manager at {i} creates new writer".format(i=self.rpc_interface))
         # # TODO remove the following two lines...
         # writer = Writer()
         # self.register_worker(writer)
