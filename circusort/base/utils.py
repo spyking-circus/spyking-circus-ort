@@ -1,15 +1,18 @@
 import array
 import fcntl
+import json
 import logging
 import random
 import re
 import socket
 import struct
+import time
 import zmq
 
 
 
 class LogHandler(logging.Handler):
+    '''Logging handler sending logging output to a ZMQ socket.'''
 
     def __init__(self, address):
 
@@ -25,6 +28,11 @@ class LogHandler(logging.Handler):
         self.socket = self.context.socket(zmq.PUB)
         self.socket.connect(self.address)
 
+        # TODO: make sure we are connected...
+        #       (see http://stackoverflow.com/questions/23433037/sleep-after-zmq-connect#23437374)
+        duration = 0.1 # s
+        time.sleep(duration)
+
     def __del__(self):
 
         self.socket.close()
@@ -37,11 +45,14 @@ class LogHandler(logging.Handler):
 
     def emit(self, record):
         '''Emit a log message on the PUB socket.'''
+        topic = b'log'
         message = {
             'kind': 'log',
             'record': record.__dict__,
         }
-        self.socket.send_json(message)
+        data = json.dumps(message)
+        # data = data.encode('utf-8') # convert string to bytes
+        self.socket.send_multipart([topic, data])
         return
 
     def handle(self, record):
@@ -50,12 +61,16 @@ class LogHandler(logging.Handler):
 
 
 def get_log(address, name=None):
+    '''Get a logger instance by name.'''
 
+    # Initialize the handler instance
     handler = LogHandler(address)
 
+    # Get a logger with the specified name (or the root logger)
     logger = logging.getLogger(name=name)
+    # Set the threshold for this logger
     logger.setLevel(logging.DEBUG)
-    # logger.setFormatter(formatter)
+    # Add the specified handler to this logger
     logger.addHandler(handler)
 
     return logger

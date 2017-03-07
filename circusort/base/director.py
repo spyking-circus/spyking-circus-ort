@@ -10,14 +10,18 @@ class Director(object):
 
     def __init__(self):
 
+        # Start logging server
         self.logger = Logger()
-
+        # Get logger instance
         self.log = utils.get_log(self.logger.address, name=__name__)
-        time.sleep(2.0)
-        self.log.info("Director's info test.")
-        self.log.debug("Director's debug test.")
 
+        interface = utils.find_ethernet_interface()
+
+        self.log.debug("start director at {i}".format(i=interface))
+
+        self.interface = interface
         self.managers = {}
+
 
     @property
     def nb_managers(self):
@@ -62,7 +66,7 @@ class Director(object):
         return
 
     def sleep(self, duration=None):
-        self.log.debug("Director starts sleeping ({d} sec)...".format(d=duration))
+        self.log.debug("director sleeps {d} sec".format(d=duration))
         time.sleep(duration)
         return
 

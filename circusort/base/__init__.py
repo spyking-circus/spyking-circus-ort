@@ -20,8 +20,6 @@ STOP = b"stop"
 
 def create_director():
     '''Create a new director in this process.'''
-    # server = RPCServer()
-    # server.run() # or server.run_lazy()
     director = Director()
     return director
 

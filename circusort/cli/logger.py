@@ -1,5 +1,6 @@
 from __future__ import print_function
 from argparse import ArgumentParser
+import json
 from logging import basicConfig, getLogger, makeLogRecord
 from logging.handlers import DEFAULT_TCP_LOGGING_PORT
 from threading import Event, Thread
@@ -9,52 +10,52 @@ from circusort.base import utils
 
 
 
-class LogServer:
-    '''Simple logging receiver/server.'''
-
-    def __init__(self):
-
-        transport = 'tcp'
-        host = '134.157.180.205'
-        port = 9020
-        endpoint = '{h}:{p}'.format(h=host, p=port)
-        self.address = '{t}://{e}'.format(t=transport, e=endpoint)
-        self.filename = '/tmp/circusort_log.txt'
-
-    def serve_until_stopped(self):
-
-        self.context = zmq.Context.instance()
-        self.socket = self.context.socket(zmq.SUB)
-        self.socket.setsockopt(zmq.SUBSCRIBE, '')
-        self.socket.bind(self.address)
-
-        self.file = open(self.filename, mode='w')
-
-        while True:
-
-            message = self.socket.recv_json()
-            kind = message['kind']
-            if kind == 'order':
-                action = message['action']
-                if action == 'close':
-                    break
-                else:
-                    pass
-            elif kind == 'log':
-                record = message['record']
-                record = makeLogRecord(record)
-                # TODO handle log record
-                logger = getLogger(record.name)
-                logger.handle(record)
-                # self.file.write("{r}\n".format(r=record))
-            else:
-                pass
-
-        self.file.close()
-
-        self.socket.close()
-
-        return
+# class LogServer:
+#     '''Simple logging receiver/server.'''
+#
+#     def __init__(self):
+#
+#         transport = 'tcp'
+#         host = '134.157.180.205'
+#         port = 9020
+#         endpoint = '{h}:{p}'.format(h=host, p=port)
+#         self.address = '{t}://{e}'.format(t=transport, e=endpoint)
+#         self.filename = '/tmp/circusort_log.txt'
+#
+#     def serve_until_stopped(self):
+#
+#         self.context = zmq.Context.instance()
+#         self.socket = self.context.socket(zmq.SUB)
+#         self.socket.setsockopt(zmq.SUBSCRIBE, '')
+#         self.socket.bind(self.address)
+#
+#         self.file = open(self.filename, mode='w')
+#
+#         while True:
+#
+#             message = self.socket.recv_json()
+#             kind = message['kind']
+#             if kind == 'order':
+#                 action = message['action']
+#                 if action == 'close':
+#                     break
+#                 else:
+#                     pass
+#             elif kind == 'log':
+#                 record = message['record']
+#                 record = makeLogRecord(record)
+#                 # TODO handle log record
+#                 logger = getLogger(record.name)
+#                 logger.handle(record)
+#                 # self.file.write("{r}\n".format(r=record))
+#             else:
+#                 pass
+#
+#         self.file.close()
+#
+#         self.socket.close()
+#
+#         return
 
 
 def receive_log(context):
@@ -66,35 +67,38 @@ def receive_log(context):
     # # TODO serve until stopped...
     # log_server.serve_until_stopped()
 
-
+    # TODO: connect to the temporary socket...
     log_address = 'inproc://circusort_cli_logger'
     log_socket = context.socket(zmq.PAIR)
     log_socket.connect(log_address)
 
     # TODO initialize server...
+    topic = b'log'
     transport = 'tcp'
     host = utils.find_ethernet_interface()
     port = '*'
     endpoint = '{h}:{p}'.format(h=host, p=port)
     address = '{t}://{e}'.format(t=transport, e=endpoint)
-    # filename = '/tmp/circusort_log.txt'
-    # TODO serve until stopped...
-    # context = Context.instance()
     socket = context.socket(zmq.SUB)
-    socket.setsockopt(zmq.SUBSCRIBE, '')
+    socket.setsockopt(zmq.SUBSCRIBE, topic)
     socket.bind(address)
     endpoint = socket.getsockopt(zmq.LAST_ENDPOINT)
 
+    # TODO: send greetings via the temporary socket...
     message = {
         'kind': 'greetings',
         'endpoint': endpoint,
     }
     log_socket.send_json(message)
+    # TODO: close the temporary socket...
     log_socket.close()
 
-    # f = open(filename, mode='w')
+    # TODO serve until stopped...
     while True:
-        message = socket.recv_json()
+
+        topic, data = socket.recv_multipart()
+        # data = str(data, 'utf-8') # convert bytes to string
+        message = json.loads(data)
         kind = message['kind']
         if kind == 'order':
             action = message['action']
@@ -108,10 +112,9 @@ def receive_log(context):
             # TODO handle log record
             logger = getLogger(record.name)
             logger.handle(record)
-            # f.write("{r}\n".format(r=record))
         else:
             pass
-    # f.close()
+
     socket.close()
 
     return
