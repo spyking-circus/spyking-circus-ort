@@ -28,37 +28,53 @@ class Manager(object):
 
         self.interface = interface
         self.context = zmq.Context()
-        if self.interface is None: # create new process locally
+        if self.interface is None:
+            self.log.debug("start new manager locally")
             # 1. create temporary socket
             tmp_interface = utils.find_loopback_interface()
-            tmp_address = 'tcp://{}:*'.format(tmp_interface)
+            tmp_address = 'tcp://{h}:*'.format(h=tmp_interface)
+            self.log.debug("bind tmp socket at {a}".format(a=tmp_address))
             tmp_socket = self.context.socket(zmq.PAIR)
             tmp_socket.setsockopt(zmq.RCVTIMEO, 10000) # ?
             tmp_socket.bind(tmp_address)
-            tmp_socket.linger = 1000 # ?
+            # # TODO remove or adapt following line...
+            # tmp_socket.linger = 1000 # ?
             tmp_address = tmp_socket.getsockopt(zmq.LAST_ENDPOINT)
-            tmp_port = utils.extract_port(tmp_address)
+            self.log.debug("tmp socket binded at {a}".format(a=tmp_address))
             tmp_port = utils.extract_port(tmp_address)
             # 2. spawn manager locally
             command = [sys.executable]
-            command += ['-m', 'circusort.cli.manager']
+            command += ['-m', 'circusort.cli.launch_manager']
             command += ['-i', tmp_interface]
             command += ['-p', tmp_port]
+            command += ['-l', log_addr]
+            self.log.debug("spawn manager locally with: {c}".format(c=' '.join(command)))
             self.process = Popen(command, stdin=PIPE)
-            # 3. send configuration to the manager process
-            conf = {'address': tmp_address.decode()}
-            message = json.dumps(conf)
-            message = message.encode()
-            self.process.stdin.write(message)
-            self.process.stdin.close()
-            # 4. receive status from the manager process
+            # 3. receive greetings from the manager process
             message = tmp_socket.recv_json()
-            address = message['address'].encode()
-            print("status: {}".format(address))
+            kind = message['kind']
+            assert kind == 'greetings', "kind: {k}".format(k=kind)
+            self.rpc_interface = message['rpc interface']
+            self.rpc_port = message['rpc port']
+            self.log.debug("receive greetings from manager via {a}".format(a=self.rpc_address))
+            # 4. send greetings to the manager process
+            self.log.debug("connect rpc socket to {a}".format(a=self.rpc_address))
+            self.rpc_socket = self.context.socket(zmq.PAIR)
+            self.rpc_socket.connect(self.rpc_address)
+            # # TODO: remove or adapt the following line...
+            # self.rpc_socket.linger = 1000 # ?
+            self.log.debug("send greetings to manager via {a}".format(a=self.rpc_address))
+            message = {
+                'kind': 'greetings',
+            }
+            self.rpc_socket.send_json(message)
+            # 5. close temporary socket
+            tmp_socket.close()
+            # TODO save RPC socket somewhere...
             # TODO create manager client...
             self.client = None
-        else: # create new process remotely
-            self.log.debug("start this new manager remotely")
+        else:
+            self.log.debug("start new manager remotely")
             # 1. create temporary socket
             tmp_interface = utils.find_ethernet_interface()
             tmp_address = 'tcp://{}:*'.format(tmp_interface)
@@ -77,7 +93,7 @@ class Manager(object):
             command += ['-p', tmp_port]
             command += ['-l', log_addr]
             command = ' '.join(command)
-            self.log.debug("spawn manager remotely with:\n{c}".format(c=command))
+            self.log.debug("spawn manager remotely with: {c}".format(c=command))
             configuration = load_configuration()
             self.log.debug("create SSH connnection via paramiko")
             ssh_client = paramiko.SSHClient() # basic interface to instantiate server connections and file transfers
@@ -96,11 +112,12 @@ class Manager(object):
             self.rpc_port = message['rpc port']
             self.log.debug("receive greetings from manager via {a}".format(a=self.rpc_address))
             # 4. send greetings to the manager process
-            self.log.debug("send greetings to manager via {a}".format(a=self.rpc_address))
+            self.log.debug("connect rpc socket to {a}".format(a=self.rpc_address))
             self.rpc_socket = self.context.socket(zmq.PAIR)
             self.rpc_socket.connect(self.rpc_address)
             # # TODO: remove or adapt the following line...
             # self.rpc_socket.linger = 1000 # ?
+            self.log.debug("send greetings to manager via {a}".format(a=self.rpc_address))
             message = {
                 'kind': 'greetings',
             }
@@ -113,15 +130,18 @@ class Manager(object):
         self.workers = {}
 
     def __del__(self):
-        message = {
-            'kind': 'order',
-            'action': 'stop',
-        }
-        self.rpc_socket.send_json(message)
-        message = self.rpc_socket.recv_json()
-        kind = message['kind']
-        assert kind == 'acknowledgement', "kind: {k}".format(k=kind)
-        self.rpc_socket.close()
+
+        if hasattr(self, 'rpc_socket'):
+            message = {
+                'kind': 'order',
+                'action': 'stop',
+            }
+            self.rpc_socket.send_json(message)
+            message = self.rpc_socket.recv_json()
+            kind = message['kind']
+            assert kind == 'acknowledgement', "kind: {k}".format(k=kind)
+            self.rpc_socket.close()
+
         return
 
     @property
