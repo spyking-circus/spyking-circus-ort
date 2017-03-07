@@ -99,11 +99,10 @@ class Manager(object):
             self.log.debug("send greetings to manager via {a}".format(a=self.rpc_address))
             self.rpc_socket = self.context.socket(zmq.PAIR)
             self.rpc_socket.connect(self.rpc_address)
-            # TODO: remove or adapt the following line...
+            # # TODO: remove or adapt the following line...
             # self.rpc_socket.linger = 1000 # ?
             message = {
                 'kind': 'greetings',
-                'misc': '...',
             }
             self.rpc_socket.send_json(message)
             # 5. close temporary socket
