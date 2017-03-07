@@ -1,4 +1,3 @@
-import argparse
 import subprocess
 import sys
 import zmq
@@ -80,8 +79,9 @@ def main(arguments):
                     raise exception
                 # TODO spawn the new worker...
                 command = [sys.executable]
-                command += ['-m', 'circusort.cli.reader']
+                command += ['-m', 'circusort.cli.launch_reader']
                 command += ['-e', tmp_endpoint]
+                command += ['-l', log_address]
                 logger.debug("spawn reader locally with: {c}".format(c=' '.join(command)))
                 process = subprocess.Popen(command)
                 # TODO receive greetings from the new worker...
@@ -107,6 +107,10 @@ def main(arguments):
                 assert kind == 'acknowledgement', "kind: {k}".format(k=kind)
                 # TODO close the temporary socket...
                 tmp_socket.close()
+            elif action == 'create_computer':
+                logger.debug("TODO create computer...")
+            elif action == 'create_writer':
+                logger.debug("TODO create writer...")
             else:
                 pass
             message = {
@@ -123,15 +127,3 @@ def main(arguments):
     rpc_socket.close()
 
     return
-
-
-if __name__ == '__main__':
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-i', '--interface', required=True)
-    parser.add_argument('-p', '--port', required=True)
-
-    args = parser.parse_args()
-    args = vars(args)
-
-    main(args)

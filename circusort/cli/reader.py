@@ -1,71 +1,57 @@
-from argparse import ArgumentParser
-from zmq import Context, PAIR, RCVTIMEO
+import zmq
+
+from circusort.base import utils
 
 
 
 def main(arguments):
 
+    context = zmq.Context()
+
+    log_address = arguments['log_address']
+
+    # Get logger instance
+    logger = utils.get_log(log_address, name=__name__)
+
+    # Load configuration options
     configuration = arguments
-    f = open("/tmp/circusort_cli_reader_arguments.txt", mode='w')
-    for key in configuration:
-        f.write("{}\n".format(key))
-    f.close()
     endpoint = configuration['endpoint']
 
-    f = open("/tmp/circusort_cli_reader.txt", mode='w')
-    f.write("endpoint: {e}\n".format(e=endpoint))
-    f.close()
-
-    zmq_context = Context.instance()
-    # TODO connect to the temporary socket of the manager...
+    # 1. connect temporary socket to manager
     tmp_transport = "ipc"
     tmp_address = '{t}://{e}'.format(t=tmp_transport, e=endpoint)
-    tmp_socket = zmq_context.socket(PAIR)
+    logger.debug("connect tmp socket to {a}".format(a=tmp_address))
+    tmp_socket = context.socket(zmq.PAIR)
     tmp_socket.connect(tmp_address)
-    tmp_socket.linger = 1000 # ?
-    # TODO create rpc socket...
+    # # TODO remove or adapt following line...
+    # tmp_socket.linger = 1000 # ?
+    # 2. bind rpc socket
     rpc_transport = 'ipc'
     rpc_endpoint = 'circusort_rpc'
     rpc_address = '{t}://{e}'.format(t=rpc_transport, e=rpc_endpoint)
-    rpc_socket = zmq_context.socket(PAIR)
-    rpc_socket.setsockopt(RCVTIMEO, 10000)
+    logger.debug("bind rpc socket at {a}".format(a=rpc_address))
+    rpc_socket = context.socket(zmq.PAIR)
+    rpc_socket.setsockopt(zmq.RCVTIMEO, 10000)
     rpc_socket.bind(rpc_address)
-    # TODO send greetings to the manager...
+    # 3. send greetings to manager
+    logger.debug("send greetings to manager")
     message = {
         'kind': 'greetings',
         'rpc endpoint': rpc_endpoint,
     }
-    f = open("/tmp/circusort_cli_reader_before_send_json.txt", mode='w')
-    f.write("before send json\n")
-    f.write("tmp address: {a}\n".format(a=tmp_address))
-    f.close()
     tmp_socket.send_json(message)
-    f = open("/tmp/circusort_cli_reader_after_send_json.txt", mode='w')
-    f.write("after send json\n")
-    f.write("rpc address: {a}\n".format(a=rpc_address))
-    f.close()
-    # TODO receive greetings from the manager...
+    # 4. receive greetings from manager
+    logger.debug("receive greetings from manager")
     message = rpc_socket.recv_json()
-    f = open("/tmp/circusort_cli_reader_recv_greetings.txt", mode='w')
-    f.write("greetings\n")
-    f.close()
     kind = message['kind']
     assert kind == 'greetings', "kind: {k}".format(k=kind)
+    # 5. send acknowledgement to manager
+    logger.debug("send acknowledgement to manager")
     message = {
         'kind': 'acknowledgement',
     }
     rpc_socket.send_json(message)
-    # TODO close the temporary socket...
+    # 6. close temporary socket
+    logger.debug("close tmp socket")
     tmp_socket.close()
     return
-
-
-if __name__ == '__main__':
-
-    parser = ArgumentParser()
-    parser.add_argument('-e', '--endpoint', required=True)
-
-    args = parser.parse_args()
-    args = vars(args)
-
-    main(args)
