@@ -1,6 +1,6 @@
 import argparse
 
-from circusort.cli.reader import main
+from circusort.cli.computer import main
 
 
 

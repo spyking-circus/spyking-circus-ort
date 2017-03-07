@@ -15,13 +15,14 @@ class Director(object):
         # Get logger instance
         self.log = utils.get_log(self.logger.address, name=__name__)
 
-        interface = utils.find_ethernet_interface()
+        self.interface = utils.find_ethernet_interface()
 
-        self.log.debug("start director at {i}".format(i=interface))
+        self.log.debug("start director at {i}".format(i=self.interface))
 
-        self.interface = interface
         self.managers = {}
 
+    def __del__(self):
+        self.log.debug("stop director at {i}".format(i=self.interface))
 
     @property
     def nb_managers(self):

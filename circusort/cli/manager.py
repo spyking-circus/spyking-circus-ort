@@ -62,34 +62,30 @@ def main(arguments):
             if action == 'stop':
                 break
             elif action == 'create_reader':
-                # TODO create a temporary socket for the new worker...
+                # a. bind temporary socket
                 tmp_transport = "ipc"
                 tmp_endpoint = "circusort_tmp"
                 tmp_address = "{t}://{e}".format(t=tmp_transport, e=tmp_endpoint)
                 logger.debug("bind tmp socket at {a}".format(a=tmp_address))
-                try:
-                    tmp_socket = context.socket(zmq.PAIR)
-                    tmp_socket.setsockopt(zmq.RCVTIMEO, 10000)
-                    tmp_socket.bind(tmp_address)
-                    # # TODO remove or adapt the following line...
-                    # tmp_socket.linger = 1000 # ?
-                except Exception as exception:
-                    logger.debug("exception")
-                    logger.debug("{e}".format(e=exception))
-                    raise exception
-                # TODO spawn the new worker...
+                tmp_socket = context.socket(zmq.PAIR)
+                tmp_socket.setsockopt(zmq.RCVTIMEO, 10000)
+                tmp_socket.bind(tmp_address)
+                # # TODO remove or adapt the following line...
+                # tmp_socket.linger = 1000 # ?
+                # b. spawn new reader locally
                 command = [sys.executable]
                 command += ['-m', 'circusort.cli.launch_reader']
                 command += ['-e', tmp_endpoint]
                 command += ['-l', log_address]
                 logger.debug("spawn reader locally with: {c}".format(c=' '.join(command)))
                 process = subprocess.Popen(command)
-                # TODO receive greetings from the new worker...
+                # c. receive greetings from reader
+                logger.debug("receive greetings from reader")
                 message = tmp_socket.recv_json()
                 kind = message['kind']
                 assert kind == 'greetings', "kind: {}".format(kind)
                 rpc2_endpoint = message['rpc endpoint']
-                # TODO connect to the RPC socket of the new worker...
+                # d. connect RPC socket to reader
                 rpc2_transport = "ipc"
                 rpc2_address = "{t}://{e}".format(t=rpc2_transport, e=rpc2_endpoint)
                 logger.debug("connect rpc socket to {a}".format(a=rpc2_address))
@@ -97,20 +93,112 @@ def main(arguments):
                 rpc2_socket.connect(rpc2_address)
                 # # TODO remove or adapt the following line...
                 # rpc2_socket.linger = 1000 # ?
-                # TODO send greetings to the new worker...
+                # e. send greetings to reader
+                logger.debug("send greetings to reader")
                 message = {
                     'kind': 'greetings',
                 }
                 rpc2_socket.send_json(message)
+                # f. receive acknowledgement from reader
+                logger.debug("receive acknowledgement from reader")
                 message = rpc2_socket.recv_json()
                 kind = message['kind']
                 assert kind == 'acknowledgement', "kind: {k}".format(k=kind)
-                # TODO close the temporary socket...
+                # e. close temporary socket
+                logger.debug("close tmp socket")
                 tmp_socket.close()
             elif action == 'create_computer':
-                logger.debug("TODO create computer...")
+                # a. bind temporary socket
+                tmp_transport = "ipc"
+                tmp_endpoint = "circusort_tmp"
+                tmp_address = "{t}://{e}".format(t=tmp_transport, e=tmp_endpoint)
+                logger.debug("bind tmp socket at {a}".format(a=tmp_address))
+                tmp_socket = context.socket(zmq.PAIR)
+                tmp_socket.setsockopt(zmq.RCVTIMEO, 10000)
+                tmp_socket.bind(tmp_address)
+                # # TODO remove or adapt the following line...
+                # tmp_socket.linger = 1000 # ?
+                # b. spawn new computer locally
+                command = [sys.executable]
+                command += ['-m', 'circusort.cli.launch_computer']
+                command += ['-e', tmp_endpoint]
+                command += ['-l', log_address]
+                logger.debug("spawn computer locally with: {c}".format(c=' '.join(command)))
+                process = subprocess.Popen(command)
+                # c. receive greetings from computer
+                logger.debug("receive greetings from computer")
+                message = tmp_socket.recv_json()
+                kind = message['kind']
+                assert kind == 'greetings', "kind: {}".format(kind)
+                rpc2_endpoint = message['rpc endpoint']
+                # d. connect RPC socket to computer
+                rpc2_transport = "ipc"
+                rpc2_address = "{t}://{e}".format(t=rpc2_transport, e=rpc2_endpoint)
+                logger.debug("connect rpc socket to {a}".format(a=rpc2_address))
+                rpc2_socket = context.socket(zmq.PAIR)
+                rpc2_socket.connect(rpc2_address)
+                # # TODO remove or adapt the following line...
+                # rpc2_socket.linger = 1000 # ?
+                # e. send greetings to computer
+                logger.debug("send greetings to computer")
+                message = {
+                    'kind': 'greetings',
+                }
+                rpc2_socket.send_json(message)
+                # f. receive acknowledgement from computer
+                logger.debug("receive acknowledgement from computer")
+                message = rpc2_socket.recv_json()
+                kind = message['kind']
+                assert kind == 'acknowledgement', "kind: {k}".format(k=kind)
+                # e. close temporary socket
+                logger.debug("close tmp socket")
+                tmp_socket.close()
             elif action == 'create_writer':
-                logger.debug("TODO create writer...")
+                # a. bind temporary socket
+                tmp_transport = "ipc"
+                tmp_endpoint = "circusort_tmp"
+                tmp_address = "{t}://{e}".format(t=tmp_transport, e=tmp_endpoint)
+                logger.debug("bind tmp socket at {a}".format(a=tmp_address))
+                tmp_socket = context.socket(zmq.PAIR)
+                tmp_socket.setsockopt(zmq.RCVTIMEO, 10000)
+                tmp_socket.bind(tmp_address)
+                # # TODO remove or adapt the following line...
+                # tmp_socket.linger = 1000 # ?
+                # b. spawn new writer locally
+                command = [sys.executable]
+                command += ['-m', 'circusort.cli.launch_writer']
+                command += ['-e', tmp_endpoint]
+                command += ['-l', log_address]
+                logger.debug("spawn writer locally with: {c}".format(c=' '.join(command)))
+                process = subprocess.Popen(command)
+                # c. receive greetings from writer
+                logger.debug("receive greetings from writer")
+                message = tmp_socket.recv_json()
+                kind = message['kind']
+                assert kind == 'greetings', "kind: {}".format(kind)
+                rpc2_endpoint = message['rpc endpoint']
+                # d. connect RPC socket to writer
+                rpc2_transport = "ipc"
+                rpc2_address = "{t}://{e}".format(t=rpc2_transport, e=rpc2_endpoint)
+                logger.debug("connect rpc socket to {a}".format(a=rpc2_address))
+                rpc2_socket = context.socket(zmq.PAIR)
+                rpc2_socket.connect(rpc2_address)
+                # # TODO remove or adapt the following line...
+                # rpc2_socket.linger = 1000 # ?
+                # e. send greetings to writer
+                logger.debug("send greetings to writer")
+                message = {
+                    'kind': 'greetings',
+                }
+                rpc2_socket.send_json(message)
+                # f. receive acknowledgement from writer
+                logger.debug("receive acknowledgement from writer")
+                message = rpc2_socket.recv_json()
+                kind = message['kind']
+                assert kind == 'acknowledgement', "kind: {k}".format(k=kind)
+                # e. close temporary socket
+                logger.debug("close tmp socket")
+                tmp_socket.close()
             else:
                 pass
             message = {
