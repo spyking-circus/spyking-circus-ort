@@ -55,6 +55,6 @@ def main(arguments):
     logger.debug("close tmp socket")
     tmp_socket.close()
 
-    logger.debug("[TODO] complete reader...")
+    # TODO: complete...
 
     return

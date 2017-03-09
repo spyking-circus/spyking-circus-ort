@@ -4,6 +4,8 @@ from .logger import Logger
 from .manager import Manager
 from . import utils
 
+from circusort.base.process import Process
+
 
 
 class Director(object):
@@ -19,6 +21,8 @@ class Director(object):
 
         self.log.debug("start director at {i}".format(i=self.interface))
 
+        # TODO remove following line...
+        self.name = "Director's name"
         self.managers = {}
 
     def __del__(self):
@@ -46,8 +50,29 @@ class Director(object):
         # module = process.client._import('circusort.base.manager')
         # manager = module.Manager(director=self)
 
-        manager = Manager(interface=interface, log_addr=self.logger.address)
+        # TODO remove following test lines...
+        #   a. How to deal with local v.s. remote MACHINE?
+        #   b. How to deal with local v.s. remote PROCESS?
+        mode = 'local'
+        if mode == 'local': # run manager inside the local process
+            self.log.info("spawn local manager process")
+            process = Process(log_address=self.logger.address)
+            # or # process = Process(host='localhost')
+            # or # process = Process(host='127.0.0.1')
+            module = process.get_module('circusort.cli.manager')
+            manager = module.Manager()
+        elif mode == 'remote': # run manager inside a remote process
+            self.log.info("spawn remote manager process")
+            process = Process(host='134.157.180.212', log_address=self.logger.address)
+            module = process.get_module('circusort.cli.manager')
+            manager = module.Manager()
+        else:
+            raise ValueError("invalid mode value: {m}".format(m=mode))
+
+        # # TODO uncomment following line
+        # manager = Manager(interface=interface, log_addr=self.logger.address)
         self.register_manager(manager)
+
         return manager
 
     def register_manager(self, manager, name=None):

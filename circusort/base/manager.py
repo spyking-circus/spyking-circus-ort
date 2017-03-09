@@ -1,22 +1,129 @@
-import json
 import paramiko
 import re
-from subprocess import Popen, PIPE
+import subprocess
 import sys
-from time import sleep, time
 import zmq
 
 from .reader import Reader
 from .computer import Computer
 from .writer import Writer
-from . import utils
+from circusort.base import utils
+from circusort.base.process import Process
 from circusort.io import load_configuration
 
 
 
+class RPCClient(object):
+    '''Connect to a RPC server.
+
+    TODO complete...
+
+    '''
+
+    @staticmethod
+    def get_client(address):
+        '''Return the RPC client for this thread and a given RPC server.
+
+        TODO complete...
+        '''
+
+        # # TODO correct...
+        # key = (thread_id, address)
+        # if key in RPCClient.clients:
+        #     client = RPCClient.clients[key] # return existing client
+        # else:
+        #     client = RPCClient(address) # create new client
+        client = RPCClient(address)
+        return client
+
+    def __init__(self, address):
+        object.__init__(self)
+        self.address = address
+
+    def get_object(self, name, **kwds):
+        return self.send('get_object', options={'name': name}, **kwds)
+
+    def send(self, request, options=None):
+        '''Send a request to the remote process.
+
+        Parameters
+        ----------
+        request: string
+            The request to make to the remote process.
+        options: dictionary
+            The options to be sent with the request.
+
+        TODO complete...
+        '''
+
+        # TODO prepare request...
+        req_id = 0
+        req_type = request
+        res_type = 'auto'
+        ser_type = 'json'
+        # # TODO serialize options...
+        if options is None:
+            options = b""
+        else:
+            options = self.serializer.dumps(options)
+        # TODO create message...
+        message = [req_id, req_type, res_type, ser_type, options]
+        # TODO send message...
+        # TODO receive response...
+        # TODO return result...
+        raise NotImplementedError("\nrequest: {r}\noptions: {o}".format(r=request, o=options))
+
+
+class ObjectProxy(object):
+    '''Proxy to a remote object'''
+
+    def __init__(self, rpc_addr, obj_id, ref_id, type_str='', names=()):
+        object.__init__(self)
+        namespace = {
+            '_rpc_addr': rpc_addr,
+            '_obj_id': obj_id,
+            '_ref_id': ref_id,
+            '_type_str': type_str,
+            '_names': names,
+            '_parent_proxy': None,
+        }
+        self.__dict__.update(namespace)
+        namespace = {
+            '_client_': None,
+            '_server_': None,
+        }
+        self.__dict__.update(namespace)
+
+    def _client(self):
+        if self._client_ is None:
+            self.__dict__['_client_'] = RPCClient.get_client(self._rpc_addr)
+        return self._client_
+
+    def _server(self):
+        raise NotImplementedError()
+
+    def _undefer(self):
+        '''Undefer attribute lookups and return attributes.'''
+        if len(self._names) == 0:
+            return self
+        else:
+            client = self._client()
+            return client.get_object(self)
+        return
+
+
+
 class Manager(object):
+    '''Proxy connected to a manager process.
+
+    Note: this is a RPC client connected to a RPC server.
+
+    TODO complete...
+    '''
 
     def __init__(self, interface=None, log_addr=None):
+
+        object.__init__(self)
 
         if log_addr is None:
             raise NotImplementedError()
@@ -26,10 +133,11 @@ class Manager(object):
 
         self.log.debug("start manager at {i}".format(i=interface))
 
+        # TODO uncomment
         self.interface = interface
         self.context = zmq.Context()
         if self.interface is None:
-            self.log.debug("start new manager locally")
+            self.log.debug("start new manager on local machine")
             # 1. create temporary socket
             tmp_interface = utils.find_loopback_interface()
             tmp_address = 'tcp://{h}:*'.format(h=tmp_interface)
@@ -49,7 +157,7 @@ class Manager(object):
             command += ['-p', tmp_port]
             command += ['-l', log_addr]
             self.log.debug("spawn manager locally with: {c}".format(c=' '.join(command)))
-            self.process = Popen(command, stdin=PIPE)
+            self.process = subprocess.Popen(command, stdin=subprocess.PIPE)
             # 3. receive greetings from the manager process
             message = tmp_socket.recv_json()
             kind = message['kind']
@@ -74,7 +182,7 @@ class Manager(object):
             # TODO create manager client...
             self.client = None
         else:
-            self.log.debug("start new manager remotely")
+            self.log.debug("start new manager on remote machine")
             # 1. create temporary socket
             tmp_interface = utils.find_ethernet_interface()
             tmp_address = 'tcp://{}:*'.format(tmp_interface)
@@ -144,6 +252,34 @@ class Manager(object):
 
         return
 
+    def __getattr__(self, name):
+        '''Lookup attribute on the remote manager and return attribute.
+
+        Parameter
+        ---------
+        name: string
+            Attribute name.
+        '''
+        proxy = self._deferred_attr(name)
+        return proxy._undefer()
+
+    def _deferred_attr(self, name):
+        '''Return a proxy to an attribute of this object.
+
+        Parameters
+        ----------
+        name: string
+            Attribute name.
+        '''
+        _rpc_addr = None
+        _obj_id = None
+        _ref_id = None
+        _type_str = None
+        _names = ()
+        proxy = ObjectProxy(_rpc_addr, _obj_id, _ref_id, _type_str, _names + (name,))
+        proxy.__dict__['_parent_proxy'] = self # reference so that remote object cannot be released
+        return proxy
+
     @property
     def rpc_address(self):
         return "tcp://{i}:{p}".format(i=self.rpc_interface, p=self.rpc_port)
@@ -151,6 +287,13 @@ class Manager(object):
     @property
     def nb_workers(self):
         return len(self.workers)
+
+    def set_name(self, name):
+        '''TODO add docstring'''
+
+        self.name = name
+
+        return
 
     def create_reader(self):
         self.log.info("manager at {i} creates new reader".format(i=self.rpc_interface))
