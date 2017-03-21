@@ -21,14 +21,15 @@ class Process(object):
         # TODO find proper space to define following class
         class Encoder(json.JSONEncoder):
 
-            def default(self, obj):
+            def default(self_, obj):
                 if obj is None:
                     obj = json.JSONEncoder.default(obj)
                 else:
                     if isinstance(obj, Proxy):
                         obj = obj.encode()
                     else:
-                        raise TypeError("Type {t} is not serializable.".format(t=type(obj)))
+                        obj = self.wrap_proxy(obj)
+                        obj = obj.encode()
                 return obj
 
         self.encoder = Encoder
@@ -96,6 +97,22 @@ class Process(object):
 
         return obj
 
+    def unwrap_object(self, obj):
+        '''TODO add docstring'''
+
+        self.logger.debug("unwrap object")
+
+        if isinstance(obj, list):
+            obj = [self.unwrap_object(v) for v in obj]
+        elif isinstance(obj, dict):
+            obj = {k: self.unwrap_object(v) for k, v in obj.items()}
+        elif isinstance(obj, Proxy):
+            obj = self.unwrap_proxy(obj)
+        else:
+            obj = obj
+
+        return obj
+
     def decode(self, dct):
         '''TODO add docstring'''
 
@@ -105,14 +122,17 @@ class Process(object):
             # TODO retrieve obj_type
             obj_type = dct.get('__type__', None)
             if obj_type is None:
+                # TODO remove following lines
+                # if 'args' in dct and 'kwds' in dct:
+                #     # TODO define a new type of object
+                #     dct['args'] = self.unwrap_object(dct['args'])
+                #     dct['kwds'] = self.unwrap_object(dct['kwds'])
+                self.logger.debug("##### dct: {d}".format(d=dct))
                 return dct
             elif obj_type == 'proxy':
-                # TODO check if correct
-                self.logger.debug("dct: {d}".format(d=dct))
                 dct['attributes'] = tuple(dct['attributes'])
                 dct['process'] = self # TODO correct
                 proxy = Proxy(**dct)
-                self.logger.debug("proxy address {a}".format(a=proxy.address))
                 if self.address == proxy.address:
                     return self.unwrap_proxy(proxy)
                 else:

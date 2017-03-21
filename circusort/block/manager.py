@@ -26,3 +26,14 @@ class Manager(object):
         block = getattr(module, name.capitalize())(log_address=self.log_address)
 
         return block
+
+    def connect(self, input_endpoint, output_endpoint):
+        '''TODO add docstring'''
+
+        self.log.info("connect couple of blocks")
+
+        input_endpoint.configure(addr=output_endpoint.addr)
+        output_endpoint.configure(dtype=input_endpoint.dtype,
+                                  shape=input_endpoint.shape)
+
+        return

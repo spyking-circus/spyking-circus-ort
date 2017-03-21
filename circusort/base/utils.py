@@ -69,7 +69,8 @@ def get_log(address, name=None):
     # Get a logger with the specified name (or the root logger)
     logger = logging.getLogger(name=name)
     # Set the threshold for this logger
-    logger.setLevel(logging.DEBUG)
+    # logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.INFO)
     # Add the specified handler to this logger
     logger.addHandler(handler)
 

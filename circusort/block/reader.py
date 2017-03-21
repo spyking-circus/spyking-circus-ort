@@ -1,3 +1,6 @@
+import zmq
+
+from circusort.base.endpoint import Endpoint
 from circusort.base import utils
 
 
@@ -18,26 +21,40 @@ class Reader(object):
 
         self.path = "/tmp/input.dat"
         self.dtype = 'float32'
-        self.n_electrodes = 4
+        self.n_electrodes = 1
+
+        self.file = None
+        self.context = zmq.Context()
+        self.output = Endpoint(self)
 
     def initialize(self):
         '''TODO add docstring'''
 
-        # TODO validate and implement this method
+        # Create input file object
+        self.file = open(self.path, mode='r')
 
-        # raise NotImplementedError()
+        # TODO check correctness
+        self.output.dtype = self.dtype
+        self.output.shape = self.n_electrodes
+
         return
 
     def connect(self):
         '''TODO add docstring'''
 
-        # TODO validate and implement this method
+        self.output.socket = self.context.socket(zmq.PAIR)
+        self.output.socket.connect(self.output.addr)
 
-        raise NotImplementedError()
+        return
 
     def start(self):
         '''TODO add dosctring'''
 
-        # TODO validate and implement this method
+        i = 0
+        while i < 1000:
+            print(i)
+            msg = b"a"
+            self.output.socket.send(msg)
+            i = i + 1
 
-        raise NotImplementedError()
+        return
