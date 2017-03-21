@@ -60,12 +60,18 @@ class Process(object):
         self.last_obj_id = -1
         self.objs = {}
 
+    def get_attr(self, obj, name):
+        '''TODO add docstring'''
+
+        raise NotImplementedError("name: {n}".format(n=name))
+
     def run(self):
         '''TODO add docstring'''
 
         self.logger.debug("run process")
 
-        while True:
+        self.running = True
+        while self.running:
             message = self.receive()
             self.process(message)
 
@@ -80,6 +86,10 @@ class Process(object):
         obj = self.objs[obj_id]
 
         for attr in proxy.attributes:
+            self.logger.debug("object's type {t}".format(t=type(obj)))
+            self.logger.debug("object's representation {r}".format(r=repr(obj)))
+            self.logger.debug("object's attributes {d}".format(d=dir(obj)))
+            self.logger.debug("attribute {a}".format(a=attr))
             obj = getattr(obj, attr)
 
         self.logger.debug(dir(obj))
@@ -100,7 +110,7 @@ class Process(object):
                 # TODO check if correct
                 self.logger.debug("dct: {d}".format(d=dct))
                 dct['attributes'] = tuple(dct['attributes'])
-                dct['process'] = self
+                dct['process'] = self # TODO correct
                 proxy = Proxy(**dct)
                 self.logger.debug("proxy address {a}".format(a=proxy.address))
                 if self.address == proxy.address:
@@ -160,7 +170,7 @@ class Process(object):
 
         self.logger.debug("wrap proxy")
 
-        for t in [type(None), str, int, float, tuple, list, dict, Proxy]:
+        for t in [type(None), str, unicode, int, float, tuple, list, dict, Proxy]:
             if isinstance(obj, t):
                 proxy = obj
                 return proxy
@@ -197,7 +207,23 @@ class Process(object):
             args = options['args']
             kwds = options['kwds']
             self.logger.debug("obj: {o}".format(o=obj))
+            self.logger.debug("args: {a}".format(a=args))
+            self.logger.debug("kwds: {k}".format(k=kwds))
             result = obj(*args, **kwds)
+        elif request == 'get_attr':
+            self.logger.debug("request to get object attribute")
+            obj = options['obj']
+            name = options['name']
+            result = getattr(obj, name)
+        elif request == 'set_attr':
+            self.logger.debug("request to set object attribute")
+            obj = options['obj']
+            name = options['name']
+            value = options['value']
+            result = setattr(obj, name, value)
+        elif request == 'finish':
+            self.running = False
+            result = None
         else:
             self.logger.debug("unknown request {r}".format(r=request))
             raise NotImplementedError()

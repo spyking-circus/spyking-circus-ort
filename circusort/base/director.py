@@ -4,7 +4,8 @@ from .logger import Logger
 from .manager import Manager
 from . import utils
 
-from circusort.base.process import Process
+# from circusort.base.process import Process
+from circusort.base.process import create_process
 
 
 
@@ -56,16 +57,18 @@ class Director(object):
         mode = 'local'
         if mode == 'local': # run manager inside the local process
             self.log.info("spawn local manager process")
-            process = Process(log_address=self.logger.address)
+            # process = Process(log_address=self.logger.address)
+            process = create_process(log_address=self.logger.address)
             # or # process = Process(host='localhost')
             # or # process = Process(host='127.0.0.1')
-            module = process.get_module('circusort.cli.manager')
-            manager = module.Manager()
+            module = process.get_module('circusort.block.manager')
+            manager = module.Manager(log_address=self.logger.address)
         elif mode == 'remote': # run manager inside a remote process
             self.log.info("spawn remote manager process")
-            process = Process(host='134.157.180.212', log_address=self.logger.address)
-            module = process.get_module('circusort.cli.manager')
-            manager = module.Manager()
+            # process = Process(host='134.157.180.212', log_address=self.logger.address)
+            process = create_process(log_address=self.logger.address)
+            module = process.get_module('circusort.block.manager')
+            manager = module.Manager(log_address=self.logger.address)
         else:
             raise ValueError("invalid mode value: {m}".format(m=mode))
 

@@ -1,5 +1,14 @@
 class Proxy(object):
 
+    address = None
+    obj_id = None
+    ref_id = None
+    obj_type = None
+
+    obj_type = None
+    attributes = None
+    process = None
+
     def __init__(self, address, obj_id, ref_id, obj_type, attributes=(), process=None, **kwds):
 
         object.__init__(self)
@@ -15,19 +24,56 @@ class Proxy(object):
 
     def __repr__(self):
 
-        proxy_repr = '.'.join((self.obj_type))
+        proxy_repr = '.'.join((self.attributes))
         formatter = '<Proxy for {a}[{i}] {r} >'
 
         return formatter.format(a=self.address, i=self.obj_id, r=proxy_repr)
 
-    def __getattr__(self, attr):
+    # def __repr__(self):
+    #
+    #     proxy = self.__getattr__("__repr__")
+    #
+    #     return proxy()
 
-        proxy = Proxy(self.address, self.obj_id, self.ref_id, self.obj_type,
-                      attributes=self.attributes + (attr,),
-                      process=self.process)
-        proxy.__dict__['parent_proxy'] = self
+    def __dict__(self):
 
-        return proxy
+        keys = [
+            'address',
+            'obj_id',
+            'ref_id',
+            'obj_type',
+            'attributes',
+            'process',
+        ]
+
+        return keys
+
+    def __getattr__(self, name):
+
+        # # TODO correct...
+        # proxy = Proxy(self.address, self.obj_id, self.ref_id, self.obj_type,
+        #               attributes=self.attributes + (name,),
+        #               process=self.process)
+        # proxy.__dict__['parent_proxy'] = self
+        #
+        # return proxy
+        # # or
+        if name in ['__members__', '__methods__']:
+            result = object.__getattr__(self, name)
+            # TODO check if this is a proper solution to handle these deprecated attributes
+        else:
+            result = self.process.get_attr(self, name)
+
+        return result
+
+    def __setattr__(self, name, value):
+
+        if name in dir(self):
+            result = object.__setattr__(self, name, value)
+        else:
+            result = self.process.set_attr(self, name, value)
+
+        return result
 
     def __call__(self, *args, **kwds):
 

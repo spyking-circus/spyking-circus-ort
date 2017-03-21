@@ -126,7 +126,7 @@ class Manager(object):
         object.__init__(self)
 
         if log_addr is None:
-            raise NotImplementedError()
+            raise NotImplementedError("no logger address")
 
         # Get logger instance
         self.log = utils.get_log(log_addr, name=__name__)

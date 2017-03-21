@@ -9,6 +9,17 @@ from circusort.base.serializer import Serializer
 
 
 
+def create_process(host='localhost', log_address=None):
+    '''TODO add docstring'''
+
+    process = Process(host=host, log_address=log_address)
+    # TODO correct
+    # proxy = process.get_proxy()
+
+    # return proxy
+    return process
+
+
 class Process(object):
     '''Spawn a process (local or remote host) and return a proxy.
 
@@ -88,12 +99,16 @@ class Process(object):
 
     def __del__(self):
 
-        if self.socket is None:
-            raise NotImplementedError()
-            # TODO remove
-        else:
-            self.logger.debug("close rpc socket")
-            self.socket.close()
+        request = 'finish'
+        response = self.send(request)
+
+        self.socket.close()
+
+    # # TODO correct or remove
+    # def get_proxy(self):
+    #     '''TODO add docstring'''
+    #
+    #     raise NotImplementedError()
 
     def get_module(self, name, **kwds):
         '''TODO add docstring'''
@@ -118,6 +133,35 @@ class Process(object):
             'obj': obj,
             'args': args,
             'kwds': kwds,
+        }
+        response = self.send(request, options=options)
+
+        return response
+
+    def get_attr(self, obj, name):
+        ''' TODO add docstring'''
+
+        self.logger.debug("get attribute {n} of object {o}".format(n=name, o=obj))
+
+        request = 'get_attr'
+        options = {
+            'obj': obj,
+            'name': name,
+        }
+        response = self.send(request, options=options)
+
+        return response
+
+    def set_attr(self, obj, name, value):
+        '''TODO add docstring'''
+
+        self.logger.debug("set attribute {n} of object {o}".format(n=name, o=obj))
+
+        request = 'set_attr'
+        options = {
+            'obj': obj,
+            'name': name,
+            'value': value,
         }
         response = self.send(request, options=options)
 
