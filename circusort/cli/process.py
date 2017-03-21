@@ -170,15 +170,14 @@ class Process(object):
 
         self.logger.debug("wrap proxy")
 
-        for t in [type(None), str, unicode, int, float, tuple, list, dict, Proxy]:
+        for t in [type(None), str, unicode, int, float, tuple, list, dict]:
             if isinstance(obj, t):
                 proxy = obj
                 return proxy
 
         obj_id = self.new_object_identifier()
-        ref_id = 0 # TODO correct
         obj_type = str(type(obj))
-        proxy = Proxy(self.address, obj_id, ref_id, obj_type)
+        proxy = Proxy(self.address, obj_id, obj_type)
 
         self.objs[obj_id] = obj
 
@@ -193,8 +192,9 @@ class Process(object):
         request = message['request']
         options = message['options']
 
-        # TODO invoke requested action
-        if request == 'get_module':
+        if request == 'get_proxy':
+            result = self
+        elif request == 'get_module':
             self.logger.debug("request of module")
             name = options['name']
             parts = name.split('.')
@@ -243,6 +243,18 @@ class Process(object):
         self.socket.send_multipart([message])
 
         return
+
+    def get_module(self, name, **kwds):
+        '''TODO add docstring'''
+
+        self.logger.debug("get module {n}".format(n=name))
+
+        parts = name.split('.')
+        result = __import__(parts[0])
+        for part in parts[1:]:
+            result = getattr(result, part)
+
+        return result
 
     # def dumps(self, message):
     #     '''TODO add docstring'''

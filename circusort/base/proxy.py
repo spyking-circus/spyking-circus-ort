@@ -2,23 +2,18 @@ class Proxy(object):
 
     address = None
     obj_id = None
-    ref_id = None
-    obj_type = None
-
     obj_type = None
     attributes = None
     process = None
 
-    def __init__(self, address, obj_id, ref_id, obj_type, attributes=(), process=None, **kwds):
+    def __init__(self, address, obj_id, obj_type, attributes=(), process=None, **kwds):
 
         object.__init__(self)
 
         self.address = address
         self.obj_id = obj_id
-        self.ref_id = ref_id
         self.obj_type = obj_type
 
-        self.obj_type = ''
         self.attributes = attributes
         self.process = process
 
@@ -40,7 +35,6 @@ class Proxy(object):
         keys = [
             'address',
             'obj_id',
-            'ref_id',
             'obj_type',
             'attributes',
             'process',
@@ -50,14 +44,6 @@ class Proxy(object):
 
     def __getattr__(self, name):
 
-        # # TODO correct...
-        # proxy = Proxy(self.address, self.obj_id, self.ref_id, self.obj_type,
-        #               attributes=self.attributes + (name,),
-        #               process=self.process)
-        # proxy.__dict__['parent_proxy'] = self
-        #
-        # return proxy
-        # # or
         if name in ['__members__', '__methods__']:
             result = object.__getattr__(self, name)
             # TODO check if this is a proper solution to handle these deprecated attributes
@@ -91,7 +77,6 @@ class Proxy(object):
             '__type__': 'proxy',
             'address': self.address,
             'obj_id': self.obj_id,
-            'ref_id': self.ref_id,
             'obj_type': self.obj_type,
             'attributes': self.attributes
         }

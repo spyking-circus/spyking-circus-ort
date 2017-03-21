@@ -13,11 +13,9 @@ def create_process(host='localhost', log_address=None):
     '''TODO add docstring'''
 
     process = Process(host=host, log_address=log_address)
-    # TODO correct
-    # proxy = process.get_proxy()
+    proxy = process.get_proxy()
 
-    # return proxy
-    return process
+    return proxy
 
 
 class Process(object):
@@ -104,11 +102,15 @@ class Process(object):
 
         self.socket.close()
 
-    # # TODO correct or remove
-    # def get_proxy(self):
-    #     '''TODO add docstring'''
-    #
-    #     raise NotImplementedError()
+    def get_proxy(self):
+        '''TODO add docstring'''
+
+        self.logger.debug("get proxy")
+
+        request = 'get_proxy'
+        response = self.send(request)
+
+        return response
 
     def get_module(self, name, **kwds):
         '''TODO add docstring'''
@@ -222,14 +224,12 @@ class Process(object):
         self.logger.debug("decode")
 
         if isinstance(dct, dict):
-            # TODO retrieve obj_type
+            # Retrieve object type
             obj_type = dct.get('__type__', None)
-            # TODO process obj according to type
+            # Process object according to type
             if obj_type is None:
                 return dct
             elif obj_type == 'proxy':
-                # TODO check if correct
-                self.logger.debug("dct: {d}".format(d=dct))
                 dct['attributes'] = tuple(dct['attributes'])
                 dct['process'] = self
                 proxy = Proxy(**dct)
