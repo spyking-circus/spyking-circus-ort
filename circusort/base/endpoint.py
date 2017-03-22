@@ -1,3 +1,7 @@
+import numpy
+
+
+
 class Endpoint(object):
     '''TODO add docstring'''
 
@@ -27,5 +31,21 @@ class Endpoint(object):
 
         if addr is not None:
             self.addr = addr
+
+        return
+
+    def receive(self):
+        '''TODO add docstring'''
+
+        batch = self.socket.recv()
+        batch = numpy.frombuffer(batch, dtype=self.dtype)
+        batch = numpy.reshape(batch, self.shape)
+
+        return batch
+
+    def send(self, batch):
+        '''TODO add docstring'''
+
+        self.socket.send(batch)
 
         return

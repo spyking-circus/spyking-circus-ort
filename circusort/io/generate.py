@@ -240,6 +240,7 @@ class SyntheticGrid(object):
         plt.ylabel(r"$y$ $(\mu{}m)$")
         plt.title(r"Spatial configuration")
         plt.axes().set_aspect('equal', adjustable='box')
+        plt.tight_layout()
         return
 
     def plot_temporal_configuration(self, t_start=None, t_end=None):
@@ -270,6 +271,7 @@ class SyntheticGrid(object):
         plt.xlabel(r"time $(s)$")
         plt.ylabel(r"cell")
         plt.title(r"Temporal configuration")
+        plt.tight_layout()
         return
 
     def plot_waveforms(self):
@@ -287,6 +289,8 @@ class SyntheticGrid(object):
             plt.plot(t, w, color=cell.color)
             plt.xlim(t[0], t[-1])
         plt.suptitle(r"Waveforms")
+        plt.tight_layout()
+        plt.subplots_adjust(top=0.92)
         return
 
     def save(self):

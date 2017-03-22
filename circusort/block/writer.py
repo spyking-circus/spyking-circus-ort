@@ -1,3 +1,4 @@
+import threading
 import zmq
 
 from circusort.base.endpoint import Endpoint
@@ -5,12 +6,12 @@ from circusort.base import utils
 
 
 
-class Writer(object):
+class Writer(threading.Thread):
     '''TODO add docstring'''
 
     def __init__(self, log_address=None):
 
-        object.__init__(self)
+        threading.Thread.__init__(self)
 
         self.log_address = log_address
 
@@ -27,6 +28,8 @@ class Writer(object):
     def initialize(self):
         '''TODO add docstring'''
 
+        self.log.debug("initialization")
+
         # Bind socket for input data
         transport = 'tcp'
         host = '127.0.0.1'
@@ -41,22 +44,32 @@ class Writer(object):
         # print("\033[91m{}\033[0m".format(self.input.addr))
 
         # TODO create output file object
-        self.file = open(self.path, mode='w')
+        self.file = open(self.path, mode='wb')
 
         return
 
     def connect(self):
         '''TODO add docstring'''
 
+        self.log.debug("connection")
+
         return
 
-    def start(self):
+    def run(self):
         '''TODO add dosctring'''
+
+        self.log.debug("run")
 
         i = 0
         while i < 1000:
-            msg = self.input.socket.recv()
-            self.file.write(msg)
+
+            # TODO receive batch of data
+            batch = self.input.receive()
+
+            # TODO set batch of data to the output
+            batch = batch.tobytes()
+            self.file.write(batch)
+
             i = i + 1
 
         return

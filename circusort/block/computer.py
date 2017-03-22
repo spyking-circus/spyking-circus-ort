@@ -1,3 +1,4 @@
+import threading
 import zmq
 
 from circusort.base.endpoint import Endpoint
@@ -5,12 +6,12 @@ from circusort.base import utils
 
 
 
-class Computer(object):
+class Computer(threading.Thread):
     '''TODO add docstring'''
 
     def __init__(self, log_address=None):
 
-        object.__init__(self)
+        threading.Thread.__init__(self)
 
         self.log_address = log_address
 
@@ -25,6 +26,8 @@ class Computer(object):
 
     def initialize(self):
         '''TODO add docstring'''
+
+        self.log.debug("initialization")
 
         # Bind socket for input data
         transport = 'tcp'
@@ -44,6 +47,8 @@ class Computer(object):
     def connect(self):
         '''TODO add docstring'''
 
+        self.log.debug("connection")
+
         self.output.socket = self.context.socket(zmq.PAIR)
         self.output.socket.connect(self.output.addr)
 
@@ -52,18 +57,28 @@ class Computer(object):
     def configure(self):
         '''TODO add docstring'''
 
+        self.log.debug("configuration")
+
         self.output.dtype = self.input.dtype
         self.output.shape = self.input.shape
 
         return
 
-    def start(self):
+    def run(self):
         '''TODO add dosctring'''
+
+        self.log.debug("run")
 
         i = 0
         while i < 1000:
-            msg = self.input.socket.recv()
-            self.output.socket.send(msg)
+
+            # TODO receive batch of data
+            batch = self.input.socket.recv()
+
+            # TODO send batch of data
+            self.output.socket.send(batch)
+
+            # TODO increment counter
             i = i + 1
 
         return
