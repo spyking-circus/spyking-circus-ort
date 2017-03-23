@@ -31,15 +31,17 @@ class Reader(threading.Thread):
         self.context = zmq.Context()
         self.output = Endpoint(self)
 
+        self.log.info("reader created")
+
     def initialize(self):
         '''TODO add docstring'''
 
-        self.log.debug("initialization")
-        # Create input file object
+        self.log.info("initialize {n}".format(n=self.name))
 
         shape = (self.nb_channels,)
 
         # # TODO remove following lines
+        # # Create input file object
         # self.file = open(self.path, mode='r')
         self.data = numpy.memmap(self.path, dtype=self.dtype, mode='r')
 
@@ -52,7 +54,7 @@ class Reader(threading.Thread):
     def connect(self):
         '''TODO add docstring'''
 
-        self.log.debug("connection")
+        self.log.info("connect {n}".format(n=self.name))
 
         self.output.socket = self.context.socket(zmq.PAIR)
         self.output.socket.connect(self.output.addr)
@@ -62,7 +64,7 @@ class Reader(threading.Thread):
     def run(self):
         '''TODO add dosctring'''
 
-        self.log.debug("run")
+        self.log.info("run {n}".format(n=self.name))
 
         sample_shape = (self.nb_channels,)
         sample_size = numpy.product(sample_shape)

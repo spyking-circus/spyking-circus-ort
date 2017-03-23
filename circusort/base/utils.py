@@ -6,6 +6,7 @@ import random
 import re
 import socket
 import struct
+import subprocess
 import time
 import zmq
 
@@ -69,8 +70,8 @@ def get_log(address, name=None):
     # Get a logger with the specified name (or the root logger)
     logger = logging.getLogger(name=name)
     # Set the threshold for this logger
-    # logger.setLevel(logging.DEBUG)
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.DEBUG)
+    # logger.setLevel(logging.INFO)
     # Add the specified handler to this logger
     logger.addHandler(handler)
 
@@ -119,8 +120,8 @@ def find_loopback_interface():
 
 def find_ethernet_interface():
     interfaces = find_interfaces()
-    if 'eth0' in interfaces:
-        return interfaces['eth0']
+    if 'eth1' in interfaces:
+        return interfaces['eth1']
     elif 'enp0s25' in interfaces:
         return interfaces['enp0s25']
     else:
@@ -130,3 +131,18 @@ def find_ethernet_interface():
 def extract_port(address):
     port = re.split(":", address)[-1]
     return port
+
+def find_interface_address_towards(host):
+    '''TODO add docstring'''
+
+    p = subprocess.Popen(["ip", "route", "get", host],
+                         stdout=subprocess.PIPE)
+    l = p.stdout.readlines()
+    s = l[0]
+    k = 'address'
+    p = "src (?P<{}>[\d,.]*)".format(k)
+    m = re.compile(p)
+    r = m.search(s)
+    a = r.group(k)
+
+    return a

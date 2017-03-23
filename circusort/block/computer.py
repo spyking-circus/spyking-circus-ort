@@ -24,6 +24,8 @@ class Computer(threading.Thread):
         self.input = Endpoint(self)
         self.output = Endpoint(self)
 
+        self.log.info("computer created")
+
     def initialize(self):
         '''TODO add docstring'''
 

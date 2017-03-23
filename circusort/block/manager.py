@@ -19,9 +19,9 @@ class Manager(object):
     def create_block(self, name):
         '''TODO add docstring'''
 
-        self.log.info("create block locally")
+        self.log.info("create {n} block".format(n=name))
 
-        process = Process(log_address=self.log_address)
+        process = Process(log_address=self.log_address, name="{n}'s client".format(n=name))
         module = process.get_module('circusort.block.{n}'.format(n=name))
         block = getattr(module, name.capitalize())(log_address=self.log_address)
 

@@ -9,7 +9,7 @@ from circusort.base.proxy import Proxy
 class Process(object):
     '''TODO add docstring'''
 
-    def __init__(self, address, log_address):
+    def __init__(self, host, address, log_address):
 
         object.__init__(self)
 
@@ -41,13 +41,12 @@ class Process(object):
         socket.connect(address)
         # TODO bind rpc socket
         transport = 'tcp'
-        host = '127.0.0.1'
         port = '*'
         endpoint = '{h}:{p}'.format(h=host, p=port)
         address = '{t}://{e}'.format(t=transport, e=endpoint)
         self.logger.debug("bind rpc socket at {a}".format(a=address))
         self.socket = self.context.socket(zmq.PAIR)
-        self.socket.setsockopt(zmq.RCVTIMEO, 10000)
+        # self.socket.setsockopt(zmq.RCVTIMEO, 10000)
         self.socket.bind(address)
         self.address = self.socket.getsockopt(zmq.LAST_ENDPOINT)
         self.logger.debug("rpc socket binded at {a}".format(a=self.address))
@@ -93,7 +92,8 @@ class Process(object):
             self.logger.debug("attribute {a}".format(a=attr))
             obj = getattr(obj, attr)
 
-        self.logger.debug(dir(obj))
+        # # TODO remove following line
+        # self.logger.debug(dir(obj))
 
         return obj
 
@@ -122,12 +122,6 @@ class Process(object):
             # TODO retrieve obj_type
             obj_type = dct.get('__type__', None)
             if obj_type is None:
-                # TODO remove following lines
-                # if 'args' in dct and 'kwds' in dct:
-                #     # TODO define a new type of object
-                #     dct['args'] = self.unwrap_object(dct['args'])
-                #     dct['kwds'] = self.unwrap_object(dct['kwds'])
-                self.logger.debug("##### dct: {d}".format(d=dct))
                 return dct
             elif obj_type == 'proxy':
                 dct['attributes'] = tuple(dct['attributes'])
@@ -309,17 +303,19 @@ class Process(object):
         dumped_obj = json.dumps(obj, cls=self.encoder)
         message = dumped_obj.encode()
 
-        self.logger.debug("message: {m}".format(m=message))
+        # # TODO remove following line
+        # self.logger.debug("message: {m}".format(m=message))
 
         return message
 
 
 def main(args):
 
+    host = args['host']
     address = args['address']
     log_address = args['log_address']
 
-    process = Process(address, log_address=log_address)
+    process = Process(host, address, log_address=log_address)
     process.run()
 
     return

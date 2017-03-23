@@ -25,6 +25,8 @@ class Writer(threading.Thread):
         self.context = zmq.Context()
         self.input = Endpoint(self)
 
+        self.log.info("writer created")
+
     def initialize(self):
         '''TODO add docstring'''
 

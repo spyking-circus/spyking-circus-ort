@@ -36,44 +36,18 @@ class Director(object):
     def get_logger(self):
         return self.logger
 
-    def create_manager(self, interface=None):
+    def create_manager(self, host=None):
         '''Create a new manager process and return a proxy to this process.
 
         A manager is a process that manages workers.
         '''
+
         self.log.info("director at {i} creates new manager".format(i=self.interface))
-        # TODO check if address is local or not...
-        # 1. local -> create new process locally (if necessary)            [cli]
-        # 2. network -> create new process remotely (if necessary)   [ssh + cli]
 
-        # TODO remove code attempt...
-        # process = Process(address=address)
-        # module = process.client._import('circusort.base.manager')
-        # manager = module.Manager(director=self)
+        process = create_process(host=host, log_address=self.logger.address, name="manager's client")
+        module = process.get_module('circusort.block.manager')
+        manager = module.Manager(log_address=self.logger.address)
 
-        # TODO remove following test lines...
-        #   a. How to deal with local v.s. remote MACHINE?
-        #   b. How to deal with local v.s. remote PROCESS?
-        mode = 'local'
-        if mode == 'local': # run manager inside the local process
-            self.log.info("spawn local manager process")
-            # process = Process(log_address=self.logger.address)
-            process = create_process(log_address=self.logger.address)
-            # or # process = Process(host='localhost')
-            # or # process = Process(host='127.0.0.1')
-            module = process.get_module('circusort.block.manager')
-            manager = module.Manager(log_address=self.logger.address)
-        elif mode == 'remote': # run manager inside a remote process
-            self.log.info("spawn remote manager process")
-            # process = Process(host='134.157.180.212', log_address=self.logger.address)
-            process = create_process(log_address=self.logger.address)
-            module = process.get_module('circusort.block.manager')
-            manager = module.Manager(log_address=self.logger.address)
-        else:
-            raise ValueError("invalid mode value: {m}".format(m=mode))
-
-        # # TODO uncomment following line
-        # manager = Manager(interface=interface, log_addr=self.logger.address)
         self.register_manager(manager)
 
         return manager
