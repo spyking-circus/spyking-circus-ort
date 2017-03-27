@@ -1,9 +1,11 @@
 import numpy
+import os
 import threading
 import zmq
 
 from circusort.base.endpoint import Endpoint
 from circusort.base import utils
+from circusort.io.generate import synthetic_grid
 
 
 
@@ -22,16 +24,26 @@ class Reader(threading.Thread):
         self.log = utils.get_log(self.log_address, name=__name__)
 
         self.path = "/tmp/input.dat"
+        self.force = False
         self.dtype = 'float32'
-        self.nb_channels = 4
+        self.size = 2
+        self.duration = 60.0 # s
+        self.sampling_rate = 20.0e+3 # Hz
 
-        # # TODO remove following lines
-        # self.file = None
+        self.nb_buffers = 1000
+        self.nb_samples = 100
+
         self.data = None
         self.context = zmq.Context()
         self.output = Endpoint(self)
 
         self.log.info("reader created")
+
+    @property
+    def nb_channels(self):
+        '''TODO add docstring'''
+
+        return self.size ** 2
 
     def initialize(self):
         '''TODO add docstring'''
@@ -40,14 +52,17 @@ class Reader(threading.Thread):
 
         shape = (self.nb_channels,)
 
-        # # TODO remove following lines
-        # # Create input file object
-        # self.file = open(self.path, mode='r')
+        if not os.path.exists(self.path) or self.force:
+            # Generate input file
+            synthetic_grid(self.path,
+                           size=self.size,
+                           duration=self.duration,
+                           sampling_rate=self.sampling_rate)
+        # Create input memory-map
         self.data = numpy.memmap(self.path, dtype=self.dtype, mode='r')
 
-        # TODO check correctness
         self.output.dtype = self.dtype
-        self.output.shape = (self.nb_channels, 100)
+        self.output.shape = (self.nb_channels, self.nb_samples)
 
         return
 
@@ -68,11 +83,10 @@ class Reader(threading.Thread):
 
         sample_shape = (self.nb_channels,)
         sample_size = numpy.product(sample_shape)
-        batch_shape = (100,) + sample_shape
+        batch_shape = (self.nb_samples,) + sample_shape
         batch_size = numpy.product(batch_shape)
 
-        i = 0
-        while i < 1000:
+        for i in range(0, self.nb_buffers):
 
             # TODO get data sample from input
             i_min = batch_size * i
@@ -81,9 +95,6 @@ class Reader(threading.Thread):
             batch = batch.reshape(batch_shape)
 
             # TODO set data sample to output
-            self.output.socket.send(batch)
-
-            # TODO increment counter
-            i = i + 1
+            self.output.send(batch)
 
         return

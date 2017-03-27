@@ -1,5 +1,9 @@
 # Test file
 tests/*
+!tests/README.md
+!tests/test_2op_1bl_1mg.py
+!tests/test_2op_2bl_1mg.py
+!tests/test_2op_2bl_2mg.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

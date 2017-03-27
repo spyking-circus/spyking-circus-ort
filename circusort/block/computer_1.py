@@ -1,5 +1,5 @@
+import numpy
 import threading
-import time
 import zmq
 
 from circusort.base.endpoint import Endpoint
@@ -7,7 +7,7 @@ from circusort.base import utils
 
 
 
-class Writer(threading.Thread):
+class Computer_1(threading.Thread):
     '''TODO add docstring'''
 
     def __init__(self, log_address=None):
@@ -16,21 +16,18 @@ class Writer(threading.Thread):
 
         self.log_address = log_address
 
-        self.name = "Writer's name (original)"
+        self.name = "Computer 1"
         if self.log_address is None:
             raise NotImplementedError("no logger address")
         self.log = utils.get_log(self.log_address, name=__name__)
 
         self.nb_buffers = 1000
 
-        self.path = "/tmp/output.dat"
-
         self.context = zmq.Context()
         self.input = Endpoint(self)
-        self.t_start = None
-        self.t_comp = None
+        self.output = Endpoint(self)
 
-        self.log.info("writer created")
+        self.log.info("computer 1 created")
 
     def initialize(self):
         '''TODO add docstring'''
@@ -48,9 +45,6 @@ class Writer(threading.Thread):
         self.input.socket.bind(address)
         self.input.addr = self.input.socket.getsockopt(zmq.LAST_ENDPOINT)
 
-        # TODO create output file object
-        self.file = open(self.path, mode='wb')
-
         return
 
     def connect(self):
@@ -58,33 +52,41 @@ class Writer(threading.Thread):
 
         self.log.debug("connection")
 
-        return
-
-    def process(self):
-
-        # self.log.debug("process") # commented to reduce logging
-
-        # TODO receive first batch of data
-        batch = self.input.receive()
-
-        # TODO set batch of data to the output
-        batch = batch.tobytes()
-        self.file.write(batch)
+        self.output.socket = self.context.socket(zmq.PAIR)
+        self.output.socket.connect(self.output.addr)
 
         return
+
+    def configure(self):
+        '''TODO add docstring'''
+
+        self.log.debug("configuration")
+
+        self.output.dtype = self.input.dtype
+        self.output.shape = self.input.shape
+
+        return
+
+    def operation_1(self, batch, k_1=10):
+        '''TODO add docstring'''
+
+        for k in range(0, k_1):
+            batch = numpy.add(batch, +1.0)
+            batch = numpy.add(batch, -1.0)
+
+        return batch
 
     def run(self):
         '''TODO add dosctring'''
 
         self.log.debug("run")
 
-        self.process()
-
-        self.t_start = time.time()
-
-        for i in range(1, self.nb_buffers):
-            self.process()
-
-        self.t_comp = time.time() - self.t_start
+        for i in range(0, self.nb_buffers):
+            # a. Receive batch of data
+            batch = self.input.receive()
+            # b. Apply operation #1
+            self.operation_1(batch)
+            # c. Send batch of data
+            self.output.send(batch)
 
         return
