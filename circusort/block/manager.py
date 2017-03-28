@@ -19,12 +19,14 @@ class Manager(object):
         self.log = utils.get_log(self.log_address, name=__name__, log_level=self.log_level)
         self.log.info("start manager {d}".format(d=str(self)))
 
-    def create_block(self, name):
+    def create_block(self, name, log_level=None):
         '''TODO add docstring'''
 
-        self.log.info("{d} create {n} block".format(d=str(self), n=name))
+        self.log.info("{d} creates block {n}".format(d=str(self), n=name))
+        if log_level is None:
+            log_level = self.log_level
 
-        process = Process(log_address=self.log_address, name="{n}'s client".format(n=name))
+        process = Process(log_address=self.log_address, name="{n}".format(n=name), log_level=log_level)
         module = process.get_module('circusort.block.{n}'.format(n=name))
         block = getattr(module, name.capitalize())(log_address=self.log_address)
 

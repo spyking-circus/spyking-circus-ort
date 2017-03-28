@@ -3,6 +3,7 @@ import paramiko
 import subprocess
 import sys
 import zmq
+import logging
 
 from circusort.base import utils
 from circusort.base.proxy import Proxy
@@ -10,10 +11,10 @@ from circusort.base.serializer import Serializer
 
 
 
-def create_process(host=None, log_address=None, name=None):
+def create_process(host=None, log_address=None, name=None, log_level=logging.INFO):
     '''TODO add docstring'''
 
-    process = Process(host=host, log_address=log_address, name=name)
+    process = Process(host=host, log_address=log_address, name=name, log_level=log_level)
     proxy = process.get_proxy()
 
     return proxy
@@ -30,14 +31,15 @@ class Process(object):
         Log address {None, 'tcp://X.X.X.X:X'}
     '''
 
-    def __init__(self, host=None, log_address=None, name=None):
+    def __init__(self, host=None, log_address=None, name=None, log_level=logging.INFO):
 
         object.__init__(self)
 
         if log_address is None:
             raise NotImplementedError()
             # TODO remove
-        self.logger = utils.get_log(log_address, name=__name__)
+        self.log_level = log_level
+        self.logger = utils.get_log(log_address, name=__name__, log_level=self.log_level)
 
         if host is None:
             self.host = '127.0.0.1'

@@ -49,7 +49,8 @@ class Director(object):
 
         process = create_process(host=host, log_address=self.logger.address, name=name)
         module = process.get_module('circusort.block.manager')
-        log_level = log_level or self.log_level
+        if log_level is None:
+            log_level = self.log_level
         manager = module.Manager(name=name, log_address=self.logger.address, log_level=log_level, host=host)
 
         self.register_manager(manager)
@@ -58,7 +59,7 @@ class Director(object):
 
     def register_manager(self, manager):
         
-        #self.managers.update({name: manager})
+        self.managers.update({manager.name: manager})
         self.log.debug("{d} registers {m}".format(d=str(self), m=manager.name))
         return
 
@@ -92,5 +93,5 @@ class Director(object):
         return self.managers.keys()
 
     def get_manager(self, key):
-        assert key in self.list_managers(), "%s is not a valid manager" %key
+        assert key in self.list_managers(), self.log.warning("%s is not a valid manager" %key)
         return self.managers[key]

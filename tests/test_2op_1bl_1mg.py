@@ -17,13 +17,13 @@ nb_buffer = 1000 # number of buffers to process
 
 # TODO for each trial
     # TODO create director
-director = circusort.create_director(log_level=logging.DEBUG)
+director = circusort.create_director(log_level=logging.INFO)
     # TODO create manager
-manager = director.create_manager(host=host, log_level=logging.DEBUG)
+manager = director.create_manager(host=host, log_level=logging.INFO)
     # TODO create block with read & send operations
 
-
-reader = manager.create_block('reader')
+print director.list_managers()
+reader = director.get_manager('Manager_1').create_block('reader', log_level=logging.INFO)
     # TODO create block with two operations (serial composition)
 computer = manager.create_block('computer_1_2')
     # TODO create block with receive & write operations
