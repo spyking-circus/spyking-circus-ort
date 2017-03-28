@@ -3,6 +3,7 @@
 
 import circusort
 import settings
+import logging
 
 
 host = '127.0.0.1' # to run the test locally
@@ -16,10 +17,12 @@ nb_buffer = 1000 # number of buffers to process
 
 # TODO for each trial
     # TODO create director
-director = circusort.create_director()
+director = circusort.create_director(log_level=logging.DEBUG)
     # TODO create manager
-manager = director.create_manager(host=host)
+manager = director.create_manager(host=host, log_level=logging.DEBUG)
     # TODO create block with read & send operations
+
+
 reader = manager.create_block('reader')
     # TODO create block with two operations (serial composition)
 computer = manager.create_block('computer_1_2')

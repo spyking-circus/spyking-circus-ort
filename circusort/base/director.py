@@ -1,7 +1,7 @@
 import time
+import logging
 
 from .logger import Logger
-from .manager import Manager
 from . import utils
 
 # from circusort.base.process import Process
@@ -11,23 +11,23 @@ from circusort.base.process import create_process
 
 class Director(object):
 
-    def __init__(self):
+    def __init__(self, name=None, log_level=logging.INFO):
 
         # Start logging server
+        self.name = name or "Director"
+        self.log_level = log_level
         self.logger = Logger()
         # Get logger instance
-        self.log = utils.get_log(self.logger.address, name=__name__)
+        self.log = utils.get_log(self.logger.address, name=__name__, log_level=self.log_level)
 
         self.interface = utils.find_ethernet_interface()
 
-        self.log.debug("start director at {i}".format(i=self.interface))
-
-        # TODO remove following line...
-        self.name = "Director's name"
+        self.log.info("start director {d}".format(d=str(self)))
+        
         self.managers = {}
 
     def __del__(self):
-        self.log.debug("stop director at {i}".format(i=self.interface))
+        self.log.info("stop director {d}".format(d=str(self)))
 
     @property
     def nb_managers(self):
@@ -36,27 +36,30 @@ class Director(object):
     def get_logger(self):
         return self.logger
 
-    def create_manager(self, host=None):
+    def create_manager(self, name=None, host=None, log_level=None):
         '''Create a new manager process and return a proxy to this process.
 
         A manager is a process that manages workers.
         '''
+        if name is None:
+            manager_id = 1 + self.nb_managers
+            name = "Manager_{}".format(manager_id)
 
-        self.log.info("director at {i} creates new manager".format(i=self.interface))
+        self.log.debug("{d} creates new manager {m}".format(d=str(self), m=name))
 
-        process = create_process(host=host, log_address=self.logger.address, name="manager's client")
+        process = create_process(host=host, log_address=self.logger.address, name=name)
         module = process.get_module('circusort.block.manager')
-        manager = module.Manager(log_address=self.logger.address)
+        log_level = log_level or self.log_level
+        manager = module.Manager(name=name, log_address=self.logger.address, log_level=log_level, host=host)
 
         self.register_manager(manager)
 
         return manager
 
-    def register_manager(self, manager, name=None):
-        if name is None:
-            manager_id = 1 + self.nb_managers
-            name = "manager_{}".format(manager_id)
-        self.managers.update({name: manager})
+    def register_manager(self, manager):
+        
+        #self.managers.update({name: manager})
+        self.log.debug("{d} registers {m}".format(d=str(self), m=manager.name))
         return
 
     def initialize_all(self):
@@ -70,7 +73,7 @@ class Director(object):
         return
 
     def sleep(self, duration=None):
-        self.log.debug("director sleeps {d} sec".format(d=duration))
+        self.log.debug("{d} sleeps {k} sec".format(d=str(self), k=duration))
         time.sleep(duration)
         return
 
@@ -81,3 +84,13 @@ class Director(object):
 
     def destroy_all(self):
         return
+
+    def __str__(self):
+        return "{d}[{i}]".format(d=self.name, i=self.interface)
+
+    def list_managers(self):
+        return self.managers.keys()
+
+    def get_manager(self, key):
+        assert key in self.list_managers(), "%s is not a valid manager" %key
+        return self.managers[key]

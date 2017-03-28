@@ -61,7 +61,7 @@ class LogHandler(logging.Handler):
         return
 
 
-def get_log(address, name=None):
+def get_log(address, name=None, log_level=logging.INFO):
     '''Get a logger instance by name.'''
 
     # Initialize the handler instance
@@ -70,7 +70,7 @@ def get_log(address, name=None):
     # Get a logger with the specified name (or the root logger)
     logger = logging.getLogger(name=name)
     # Set the threshold for this logger
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(log_level)
     # logger.setLevel(logging.INFO)
     # Add the specified handler to this logger
     logger.addHandler(handler)
