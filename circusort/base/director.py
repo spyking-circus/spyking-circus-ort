@@ -11,16 +11,16 @@ from circusort.base.process import create_process
 
 class Director(object):
 
-    def __init__(self, name=None, log_level=logging.INFO):
+    def __init__(self, interface='127.0.0.1', name=None, log_level=logging.INFO):
 
         # Start logging server
         self.name = name or "Director"
         self.log_level = log_level
-        self.logger = Logger()
+        self.logger = Logger(interface=interface)
         # Get logger instance
         self.log = utils.get_log(self.logger.address, name=__name__, log_level=self.log_level)
 
-        self.interface = utils.find_ethernet_interface()
+        self.interface = interface
 
         self.log.info("start director {d}".format(d=str(self)))
         
