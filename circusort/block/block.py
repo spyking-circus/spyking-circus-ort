@@ -10,66 +10,69 @@ from circusort.base import utils
 class Block(threading.Thread):
     '''TODO add docstring'''
 
-    def __init__(self, name, log_address=None, log_level=logging.INFO):
+    name    = "Block"
+    params  = {}
+    inputs  = {}
+    outputs = {}
+
+    def __init__(self, name=None, log_address=None, log_level=logging.INFO, **kwargs):
 
         threading.Thread.__init__(self)
 
         self.log_address = log_address
         self.log_level = log_level
+        if name is not None:
+            self.name = name
 
-        self.name = "Computer 1"
         if self.log_address is None:
             raise NotImplementedError("no logger address")
+
         self.log = utils.get_log(self.log_address, name=__name__, log_level=self.log_level)
 
-        self.inputs  =  {}
-        self.outputs =  {}
-        self.running  = False
+        self.running = False
+        self.context = zmq.Context()
 
-        self.log.info("computer 1 created")
+        for key in self.params.keys():
+            if key in kwargs.keys():
+                self.params[key] = kwargs[key]
+            try:
+                self.__setattr__(key, self.params[key])
+            except Exception:
+                pass
+
+        self.log.info("{n} has been created".format(n=self.name))
 
     def initialize(self, **kwargs):
+
+        self.log.debug("{n} is initialized".format(n=self.name))
+        return self._initialize(**kwargs)
+
+    def connect(self, **kwargs):
         '''TODO add docstring'''
 
-        self.log.debug("initialization")
-
-        # Bind socket for input data
-        transport = 'tcp'
-        host = '127.0.0.1'
-        port = '*'
-        endpoint = '{h}:{p}'.format(h=host, p=port)
-        address = '{t}://{e}'.format(t=transport, e=endpoint)
-        self.input.socket = self.context.socket(zmq.PAIR)
-        # self.input.socket.setsockopt(zmq.RCVTIMEO, 10000)
-        self.input.socket.bind(address)
-        self.input.addr = self.input.socket.getsockopt(zmq.LAST_ENDPOINT)
-
-        return
-
-    def connect(self):
-        '''TODO add docstring'''
-
-        self.log.debug("connection")
-
-        self.output.socket = self.context.socket(zmq.PAIR)
-        self.output.socket.connect(self.output.addr)
-
-        return
+        self.log.debug("{n} establishes connections".format(n=self.name))
+        return self._connect(**kwargs)
 
     def configure(self, **kwargs):
         '''TODO add docstring'''
 
-        self.log.debug("configuration")
-
-        return self._configure(**kwags)
+        self.log.debug("{n} is configured".format(n=self.name))
+        return self._configure(**kwargs)
 
     def run(self):
         '''TODO add dosctring'''
 
         self.log.debug("run")
-        self.running = True
+        #self.running = True
 
-        while self.running:
-            self._run()
+        #while self.running:
+        self._run()
 
+    def stop(self):
+        pass        
 
+    def __str__(self):
+        res = "Block object %s with params:\n"
+        for key, value in self.params.items():
+            res += "|%s = %s\n" %(key, str(value))
+        return res

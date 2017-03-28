@@ -1,43 +1,37 @@
-import threading
-import time
+from .block import Block
 import zmq
-
+import numpy
+import time
 from circusort.base.endpoint import Endpoint
 from circusort.base import utils
 
 
 
-class Writer(threading.Thread):
+class Writer(Block):
     '''TODO add docstring'''
 
-    def __init__(self, log_address=None):
+    name   = "File writer"
 
-        threading.Thread.__init__(self)
+    params = {'data_path'  : '/tmp/output.dat',
+              'nb_buffers' : 1000}
 
-        self.log_address = log_address
 
-        self.name = "Writer's name (original)"
-        if self.log_address is None:
-            raise NotImplementedError("no logger address")
-        self.log = utils.get_log(self.log_address, name=__name__)
+    #inputs = {'data' : None}
 
-        self.nb_buffers = 1000
+    def __init__(self, **kwargs):
 
-        self.path = "/tmp/output.dat"
+        Block.__init__(self, **kwargs)
 
-        self.context = zmq.Context()
-        self.input = Endpoint(self)
-        self.t_start = None
-        self.t_comp = None
-
+        #self.inputs['data'] = Endpoint(self)
+        self.t_start        = None
+        self.t_comp         = None
+        self.input          = Endpoint(self)
         self.log.info("writer created")
 
-    def initialize(self):
+    def _initialize(self):
         '''TODO add docstring'''
 
-        self.log.debug("initialization")
-
-        # Bind socket for input data
+        # TODO create output file object
         transport = 'tcp'
         host = '127.0.0.1'
         port = '*'
@@ -47,20 +41,18 @@ class Writer(threading.Thread):
         # self.input.socket.setsockopt(zmq.RCVTIMEO, 10000)
         self.input.socket.bind(address)
         self.input.addr = self.input.socket.getsockopt(zmq.LAST_ENDPOINT)
-
-        # TODO create output file object
-        self.file = open(self.path, mode='wb')
+        self.file = open(self.data_path, mode='wb')
 
         return
 
-    def connect(self):
+    def _connect(self):
         '''TODO add docstring'''
 
         self.log.debug("connection")
 
         return
 
-    def process(self):
+    def _process(self):
 
         # self.log.debug("process") # commented to reduce logging
 
@@ -73,17 +65,17 @@ class Writer(threading.Thread):
 
         return
 
-    def run(self):
+    def _run(self):
         '''TODO add dosctring'''
 
         self.log.debug("run")
 
-        self.process()
+        self._process()
 
         self.t_start = time.time()
 
         for i in range(1, self.nb_buffers):
-            self.process()
+            self._process()
 
         self.t_comp = time.time() - self.t_start
 

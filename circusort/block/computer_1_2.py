@@ -1,38 +1,32 @@
-import numpy
-import threading
+from .block import Block
 import zmq
-
+import numpy
 from circusort.base.endpoint import Endpoint
 from circusort.base import utils
 
 
 
-class Computer_1_2(threading.Thread):
+class Computer_1_2(Block):
     '''TODO add docstring'''
 
-    def __init__(self, log_address=None):
+    name = "Two operations"
 
-        threading.Thread.__init__(self)
+    params = {'data_path'  : '/tmp/output.dat',
+              'nb_buffers' : 1000}
 
-        self.log_address = log_address
 
-        self.name = "Computer 1 & 2"
-        if self.log_address is None:
-            raise NotImplementedError("no logger address")
-        self.log = utils.get_log(self.log_address, name=__name__)
+    #inputs  = {'data_in' : None}
+    #outputs = {'data_out' : None}
 
-        self.nb_buffers = 1000
+    def __init__(self, **kwargs):
 
-        self.context = zmq.Context()
+        Block.__init__(self, **kwargs)
         self.input = Endpoint(self)
         self.output = Endpoint(self)
 
-        self.log.info("computer 1 & 2 created")
 
-    def initialize(self):
+    def _initialize(self):
         '''TODO add docstring'''
-
-        self.log.debug("initialization")
 
         # Bind socket for input data
         transport = 'tcp'
@@ -47,20 +41,16 @@ class Computer_1_2(threading.Thread):
 
         return
 
-    def connect(self):
+    def _connect(self):
         '''TODO add docstring'''
-
-        self.log.debug("connection")
 
         self.output.socket = self.context.socket(zmq.PAIR)
         self.output.socket.connect(self.output.addr)
 
         return
 
-    def configure(self):
+    def _configure(self):
         '''TODO add docstring'''
-
-        self.log.debug("configuration")
 
         self.output.dtype = self.input.dtype
         self.output.shape = self.input.shape
@@ -85,10 +75,8 @@ class Computer_1_2(threading.Thread):
 
         return batch
 
-    def run(self):
+    def _run(self):
         '''TODO add dosctring'''
-
-        self.log.debug("run")
 
         for i in range(0, self.nb_buffers):
             # a. Receive batch of data

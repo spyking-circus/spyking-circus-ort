@@ -43,5 +43,8 @@ class Manager(object):
 
         return
 
+    # def list_blocks(self):
+    #     return list_modules()
+
     def __str__(self):
         return "{d}[{i}]".format(d=self.name, i=self.host)
