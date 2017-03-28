@@ -1,8 +1,16 @@
 import os.path
 import matplotlib.pyplot as plt
 import numpy as np
+import ConfigParser as cp
 
 from . import load
+from .utils import *
+
+
+
+def default(path, visualization=False):
+    syn_grid = synthetic_grid(path, visualization=visualization)
+    return
 
 
 
@@ -56,7 +64,6 @@ class Synthetic(object):
         '''TODO add doc...'''
         data = load.raw_binary(self.path, self.nb_channels, self.length, self.sampling_rate)
         return data
-
 
 
 def synthetic(path, nb_channels=3, duration=60.0, sampling_rate=20000.0):
@@ -146,9 +153,10 @@ class SyntheticGrid(object):
         self.path = path
         self.size = size
         self.nb_channels = size * size
+        self.dtype = 'float32'
         self.inter_electrode_distance = 5.0e-5
         self.duration = duration
-        self.length = int(duration * sampling_rate) + 1
+        self.length = int(duration * sampling_rate)
         self.sampling_rate = sampling_rate
         self.mu = 0.0 # V # noise mean
         self.sigma = 1.0e-3 # V # noise standard deviation
@@ -232,6 +240,7 @@ class SyntheticGrid(object):
         plt.ylabel(r"$y$ $(\mu{}m)$")
         plt.title(r"Spatial configuration")
         plt.axes().set_aspect('equal', adjustable='box')
+        plt.tight_layout()
         return
 
     def plot_temporal_configuration(self, t_start=None, t_end=None):
@@ -262,6 +271,7 @@ class SyntheticGrid(object):
         plt.xlabel(r"time $(s)$")
         plt.ylabel(r"cell")
         plt.title(r"Temporal configuration")
+        plt.tight_layout()
         return
 
     def plot_waveforms(self):
@@ -279,11 +289,13 @@ class SyntheticGrid(object):
             plt.plot(t, w, color=cell.color)
             plt.xlim(t[0], t[-1])
         plt.suptitle(r"Waveforms")
+        plt.tight_layout()
+        plt.subplots_adjust(top=0.92)
         return
 
     def save(self):
         shape = (self.length, self.nb_channels)
-        f = np.memmap(self.path, dtype='float32', mode='w+', shape=shape)
+        f = np.memmap(self.path, dtype=self.dtype, mode='w+', shape=shape)
         # First: generate the noise chunk by chunk...
         i_start = 0
         i_end = self.chunk_length
@@ -392,13 +404,50 @@ class SyntheticGrid(object):
                     data[j_min:j_max, channel.id] = v
         f[i_start:i_end] = data
         f.flush()
+        # Save header file
+        header_path = get_header_path(self.path)
+        header_stream = open(header_path, mode='w')
+        header = cp.ConfigParser()
+        header.add_section('header')
+        header.set('header', 'dtype', self.dtype)
+        header.set('header', 'length', self.length)
+        header.set('header', 'nb_channels', self.nb_channels)
+        header.set('header', 'duration', self.duration)
+        header.set('header', 'sampling_rate', self.sampling_rate)
+        header.write(header_stream)
+        header_stream.close()
+        return
+
+    def save_visualization(self):
+        '''TODO add docstring...'''
+        # Save visualization files
+        ## Create visualization directory if necessary
+        make_local_directory(self.path)
+        ## Save visualization of the spatial configuration
+        spatial_configuration_path = get_spatial_configuration_path(self.path)
+        self.plot_spatial_configuration()
+        plt.savefig(spatial_configuration_path)
+        plt.close()
+        ## Save visualization of the temporal configuration
+        temporal_configuration_path = get_temporal_configuration_path(self.path)
+        self.plot_temporal_configuration()
+        plt.savefig(temporal_configuration_path)
+        plt.close()
+        ## Save visualization of the waveforms
+        waveforms_path = get_waveforms_path(self.path)
+        self.plot_waveforms()
+        plt.savefig(waveforms_path)
+        plt.close()
         return
 
 
-def synthetic_grid(path, size=2, duration=60.0, sampling_rate=20000.0):
+def synthetic_grid(path, size=2, duration=60.0, sampling_rate=20000.0, visualization=False):
     '''TODO add doc...'''
     path = os.path.expanduser(path)
     syn_grid = SyntheticGrid(path, size, duration, sampling_rate)
-    syn_grid.plot()
     syn_grid.save()
+    if visualization:
+        syn_grid.save_visualization()
+    else:
+        pass
     return syn_grid

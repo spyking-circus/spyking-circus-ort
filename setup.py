@@ -26,28 +26,35 @@ def _package_tree(pkgroot):
                if '__init__.py' in i[2]]
     return subdirs
 
-setup(name='circusort',
-      version=version,
-      description='Fast spike sorting by template matching',
-      long_description=read('README.rst'),
-      url='http://spyking-circus.rtfd.org',
-      author='Pierre Yger, Baptiste Lefebvre and Olivier Marre',
-      author_email='pierre.yger@inserm.fr',
-      license='License :: OSI Approved :: UPMC CNRS INSERM Logiciel Libre License, version 2.1 (CeCILL-2.1)',
-      keywords="spike sorting template matching tetrodes extracellular",
-      packages=_package_tree('circusort'),
-      setup_requires=['setuptools>0.18'],
-      install_requires=requires,
-      use_2to3=True,
-      classifiers=[
-          'Development Status :: 4 - Beta',
-          'Environment :: Console',
-          'Intended Audience :: Science/Research',
-          'License :: Other/Proprietary License',
-          'Natural Language :: English',
-          'Operating System :: OS Independent',
-          'Programming Language :: Python :: 2',
-          'Programming Language :: Python :: 3',
-          'Topic :: Scientific/Engineering :: Bio-Informatics'
-      ],
-      zip_safe=False)
+setup(
+    name='circusort',
+    version=version,
+    description='Fast spike sorting by template matching',
+    long_description=read('README.rst'),
+    url='http://spyking-circus.rtfd.org',
+    author='Pierre Yger, Baptiste Lefebvre and Olivier Marre',
+    author_email='pierre.yger@inserm.fr',
+    license='License :: OSI Approved :: UPMC CNRS INSERM Logiciel Libre License, version 2.1 (CeCILL-2.1)',
+    keywords="spike sorting template matching tetrodes extracellular",
+    # packages=_package_tree('circusort'),
+    packages=find_packages(),
+    setup_requires=['setuptools>0.18'],
+    install_requires=requires,
+    use_2to3=True,
+    entry_points={
+        'console_scripts': [
+            'spyking-circus-ort = circusort:main',
+        ]
+    }
+    classifiers=[
+        'Development Status :: 4 - Beta',
+        'Environment :: Console',
+        'Intended Audience :: Science/Research',
+        'License :: Other/Proprietary License',
+        'Natural Language :: English',
+        'Operating System :: OS Independent',
+        'Programming Language :: Python :: 2',
+        'Programming Language :: Python :: 3',
+        'Topic :: Scientific/Engineering :: Bio-Informatics'
+    ],
+    zip_safe=False)
