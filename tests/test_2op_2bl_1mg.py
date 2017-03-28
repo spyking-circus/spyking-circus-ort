@@ -16,7 +16,8 @@ nb_buffer = 1000 # number of buffers to process
 
 # TODO for each trial
     # TODO create director
-director = circusort.create_director()
+interface = circusort.utils.find_interface_address_towards(host)
+director = circusort.create_director(interface=interface)
     # TODO create manager
 manager = director.create_manager(host=host)
     # TODO create block with read & send operations

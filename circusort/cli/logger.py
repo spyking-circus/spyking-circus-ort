@@ -10,7 +10,7 @@ from circusort.base import utils
 
 
 
-def receive_log(context):
+def receive_log(context, interface):
 
     basicConfig(format='%(relativeCreated)5d %(name)-15s %(levelname)-8s %(message)s')
 
@@ -22,7 +22,7 @@ def receive_log(context):
     # TODO initialize server...
     topic = b'log'
     transport = 'tcp'
-    host = utils.find_ethernet_interface() # TODO correct this line
+    host = interface
     port = '*'
     endpoint = '{h}:{p}'.format(h=host, p=port)
     address = '{t}://{e}'.format(t=transport, e=endpoint)
@@ -71,6 +71,7 @@ def main(arguments):
 
     configuration = arguments
     tmp_endpoint = configuration['endpoint']
+    interface = configuration['interface']
 
     context = zmq.Context()
 
@@ -104,7 +105,7 @@ def main(arguments):
     log_socket = context.socket(zmq.PAIR)
     log_socket.bind(log_address)
     # TODO start thread...
-    t = Thread(target=receive_log, args=(context,))
+    t = Thread(target=receive_log, args=(context, interface))
     t.setDaemon(True)
     t.start()
     # TODO get log endpoint from temporary socket...
@@ -147,6 +148,7 @@ if __name__ == '__main__':
 
     parser = ArgumentParser()
     parser.add_argument('-e', '--endpoint', required=True)
+    parser.add_argument('-i', '--interface', required=True)
 
     args = parser.parse_args()
     args = vars(args)

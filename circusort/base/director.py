@@ -11,14 +11,14 @@ from circusort.base.process import create_process
 
 class Director(object):
 
-    def __init__(self):
+    def __init__(self, interface='127.0.0.1'):
 
         # Start logging server
-        self.logger = Logger()
+        self.logger = Logger(interface=interface)
         # Get logger instance
         self.log = utils.get_log(self.logger.address, name=__name__)
 
-        self.interface = utils.find_ethernet_interface()
+        self.interface = interface
 
         self.log.debug("start director at {i}".format(i=self.interface))
 

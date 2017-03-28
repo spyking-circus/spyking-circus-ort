@@ -7,7 +7,7 @@ import zmq
 class Logger(object):
     '''Logging server.'''
 
-    def __init__(self):
+    def __init__(self, interface='127.0.0.1'):
 
         zmq_context = zmq.Context.instance()
 
@@ -22,6 +22,8 @@ class Logger(object):
         command = [executable]
         command += ['-m', 'circusort.cli.logger']
         command += ['-e', tmp_endpoint]
+        command += ['-i', interface]
+        print(' '.join(command))
         process = Popen(command)
 
         # 3. receive greetings
