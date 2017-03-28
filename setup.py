@@ -45,7 +45,7 @@ setup(
         'console_scripts': [
             'spyking-circus-ort = circusort:main',
         ]
-    }
+    },
     classifiers=[
         'Development Status :: 4 - Beta',
         'Environment :: Console',
