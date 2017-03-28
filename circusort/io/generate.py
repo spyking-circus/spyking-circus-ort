@@ -141,9 +141,11 @@ class Cell(object):
         w = np.zeros_like(times)
         m = spike_time <= times
         t = times - spike_time
-        w[m] -= np.sin(2.0 * np.pi * t[m] / t[m][-1])
-        w[m] *= (t[m] / self.tau) * np.exp(1.0 - (t[m] / self.tau))
-        w[m] *= self.alpha
+        t = t[m]
+        if not t.size == 0:
+            w[m] -= np.sin(2.0 * np.pi * t / t[-1])
+            w[m] *= (t / self.tau) * np.exp(1.0 - (t / self.tau))
+            w[m] *= self.alpha
         return w
 
 class SyntheticGrid(object):
