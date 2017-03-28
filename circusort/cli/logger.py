@@ -10,62 +10,9 @@ from circusort.base import utils
 
 
 
-# class LogServer:
-#     '''Simple logging receiver/server.'''
-#
-#     def __init__(self):
-#
-#         transport = 'tcp'
-#         host = '134.157.180.205'
-#         port = 9020
-#         endpoint = '{h}:{p}'.format(h=host, p=port)
-#         self.address = '{t}://{e}'.format(t=transport, e=endpoint)
-#         self.filename = '/tmp/circusort_log.txt'
-#
-#     def serve_until_stopped(self):
-#
-#         self.context = zmq.Context.instance()
-#         self.socket = self.context.socket(zmq.SUB)
-#         self.socket.setsockopt(zmq.SUBSCRIBE, '')
-#         self.socket.bind(self.address)
-#
-#         self.file = open(self.filename, mode='w')
-#
-#         while True:
-#
-#             message = self.socket.recv_json()
-#             kind = message['kind']
-#             if kind == 'order':
-#                 action = message['action']
-#                 if action == 'close':
-#                     break
-#                 else:
-#                     pass
-#             elif kind == 'log':
-#                 record = message['record']
-#                 record = makeLogRecord(record)
-#                 # TODO handle log record
-#                 logger = getLogger(record.name)
-#                 logger.handle(record)
-#                 # self.file.write("{r}\n".format(r=record))
-#             else:
-#                 pass
-#
-#         self.file.close()
-#
-#         self.socket.close()
-#
-#         return
-
-
 def receive_log(context):
 
     basicConfig(format='%(relativeCreated)5d %(name)-15s %(levelname)-8s %(message)s')
-
-    # # TODO initialize server...
-    # log_server = LogServer(address)
-    # # TODO serve until stopped...
-    # log_server.serve_until_stopped()
 
     # TODO: connect to the temporary socket...
     log_address = 'inproc://circusort_cli_logger'
@@ -75,7 +22,7 @@ def receive_log(context):
     # TODO initialize server...
     topic = b'log'
     transport = 'tcp'
-    host = utils.find_ethernet_interface()
+    host = utils.find_ethernet_interface() # TODO correct this line
     port = '*'
     endpoint = '{h}:{p}'.format(h=host, p=port)
     address = '{t}://{e}'.format(t=transport, e=endpoint)

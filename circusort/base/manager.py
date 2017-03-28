@@ -4,9 +4,6 @@ import subprocess
 import sys
 import zmq
 
-from .reader import Reader
-from .computer import Computer
-from .writer import Writer
 from circusort.base import utils
 from circusort.base.process import Process
 from circusort.io import load_configuration
