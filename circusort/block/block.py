@@ -58,6 +58,12 @@ class Block(threading.Thread):
         endpoint.addr = endpoint.socket.getsockopt(zmq.LAST_ENDPOINT)
 
 
+    def get_input(self, key):
+        return self.inputs[key]
+
+    def get_output(self, key):
+        return self.outputs[key]
+
     def connect(self, **kwargs):
         '''TODO add docstring'''
 

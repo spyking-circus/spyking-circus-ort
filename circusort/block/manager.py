@@ -43,7 +43,7 @@ class Manager(object):
         assert method in ['tcp', 'udp', 'ipc'], self.log.warning('Invalid connection')
 
         
-
+        print input_endpoint, dir(output_endpoint)
         input_endpoint.configure(addr=output_endpoint.addr)
         output_endpoint.configure(dtype=input_endpoint.dtype,
                                   shape=input_endpoint.shape)
