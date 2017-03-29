@@ -35,16 +35,22 @@ class Manager(object):
 
         return block
 
-    def connect(self, input_endpoint, output_endpoint, method='tcp'):
+    def connect(self, input_endpoint, output_endpoint, protocol='tcp'):
         '''TODO add docstring'''
 
         self.log.info("{d} connects couple of blocks".format(d=str(self)))
 
-        assert method in ['tcp', 'udp', 'ipc'], self.log.warning('Invalid connection')
+        assert protocol in ['tcp', 'udp', 'ipc'], self.log.error('Invalid connection')
+
+        input_endpoint.initialize(protocol=protocol)
+        output_endpoint.initialize(protocol=protocol)
 
         input_endpoint.configure(addr=output_endpoint.addr)
         output_endpoint.configure(dtype=input_endpoint.dtype,
                                   shape=input_endpoint.shape)
+
+        input_endpoint.block.connect()
+        output_endpoint.block.connect()
 
         return
 
@@ -65,5 +71,10 @@ class Manager(object):
         return self.blocks.keys()
 
     def get_block(self, key):
-        assert key in self.list_blocks(), self.log.warning("%s is not a valid block" %key)
+        assert key in self.list_blocks(), self.log.error("%s is not a valid block" %key)
         return self.blocks[key]
+
+    def initialize_all(self):
+        for block in self.blocks.itervalues():
+            block.initialize()
+        return

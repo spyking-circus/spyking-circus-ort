@@ -32,28 +32,18 @@ class Block(threading.Thread):
         self.running = False
         self.ready   = False
         self.context = zmq.Context()
+        self.params.update(kwargs)
 
         self.configure(**self.params)
 
         self.log.info("{n} has been created".format(n=self.name))
+        self.log.debug(str(self))
 
     def initialize(self):
 
         self.log.debug("{n} is initialized".format(n=self.name))
         self.ready = True
         return self._initialize()
-
-
-    def _init_endpoint(self, endpoint):
-        transport = 'tcp'
-        host = '127.0.0.1'
-        port = '*'
-        endpoint = '{h}:{p}'.format(h=host, p=port)
-        address = '{t}://{e}'.format(t=transport, e=endpoint)
-        endpoint.socket = self.context.socket(zmq.PAIR)
-        endpoint.socket.bind(address)
-        endpoint.addr = endpoint.socket.getsockopt(zmq.LAST_ENDPOINT)
-
 
     @property
     def input(self):
@@ -118,5 +108,5 @@ class Block(threading.Thread):
     def __str__(self):
         res = "Block object %s with params:\n" %self.name
         for key in self.params.keys():
-            res += "|%s = %s\n" %(key, str(self.__getattr__(key)))
+            res += "|%s = %s\n" %(key, str(getattr(self, key)))
         return res

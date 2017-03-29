@@ -29,17 +29,6 @@ class Writer(Block):
 
     def _initialize(self):
         '''TODO add docstring'''
-
-        # TODO create output file object
-        transport = 'tcp'
-        host = '127.0.0.1'
-        port = '*'
-        endpoint = '{h}:{p}'.format(h=host, p=port)
-        address = '{t}://{e}'.format(t=transport, e=endpoint)
-        self.input.socket = self.context.socket(zmq.PAIR)
-        # self.input.socket.setsockopt(zmq.RCVTIMEO, 10000)
-        self.input.socket.bind(address)
-        self.input.addr = self.input.socket.getsockopt(zmq.LAST_ENDPOINT)
         self.file = open(self.data_path, mode='wb')
 
         return
