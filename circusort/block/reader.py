@@ -22,8 +22,6 @@ class Reader(Block):
               'nb_samples'    : 100,
               'duration'      : 60}
 
-    outputs = {'data' : None}
-
     def __init__(self, **kwargs):
 
         Block.__init__(self, **kwargs)

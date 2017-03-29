@@ -15,30 +15,20 @@ class Computer_1_2(Block):
               'nb_buffers' : 1000}
 
 
-    #inputs  = {'data_in' : None}
-    #outputs = {'data_out' : None}
+    inputs  = {'data' : None}
+    outputs = {'data' : None}
 
     def __init__(self, **kwargs):
 
         Block.__init__(self, **kwargs)
-        self.input = Endpoint(self)
-        self.output = Endpoint(self)
+        self.inputs['data']  = Endpoint(self)
+        self.outputs['data'] = Endpoint(self)
 
 
     def _initialize(self):
         '''TODO add docstring'''
 
         # Bind socket for input data
-        transport = 'tcp'
-        host = '127.0.0.1'
-        port = '*'
-        endpoint = '{h}:{p}'.format(h=host, p=port)
-        address = '{t}://{e}'.format(t=transport, e=endpoint)
-        self.input.socket = self.context.socket(zmq.PAIR)
-        # self.input.socket.setsockopt(zmq.RCVTIMEO, 10000)
-        self.input.socket.bind(address)
-        self.input.addr = self.input.socket.getsockopt(zmq.LAST_ENDPOINT)
-
         return
 
     def _connect(self):

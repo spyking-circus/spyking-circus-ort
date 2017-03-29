@@ -78,14 +78,14 @@ class Director(object):
 
     #     return
 
-    def initialize_all(self):
+    def initialize(self):
         for manager in self.managers.itervalues():
-            manager.initialize_all()
+            manager.initialize()
         return
 
-    def start_all(self):
+    def start(self):
         for manager in self.managers.itervalues():
-            manager.start_all()
+            manager.start()
         return
 
     def sleep(self, duration=None):
@@ -93,9 +93,9 @@ class Director(object):
         time.sleep(duration)
         return
 
-    def stop_all(self):
+    def stop(self):
         for manager in self.managers.itervalues():
-            manager.stop_all()
+            manager.stop()
         return
 
     def destroy_all(self):

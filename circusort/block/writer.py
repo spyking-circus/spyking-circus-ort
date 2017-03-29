@@ -17,9 +17,6 @@ class Writer(Block):
               't_start'    : None,
               't_comp'     : None}
 
-
-    inputs = {'data' : None}
-
     def __init__(self, **kwargs):
 
         Block.__init__(self, **kwargs)

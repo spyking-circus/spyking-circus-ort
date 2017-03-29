@@ -74,7 +74,17 @@ class Manager(object):
         assert key in self.list_blocks(), self.log.error("%s is not a valid block" %key)
         return self.blocks[key]
 
-    def initialize_all(self):
+    def initialize(self):
         for block in self.blocks.itervalues():
             block.initialize()
+        return
+
+    def join(self):
+        for block in self.blocks.itervalues():
+            block.join()
+        return
+
+    def start(self):
+        for block in self.blocks.itervalues():
+            block.start()
         return
