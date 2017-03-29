@@ -28,7 +28,7 @@ class Manager(object):
 
         process = Process(log_address=self.log_address, name="{n}".format(n=name), log_level=log_level)
         module = process.get_module('circusort.block.{n}'.format(n=name))
-        block = getattr(module, name.capitalize())(log_address=self.log_address)
+        block = getattr(module, name.capitalize())(log_address=self.log_address, log_level=log_level)
 
         return block
 

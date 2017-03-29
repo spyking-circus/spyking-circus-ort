@@ -16,7 +16,7 @@ class Writer(Block):
               'nb_buffers' : 1000}
 
 
-    #inputs = {'data' : None}
+    inputs = {'data' : None}
 
     def __init__(self, **kwargs):
 
@@ -26,7 +26,6 @@ class Writer(Block):
         self.t_start        = None
         self.t_comp         = None
         self.input          = Endpoint(self)
-        self.log.info("writer created")
 
     def _initialize(self):
         '''TODO add docstring'''

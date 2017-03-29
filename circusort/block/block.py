@@ -30,22 +30,21 @@ class Block(threading.Thread):
         self.log = utils.get_log(self.log_address, name=__name__, log_level=self.log_level)
 
         self.running = False
+        self.ready   = False
         self.context = zmq.Context()
 
-        for key in self.params.keys():
-            if key in kwargs.keys():
-                self.params[key] = kwargs[key]
-            try:
-                self.__setattr__(key, self.params[key])
-            except Exception:
-                pass
+        self.configure(**kwargs)
 
         self.log.info("{n} has been created".format(n=self.name))
 
-    def initialize(self, **kwargs):
+    def __getattr__(self, key):
+        return self.params[key]
+
+    def initialize(self):
 
         self.log.debug("{n} is initialized".format(n=self.name))
-        return self._initialize(**kwargs)
+        self.ready = True
+        return self._initialize()
 
     def connect(self, **kwargs):
         '''TODO add docstring'''
@@ -56,11 +55,19 @@ class Block(threading.Thread):
     def configure(self, **kwargs):
         '''TODO add docstring'''
 
+        for key in self.params.keys():
+            if key in kwargs.keys():
+                self.params[key] = kwargs[key]
+
         self.log.debug("{n} is configured".format(n=self.name))
-        return self._configure(**kwargs)
+        self.ready = False
+        return
 
     def run(self):
         '''TODO add dosctring'''
+
+        if not self.ready:
+            self.initialize()
 
         self.log.debug("run")
         #self.running = True
@@ -69,7 +76,10 @@ class Block(threading.Thread):
         self._run()
 
     def stop(self):
-        pass        
+        self.running = False
+
+    def list_parameters(self):
+        return self.params.keys()
 
     def __str__(self):
         res = "Block object %s with params:\n"
