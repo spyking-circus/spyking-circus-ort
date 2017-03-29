@@ -13,13 +13,13 @@ class Connection(object):
         self.block = block
         self.defaults.update(self.params)
         self.defaults.update(kwargs)
-        self.configure(**self.params)
+        self.configure(**self.defaults)
 
     def configure(self, **kwargs):
         '''TODO add docstring'''
 
         for key, value in kwargs.items():
-            self.params[key] = kwargs[key]
+            self.defaults[key] = kwargs[key]
             self.__setattr__(key, value)
 
         #self.log.debug("{n} is configured".format(n=self.name))

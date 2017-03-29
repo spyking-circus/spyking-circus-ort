@@ -51,16 +51,12 @@ class Reader(Block):
         return
 
     def _connect(self):
-        '''TODO add docstring'''
-
         self.output.socket = self.context.socket(zmq.PAIR)
         self.output.socket.connect(self.output.addr)
 
         return
 
     def _run(self):
-        '''TODO add dosctring'''
-
         sample_size = numpy.product(self.shape)
         batch_shape = (self.nb_samples,) + self.shape
         batch_size = numpy.product(batch_shape)

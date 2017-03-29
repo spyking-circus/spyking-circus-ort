@@ -20,7 +20,6 @@ class Computer_1_2(Block):
         self.inputs['data']  = Endpoint(self)
         self.outputs['data'] = Endpoint(self)
 
-
     def _initialize(self):
         '''TODO add docstring'''
 
@@ -37,6 +36,7 @@ class Computer_1_2(Block):
     def _configure(self, **kwargs):
         '''TODO add docstring'''
 
+        print self.output
         self.output.dtype = self.input.dtype
         self.output.shape = self.input.shape
 

@@ -49,9 +49,9 @@ class Manager(object):
         output_endpoint.configure(dtype=input_endpoint.dtype,
                                   shape=input_endpoint.shape)
 
-        input_endpoint.block.connect()
-        output_endpoint.block.connect()
 
+        input_endpoint.block.connect()
+        
         #input_endpoint.block.configure()
         #output_endpoint.block.configure()
 
@@ -90,4 +90,9 @@ class Manager(object):
     def start(self):
         for block in self.blocks.itervalues():
             block.start()
+        return
+
+    def stop(self):
+        for block in self.blocks.itervalues():
+            block.stop()
         return

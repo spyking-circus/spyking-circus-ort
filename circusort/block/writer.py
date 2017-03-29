@@ -20,7 +20,6 @@ class Writer(Block):
     def __init__(self, **kwargs):
 
         Block.__init__(self, **kwargs)
-
         self.inputs['data'] = Endpoint(self)
 
 
@@ -49,8 +48,6 @@ class Writer(Block):
 
     def _run(self):
         '''TODO add dosctring'''
-
-        self.log.debug("run")
 
         self._process()
 

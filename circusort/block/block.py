@@ -106,7 +106,7 @@ class Block(threading.Thread):
         if not self.ready:
             self.initialize()
 
-        self.log.debug("run")
+        self.log.debug("{n} is running".format(n=self.name))
         #self.running = True
 
         #while self.running:
@@ -114,6 +114,8 @@ class Block(threading.Thread):
 
     def stop(self):
         self.running = False
+        self.log.debug("{n} is stopped".format(n=self.name))
+
 
     def list_parameters(self):
         return self.params.keys()
