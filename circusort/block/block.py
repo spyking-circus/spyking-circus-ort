@@ -33,12 +33,9 @@ class Block(threading.Thread):
         self.ready   = False
         self.context = zmq.Context()
 
-        self.configure(**kwargs)
+        self.configure(**self.params)
 
         self.log.info("{n} has been created".format(n=self.name))
-
-    def __getattr__(self, key):
-        return self.params[key]
 
     def initialize(self):
 
@@ -58,6 +55,25 @@ class Block(threading.Thread):
         endpoint.addr = endpoint.socket.getsockopt(zmq.LAST_ENDPOINT)
 
 
+    @property
+    def input(self):
+        if len(self.inputs) == 1:
+            return self.inputs[self.inputs.keys()[0]]
+        elif len(self.inputs) == 0:
+            self.log.error('No Inputs')
+        else:
+            self.log.error('Multiple Inputs')
+
+    @property
+    def output(self):
+        if len(self.outputs) == 1:
+            return self.outputs[self.outputs.keys()[0]]
+        elif len(self.outputs) == 0:
+            self.log.error('No Outputs')
+        else:
+            self.log.error('Multiple Outputs')
+
+
     def get_input(self, key):
         return self.inputs[key]
 
@@ -73,9 +89,9 @@ class Block(threading.Thread):
     def configure(self, **kwargs):
         '''TODO add docstring'''
 
-        for key in self.params.keys():
-            if key in kwargs.keys():
-                self.params[key] = kwargs[key]
+        for key, value in kwargs.items():
+            self.params[key] = kwargs[key]
+            self.__setattr__(key, value)
 
         self.log.debug("{n} is configured".format(n=self.name))
         self.ready = False
@@ -100,7 +116,7 @@ class Block(threading.Thread):
         return self.params.keys()
 
     def __str__(self):
-        res = "Block object %s with params:\n"
-        for key, value in self.params.items():
-            res += "|%s = %s\n" %(key, str(value))
+        res = "Block object %s with params:\n" %self.name
+        for key in self.params.keys():
+            res += "|%s = %s\n" %(key, str(self.__getattr__(key)))
         return res

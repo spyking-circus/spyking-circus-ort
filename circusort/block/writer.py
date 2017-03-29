@@ -13,7 +13,9 @@ class Writer(Block):
     name   = "File writer"
 
     params = {'data_path'  : '/tmp/output.dat',
-              'nb_buffers' : 1000}
+              'nb_buffers' : 1000, 
+              't_start'    : None,
+              't_comp'     : None}
 
 
     inputs = {'data' : None}
@@ -23,9 +25,7 @@ class Writer(Block):
         Block.__init__(self, **kwargs)
 
         self.inputs['data'] = Endpoint(self)
-        self.t_start        = None
-        self.t_comp         = None
-        #self.input          = Endpoint(self)
+
 
     def _initialize(self):
         '''TODO add docstring'''
@@ -36,10 +36,10 @@ class Writer(Block):
         port = '*'
         endpoint = '{h}:{p}'.format(h=host, p=port)
         address = '{t}://{e}'.format(t=transport, e=endpoint)
-        self.get_input('data').socket = self.context.socket(zmq.PAIR)
+        self.input.socket = self.context.socket(zmq.PAIR)
         # self.input.socket.setsockopt(zmq.RCVTIMEO, 10000)
-        self.get_input('data').socket.bind(address)
-        self.get_input('data').addr = self.get_input('data').socket.getsockopt(zmq.LAST_ENDPOINT)
+        self.input.socket.bind(address)
+        self.input.addr = self.input.socket.getsockopt(zmq.LAST_ENDPOINT)
         self.file = open(self.data_path, mode='wb')
 
         return
@@ -53,7 +53,7 @@ class Writer(Block):
         # self.log.debug("process") # commented to reduce logging
 
         # TODO receive first batch of data
-        batch = self.get_input('data').receive()
+        batch = self.input.receive()
 
         # TODO set batch of data to the output
         batch = batch.tobytes()

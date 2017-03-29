@@ -30,7 +30,7 @@ class Reader(Block):
 
         self.data = None
         self.outputs['data'] = Endpoint(self)
-        #self.output = Endpoint(self)
+
 
     @property
     def shape(self):
@@ -52,15 +52,15 @@ class Reader(Block):
         # Create input memory-map
         self.data = numpy.memmap(self.data_path, dtype=self.dtype, mode='r')
 
-        self.outputs['data'].dtype = self.dtype
-        self.outputs['data'].shape = (self.nb_channels, self.nb_samples)
+        self.output.dtype = self.dtype
+        self.output.shape = (self.nb_channels, self.nb_samples)
         return
 
     def _connect(self):
         '''TODO add docstring'''
 
-        self.get_output('data').socket = self.context.socket(zmq.PAIR)
-        self.get_output('data').socket.connect(self.get_output('data').addr)
+        self.output.socket = self.context.socket(zmq.PAIR)
+        self.output.socket.connect(self.output.addr)
 
         return
 
@@ -80,6 +80,6 @@ class Reader(Block):
             batch = batch.reshape(batch_shape)
 
             # TODO set data sample to output
-            self.get_output('data').send(batch)
+            self.output.send(batch)
 
         return

@@ -20,7 +20,7 @@ class Manager(object):
         self.log = utils.get_log(self.log_address, name=__name__, log_level=self.log_level)
         self.log.info("start manager {d}".format(d=str(self)))
 
-    def create_block(self, name, log_level=None):
+    def create_block(self, name, log_level=None, **kwargs):
         '''TODO add docstring'''
 
         self.log.info("{d} creates block {n}".format(d=str(self), n=name))
@@ -29,7 +29,7 @@ class Manager(object):
 
         process = Process(log_address=self.log_address, name="{n}".format(n=name), log_level=log_level)
         module = process.get_module('circusort.block.{n}'.format(n=name))
-        block = getattr(module, name.capitalize())(log_address=self.log_address, log_level=log_level)
+        block = getattr(module, name.capitalize())(log_address=self.log_address, log_level=log_level, **kwargs)
 
         self.register_block(block)
 
@@ -42,8 +42,6 @@ class Manager(object):
 
         assert method in ['tcp', 'udp', 'ipc'], self.log.warning('Invalid connection')
 
-        
-        print input_endpoint, dir(output_endpoint)
         input_endpoint.configure(addr=output_endpoint.addr)
         output_endpoint.configure(dtype=input_endpoint.dtype,
                                   shape=input_endpoint.shape)
