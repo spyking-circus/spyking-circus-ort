@@ -12,6 +12,7 @@ class Manager(object):
         self.log_address = log_address
         self.log_level = log_level
         self.host = host
+        self.blocks = {}
 
         self.name = name or "Manager"
         if self.log_address is None:
@@ -30,12 +31,18 @@ class Manager(object):
         module = process.get_module('circusort.block.{n}'.format(n=name))
         block = getattr(module, name.capitalize())(log_address=self.log_address, log_level=log_level)
 
+        self.register_block(block)
+
         return block
 
-    def connect(self, input_endpoint, output_endpoint):
+    def connect(self, input_endpoint, output_endpoint, method='tcp'):
         '''TODO add docstring'''
 
         self.log.info("{d} connects couple of blocks".format(d=str(self)))
+
+        assert method in ['tcp', 'udp', 'ipc'], self.log.warning('Invalid connection')
+
+        
 
         input_endpoint.configure(addr=output_endpoint.addr)
         output_endpoint.configure(dtype=input_endpoint.dtype,
@@ -43,8 +50,22 @@ class Manager(object):
 
         return
 
-    # def list_blocks(self):
-    #     return list_modules()
-
     def __str__(self):
         return "{d}[{i}]".format(d=self.name, i=self.host)
+
+    @property
+    def nb_blocks(self):
+        return len(self.blocks)
+
+    def register_block(self, block):
+        
+        self.blocks.update({block.name: block})
+        self.log.debug("{d} registers {m}".format(d=str(self), m=block.name))
+        return
+
+    def list_blocks(self):
+        return self.blocks.keys()
+
+    def get_block(self, key):
+        assert key in self.list_blocks(), self.log.warning("%s is not a valid block" %key)
+        return self.blocks[key]

@@ -28,7 +28,7 @@ class Reader(Block):
 
         Block.__init__(self, **kwargs)
 
-        self.data            = None
+        self.data = None
         #self.outputs['data'] = Endpoint(self)
         self.output = Endpoint(self)
 
@@ -58,8 +58,6 @@ class Reader(Block):
 
     def _connect(self):
         '''TODO add docstring'''
-
-        self.log.info("connect {n}".format(n=self.name))
 
         self.output.socket = self.context.socket(zmq.PAIR)
         self.output.socket.connect(self.output.addr)

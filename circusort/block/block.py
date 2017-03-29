@@ -46,6 +46,18 @@ class Block(threading.Thread):
         self.ready = True
         return self._initialize()
 
+
+    def _init_endpoint(self, endpoint):
+        transport = 'tcp'
+        host = '127.0.0.1'
+        port = '*'
+        endpoint = '{h}:{p}'.format(h=host, p=port)
+        address = '{t}://{e}'.format(t=transport, e=endpoint)
+        endpoint.socket = self.context.socket(zmq.PAIR)
+        endpoint.socket.bind(address)
+        endpoint.addr = endpoint.socket.getsockopt(zmq.LAST_ENDPOINT)
+
+
     def connect(self, **kwargs):
         '''TODO add docstring'''
 

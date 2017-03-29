@@ -63,6 +63,21 @@ class Director(object):
         self.log.debug("{d} registers {m}".format(d=str(self), m=manager.name))
         return
 
+    # def connect(self, input_endpoint, output_endpoint, method='tcp'):
+    #     '''TODO add docstring'''
+
+    #     self.log.info("{d} connects couple of blocks".format(d=str(self)))
+
+    #     assert method in ['tcp', 'udp'], self.log.warning('Invalid connection')
+
+        
+
+    #     input_endpoint.configure(addr=output_endpoint.addr)
+    #     output_endpoint.configure(dtype=input_endpoint.dtype,
+    #                               shape=input_endpoint.shape)
+
+    #     return
+
     def initialize_all(self):
         for manager in self.managers.itervalues():
             manager.initialize_all()

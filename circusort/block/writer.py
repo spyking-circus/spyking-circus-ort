@@ -46,9 +46,6 @@ class Writer(Block):
 
     def _connect(self):
         '''TODO add docstring'''
-
-        self.log.debug("connection")
-
         return
 
     def _process(self):
