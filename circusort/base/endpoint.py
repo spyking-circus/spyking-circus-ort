@@ -60,9 +60,8 @@ class Endpoint(Connection):
         '''TODO add docstring'''
 
         batch = self.socket.recv()
-        batch = numpy.frombuffer(batch, dtype=self.dtype)
+        batch = numpy.fromstring(batch, dtype=self.dtype)
         batch = numpy.reshape(batch, self.shape)
-
         return batch
 
     def _send_data(self, batch):

@@ -22,12 +22,12 @@ class Director(object):
 
         self.interface = interface
 
-        self.log.info("start director {d}".format(d=str(self)))
+        self.log.info("{d} starts".format(d=str(self)))
         
         self.managers = {}
 
     def __del__(self):
-        self.log.info("stop director {d}".format(d=str(self)))
+        self.log.info("{d} stops".format(d=str(self)))
 
     @property
     def nb_managers(self):

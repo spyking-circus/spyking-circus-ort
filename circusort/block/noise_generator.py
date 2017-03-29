@@ -12,7 +12,7 @@ class Noise_generator(Block):
     name = "Noise Generator"
 
     params = {'dtype'         : 'float32',
-              'nb_channels'   : 100,
+              'nb_channels'   : 10,
               'sampling_rate' : 20000, 
               'nb_samples'    : 1024}
 
@@ -35,7 +35,7 @@ class Noise_generator(Block):
 
     def _run(self):
         while self.running:
-            batch = numpy.random.randn(self.nb_channels, self.nb_samples)
+            batch = numpy.random.randn(self.nb_channels, self.nb_samples).astype(self.dtype)
             self.output.send(batch)
 
         return

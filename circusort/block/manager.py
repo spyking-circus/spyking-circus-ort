@@ -18,7 +18,7 @@ class Manager(object):
         if self.log_address is None:
             raise NotImplementedError("no logger address")
         self.log = utils.get_log(self.log_address, name=__name__, log_level=self.log_level)
-        self.log.info("start manager {d}".format(d=str(self)))
+        self.log.info("{d} starts".format(d=str(self)))
 
     def create_block(self, name, log_level=None, **kwargs):
         '''TODO add docstring'''
@@ -38,7 +38,7 @@ class Manager(object):
     def connect(self, input_endpoint, output_endpoint, protocol='tcp'):
         '''TODO add docstring'''
 
-        self.log.info("{d} connects couple of blocks".format(d=str(self)))
+        self.log.info("{d} connects {s} to {t}".format(d=str(self), s=input_endpoint.block.name, t=output_endpoint.block.name))
 
         assert input_endpoint.block.parent == output_endpoint.block.parent == self.name, self.log.error('Manager is not supervising all Blocks!')
         assert protocol in ['tcp', 'udp', 'ipc'], self.log.error('Invalid connection')
@@ -46,12 +46,19 @@ class Manager(object):
         input_endpoint.initialize(protocol=protocol)
         output_endpoint.initialize(protocol=protocol)
 
+        # We need to resolve the case of blocks that are guessing inputs/outputs shape because of connection. This
+        # can only be done if connections are made in order, and if we have only one input/output
+        if input_endpoint.shape is None:
+            if input_endpoint.block.nb_inputs == 1:
+                input_endpoint.configure(dtype=input_endpoint.block.input.dtype,
+                                  shape=input_endpoint.block.input.shape)
+        
         input_endpoint.configure(addr=output_endpoint.addr)
         output_endpoint.configure(dtype=input_endpoint.dtype,
                                   shape=input_endpoint.shape)
 
-
         input_endpoint.block.connect()
+        self.log.debug("Connection established with input {s} and output {t}".format(s=(input_endpoint.dtype, input_endpoint.shape), t=(input_endpoint.dtype, input_endpoint.shape)))
         
         #input_endpoint.block.configure()
         #output_endpoint.block.configure()

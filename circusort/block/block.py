@@ -37,7 +37,7 @@ class Block(threading.Thread):
 
         self.configure(**self.params)
 
-        self.log.info("{n} has been created".format(n=self.name))
+        self.log.debug("{n} has been created".format(n=self.name))
         self.log.debug(str(self))
 
 
@@ -100,7 +100,6 @@ class Block(threading.Thread):
 
         self.log.debug("{n} is configured".format(n=self.name))
         self.ready = False
-        #self._configure()
         return
 
     def run(self):
