@@ -14,10 +14,6 @@ class Computer_1_2(Block):
     params = {'data_path'  : '/tmp/output.dat',
               'nb_buffers' : 1000}
 
-
-    inputs  = {'data' : None}
-    outputs = {'data' : None}
-
     def __init__(self, **kwargs):
 
         Block.__init__(self, **kwargs)
@@ -33,13 +29,12 @@ class Computer_1_2(Block):
 
     def _connect(self):
         '''TODO add docstring'''
-
         self.output.socket = self.context.socket(zmq.PAIR)
         self.output.socket.connect(self.output.addr)
 
         return
 
-    def _configure(self):
+    def _configure(self, **kwargs):
         '''TODO add docstring'''
 
         self.output.dtype = self.input.dtype

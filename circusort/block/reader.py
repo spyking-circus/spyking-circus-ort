@@ -25,8 +25,6 @@ class Reader(Block):
     def __init__(self, **kwargs):
 
         Block.__init__(self, **kwargs)
-
-        self.data = None
         self.outputs['data'] = Endpoint(self)
 
 

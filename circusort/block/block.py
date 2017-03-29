@@ -19,6 +19,7 @@ class Block(threading.Thread):
 
         threading.Thread.__init__(self)
 
+        self.daemon = True
         self.log_address = log_address
         self.log_level = log_level
         if name is not None:
@@ -38,6 +39,10 @@ class Block(threading.Thread):
 
         self.log.info("{n} has been created".format(n=self.name))
         self.log.debug(str(self))
+
+
+    def _configure(self):
+        return
 
     def initialize(self):
 
@@ -63,6 +68,13 @@ class Block(threading.Thread):
         else:
             self.log.error('Multiple Outputs')
 
+    @property
+    def nb_inputs(self):
+        return len(self.inputs)
+
+    @property
+    def nb_outputs(self):
+        return len(self.outputs)
 
     def get_input(self, key):
         return self.inputs[key]
@@ -85,6 +97,7 @@ class Block(threading.Thread):
 
         self.log.debug("{n} is configured".format(n=self.name))
         self.ready = False
+        #self._configure()
         return
 
     def run(self):

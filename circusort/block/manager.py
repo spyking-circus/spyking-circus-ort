@@ -52,6 +52,9 @@ class Manager(object):
         input_endpoint.block.connect()
         output_endpoint.block.connect()
 
+        #input_endpoint.block.configure()
+        #output_endpoint.block.configure()
+
         return
 
     def __str__(self):

@@ -38,13 +38,9 @@ manager.initialize()
 #writer.initialize()
     # TODO connect blocks
 manager.connect(reader.output, computer.input)
-computer.configure()
+
 manager.connect(computer.output, writer.input)
     # TODO connect block again
-
-writer.connect()
-computer.connect()
-reader.connect()
     # TODO start blocks
 
 manager.start()
