@@ -91,16 +91,18 @@ class Director(object):
         return
 
     def start(self):
+        self.log.info("{d} starts".format(d=str(self)))
         for manager in self.managers.itervalues():
             manager.start()
         return
 
     def sleep(self, duration=None):
-        self.log.debug("{d} sleeps {k} sec".format(d=str(self), k=duration))
+        self.log.info("{d} sleeps for {k} sec".format(d=str(self), k=duration))
         time.sleep(duration)
         return
 
     def stop(self):
+        self.log.info("{d} stops".format(d=str(self)))
         for manager in self.managers.itervalues():
             manager.stop()
         return

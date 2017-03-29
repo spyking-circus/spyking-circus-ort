@@ -39,7 +39,6 @@ class Writer(Block):
 
         # TODO receive first batch of data
         batch = self.input.receive()
-
         # TODO set batch of data to the output
         batch = batch.tobytes()
         self.file.write(batch)
@@ -49,13 +48,7 @@ class Writer(Block):
     def _run(self):
         '''TODO add dosctring'''
 
-        self._process()
-
-        self.t_start = time.time()
-
-        for i in range(1, self.nb_buffers):
+        while self.running:
             self._process()
-
-        self.t_comp = time.time() - self.t_start
 
         return

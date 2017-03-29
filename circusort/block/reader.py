@@ -19,7 +19,7 @@ class Reader(Block):
               'size'          : 10,
               'sampling_rate' : 20000, 
               'nb_buffers'    : 1000, 
-              'nb_samples'    : 100,
+              'nb_samples'    : 1024,
               'duration'      : 60}
 
     def __init__(self, **kwargs):
@@ -47,7 +47,7 @@ class Reader(Block):
                            sampling_rate=self.sampling_rate)
         # Create input memory-map
         self.data = numpy.memmap(self.data_path, dtype=self.dtype, mode='r')
-        self.output.configure(dtype=self.dtype, shape = (self.nb_channels, self.nb_samples))
+        self.output.configure(dtype=self.dtype, shape=(self.nb_channels, self.nb_samples))
         return
 
     def _connect(self):

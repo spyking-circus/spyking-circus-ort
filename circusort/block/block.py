@@ -112,7 +112,7 @@ class Block(threading.Thread):
         self.log.debug("{n} is running".format(n=self.name))
         #self.running = True
 
-        #while self.running:
+        self.running = True
         self._run()
 
     def stop(self):
