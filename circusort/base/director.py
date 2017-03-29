@@ -63,20 +63,27 @@ class Director(object):
         self.log.debug("{d} registers {m}".format(d=str(self), m=manager.name))
         return
 
-    # def connect(self, input_endpoint, output_endpoint, method='tcp'):
-    #     '''TODO add docstring'''
+    def connect(self, input_endpoint, output_endpoint, protocol='tcp'):
+        '''TODO add docstring'''
 
-    #     self.log.info("{d} connects couple of blocks".format(d=str(self)))
+        self.log.info("{d} connects couple of blocks".format(d=str(self)))
 
-    #     assert method in ['tcp', 'udp'], self.log.warning('Invalid connection')
+        if input_endpoint.block.parent == output_endpoint.block.parent:
+            assert protocol in ['tcp', 'udp', 'ipc'], self.log.error('Invalid connection')
+            self.get_manager(input_endpoint.block.parent).connect(input_endpoint, output_endpoint, protocol)
+        else:
+            assert protocol in ['tcp', 'udp'], self.log.error('Invalid connection')
+            input_endpoint.initialize(protocol=protocol)
+            output_endpoint.initialize(protocol=protocol)
 
+            input_endpoint.configure(addr=output_endpoint.addr)
+            output_endpoint.configure(dtype=input_endpoint.dtype,
+                                       shape=input_endpoint.shape)
+
+
+            input_endpoint.block.connect()
         
-
-    #     input_endpoint.configure(addr=output_endpoint.addr)
-    #     output_endpoint.configure(dtype=input_endpoint.dtype,
-    #                               shape=input_endpoint.shape)
-
-    #     return
+        return
 
     def initialize(self):
         for manager in self.managers.itervalues():
@@ -97,6 +104,12 @@ class Director(object):
         for manager in self.managers.itervalues():
             manager.stop()
         return
+
+    def join(self):
+        for manager in self.managers.itervalues():
+            manager.join()
+        return
+
 
     def destroy_all(self):
         return

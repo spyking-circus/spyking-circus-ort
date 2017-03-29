@@ -41,6 +41,9 @@ class Block(threading.Thread):
         self.log.debug(str(self))
 
 
+    def set_manager(self, manager_name):
+        self.parent = manager_name
+
     def _configure(self):
         return
 

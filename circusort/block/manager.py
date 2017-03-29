@@ -40,6 +40,7 @@ class Manager(object):
 
         self.log.info("{d} connects couple of blocks".format(d=str(self)))
 
+        assert input_endpoint.block.parent == output_endpoint.block.parent == self.name, self.log.error('Manager is not supervising all Blocks!')
         assert protocol in ['tcp', 'udp', 'ipc'], self.log.error('Invalid connection')
 
         input_endpoint.initialize(protocol=protocol)
@@ -66,6 +67,7 @@ class Manager(object):
 
     def register_block(self, block):
         
+        block.set_manager(self.name)
         self.blocks.update({block.name: block})
         self.log.debug("{d} registers {m}".format(d=str(self), m=block.name))
         return

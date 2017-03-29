@@ -36,7 +36,6 @@ class Computer_1_2(Block):
     def _configure(self, **kwargs):
         '''TODO add docstring'''
 
-        print self.output
         self.output.dtype = self.input.dtype
         self.output.shape = self.input.shape
 
