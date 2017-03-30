@@ -46,18 +46,15 @@ class Manager(object):
         input_endpoint.initialize(protocol=protocol)
         output_endpoint.initialize(protocol=protocol)
 
-        # We need to resolve the case of blocks that are guessing inputs/outputs shape because of connection. This
-        # can only be done if connections are made in order, and if we have only one input/output
-        if input_endpoint.shape is None:
-            if input_endpoint.block.nb_inputs == 1:
-                input_endpoint.configure(dtype=input_endpoint.block.input.dtype,
-                                  shape=input_endpoint.block.input.shape)
-        
         input_endpoint.configure(addr=output_endpoint.addr)
         output_endpoint.configure(dtype=input_endpoint.dtype,
                                   shape=input_endpoint.shape)
 
         input_endpoint.block.connect()
+
+        # We need to resolve the case of blocks that are guessing inputs/outputs shape because of connection. This
+        # can only be done if connections are made in order, and if we have only one input/output
+        output_endpoint.block.guess_output_endpoints()
         self.log.debug("Connection established with input {s} and output {t}".format(s=(input_endpoint.dtype, input_endpoint.shape), t=(input_endpoint.dtype, input_endpoint.shape)))
         
         #input_endpoint.block.configure()
@@ -73,7 +70,6 @@ class Manager(object):
         return len(self.blocks)
 
     def register_block(self, block):
-        
         block.set_manager(self.name)
         self.blocks.update({block.name: block})
         self.log.debug("{d} registers {m}".format(d=str(self), m=block.name))
@@ -87,21 +83,33 @@ class Manager(object):
         return self.blocks[key]
 
     def initialize(self):
+        self.log.info("{d} initializes {s}".format(d=str(self), s=", ".join(self.list_blocks())))
         for block in self.blocks.itervalues():
             block.initialize()
         return
 
     def join(self):
+        self.log.info("{d} joins {s}".format(d=str(self), s=", ".join(self.list_blocks())))
         for block in self.blocks.itervalues():
             block.join()
         return
 
-    def start(self):
-        for block in self.blocks.itervalues():
-            block.start()
+    def start(self, nb_steps=None):
+        if nb_steps is None:
+            self.log.info("{d} starts {s}".format(d=str(self), s=", ".join(self.list_blocks())))
+            for block in self.blocks.itervalues():
+                block.start()
+        else:
+            self.log.info("{d} runs {s} for {n} steps".format(d=str(self), s=", ".join(self.list_blocks()), n=nb_steps))
+            for block in self.blocks.itervalues():
+                block.nb_steps = nb_steps
+                block.start()
+                block.nb_steps = None
+                self.join()
         return
 
     def stop(self):
+        self.log.info("{d} stops {s}".format(d=str(self), s=", ".join(self.list_blocks())))
         for block in self.blocks.itervalues():
             block.stop()
         return

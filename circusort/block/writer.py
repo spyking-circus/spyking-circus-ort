@@ -13,9 +13,7 @@ class Writer(Block):
     name   = "File writer"
 
     params = {'data_path'  : '/tmp/output.dat',
-              'nb_buffers' : 1000, 
-              't_start'    : None,
-              't_comp'     : None}
+              'nb_buffers' : 1000}
 
     def __init__(self, **kwargs):
 
@@ -34,21 +32,8 @@ class Writer(Block):
         return
 
     def _process(self):
-
-        # self.log.debug("process") # commented to reduce logging
-
-        # TODO receive first batch of data
         batch = self.input.receive()
-        # TODO set batch of data to the output
         batch = batch.tobytes()
         self.file.write(batch)
-
-        return
-
-    def _run(self):
-        '''TODO add dosctring'''
-
-        while self.running:
-            self._process()
 
         return

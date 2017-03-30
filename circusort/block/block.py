@@ -2,6 +2,7 @@ import numpy
 import threading
 import zmq
 import logging
+import time
 
 from circusort.base.endpoint import Endpoint
 from circusort.base import utils
@@ -30,8 +31,12 @@ class Block(threading.Thread):
 
         self.log = utils.get_log(self.log_address, name=__name__, log_level=self.log_level)
 
-        self.running = False
-        self.ready   = False
+        self.running  = False
+        self.ready    = False
+        self.t_start  = None
+        self.nb_steps = None
+        self.counter  = 0
+
         self.context = zmq.Context()
         self.params.update(kwargs)
 
@@ -39,7 +44,6 @@ class Block(threading.Thread):
 
         self.log.debug("{n} has been created".format(n=self.name))
         self.log.debug(str(self))
-
 
     def set_manager(self, manager_name):
         self.parent = manager_name
@@ -51,6 +55,7 @@ class Block(threading.Thread):
 
         self.log.debug("{n} is initialized".format(n=self.name))
         self.ready = True
+        self.counter = 0
         return self._initialize()
 
     @property
@@ -102,6 +107,12 @@ class Block(threading.Thread):
         self.ready = False
         return
 
+    def guess_output_endpoints(self, **kwargs):
+        if self.nb_outputs > 0:
+            self.log.debug("{n} guessing output connections".format(n=self.name))
+            return self._guess_output_endpoints(**kwargs)
+
+
     def run(self):
         '''TODO add dosctring'''
 
@@ -112,18 +123,31 @@ class Block(threading.Thread):
         #self.running = True
 
         self.running = True
-        self._run()
+        self.t_start = time.time()
+        while self.running:
+            self._process()
+            self.counter += 1
+            if self.nb_steps == self.counter:
+                self.running = False
+            
 
     def stop(self):
         self.running = False
         self.log.debug("{n} is stopped".format(n=self.name))
 
-
     def list_parameters(self):
         return self.params.keys()
+
+    def get_time(self, nb_samples, sampling_rate):
+        return self.nb_samples*self.counter/self.sampling_rate
+
+    @property
+    def run_time(self):
+        return time.time() - self.t_start
 
     def __str__(self):
         res = "Block object %s with params:\n" %self.name
         for key in self.params.keys():
             res += "|%s = %s\n" %(key, str(getattr(self, key)))
         return res
+

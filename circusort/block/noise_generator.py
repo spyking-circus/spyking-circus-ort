@@ -20,10 +20,6 @@ class Noise_generator(Block):
         Block.__init__(self, **kwargs)
         self.outputs['data'] = Endpoint(self)
 
-    @property
-    def shape(self):
-        return (self.nb_channels,)
-
     def _initialize(self):
         self.output.configure(dtype=self.dtype, shape=(self.nb_channels, self.nb_samples))
         return
@@ -33,9 +29,7 @@ class Noise_generator(Block):
         self.output.socket.connect(self.output.addr)
         return
 
-    def _run(self):
-        while self.running:
-            batch = numpy.random.randn(self.nb_channels, self.nb_samples).astype(self.dtype)
-            self.output.send(batch)
-
+    def _process(self):
+        batch = numpy.random.randn(self.nb_channels, self.nb_samples).astype(self.dtype)
+        self.output.send(batch)
         return

@@ -13,9 +13,7 @@ class Channel_selector(Block):
 
     name   = "Channel Selector"
 
-    params = {'nb_samples' : 1024,
-              'nb_channels': 10,
-              'channels'   : [1, 2, 3], 
+    params = {'channels'   : [], 
               'dtype'      : 'float32'}
 
     def __init__(self, **kwargs):
@@ -23,25 +21,39 @@ class Channel_selector(Block):
         self.inputs['data']  = Endpoint(self)
         self.outputs['data'] = Endpoint(self)
         
-    def _initialize(self):
-        if len(self.channels) > 0:
-            nb_channels = len(self.channels)
+    @property
+    def nb_channels(self):
+        if self.input.shape is not None:
+            if len(self.channels) > 0:
+                nb_channels = len(self.channels)
+            else:
+                nb_channels = self.input.shape[0]
+            return nb_channels
         else:
-            nb_channels = self.nb_channels
+            return 0
 
-        self.output.configure(dtype=self.dtype, shape=(nb_channels, self.nb_samples))
+    @property
+    def nb_samples(self):
+        if self.input.shape is not None:
+            return self.input.shape[1]
+        else:
+            return 0
+
+    def _initialize(self):
         return
+
+    def _guess_output_endpoints(self):
+        self.output.configure(dtype=self.dtype, shape=(self.nb_channels, self.nb_samples))
 
     def _connect(self):
         self.output.socket = self.context.socket(zmq.PAIR)
         self.output.socket.connect(self.output.addr)
         return
 
-    def _run(self):
-        while self.running:
-            batch = self.input.receive()
-            if self.nb_channels > 0:
-                batch = batch[self.channels]
+    def _process(self):
+        batch = self.input.receive()
+        if len(self.channels) > 0:
+            batch = batch[self.channels]
 
-            self.output.send(batch.flatten())
+        self.output.send(batch.flatten())
         return

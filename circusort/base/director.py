@@ -82,18 +82,29 @@ class Director(object):
 
 
             input_endpoint.block.connect()
+            # We need to resolve the case of blocks that are guessing inputs/outputs shape because of connection. This
+            # can only be done if connections are made in order, and if we have only one input/output
+            output_endpoint.block.guess_output_endpoints()
         
         return
 
     def initialize(self):
+        self.log.info("{d} initializes {s}".format(d=str(self), s=", ".join(self.list_managers())))
         for manager in self.managers.itervalues():
             manager.initialize()
         return
 
     def start(self):
-        self.log.info("{d} starts".format(d=str(self)))
+        
+        return
+
+    def start(self, nb_steps=None):
+        if nb_steps is None:
+            self.log.info("{d} starts {s}".format(d=str(self), s=", ".join(self.list_managers())))
+        else:
+            self.log.info("{d} runs {s} for {n} steps".format(d=str(self), s=", ".join(self.list_managers()), n=nb_steps))
         for manager in self.managers.itervalues():
-            manager.start()
+            manager.start(nb_steps)
         return
 
     def sleep(self, duration=None):
@@ -102,16 +113,16 @@ class Director(object):
         return
 
     def stop(self):
-        self.log.info("{d} stops".format(d=str(self)))
+        self.log.info("{d} stops {s}".format(d=str(self), s=", ".join(self.list_managers())))
         for manager in self.managers.itervalues():
             manager.stop()
         return
 
     def join(self):
+        self.log.info("{d} joins {s}".format(d=str(self), s=", ".join(self.list_managers())))
         for manager in self.managers.itervalues():
             manager.join()
         return
-
 
     def destroy_all(self):
         return

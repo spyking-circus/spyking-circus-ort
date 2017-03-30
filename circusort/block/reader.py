@@ -27,11 +27,6 @@ class Reader(Block):
         Block.__init__(self, **kwargs)
         self.outputs['data'] = Endpoint(self)
 
-
-    @property
-    def shape(self):
-        return (self.nb_channels,)
-
     @property
     def nb_channels(self):
         return self.size**2
@@ -47,6 +42,7 @@ class Reader(Block):
                            sampling_rate=self.sampling_rate)
         # Create input memory-map
         self.data = numpy.memmap(self.data_path, dtype=self.dtype, mode='r')
+        self.batch_size = self.nb_channels * self.nb_samples
         self.output.configure(dtype=self.dtype, shape=(self.nb_channels, self.nb_samples))
         return
 
@@ -56,20 +52,9 @@ class Reader(Block):
 
         return
 
-    def _run(self):
-        sample_size = numpy.product(self.shape)
-        batch_shape = (self.nb_samples,) + self.shape
-        batch_size = numpy.product(batch_shape)
-
-        for i in range(0, self.nb_buffers):
-
-            # TODO get data sample from input
-            i_min = batch_size * i
-            i_max = batch_size * (i + 1)
-            batch = self.data[i_min:i_max]
-            batch = batch.reshape(batch_shape)
-
-            # TODO set data sample to output
-            self.output.send(batch)
-
+    def _process(self):
+        i_min = self.batch_size * self.counter
+        i_max = self.batch_size * (self.counter + 1)
+        batch = self.data[i_min:i_max]
+        self.output.send(batch.flatten())
         return
