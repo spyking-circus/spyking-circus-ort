@@ -20,8 +20,8 @@ class Filter(Block):
     def __init__(self, **kwargs):
 
         Block.__init__(self, **kwargs)
-        self.inputs['data']  = Endpoint(self)
-        self.outputs['data'] = Endpoint(self)
+        self.add_output('data')
+        self.add_input('data')
 
     def _initialize(self):
         cut_off = numpy.array([self.cut_off, 0.95*(self.sampling_rate/2.)])
@@ -32,21 +32,15 @@ class Filter(Block):
 
     @property
     def nb_channels(self):
-        if self.input.shape is not None:
-            return self.input.shape[0]
-        else:
-            return 0
+        return self.input.shape[0]
 
     @property
     def nb_samples(self):
-        if self.input.shape is not None:
-            return self.input.shape[1]
-        else:
-            return 0
+        return self.input.shape[1]
 
-    def _connect(self):
-        self.output.socket = self.context.socket(zmq.PAIR)
-        self.output.socket.connect(self.output.addr)
+    def _connect(self, key):
+        self.get_output(key).socket = self.context.socket(zmq.PAIR)
+        self.get_output(key).socket.connect(self.get_output(key).addr)
         return
 
     def _guess_output_endpoints(self):

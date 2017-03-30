@@ -50,7 +50,7 @@ class Manager(object):
         output_endpoint.configure(dtype=input_endpoint.dtype,
                                   shape=input_endpoint.shape)
 
-        input_endpoint.block.connect()
+        input_endpoint.block.connect(output_endpoint.name)
 
         # We need to resolve the case of blocks that are guessing inputs/outputs shape because of connection. This
         # can only be done if connections are made in order, and if we have only one input/output

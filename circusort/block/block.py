@@ -51,6 +51,13 @@ class Block(threading.Thread):
     def _configure(self):
         return
 
+    def add_output(self, name):
+        self.outputs[name] = Endpoint(self, name)
+
+    def add_input(self, name):
+        self.inputs[name] = Endpoint(self, name)
+
+
     def initialize(self):
 
         self.log.debug("{n} is initialized".format(n=self.name))
@@ -90,11 +97,11 @@ class Block(threading.Thread):
     def get_output(self, key):
         return self.outputs[key]
 
-    def connect(self, **kwargs):
+    def connect(self, key):
         '''TODO add docstring'''
 
         self.log.debug("{n} establishes connections".format(n=self.name))
-        return self._connect(**kwargs)
+        return self._connect(key)
 
     def configure(self, **kwargs):
         '''TODO add docstring'''

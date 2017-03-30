@@ -18,26 +18,21 @@ class Channel_selector(Block):
 
     def __init__(self, **kwargs):
         Block.__init__(self, **kwargs)
-        self.inputs['data']  = Endpoint(self)
-        self.outputs['data'] = Endpoint(self)
+        self.add_output('data')
+        self.add_input('data')
+
         
     @property
     def nb_channels(self):
-        if self.input.shape is not None:
-            if len(self.channels) > 0:
-                nb_channels = len(self.channels)
-            else:
-                nb_channels = self.input.shape[0]
-            return nb_channels
+        if len(self.channels) > 0:
+            nb_channels = len(self.channels)
         else:
-            return 0
+            nb_channels = self.input.shape[0]
+        return nb_channels
 
     @property
     def nb_samples(self):
-        if self.input.shape is not None:
-            return self.input.shape[1]
-        else:
-            return 0
+        return self.input.shape[1]
 
     def _initialize(self):
         return
@@ -45,9 +40,9 @@ class Channel_selector(Block):
     def _guess_output_endpoints(self):
         self.output.configure(dtype=self.dtype, shape=(self.nb_channels, self.nb_samples))
 
-    def _connect(self):
-        self.output.socket = self.context.socket(zmq.PAIR)
-        self.output.socket.connect(self.output.addr)
+    def _connect(self, key):
+        self.get_output(key).socket = self.context.socket(zmq.PAIR)
+        self.get_output(key).socket.connect(self.get_output(key).addr)
         return
 
     def _process(self):

@@ -18,15 +18,15 @@ class Noise_generator(Block):
 
     def __init__(self, **kwargs):
         Block.__init__(self, **kwargs)
-        self.outputs['data'] = Endpoint(self)
+        self.add_output('data')
 
     def _initialize(self):
         self.output.configure(dtype=self.dtype, shape=(self.nb_channels, self.nb_samples))
         return
 
-    def _connect(self):
-        self.output.socket = self.context.socket(zmq.PAIR)
-        self.output.socket.connect(self.output.addr)
+    def _connect(self, key):
+        self.get_output(key).socket = self.context.socket(zmq.PAIR)
+        self.get_output(key).socket.connect(self.get_output(key).addr)
         return
 
     def _process(self):

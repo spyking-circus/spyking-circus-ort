@@ -8,9 +8,10 @@ class Connection(object):
 
     params   = {}
 
-    def __init__(self, block, **kwargs):
+    def __init__(self, block, name, **kwargs):
 
         self.block = block
+        self.name  = name
         self.defaults.update(self.params)
         self.defaults.update(kwargs)
         self.configure(**self.defaults)
@@ -46,9 +47,9 @@ class Endpoint(Connection):
     params = {'addr'  : None, 
               'socket' : None}
 
-    def __init__(self, block, **kwargs):
+    def __init__(self, block, name, **kwargs):
 
-        Connection.__init__(self, block, **kwargs)
+        Connection.__init__(self, block, name, **kwargs)
 
 
     def __del__(self):

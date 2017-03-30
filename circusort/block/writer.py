@@ -12,14 +12,12 @@ class Writer(Block):
 
     name   = "File writer"
 
-    params = {'data_path'  : '/tmp/output.dat',
-              'nb_buffers' : 1000}
+    params = {'data_path'  : '/tmp/output.dat'}
 
     def __init__(self, **kwargs):
 
         Block.__init__(self, **kwargs)
-        self.inputs['data'] = Endpoint(self)
-
+        self.add_input('data')
 
     def _initialize(self):
         '''TODO add docstring'''
@@ -27,7 +25,7 @@ class Writer(Block):
 
         return
 
-    def _connect(self):
+    def _connect(self, key):
         '''TODO add docstring'''
         return
 
