@@ -60,7 +60,6 @@ class Manager(object):
         assert protocol in ['tcp', 'udp', 'ipc'], self.log.error('Invalid connection')
 
         input_endpoint.initialize(protocol=protocol)
-        output_endpoint.initialize(protocol=protocol)
         
         output_endpoint.configure(addr=input_endpoint.addr)
         input_endpoint.configure(dtype=output_endpoint.dtype,
@@ -122,9 +121,10 @@ class Manager(object):
             self.log.info("{d} runs {s} for {n} steps".format(d=str(self), s=", ".join(self.list_blocks()), n=nb_steps))
             for block in self.blocks.itervalues():
                 block.nb_steps = nb_steps
+                print block.nb_steps
                 block.start()
+                block.join()
                 block.nb_steps = None
-                self.join()
         return
 
     def stop(self):

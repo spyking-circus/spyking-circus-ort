@@ -69,7 +69,7 @@ class Director(object):
         self.log.info("{d} connects {s} to {t}".format(d=str(self), s=output_endpoint.block.name, t=input_endpoint.block.name))
 
         if input_endpoint.block.parent == output_endpoint.block.parent:
-            self.get_manager(input_endpoint.block.parent).connect(input_endpoint, output_endpoint, protocol)
+            self.get_manager(input_endpoint.block.parent).connect(output_endpoint, input_endpoint, protocol)
         else:
             assert protocol in ['tcp', 'udp'], self.log.error('Invalid connection')
 
