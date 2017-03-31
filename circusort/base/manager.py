@@ -57,9 +57,9 @@ class Manager(object):
         self.log.info("{d} connects {s} to {t}".format(d=str(self), s=output_endpoint.block.name, t=input_endpoint.block.name))
 
         assert input_endpoint.block.parent == output_endpoint.block.parent == self.name, self.log.error('Manager is not supervising all Blocks!')
-        assert protocol in ['tcp', 'udp', 'ipc'], self.log.error('Invalid connection')
+        assert protocol in ['tcp', 'ipc'], self.log.error('Invalid connection')
 
-        input_endpoint.initialize(protocol=protocol)
+        input_endpoint.initialize(protocol=protocol, host=input_endpoint.block.host)
         
         output_endpoint.configure(addr=input_endpoint.addr)
         input_endpoint.configure(dtype=output_endpoint.dtype,
@@ -88,6 +88,7 @@ class Manager(object):
 
     def register_block(self, block):
         block.set_manager(self.name)
+        block.set_host(self.host)
         assert block.name not in self.blocks.keys(), self.log.error('Two blocks with the same name {n}'.format(n=block.name))
         self.blocks.update({block.name: block})
         self.log.debug("{d} registers {m}".format(d=str(self), m=block.name))

@@ -71,9 +71,9 @@ class Director(object):
         if input_endpoint.block.parent == output_endpoint.block.parent:
             self.get_manager(input_endpoint.block.parent).connect(output_endpoint, input_endpoint, protocol)
         else:
-            assert protocol in ['tcp', 'udp'], self.log.error('Invalid connection')
+            assert protocol in ['tcp'], self.log.error('Invalid connection')
 
-            input_endpoint.initialize(protocol=protocol)
+            input_endpoint.initialize(protocol=protocol, host=input_endpoint.block.host)
             
             output_endpoint.configure(addr=input_endpoint.addr)
             input_endpoint.configure(dtype=output_endpoint.dtype,

@@ -48,6 +48,9 @@ class Block(threading.Thread):
     def set_manager(self, manager_name):
         self.parent = manager_name
 
+    def set_host(self, host):
+        self.host = host
+
     def _configure(self):
         return
 
@@ -138,7 +141,7 @@ class Block(threading.Thread):
             self.counter += 1
             if self.nb_steps == self.counter:
                 self.running = False
-            
+
 
     def stop(self):
         self.running = False
