@@ -12,6 +12,7 @@ class Connection(object):
 
         self.block = block
         self.name  = name
+        self.initialized = False
         self.defaults.update(self.params)
         self.defaults.update(kwargs)
         self.configure(**self.defaults)
@@ -28,7 +29,9 @@ class Connection(object):
         return
 
     def initialize(self, **kwargs):
-        self._initialize(**kwargs)
+        if not self.initialized:
+            self._initialize(**kwargs)
+            self.initialized = True
 
     def receive(self):
         '''TODO add docstring'''

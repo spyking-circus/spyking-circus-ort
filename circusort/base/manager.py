@@ -13,6 +13,7 @@ class Manager(object):
         self.log_level = log_level
         self.host = host
         self.blocks = {}
+        self.blocks_types = {}
 
         self.name = name or "Manager"
         if self.log_address is None:
@@ -20,42 +21,59 @@ class Manager(object):
         self.log = utils.get_log(self.log_address, name=__name__, log_level=self.log_level)
         self.log.info("{d} starts".format(d=str(self)))
 
-    def create_block(self, name, log_level=None, **kwargs):
+    def create_block(self, block_type, name=None, log_level=None, **kwargs):
         '''TODO add docstring'''
 
-        self.log.info("{d} creates block {n}".format(d=str(self), n=name))
+        if name is None:
+            if self.blocks_types.has_key(block_type):
+                suffix = 1 + self.blocks_types[block_type]
+                self.blocks_types[block_type] += 1
+            else:
+                suffix = 1
+                self.blocks_types[block_type] = 1
+                
+
         if log_level is None:
             log_level = self.log_level
 
-        process = Process(log_address=self.log_address, name="{n}".format(n=name), log_level=log_level)
-        module = process.get_module('circusort.block.{n}'.format(n=name))
-        block = getattr(module, name.capitalize())(log_address=self.log_address, log_level=log_level, **kwargs)
+        process = Process(log_address=self.log_address, name="{n}".format(n=block_type), log_level=log_level)
+        module = process.get_module('circusort.block.{n}'.format(n=block_type))
+        block = getattr(module, block_type.capitalize())(log_address=self.log_address, log_level=log_level, **kwargs)
 
+        if name is None:
+            block.name = block.name + ' %d' %suffix
+        else:
+            block.name = name
+
+        self.log.info("{d} creates block {s}[{n}]".format(d=str(self), s=block.name, n=block_type))
+        
         self.register_block(block)
 
         return block
 
-    def connect(self, input_endpoint, output_endpoint, protocol='tcp'):
+    def connect(self, output_endpoint, input_endpoint, protocol='tcp'):
         '''TODO add docstring'''
 
-        self.log.info("{d} connects {s} to {t}".format(d=str(self), s=input_endpoint.block.name, t=output_endpoint.block.name))
+        self.log.info("{d} connects {s} to {t}".format(d=str(self), s=output_endpoint.block.name, t=input_endpoint.block.name))
 
         assert input_endpoint.block.parent == output_endpoint.block.parent == self.name, self.log.error('Manager is not supervising all Blocks!')
         assert protocol in ['tcp', 'udp', 'ipc'], self.log.error('Invalid connection')
 
         input_endpoint.initialize(protocol=protocol)
         output_endpoint.initialize(protocol=protocol)
+        
+        output_endpoint.configure(addr=input_endpoint.addr)
+        input_endpoint.configure(dtype=output_endpoint.dtype,
+                                  shape=output_endpoint.shape)
 
-        input_endpoint.configure(addr=output_endpoint.addr)
-        output_endpoint.configure(dtype=input_endpoint.dtype,
-                                  shape=input_endpoint.shape)
-
-        input_endpoint.block.connect(output_endpoint.name)
-
+        output_endpoint.block.connect(input_endpoint.name)     
         # We need to resolve the case of blocks that are guessing inputs/outputs shape because of connection. This
         # can only be done if connections are made in order, and if we have only one input/output
-        output_endpoint.block.guess_output_endpoints()
-        self.log.debug("Connection established with input {s} and output {t}".format(s=(input_endpoint.dtype, input_endpoint.shape), t=(input_endpoint.dtype, input_endpoint.shape)))
+        input_endpoint.block.guess_output_endpoints()
+        self.log.debug("Connection established from {a}[{s}] to {b}[{t}]".format(s=(output_endpoint.name, output_endpoint.dtype, output_endpoint.shape), 
+                                                                                            t=(input_endpoint.name, input_endpoint.dtype, input_endpoint.shape), 
+                                                                                            a=output_endpoint.block.name,
+                                                                                            b=input_endpoint.block.name))
         
         #input_endpoint.block.configure()
         #output_endpoint.block.configure()
@@ -71,6 +89,7 @@ class Manager(object):
 
     def register_block(self, block):
         block.set_manager(self.name)
+        assert block.name not in self.blocks.keys(), self.log.error('Two blocks with the same name {n}'.format(n=block.name))
         self.blocks.update({block.name: block})
         self.log.debug("{d} registers {m}".format(d=str(self), m=block.name))
         return

@@ -26,8 +26,8 @@ class Writer(Block):
         return
 
     def _connect(self, key):
-        '''TODO add docstring'''
         return
+
 
     def _process(self):
         batch = self.input.receive()

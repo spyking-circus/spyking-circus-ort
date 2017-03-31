@@ -52,5 +52,5 @@ class Mad_estimator(Block):
         self.means = self.means*self.decay_time + numpy.mean(batch, 1)
         self.outputs['data'].send(batch.flatten())
         self.outputs['thresholds'].send(self.means.flatten())
-
+        #print self.counter
         return

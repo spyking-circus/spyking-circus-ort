@@ -43,7 +43,7 @@ class Director(object):
         '''
         if name is None:
             manager_id = 1 + self.nb_managers
-            name = "Manager_{}".format(manager_id)
+            name = "Manager {}".format(manager_id)
 
         self.log.debug("{d} creates new manager {m}".format(d=str(self), m=name))
 
@@ -63,39 +63,37 @@ class Director(object):
         self.log.debug("{d} registers {m}".format(d=str(self), m=manager.name))
         return
 
-    def connect(self, input_endpoint, output_endpoint, protocol='tcp'):
+    def connect(self, output_endpoint, input_endpoint, protocol='tcp'):
         '''TODO add docstring'''
 
-        self.log.info("{d} connects couple of blocks".format(d=str(self)))
+        self.log.info("{d} connects {s} to {t}".format(d=str(self), s=output_endpoint.block.name, t=input_endpoint.block.name))
 
         if input_endpoint.block.parent == output_endpoint.block.parent:
-            assert protocol in ['tcp', 'udp', 'ipc'], self.log.error('Invalid connection')
             self.get_manager(input_endpoint.block.parent).connect(input_endpoint, output_endpoint, protocol)
         else:
             assert protocol in ['tcp', 'udp'], self.log.error('Invalid connection')
+
             input_endpoint.initialize(protocol=protocol)
-            output_endpoint.initialize(protocol=protocol)
+            
+            output_endpoint.configure(addr=input_endpoint.addr)
+            input_endpoint.configure(dtype=output_endpoint.dtype,
+                                      shape=output_endpoint.shape)
 
-            input_endpoint.configure(addr=output_endpoint.addr)
-            output_endpoint.configure(dtype=input_endpoint.dtype,
-                                       shape=input_endpoint.shape)
-
-
-            input_endpoint.block.connect()
+            output_endpoint.block.connect(input_endpoint.name)     
             # We need to resolve the case of blocks that are guessing inputs/outputs shape because of connection. This
             # can only be done if connections are made in order, and if we have only one input/output
-            output_endpoint.block.guess_output_endpoints()
-        
+            input_endpoint.block.guess_output_endpoints()
+            self.log.debug("Connection established from {a}[{s}] to {b}[{t}]".format(s=(output_endpoint.name, output_endpoint.dtype, output_endpoint.shape), 
+                                                                                            t=(input_endpoint.name, input_endpoint.dtype, input_endpoint.shape), 
+                                                                                            a=output_endpoint.block.name,
+                                                                                            b=input_endpoint.block.name))
+             
         return
 
     def initialize(self):
         self.log.info("{d} initializes {s}".format(d=str(self), s=", ".join(self.list_managers())))
         for manager in self.managers.itervalues():
             manager.initialize()
-        return
-
-    def start(self):
-        
         return
 
     def start(self, nb_steps=None):
