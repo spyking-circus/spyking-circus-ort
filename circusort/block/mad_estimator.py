@@ -40,8 +40,8 @@ class Mad_estimator(Block):
         return
 
     def _guess_output_endpoints(self):
-        self.mads  = numpy.zeros(self.nb_channels)
-        self.means = numpy.zeros(self.nb_channels)
+        self.mads  = numpy.zeros(self.nb_channels, dtype=numpy.float32)
+        self.means = numpy.zeros(self.nb_channels, dtype=numpy.float32)
         self.decay_time = numpy.exp(-self.input.shape[1]/self.time_constant)
         self.outputs['data'].configure(dtype=self.input.dtype, shape=self.input.shape)
         self.outputs['thresholds'].configure(dtype=self.input.dtype, shape=(self.nb_channels, 1))
@@ -50,7 +50,6 @@ class Mad_estimator(Block):
         
         batch      = self.input.receive()
         self.means = self.means*self.decay_time + numpy.mean(batch, 1)
-        self.outputs['data'].send(batch.flatten())
-        self.outputs['thresholds'].send(self.means.flatten())
-        #print self.counter
+        self.get_output('data').send(batch.flatten())
+        self.get_output('thresholds').send(self.means.flatten())
         return

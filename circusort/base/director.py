@@ -79,7 +79,7 @@ class Director(object):
             input_endpoint.configure(dtype=output_endpoint.dtype,
                                       shape=output_endpoint.shape)
 
-            output_endpoint.block.connect(input_endpoint.name)     
+            output_endpoint.block.connect(output_endpoint.name)
             # We need to resolve the case of blocks that are guessing inputs/outputs shape because of connection. This
             # can only be done if connections are made in order, and if we have only one input/output
             input_endpoint.block.guess_output_endpoints()
