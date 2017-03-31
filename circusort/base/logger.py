@@ -23,7 +23,7 @@ class Logger(object):
         command += ['-m', 'circusort.cli.logger']
         command += ['-e', tmp_endpoint]
         command += ['-i', interface]
-        print(' '.join(command))
+        #print(' '.join(command))
         process = Popen(command)
 
         # 3. receive greetings

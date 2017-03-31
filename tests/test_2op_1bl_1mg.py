@@ -3,6 +3,7 @@
 
 import circusort
 import settings
+import logging
 
 
 host = '127.0.0.1' # to run the test locally
@@ -16,41 +17,37 @@ nb_buffer = 1000 # number of buffers to process
 
 # TODO for each trial
     # TODO create director
+
 interface = circusort.utils.find_interface_address_towards(host)
-director = circusort.create_director(interface=interface)
+director = circusort.create_director(interface=interface, log_level=logging.INFO)
     # TODO create manager
-manager = director.create_manager(host=host)
+manager = director.create_manager(host=host, log_level=logging.INFO)
     # TODO create block with read & send operations
-reader = manager.create_block('reader')
+
+reader = manager.create_block('reader', log_level=logging.INFO, size=size, nb_samples=nb_samples, dtype=data_type, force=True)
     # TODO create block with two operations (serial composition)
 computer = manager.create_block('computer_1_2')
     # TODO create block with receive & write operations
 writer = manager.create_block('writer')
-    # TODO configure blocks
-reader.size = size
-reader.nb_samples = nb_samples
-reader.dtype = data_type
-reader.force = True
+
     # TODO initialize blocks
-reader.initialize()
-computer.initialize()
-writer.initialize()
+
+manager.initialize()
+#reader.initialize()
+#computer.initialize()
+#writer.initialize()
     # TODO connect blocks
 manager.connect(reader.output, computer.input)
-computer.configure()
+
 manager.connect(computer.output, writer.input)
     # TODO connect block again
-writer.connect()
-computer.connect()
-reader.connect()
     # TODO start blocks
-writer.start()
-computer.start()
-reader.start()
+
+manager.start()
+
     # TODO wait blocks stop
-reader.join()
-computer.join()
-writer.join()
+manager.join()
+
     # TODO retrieve computational time
 t_comp = writer.t_comp
 # TODO save computational times to file
