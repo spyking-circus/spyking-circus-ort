@@ -77,12 +77,12 @@ class Endpoint(Connection):
     def _initialize(self, protocol='tcp', host='127.0.0.1', port='*'):
         if protocol == 'ipc':
             tmp_file = tempfile.NamedTemporaryFile()
-            tmp_name = os.path.join(tempfile.gettempdir(), os.path.basename(tmp_file.name))
+            tmp_name = os.path.join(tempfile.gettempdir(), os.path.basename(tmp_file.name)) + ".ipc"
             tmp_file.close()
             address = '{t}://{e}'.format(t=protocol, e=tmp_name)
         else:
             endpoint = '{h}:{p}'.format(h=host, p=port)
             address  = '{t}://{e}'.format(t=protocol, e=endpoint)
-        self.socket = self.block.context.socket(zmq.PAIR)
+        self.socket = self.block.context.socket(zmq.PUB)
         self.socket.bind(address)
         self.addr = self.socket.getsockopt(zmq.LAST_ENDPOINT)

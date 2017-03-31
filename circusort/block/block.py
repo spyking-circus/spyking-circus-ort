@@ -102,17 +102,9 @@ class Block(threading.Thread):
 
     def connect(self, key):
         self.log.debug("{n} establishes connections".format(n=self.name))
-        # if self.nb_outputs > 0:
-        #     self.get_output(key).socket = self.context.socket(zmq.PAIR)
-        #     self.get_output(key).socket.connect(self.get_output(key).addr)
-        # else:
-        #     return
-        #if self.nb_inputs > 0:
-        self.get_input(key).socket = self.context.socket(zmq.PAIR)
+        self.get_input(key).socket = self.context.socket(zmq.SUB)
         self.get_input(key).socket.connect(self.get_input(key).addr)
-        #else:
-        #    return
-
+        self.get_input(key).socket.setsockopt(zmq.SUBSCRIBE, "")
 
 
     def configure(self, **kwargs):
