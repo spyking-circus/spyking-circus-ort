@@ -8,18 +8,18 @@ from circusort.base import utils
 from circusort.io.generate import synthetic_grid
 
 
-class Mad_estimator(Block):
+class Peak_detector(Block):
     '''TODO add docstring'''
 
-    name = "MAD Estimator"
+    name = "Peak detector"
 
     params = {'time_constant' : True}
 
     def __init__(self, **kwargs):
 
         Block.__init__(self, **kwargs)
-        self.add_output('data')
-        self.add_output('thresholds')
+        #self.add_output('peaks')
+        self.add_input('thresholds')
         self.add_input('data')
 
     def _initialize(self):
@@ -29,7 +29,6 @@ class Mad_estimator(Block):
     def nb_channels(self):
         return self.input.shape[0]
         
-
     @property
     def nb_samples(self):
         return self.input.shape[1]
@@ -43,8 +42,7 @@ class Mad_estimator(Block):
 
     def _process(self):
         
-        batch      = self.input.receive()
-        self.means = self.means*self.decay_time + numpy.mean(batch, 1)
-        self.get_output('data').send(batch.flatten())
-        self.get_output('thresholds').send(self.means.flatten())
+        batch      = self.get_input('data').receive()
+        thresholds = self.get_input('thresholds').receive()
+        print thresholds
         return

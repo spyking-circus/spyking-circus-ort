@@ -25,10 +25,6 @@ class Writer(Block):
 
         return
 
-    def _connect(self, key):
-        return
-
-
     def _process(self):
         batch = self.input.receive()
         batch = batch.tobytes()

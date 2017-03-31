@@ -38,11 +38,6 @@ class Filter(Block):
     def nb_samples(self):
         return self.input.shape[1]
 
-    def _connect(self, key):
-        self.get_output(key).socket = self.context.socket(zmq.PAIR)
-        self.get_output(key).socket.connect(self.get_output(key).addr)
-        return
-
     def _guess_output_endpoints(self):
         self.output.configure(dtype=self.input.dtype, shape=self.input.shape)        
 

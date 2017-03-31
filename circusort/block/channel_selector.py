@@ -40,11 +40,6 @@ class Channel_selector(Block):
     def _guess_output_endpoints(self):
         self.output.configure(dtype=self.dtype, shape=(self.nb_channels, self.nb_samples))
 
-    def _connect(self, key):
-        self.get_output(key).socket = self.context.socket(zmq.PAIR)
-        self.get_output(key).socket.connect(self.get_output(key).addr)
-        return
-
     def _process(self):
         batch = self.input.receive()
         if len(self.channels) > 0:

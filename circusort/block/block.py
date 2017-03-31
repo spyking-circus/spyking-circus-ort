@@ -98,10 +98,12 @@ class Block(threading.Thread):
         return self.outputs[key]
 
     def connect(self, key):
-        '''TODO add docstring'''
-
         self.log.debug("{n} establishes connections".format(n=self.name))
-        return self._connect(key)
+        if self.nb_outputs > 0:
+            self.get_output(key).socket = self.context.socket(zmq.PAIR)
+            self.get_output(key).socket.connect(self.get_output(key).addr)
+        else:
+            return
 
     def configure(self, **kwargs):
         '''TODO add docstring'''
