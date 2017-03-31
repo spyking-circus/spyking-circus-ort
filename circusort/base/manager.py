@@ -122,9 +122,7 @@ class Manager(object):
             self.log.info("{d} runs {s} for {n} steps".format(d=str(self), s=", ".join(self.list_blocks()), n=nb_steps))
             for block in self.blocks.itervalues():
                 block.nb_steps = nb_steps
-                print block.nb_steps
                 block.start()
-                block.join()
                 block.nb_steps = None
         return
 

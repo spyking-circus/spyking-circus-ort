@@ -136,12 +136,15 @@ class Block(threading.Thread):
 
         self.running = True
         self.t_start = time.time()
-        while self.running:
-            self._process()
-            self.counter += 1
-            if self.nb_steps == self.counter:
-                self.running = False
 
+        if self.nb_steps is not None:
+            while self.counter < self.nb_steps:
+                self._process()
+                self.counter += 1
+        else:
+            while self.running:
+                self._process()
+                self.counter += 1
 
     def stop(self):
         self.running = False
