@@ -33,15 +33,14 @@ class Peak_detector(Block):
     def nb_samples(self):
         return self.input.shape[1]
 
-    def _guess_output_endpoints(self):
-        self.mads  = numpy.zeros(self.nb_channels, dtype=numpy.float32)
-        self.means = numpy.zeros(self.nb_channels, dtype=numpy.float32)
-        self.decay_time = numpy.exp(-self.input.shape[1]/self.time_constant)
-        self.outputs['data'].configure(dtype=self.input.dtype, shape=self.input.shape)
-        self.outputs['thresholds'].configure(dtype=self.input.dtype, shape=(self.nb_channels, 1))
+    # def _guess_output_endpoints(self):
+    #     self.mads  = numpy.zeros(self.nb_channels, dtype=numpy.float32)
+    #     self.means = numpy.zeros(self.nb_channels, dtype=numpy.float32)
+    #     self.decay_time = numpy.exp(-self.input.shape[1]/self.time_constant)
+    #     self.outputs['data'].configure(dtype=self.input.dtype, shape=self.input.shape)
+    #     self.outputs['thresholds'].configure(dtype=self.input.dtype, shape=(self.nb_channels, 1))
 
     def _process(self):
-        
         batch      = self.get_input('data').receive()
         thresholds = self.get_input('thresholds').receive()
         print thresholds

@@ -59,13 +59,19 @@ class Manager(object):
         assert input_endpoint.block.parent == output_endpoint.block.parent == self.name, self.log.error('Manager is not supervising all Blocks!')
         assert protocol in ['tcp', 'ipc'], self.log.error('Invalid connection')
 
-        input_endpoint.initialize(protocol=protocol, host=input_endpoint.block.host)
-        
-        output_endpoint.configure(addr=input_endpoint.addr)
-        input_endpoint.configure(dtype=output_endpoint.dtype,
-                                  shape=output_endpoint.shape)
+        #input_endpoint.initialize(protocol=protocol, host=input_endpoint.block.host)
+        output_endpoint.initialize(protocol=protocol, host=output_endpoint.block.host)
 
-        output_endpoint.block.connect(output_endpoint.name)
+        # output_endpoint.configure(addr=input_endpoint.addr)
+        # input_endpoint.configure(dtype=output_endpoint.dtype,
+        #                           shape=output_endpoint.shape)
+        input_endpoint.configure(addr=output_endpoint.addr,
+                                 dtype=output_endpoint.dtype,
+                                 shape=output_endpoint.shape)
+
+        input_endpoint.block.connect(input_endpoint.name)
+        #output_endpoint.block.connect(output_endpoint.name)
+        
         # We need to resolve the case of blocks that are guessing inputs/outputs shape because of connection. This
         # can only be done if connections are made in order, and if we have only one input/output
         input_endpoint.block.guess_output_endpoints()

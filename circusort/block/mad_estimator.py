@@ -42,7 +42,6 @@ class Mad_estimator(Block):
         self.outputs['thresholds'].configure(dtype=self.input.dtype, shape=(self.nb_channels, 1))
 
     def _process(self):
-        
         batch      = self.input.receive()
         self.means = self.means*self.decay_time + numpy.mean(batch, 1)
         self.get_output('data').send(batch.flatten())

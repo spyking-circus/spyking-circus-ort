@@ -73,16 +73,18 @@ class Director(object):
         else:
             assert protocol in ['tcp'], self.log.error('Invalid connection')
 
-            input_endpoint.initialize(protocol=protocol, host=input_endpoint.block.host)
+            #input_endpoint.initialize(protocol=protocol, host=input_endpoint.block.host)
+            output_endpoint.initialize(protocol=protocol, host=output_endpoint.block.host)
             
-            output_endpoint.configure(addr=input_endpoint.addr)
-            input_endpoint.configure(dtype=output_endpoint.dtype,
-                                      shape=output_endpoint.shape)
+            # output_endpoint.configure(addr=input_endpoint.addr)
+            # input_endpoint.configure(dtype=output_endpoint.dtype,
+            #                           shape=output_endpoint.shape)
+            input_endpoint.configure(addr=output_endpoint.addr,
+                                     dtype=output_endpoint.dtype,
+                                     shape=output_endpoint.shape)
 
-            output_endpoint.block.connect(output_endpoint.name)
-            # We need to resolve the case of blocks that are guessing inputs/outputs shape because of connection. This
-            # can only be done if connections are made in order, and if we have only one input/output
-            input_endpoint.block.guess_output_endpoints()
+            input_endpoint.block.connect(input_endpoint.name)
+            #output_endpoint.block.connect(output_endpoint.name)
             self.log.debug("Connection established from {a}[{s}] to {b}[{t}]".format(s=(output_endpoint.name, output_endpoint.dtype, output_endpoint.shape), 
                                                                                             t=(input_endpoint.name, input_endpoint.dtype, input_endpoint.shape), 
                                                                                             a=output_endpoint.block.name,
