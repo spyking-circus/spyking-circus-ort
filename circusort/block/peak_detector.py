@@ -13,12 +13,12 @@ class Peak_detector(Block):
 
     name = "Peak detector"
 
-    params = {'time_constant' : True}
+    params = {'sign_peaks' : 'negative'}
 
     def __init__(self, **kwargs):
 
         Block.__init__(self, **kwargs)
-        #self.add_output('peaks')
+        self.add_output('peaks')
         self.add_input('thresholds')
         self.add_input('data')
 
@@ -27,21 +27,68 @@ class Peak_detector(Block):
 
     @property
     def nb_channels(self):
-        return self.input.shape[0]
+        return self.inputs['data'].shape[0]
         
     @property
     def nb_samples(self):
-        return self.input.shape[1]
+        return self.inputs['data'].shape[1]
 
-    # def _guess_output_endpoints(self):
-    #     self.mads  = numpy.zeros(self.nb_channels, dtype=numpy.float32)
-    #     self.means = numpy.zeros(self.nb_channels, dtype=numpy.float32)
-    #     self.decay_time = numpy.exp(-self.input.shape[1]/self.time_constant)
-    #     self.outputs['data'].configure(dtype=self.input.dtype, shape=self.input.shape)
-    #     self.outputs['thresholds'].configure(dtype=self.input.dtype, shape=(self.nb_channels, 1))
+
+    def _detect_peaks(self, x, mph=None, mpd=1, threshold=0, edge='rising', kpsh=False, valley=False):
+
+        if valley:
+            x = -x
+        # find indices of all peaks
+        dx = x[1:] - x[:-1]
+        ine, ire, ife = numpy.array([[], [], []], dtype=numpy.int32)
+        if not edge:
+            ine = numpy.where((numpy.hstack((dx, 0)) < 0) & (numpy.hstack((0, dx)) > 0))[0]
+        else:
+            if edge.lower() in ['rising', 'both']:
+                ire = numpy.where((numpy.hstack((dx, 0)) <= 0) & (numpy.hstack((0, dx)) > 0))[0]
+            if edge.lower() in ['falling', 'both']:
+                ife = numpy.where((numpy.hstack((dx, 0)) < 0) & (numpy.hstack((0, dx)) >= 0))[0]
+        ind = numpy.unique(numpy.hstack((ine, ire, ife)))
+        # first and last values of x cannot be peaks
+        if ind.size and ind[0] == 0:
+            ind = ind[1:]
+        if ind.size and ind[-1] == x.size-1:
+            ind = ind[:-1]
+        # remove peaks < minimum peak height
+        if ind.size and mph is not None:
+            ind = ind[x[ind] >= mph]
+        # remove peaks - neighbors < threshold
+        if ind.size and threshold > 0:
+            dx = numpy.min(numpy.vstack([x[ind]-x[ind-1], x[ind]-x[ind+1]]), axis=0)
+            ind = numpy.delete(ind, numpy.where(dx < threshold)[0])
+        # detect small peaks closer than minimum peak distance
+        if ind.size and mpd > 1:
+            ind = ind[numpy.argsort(x[ind])][::-1]  # sort ind by peak height
+            idel = numpy.zeros(ind.size, dtype=numpy.bool)
+            for i in range(ind.size):
+                if not idel[i]:
+                    # keep peaks with the same height if kpsh is True
+                    idel = idel | (ind >= ind[i] - mpd) & (ind <= ind[i] + mpd) \
+                        & (x[ind[i]] > x[ind] if kpsh else True)
+                    idel[i] = 0  # Keep current peak
+            # remove the small peaks and sort back the indices by their occurrence
+            ind = numpy.sort(ind[~idel])
+
+        return ind
+
+    def _guess_output_endpoints(self):
+        self.peaks = numpy.zeros((2, self.nb_samples), dtype=numpy.int32)
+        self.outputs['peaks'].configure(dtype=numpy.int32, shape=self.peaks.shape)
 
     def _process(self):
         batch      = self.get_input('data').receive()
         thresholds = self.get_input('thresholds').receive()
-        print thresholds
+        self.peaks[:] = 0
+        for i in xrange(self.nb_channels):
+            if self.sign_peaks in ['negative', 'both']:
+                idx = self._detect_peaks(batch[i],  thresholds[i])
+            elif self.sign_peaks in ['positive', 'both']:
+                idx = self._detect_peaks(batch[i],  thresholds[i], valley=True)
+            self.peaks[0, idx] = 1
+            self.peaks[1, idx] = i
         return
