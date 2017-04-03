@@ -1,9 +1,6 @@
 from .block import Block
-import zmq
-import numpy
 import os
-from circusort.base.endpoint import Endpoint
-from circusort.base import utils
+import numpy
 from circusort.io.generate import synthetic_grid
 
 

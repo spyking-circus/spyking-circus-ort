@@ -23,7 +23,7 @@ manager.initialize()
 manager.connect(noise.output, selector.input, protocol='ipc')
 manager.connect(selector.output, filter.input, protocol='ipc')
 manager.connect(filter.output, [writer_1.input, mad_estimator.input], protocol='ipc')
-manager.connect(mad_estimator.get_output('thresholds'), writer_2.input, protocol='ipc')
+manager.connect(mad_estimator.get_output('mads'), writer_2.input, protocol='ipc')
 
 manager.start()
 director.sleep(duration=2.0)

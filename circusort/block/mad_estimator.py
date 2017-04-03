@@ -1,11 +1,5 @@
 from .block import Block
-import zmq
 import numpy
-from scipy import signal
-import os
-from circusort.base.endpoint import Endpoint
-from circusort.base import utils
-from circusort.io.generate import synthetic_grid
 
 
 class Mad_estimator(Block):

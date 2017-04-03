@@ -1,10 +1,4 @@
 from .block import Block
-import zmq
-import numpy
-import time
-from circusort.base.endpoint import Endpoint
-from circusort.base import utils
-
 
 
 class Writer(Block):

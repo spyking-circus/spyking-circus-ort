@@ -1,11 +1,5 @@
 from .block import Block
-import zmq
 import numpy
-from scipy import signal
-import os
-from circusort.base.endpoint import Endpoint
-from circusort.base import utils
-from circusort.io.generate import synthetic_grid
 from numpy.linalg import eigh
 
 
@@ -14,7 +8,7 @@ class Whitening(Block):
 
     name   = "Whitening"
 
-    params = {'N_t'           : 5,
+    params = {'spike_width'   : 5,
               'radius'        : 'auto', 
               'fudge'         : 1e-18, 
               'sampling_rate' : 20000,
