@@ -42,7 +42,8 @@ class Connection(object):
     def send(self, batch):
         '''TODO add docstring'''
 
-        self._send_data(batch)
+        if self.initialized:
+            self._send_data(batch)
         return
 
 

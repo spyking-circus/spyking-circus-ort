@@ -36,6 +36,16 @@ class Director(object):
     def get_logger(self):
         return self.logger
 
+    def create_block(self, block_type, name=None, log_level=None, **kwargs):
+        '''TODO add docstring'''
+
+        if self.nb_managers == 0:
+            self.create_manager(log_level=self.log_level)
+
+        block = self.get_manager[self.list_managers[0]].create_block(block_type, name, log_level, **kwargs)
+
+        return block
+
     def create_manager(self, name=None, host=None, log_level=None):
         '''Create a new manager process and return a proxy to this process.
 
