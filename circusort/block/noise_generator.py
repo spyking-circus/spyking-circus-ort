@@ -1,7 +1,5 @@
 from .block import Block
-import zmq
 import numpy
-import os
 
 
 class Noise_generator(Block):

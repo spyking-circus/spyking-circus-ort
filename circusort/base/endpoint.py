@@ -6,8 +6,9 @@ import json
 
 class Connection(object):
 
-    _defaults_structure = {'array' : {'dtype': None, 'shape' : None},
-                          'dict'  : {}}
+    _defaults_structure = {'array'  : {'dtype': None, 'shape' : None},
+                          'dict'    : {},
+                          'boolean' : {}}
 
     params   = {}
 
@@ -28,8 +29,6 @@ class Connection(object):
         for key, value in kwargs.items():
             self.params[key] = kwargs[key]
             self.__setattr__(key, value)
-
-        #self.log.debug("{n} is configured".format(n=self.name))
 
         return
 
@@ -73,7 +72,9 @@ class Endpoint(Connection):
             batch = numpy.fromstring(batch, dtype=self.dtype)
             batch = numpy.reshape(batch, self.shape)
         elif self.structure == 'dict':
-            json.loads(batch)
+            batch = json.loads(batch)
+        elif self.structure == 'boolean':
+            batch = boolean(batch)
         return batch
 
     def _send_data(self, batch):
@@ -81,6 +82,8 @@ class Endpoint(Connection):
             self.socket.send(batch)
         elif self.structure == 'dict':
             self.socket.send(json.dumps(batch))
+        elif self.structure == 'boolean':
+            self.socket.send(str(batch))
 
     def _get_description(self):
         description = {'addr' : self.addr}

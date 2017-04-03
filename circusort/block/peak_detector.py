@@ -18,6 +18,11 @@ class Peak_detector(Block):
         self.add_input('data')
 
     def _initialize(self):
+        self.peaks = {}
+        if self.sign_peaks in ['negative', 'both']:
+            self.peaks['negative'] = {}
+        if self.sign_peaks in ['positive', 'both']:
+            self.peaks['positive'] = {}
         return
 
     @property
@@ -28,6 +33,8 @@ class Peak_detector(Block):
     def nb_samples(self):
         return self.inputs['data'].shape[1]
 
+    def _guess_output_endpoints(self):
+        return
 
     def _detect_peaks(self, x, mph=None, mpd=1, threshold=0, edge='rising', kpsh=False, valley=False):
 
@@ -71,19 +78,16 @@ class Peak_detector(Block):
 
         return ind
 
-    def _guess_output_endpoints(self):
-        #self.peaks = numpy.zeros((2, self.nb_samples), dtype=numpy.int32)
-        self.peaks = {}
-
     def _process(self):
         batch      = self.get_input('data').receive()
         thresholds = self.threshold*self.get_input('mads').receive()
-        for i in xrange(self.nb_channels):
-            self.peaks[i] = set([])
-            if self.sign_peaks in ['negative', 'both']:
-                self.peaks[i] = self.peaks[i].union(self._detect_peaks(batch[i],  thresholds[i]))
-            elif self.sign_peaks in ['positive', 'both']:
-                self.peaks[i] = self.peaks[i].union(self._detect_peaks(batch[i],  thresholds[i], valley=True))
-            self.peaks[i] = list(self.peaks[i])
-            self.outputs['peaks'].send(self.peaks)
+
+        for key in self.peaks.keys():
+            self.peaks[key] = {}
+            for i in xrange(self.nb_channels):
+                if key == 'negative':
+                    self.peaks[key][i] = self._detect_peaks(batch[i],  thresholds[i]).tolist()
+                elif key == 'positive':
+                    self.peaks[key][i] = self._detect_peaks(batch[i],  thresholds[i], valley=True).tolist()
+                self.outputs['peaks'].send(self.peaks)
         return

@@ -47,10 +47,10 @@ class Whitening(Block):
         batch = self.input.receive()
         if self.is_ready:
             batch = numpy.dot(self.whitening_matrix, batch)
+            self.output.send(batch.flatten())
         else:
             self.silences = numpy.hstack((self.silences, batch))
             if self.silences.shape[1] > self.duration:
                 self._get_whitening_matrix()
-                self.log.info("{n} computes whitening matrix".format(n=self.name)) 
-        self.output.send(batch.flatten())
+                self.log.info("{n} computes whitening matrix".format(n=self.name))
         return
