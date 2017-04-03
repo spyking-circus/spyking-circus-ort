@@ -1,7 +1,9 @@
 from .director import Director
 from .manager import Manager
+from .utils import find_interface_address_towards
 
-def create_director(interface='127.0.0.1', **kwargs):
+def create_director(host='127.0.0.1', **kwargs):
     '''Create a new director in this process.'''
+    interface = find_interface_address_towards(host)
     director = Director(interface, **kwargs)
     return director

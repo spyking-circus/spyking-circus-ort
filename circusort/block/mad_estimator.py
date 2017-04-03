@@ -13,7 +13,7 @@ class Mad_estimator(Block):
 
     name = "MAD Estimator"
 
-    params = {'time_constant' : True}
+    params = {'time_constant' : 1.}
 
     def __init__(self, **kwargs):
 

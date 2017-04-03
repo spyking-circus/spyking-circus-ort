@@ -14,8 +14,7 @@ data_type = 'float32' # data type (for buffer)
 nb_buffer = 1000 # number of buffers to process
 
 
-interface = circusort.utils.find_interface_address_towards(host)
-director = circusort.create_director(interface=interface, log_level=logging.INFO)
+director = circusort.create_director(host=host, log_level=logging.INFO)
 
 manager = director.create_manager(host=host, log_level=logging.INFO)
 reader = manager.create_block('reader', log_level=logging.INFO  )

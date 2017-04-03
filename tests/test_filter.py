@@ -8,8 +8,7 @@ import logging
 
 host = '127.0.0.1' # to run the test locally
 
-interface = circusort.utils.find_interface_address_towards(host)
-director  = circusort.create_director(interface=interface)
+director  = circusort.create_director(host=host)
 manager   = director.create_manager(host=host, log_level=logging.INFO)
 
 noise    = manager.create_block('noise_generator')
