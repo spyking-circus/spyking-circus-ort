@@ -51,12 +51,12 @@ class Block(threading.Thread):
     def set_host(self, host):
         self.host = host
 
-    def add_output(self, name):
-        self.outputs[name] = Endpoint(self, name)
+    def add_output(self, name, structure='array'):
+        self.outputs[name] = Endpoint(self, name, structure)
 
-    def add_input(self, name):
-        self.inputs[name] = Endpoint(self, name)
-
+    def add_input(self, name, structure='array'):
+        self.inputs[name] = Endpoint(self, name, structure)
+        
     def initialize(self):
 
         self.log.debug("{n} is initialized".format(n=self.name))

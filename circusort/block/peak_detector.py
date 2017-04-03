@@ -13,13 +13,14 @@ class Peak_detector(Block):
 
     name = "Peak detector"
 
-    params = {'sign_peaks' : 'negative'}
+    params = {'sign_peaks' : 'negative', 
+              'threshold'  : 6}
 
     def __init__(self, **kwargs):
 
         Block.__init__(self, **kwargs)
-        self.add_output('peaks')
-        self.add_input('thresholds')
+        self.add_output('peaks', 'dict')
+        self.add_input('mads')
         self.add_input('data')
 
     def _initialize(self):
@@ -77,18 +78,26 @@ class Peak_detector(Block):
         return ind
 
     def _guess_output_endpoints(self):
-        self.peaks = numpy.zeros((2, self.nb_samples), dtype=numpy.int32)
-        self.outputs['peaks'].configure(dtype=numpy.int32, shape=self.peaks.shape)
+        #self.peaks = numpy.zeros((2, self.nb_samples), dtype=numpy.int32)
+        self.peaks = {}
 
     def _process(self):
         batch      = self.get_input('data').receive()
-        thresholds = self.get_input('thresholds').receive()
-        self.peaks[:] = 0
+        thresholds = self.threshold*self.get_input('mads').receive()
+        # self.peaks[:] = 0
+        # for i in xrange(self.nb_channels):
+        #     if self.sign_peaks in ['negative', 'both']:
+        #         idx = self._detect_peaks(batch[i],  thresholds[i])
+        #     elif self.sign_peaks in ['positive', 'both']:
+        #         idx = self._detect_peaks(batch[i],  thresholds[i], valley=True)
+        #     self.peaks[0, idx] = 1
+        #     self.peaks[1, idx] = i
         for i in xrange(self.nb_channels):
+            self.peaks[i] = set([])
             if self.sign_peaks in ['negative', 'both']:
-                idx = self._detect_peaks(batch[i],  thresholds[i])
+                self.peaks[i] = self.peaks[i].union(self._detect_peaks(batch[i],  thresholds[i]))
             elif self.sign_peaks in ['positive', 'both']:
-                idx = self._detect_peaks(batch[i],  thresholds[i], valley=True)
-            self.peaks[0, idx] = 1
-            self.peaks[1, idx] = i
+                self.peaks[i] = self.peaks[i].union(self._detect_peaks(batch[i],  thresholds[i], valley=True))
+            self.peaks[i] = list(self.peaks[i])
+            self.outputs['peaks'].send(self.peaks)
         return

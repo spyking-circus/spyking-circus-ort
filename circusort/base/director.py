@@ -93,13 +93,12 @@ class Director(object):
                     assert protocol in ['tcp'], self.log.error('Invalid connection')
 
                     output_endpoint.initialize(protocol=protocol, host=output_endpoint.block.host)
-                    input_endpoint.configure(addr=output_endpoint.addr,
-                                             dtype=output_endpoint.dtype,
-                                             shape=output_endpoint.shape)
+                    description = output_endpoint.get_description()
+                    input_endpoint.configure(**description)
 
                     input_endpoint.block.connect(input_endpoint.name)
-                    self.log.debug("Connection established from {a}[{s}] to {b}[{t}]".format(s=(output_endpoint.name, output_endpoint.dtype, output_endpoint.shape), 
-                                                                                                    t=(input_endpoint.name, input_endpoint.dtype, input_endpoint.shape), 
+                    self.log.debug("Connection established from {a}[{s}] to {b}[{t}]".format(s=(output_endpoint.name, output_endpoint.structure), 
+                                                                                                    t=(input_endpoint.name, input_endpoint.structure), 
                                                                                                     a=output_endpoint.block.name,
                                                                                                     b=input_endpoint.block.name))
              
