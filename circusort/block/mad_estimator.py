@@ -35,7 +35,7 @@ class Mad_estimator(Block):
     def _guess_output_endpoints(self):
         self.mads         = numpy.zeros((self.nb_channels, 1), dtype=numpy.float32)
         self.median_means = numpy.zeros((self.nb_channels, 1), dtype=numpy.float32)
-        self.decay_time   = numpy.exp(-self.input.shape[1]/float(self.time_constant))
+        self.decay_time   = numpy.exp(-self.nb_samples/float(self.time_constant))
         self.outputs['mads'].configure(dtype=self.input.dtype, shape=(self.nb_channels, 1))
 
     def _process(self):

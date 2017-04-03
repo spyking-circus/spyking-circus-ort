@@ -114,7 +114,7 @@ class Block(threading.Thread):
 
     def guess_output_endpoints(self, **kwargs):
         if self.nb_inputs > 0 and self.nb_outputs > 0:
-            self.log.debug("{n} guessing output connections".format(n=self.name))
+            self.log.debug("{n} guesses output connections".format(n=self.name))
             return self._guess_output_endpoints(**kwargs)
 
 

@@ -11,16 +11,16 @@ from circusort.base.process import create_process
 
 class Director(object):
 
-    def __init__(self, interface='127.0.0.1', name=None, log_level=logging.INFO):
+    def __init__(self, host='127.0.0.1', name=None, log_level=logging.INFO):
 
         # Start logging server
         self.name = name or "Director"
         self.log_level = log_level
-        self.logger = Logger(interface=interface)
+        self.logger = Logger(interface=host)
         # Get logger instance
         self.log = utils.get_log(self.logger.address, name=__name__, log_level=self.log_level)
 
-        self.interface = interface
+        self.host = host
 
         self.log.info("{d} starts".format(d=str(self)))
         
@@ -140,7 +140,7 @@ class Director(object):
         return
 
     def __str__(self):
-        return "{d}[{i}]".format(d=self.name, i=self.interface)
+        return "{d}[{i}]".format(d=self.name, i=self.host)
 
     def list_managers(self):
         return self.managers.keys()

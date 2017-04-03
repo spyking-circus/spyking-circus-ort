@@ -13,32 +13,33 @@ class Density_clustering(Block):
 
     name = "Density Clustering"
 
-    params = {'cut_off'       : 500,
-              'sampling_rate' : 20000,
-              'remove_median' : True}
+    params = {'alignment' : True,
+              'time_constant' : 1.}
 
     def __init__(self, **kwargs):
 
         Block.__init__(self, **kwargs)
-        #self.add_input('data')
+        self.add_input('data')
         self.add_input('peaks', 'dict')
-        #self.add_input('thresholds')
 
     def _initialize(self):
         return
 
     @property
     def nb_channels(self):
-        return self.input.shape[0]
+        return self.inputs['data'].shape[0]
 
     @property
     def nb_samples(self):
-        return self.input.shape[1]
+        return self.inputs['data'].shape[1]
 
     def _guess_output_endpoints(self):
+
+        self.templates  = numpy.zeros(())
+        self.decay_time = numpy.exp(-self.nb_samples/float(self.time_constant))
         self.output.configure(dtype=self.input.dtype, shape=self.input.shape)        
 
     def _process(self):
-        peaks = self.input.receive()
-        print peaks
+        peaks = self.inputs['peaks'].receive()
+        data  = self.inputs['data'].receive()
         return

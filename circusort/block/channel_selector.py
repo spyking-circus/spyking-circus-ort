@@ -38,7 +38,7 @@ class Channel_selector(Block):
         return
 
     def _guess_output_endpoints(self):
-        self.output.configure(dtype=self.dtype, shape=(self.nb_channels, self.nb_samples))
+        self.output.configure(dtype=self.input.dtype, shape=(self.nb_channels, self.nb_samples))
 
     def _process(self):
         batch = self.input.receive()

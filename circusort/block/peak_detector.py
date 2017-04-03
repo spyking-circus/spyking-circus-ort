@@ -84,14 +84,6 @@ class Peak_detector(Block):
     def _process(self):
         batch      = self.get_input('data').receive()
         thresholds = self.threshold*self.get_input('mads').receive()
-        # self.peaks[:] = 0
-        # for i in xrange(self.nb_channels):
-        #     if self.sign_peaks in ['negative', 'both']:
-        #         idx = self._detect_peaks(batch[i],  thresholds[i])
-        #     elif self.sign_peaks in ['positive', 'both']:
-        #         idx = self._detect_peaks(batch[i],  thresholds[i], valley=True)
-        #     self.peaks[0, idx] = 1
-        #     self.peaks[1, idx] = i
         for i in xrange(self.nb_channels):
             self.peaks[i] = set([])
             if self.sign_peaks in ['negative', 'both']:
