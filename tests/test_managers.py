@@ -7,7 +7,6 @@ import logging
 
 
 host = '127.0.0.1' # to run the test locally
-# host = settings.host # to run the test remotely
 
 size = 2 # square root of number of electrodes (for buffer)
 nb_samples = 100 # number of time samples (for buffer)

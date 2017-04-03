@@ -51,15 +51,11 @@ class Block(threading.Thread):
     def set_host(self, host):
         self.host = host
 
-    def _configure(self):
-        return
-
     def add_output(self, name):
         self.outputs[name] = Endpoint(self, name)
 
     def add_input(self, name):
         self.inputs[name] = Endpoint(self, name)
-
 
     def initialize(self):
 
@@ -73,18 +69,18 @@ class Block(threading.Thread):
         if len(self.inputs) == 1:
             return self.inputs[self.inputs.keys()[0]]
         elif len(self.inputs) == 0:
-            self.log.error('No Inputs')
+            self.log.error('{n} has no Inputs'.format(n=self.name))
         else:
-            self.log.error('Multiple Inputs')
+            self.log.error('{n} has multiple Inputs:{i}, you must be more explicit'.format(n=self.name, i=self.inputs.keys()))
 
     @property
     def output(self):
         if len(self.outputs) == 1:
             return self.outputs[self.outputs.keys()[0]]
         elif len(self.outputs) == 0:
-            self.log.error('No Outputs')
+            self.log.error('{n} has no Outputs'.format(n=self.name))
         else:
-            self.log.error('Multiple Outputs')
+            self.log.error('{n} has multiple Outputs:{o}, you must be more explicit'.format(n=self.name, o=self.outputs.keys()))
 
     @property
     def nb_inputs(self):
@@ -108,8 +104,6 @@ class Block(threading.Thread):
 
 
     def configure(self, **kwargs):
-        '''TODO add docstring'''
-
         for key, value in kwargs.items():
             self.params[key] = kwargs[key]
             self.__setattr__(key, value)
@@ -125,13 +119,10 @@ class Block(threading.Thread):
 
 
     def run(self):
-        '''TODO add dosctring'''
-
         if not self.ready:
             self.initialize()
 
         self.log.debug("{n} is running".format(n=self.name))
-        #self.running = True
 
         self.running = True
         self.t_start = time.time()

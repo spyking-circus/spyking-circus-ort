@@ -7,7 +7,6 @@ import logging
 
 
 host = '127.0.0.1' # to run the test locally
-# host = settings.host # to run the test remotely
 
 interface = circusort.utils.find_interface_address_towards(host)
 director  = circusort.create_director(interface=interface)
@@ -26,6 +25,5 @@ manager.connect(filter.output, writer.input)
 
 manager.start()
 
-# TODO save computational times to file
 director.sleep(duration=2.0)
 director.stop()

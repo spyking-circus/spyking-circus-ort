@@ -7,13 +7,10 @@ import logging
 
 
 host = '127.0.0.1' # to run the test locally
-# host = settings.host # to run the test remotely
-
 
 interface = circusort.utils.find_interface_address_towards(host)
 director  = circusort.create_director(interface=interface)
 manager   = director.create_manager(host=host, log_level=logging.INFO)
-
 
 noise    = manager.create_block('noise_generator',)
 selector = manager.create_block('channel_selector')
@@ -26,8 +23,7 @@ manager.initialize()
 
 manager.connect(noise.output, selector.input, protocol='ipc')
 manager.connect(selector.output, filter.input, protocol='ipc')
-manager.connect(filter.output, mad_estimator.input, protocol='ipc')
-manager.connect(mad_estimator.get_output('data'), writer_1.input, protocol='ipc')
+manager.connect(filter.output, [writer_1.input, mad_estimator.input], protocol='ipc')
 manager.connect(mad_estimator.get_output('thresholds'), writer_2.input, protocol='ipc')
 
 manager.start()

@@ -51,29 +51,38 @@ class Manager(object):
 
         return block
 
-    def connect(self, output_endpoint, input_endpoint, protocol='tcp'):
+    def connect(self, output_endpoints, input_endpoints, protocol='tcp'):
         '''TODO add docstring'''
 
-        self.log.info("{d} connects {s} to {t}".format(d=str(self), s=output_endpoint.block.name, t=input_endpoint.block.name))
+        if not type(input_endpoints) == list:
+            input_endpoints = [input_endpoints]
 
-        assert input_endpoint.block.parent == output_endpoint.block.parent == self.name, self.log.error('Manager is not supervising all Blocks!')
-        assert protocol in ['tcp', 'ipc'], self.log.error('Invalid connection')
+        if not type(output_endpoints) == list:
+            output_endpoints = [output_endpoints]
 
-        output_endpoint.initialize(protocol=protocol, host=output_endpoint.block.host)
-
-        input_endpoint.configure(addr=output_endpoint.addr,
-                                 dtype=output_endpoint.dtype,
-                                 shape=output_endpoint.shape)
-
-        input_endpoint.block.connect(input_endpoint.name)
+        for input_endpoint in input_endpoints:
+            for output_endpoint in output_endpoints:
         
-        # We need to resolve the case of blocks that are guessing inputs/outputs shape because of connection. This
-        # can only be done if connections are made in order, and if we have only one input/output
-        input_endpoint.block.guess_output_endpoints()
-        self.log.debug("Connection established from {a}[{s}] to {b}[{t}]".format(s=(output_endpoint.name, output_endpoint.dtype, output_endpoint.shape), 
-                                                                                            t=(input_endpoint.name, input_endpoint.dtype, input_endpoint.shape), 
-                                                                                            a=output_endpoint.block.name,
-                                                                                            b=input_endpoint.block.name))
+                self.log.info("{d} connects {s} to {t}".format(d=str(self), s=output_endpoint.block.name, t=input_endpoint.block.name))
+                assert input_endpoint.block.parent == output_endpoint.block.parent == self.name, self.log.error('Manager is not supervising all Blocks!')
+                assert protocol in ['tcp', 'ipc'], self.log.error('Invalid connection')
+
+                output_endpoint.initialize(protocol=protocol, host=output_endpoint.block.host)
+                input_endpoint.configure(addr=output_endpoint.addr,
+                                         dtype=output_endpoint.dtype,
+                                         shape=output_endpoint.shape)
+
+                input_endpoint.block.connect(input_endpoint.name)
+                
+                # We need to resolve the case of blocks that are guessing inputs/outputs shape because of connection. This
+                # can only be done if connections are made in order, and if we have only one input/output
+                input_endpoint.block.guess_output_endpoints()
+                self.log.debug("Connection established from {a}[{s}] to {b}[{t}]".format(s=(output_endpoint.name, output_endpoint.dtype, output_endpoint.shape), 
+                                                                                                    t=(input_endpoint.name, input_endpoint.dtype, input_endpoint.shape), 
+                                                                                                    a=output_endpoint.block.name,
+                                                                                                    b=input_endpoint.block.name))
+
+
         return
 
     def __str__(self):
