@@ -10,31 +10,33 @@ host = '127.0.0.1' # to run the test locally
 
 director      = circusort.create_director(host=host)
 manager       = director.create_manager(host=host, log_level=logging.INFO)
+manager2      = director.create_manager(host=host, log_level=logging.INFO)
 
 # def generate_mapping()
 
 
 
-noise         = manager.create_block('noise_generator')
+noise         = manager.create_block('noise_generator', nb_channels=10)
 filter        = manager.create_block('filter')
 whitening     = manager.create_block('whitening')
 mad_estimator = manager.create_block('mad_estimator')
 peak_detector = manager.create_block('peak_detector', threshold=5, sign_peaks='both')
 pca           = manager.create_block('pca', nb_waveforms=5000)
-cluster       = manager.create_block('density_clustering', probe='test.prb')
+cluster       = manager2.create_block('density_clustering', probe='test.prb', nb_waveforms=200)
 
-manager.initialize()
+director.initialize()
 
-manager.connect(noise.output, filter.input)
-manager.connect(filter.output, whitening.input)
-manager.connect(whitening.output, [mad_estimator.input, peak_detector.get_input('data'), pca.get_input('data')])
-manager.connect(mad_estimator.output, peak_detector.get_input('mads'))
-manager.connect(peak_detector.get_output('peaks'), pca.get_input('peaks'))
-manager.connect(pca.get_output('peaks'), cluster.get_input('peaks'))
-manager.connect(pca.get_output('pcs'), cluster.get_input('pcs'))
-manager.connect(pca.get_output('data'), cluster.get_input('data'))
+director.connect(noise.output, filter.input)
+director.connect(filter.output, whitening.input)
+director.connect(whitening.output, [mad_estimator.input, peak_detector.get_input('data'), pca.get_input('data')])
+director.connect(mad_estimator.output, peak_detector.get_input('mads'))
+director.connect(peak_detector.get_output('peaks'), pca.get_input('peaks'))
 
-manager.start()
-director.sleep(duration=5.0)
+director.connect(pca.get_output('peaks'), cluster.get_input('peaks'))
+director.connect(pca.get_output('pcs'), cluster.get_input('pcs'))
+director.connect(pca.get_output('data'), cluster.get_input('data'))
+
+director.start()
+director.sleep(duration=30.0)
 
 director.stop()
