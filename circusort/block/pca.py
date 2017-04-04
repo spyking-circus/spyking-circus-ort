@@ -48,8 +48,8 @@ class Pca(Block):
 
     def _guess_output_endpoints(self):
         self.outputs['data'].configure(dtype=self.inputs['data'].dtype, shape=(self.nb_channels, self.nb_samples))
-        self.outputs['pcs'].configure(dtype='float32', shape=(2, self._spike_width_, self.output_dim))
-        self.pcs = numpy.zeros((2, self._spike_width_, self.output_dim), dtype=numpy.float32)
+        self.outputs['pcs'].configure(dtype='float32', shape=(2, self.output_dim, self._spike_width_))
+        self.pcs = numpy.zeros((2, self.output_dim, self._spike_width_), dtype=numpy.float32)
 
     def _is_valid(self, peak):
         if self.alignment:
@@ -107,9 +107,9 @@ class Pca(Block):
                     pca          = PCAEstimator(self.output_dim, copy=False)
                     res_pca      = pca.fit_transform(self.waveforms[key].T).astype(numpy.float32)
                     if key == 'negative':
-                        self.pcs[0] = res_pca
+                        self.pcs[0] = res_pca.T
                     elif key == 'positive':
-                        self.pcs[1] = res_pca
+                        self.pcs[1] = res_pca.T
 
         if self.is_ready:
             self.outputs['data'].send(batch.flatten())

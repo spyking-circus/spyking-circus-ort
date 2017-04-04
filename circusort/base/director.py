@@ -95,8 +95,8 @@ class Director(object):
                     output_endpoint.initialize(protocol=protocol, host=output_endpoint.block.host)
                     description = output_endpoint.get_description()
                     input_endpoint.configure(**description)
-
                     input_endpoint.block.connect(input_endpoint.name)
+                    input_endpoint.block.guess_output_endpoints()
                     self.log.debug("Connection established from {a}[{s}] to {b}[{t}]".format(s=(output_endpoint.name, output_endpoint.structure), 
                                                                                                     t=(input_endpoint.name, input_endpoint.structure), 
                                                                                                     a=output_endpoint.block.name,

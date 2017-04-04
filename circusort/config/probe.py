@@ -52,7 +52,7 @@ class Probe(object):
             pos_x2, pos_y2 = channel_groups['geometry'][c2]
             if (((pos_x - pos_x2)**2 + (pos_y - pos_y2)**2) <= self.radius**2):
                 edges += [c2]
-        return edges
+        return numpy.array(edges, dtype=numpy.int32)
 
     def get_nodes_and_edges(self):
         """

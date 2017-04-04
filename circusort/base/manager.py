@@ -72,9 +72,6 @@ class Manager(object):
                 description = output_endpoint.get_description()
                 input_endpoint.configure(**description)
                 input_endpoint.block.connect(input_endpoint.name)
-                
-                # We need to resolve the case of blocks that are guessing inputs/outputs shape because of connection. This
-                # can only be done if connections are made in order, and if we have only one input/output
                 input_endpoint.block.guess_output_endpoints()
                 self.log.debug("Connection established from {a}[{s}] to {b}[{t}]".format(s=(output_endpoint.name, output_endpoint.structure), 
                                                                                                     t=(input_endpoint.name, input_endpoint.structure), 
