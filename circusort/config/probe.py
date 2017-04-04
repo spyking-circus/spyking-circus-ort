@@ -3,25 +3,33 @@ import sys
 import logging
 import numpy
 
-logger = logging.getLogger(__name__)
+
 
 
 class Probe(object):
 
-    def __init__(self, filename, radius=None):
+    def __init__(self, filename, radius=None, logger=None):
         probe       = {}
         self.path   = os.path.abspath(os.path.expanduser(filename))
         
+        if logger is None:
+            self.logger = logging.getLogger(__name__)
+        else:
+            self.logger = logger
+
         if not os.path.exists(self.path):
-            logger.error("The probe file %s does not exist" %self.path)
+            self.logger.error("The probe file %s does not exist" %self.path)
             sys.exit(1)
+
+        self._edges = None
+        self._nodes = None
 
         try:
             with open(self.path, 'r') as f:
                 probetext = f.read()
                 exec(probetext, probe)
         except Exception as ex:
-            logger.error("Something wrong with the syntax of the probe file:\n" + str(ex))
+            self.logger.error("Something wrong with the syntax of the probe file:\n" + str(ex))
 
 
         assert probe.has_key('channel_groups') == True, logger.error("Something wrong with the syntax of the probe file")
@@ -31,7 +39,7 @@ class Probe(object):
         key_flags = ['total_nb_channels', 'radius']
         for key in key_flags:
             if not probe.has_key(key):
-                logger.error("%s is missing in the probe file" %key)
+                self.logger.error("%s is missing in the probe file" %key)
             setattr(self, key, probe[key])
 
         if radius is not None:
@@ -75,9 +83,21 @@ class Probe(object):
         return numpy.sort(numpy.array(nodes, dtype=numpy.int32)), edges
 
 
+    @property
+    def edges(self):
+        if self._edges is None:
+            self._nodes, self._edges = self.get_nodes_and_edges()
+        return self._edges
+
+    @property
+    def nodes(self):
+        if self._nodes is None:
+            self._nodes, self._edges = self.get_nodes_and_edges()
+        return self._nodes
+
+
     def get_averaged_n_edges(self):
-        nodes, edges = self.get_nodes_and_edges(self)
         n = 0
-        for key, value in edges.items():
+        for key, value in self.edges.items():
             n += len(value)
-        return n/float(len(edges.values()))
+        return n/float(len(self.edges.values()))

@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 CONFIGURATION_PATH = "~/.config/spyking-circus-ort/base.conf"
 
-def load():
+def load_configuration():
     '''TODO add docstring...'''
     path = CONFIGURATION_PATH
     path = os.path.expanduser(path)
@@ -19,7 +19,7 @@ def load():
         config = Configuration()
     return config
 
-def create():
+def create_configuration():
     '''TODO add docstring...'''
     path = CONFIGURATION_PATH
     path = os.path.expanduser(path)

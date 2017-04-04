@@ -1,6 +1,8 @@
 from subprocess import Popen
 from sys import executable
 import zmq
+import tempfile
+import os
 
 
 
@@ -13,7 +15,9 @@ class Logger(object):
 
         # 1. create a temporary socket
         tmp_transport = "ipc"
-        tmp_endpoint = "circusort_tmp"
+        tmp_file = tempfile.NamedTemporaryFile()
+        tmp_endpoint = os.path.join(tempfile.gettempdir(), os.path.basename(tmp_file.name)) + ".ipc"
+        tmp_file.close()
         tmp_address = "{t}://{e}".format(t=tmp_transport, e=tmp_endpoint)
         tmp_socket = zmq_context.socket(zmq.PAIR)
         tmp_socket.bind(tmp_address)

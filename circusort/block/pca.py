@@ -61,7 +61,7 @@ class Pca(Block):
     def is_ready(self):
         return bool(numpy.prod([i == self.nb_waveforms for i in self.nb_spikes.values()]))
 
-    def _align(self, batch, channel, peak, key):
+    def _get_waveform(self, batch, channel, peak, key):
         if self.alignment:
             ydata    = batch[channel, peak - 2*self._width:peak + 2*self._width + 1]
             f        = scipy.interpolate.UnivariateSpline(self.xdata, ydata, s=0)
@@ -99,7 +99,7 @@ class Pca(Block):
                         for peak in signed_peaks:
                             if self.nb_spikes[key] < self.nb_waveforms:
                                 if self._is_valid(peak):
-                                    self.waveforms[key][self.nb_spikes[key]] = self._align(batch, int(channel), peak, key)
+                                    self.waveforms[key][self.nb_spikes[key]] = self._get_waveform(batch, int(channel), peak, key)
                                     self.nb_spikes[key] += 1
 
                 if self.nb_spikes[key] ==  self.nb_waveforms:

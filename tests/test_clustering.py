@@ -8,8 +8,11 @@ import logging
 
 host = '127.0.0.1' # to run the test locally
 
-director  = circusort.create_director(host=host)
-manager   = director.create_manager(host=host, log_level=logging.INFO)
+director      = circusort.create_director(host=host)
+manager       = director.create_manager(host=host, log_level=logging.INFO)
+
+# def generate_mapping()
+
 
 
 noise         = manager.create_block('noise_generator')
@@ -18,7 +21,7 @@ whitening     = manager.create_block('whitening')
 mad_estimator = manager.create_block('mad_estimator')
 peak_detector = manager.create_block('peak_detector', threshold=5, sign_peaks='both')
 pca           = manager.create_block('pca', nb_waveforms=5000)
-cluster       = manager.create_block('density_clustering')
+cluster       = manager.create_block('density_clustering', probe='test.prb')
 
 manager.initialize()
 
