@@ -3,6 +3,7 @@ import numpy
 import scipy.interpolate
 import numpy as np
 import scipy.sparse as sp
+from scipy import linalg
 
 class Pca(Block):
     '''TODO add docstring'''
@@ -45,7 +46,8 @@ class Pca(Block):
 
     def _guess_output_endpoints(self):
         self.outputs['data'].configure(dtype=self.inputs['data'].dtype, shape=(self.nb_channels, self.nb_samples))
-        self.outputs['pcs'].configure(dtype=self.inputs['data'].dtype, shape=(self.nb_channels, self.nb_samples))
+        self.outputs['pcs'].configure(dtype='float32', shape=(2, self._spike_width_, self.output_dim))
+        self.pcs = numpy.zeros((2, self._spike_width_, self.output_dim), dtype=numpy.float32)
 
     def _is_valid(self, peak):
         if self.alignment:
@@ -73,7 +75,7 @@ class Pca(Block):
         return result
 
     def _infer_sign_peaks(self, peaks):
-        self.sign_peaks = peaks.keys()
+        self.sign_peaks = [str(i) for i in peaks.keys()]
 
         self.nb_spikes = {}
         self.waveforms = {}
@@ -89,11 +91,10 @@ class Pca(Block):
 
         if not self.is_ready:
 
-            for key in peaks.keys():
-
-                for channel, peaks in peaks[key].items():
+            for key in self.sign_peaks:
+                for channel, signed_peaks in peaks[key].items():
                     if self.nb_spikes[key] < self.nb_waveforms:
-                        for peak in peaks:
+                        for peak in signed_peaks:
                             if self.nb_spikes[key] < self.nb_waveforms:
                                 if self._is_valid(peak):
                                     self.waveforms[key][self.nb_spikes[key]] = self._align(batch, int(channel), peak, key)
@@ -102,12 +103,56 @@ class Pca(Block):
                 if self.nb_spikes[key] ==  self.nb_waveforms:
                     self.log.info("{n} computes the PCA matrix for {m} spikes".format(n=self.name, m=key))
                     pca          = PCAEstimator(self.output_dim, copy=False)
-                    res_pca      = pca.fit_transform(self.waveforms[key]).astype(numpy.float32)
+                    res_pca      = pca.fit_transform(self.waveforms[key].T).astype(numpy.float32)
+                    if key == 'negative':
+                        self.pcs[0] = res_pca
+                    elif key == 'positive':
+                        self.pcs[1] = res_pca
 
         if self.is_ready:
             self.outputs['data'].send(batch.flatten())
-            self.outputs['pcs'].send(batch.flatten())
+            self.outputs['pcs'].send(self.pcs.flatten())
         return
+
+
+###########################################################################
+############ UTILITY FUNCTION ONLY, TAKEN FROM SKLEARN ####################
+###########################################################################
+
+
+def check_is_fitted(estimator, attributes, msg=None, all_or_any=all):
+    """Perform is_fitted validation for estimator.
+    Checks if the estimator is fitted by verifying the presence of
+    "all_or_any" of the passed attributes and raises a NotFittedError with the
+    given message.
+    Parameters
+    ----------
+    estimator : estimator instance.
+        estimator instance for which the check is performed.
+    attributes : attribute name(s) given as string or a list/tuple of strings
+        Eg. : ["coef_", "estimator_", ...], "coef_"
+    msg : string
+        The default error message is, "This %(name)s instance is not fitted
+        yet. Call 'fit' with appropriate arguments before using this method."
+        For custom messages if "%(name)s" is present in the message string,
+        it is substituted for the estimator name.
+        Eg. : "Estimator, %(name)s, must be fitted before sparsifying".
+    all_or_any : callable, {all, any}, default all
+        Specify whether all or any of the given attributes must exist.
+    """
+    if msg is None:
+        msg = ("This %(name)s instance is not fitted yet. Call 'fit' with "
+               "appropriate arguments before using this method.")
+
+    if not hasattr(estimator, 'fit'):
+        raise TypeError("%s is not an estimator instance." % (estimator))
+
+    if not isinstance(attributes, (list, tuple)):
+        attributes = [attributes]
+
+    if not all_or_any([hasattr(estimator, attr) for attr in attributes]):
+        raise NotFittedError(msg % {'name': type(estimator).__name__})
+
 
 
 def _shape_repr(shape):
@@ -138,6 +183,7 @@ def _shape_repr(shape):
         # special notation for singleton tuples
         joined += ','
     return "(%s)" % joined
+
 
 
 
@@ -358,10 +404,93 @@ def check_array(array, accept_sparse=None, dtype="numeric", order=None,
         msg = ("Data with input dtype %s was converted to %s%s."
                % (dtype_orig, array.dtype, context))
         warnings.warn(msg, DataConversionWarning)
-
+    return array
 
 class PCAEstimator(object):
-
+    """Principal component analysis (PCA)
+    Linear dimensionality reduction using Singular Value Decomposition of the
+    data and keeping only the most significant singular vectors to project the
+    data to a lower dimensional space.
+    This implementation uses the scipy.linalg implementation of the singular
+    value decomposition. It only works for dense arrays and is not scalable to
+    large dimensional data.
+    The time complexity of this implementation is ``O(n ** 3)`` assuming
+    n ~ n_samples ~ n_features.
+    Read more in the :ref:`User Guide <PCA>`.
+    Parameters
+    ----------
+    n_components : int, None or string
+        Number of components to keep.
+        if n_components is not set all components are kept::
+            n_components == min(n_samples, n_features)
+        if n_components == 'mle', Minka\'s MLE is used to guess the dimension
+        if ``0 < n_components < 1``, select the number of components such that
+        the amount of variance that needs to be explained is greater than the
+        percentage specified by n_components
+    copy : bool
+        If False, data passed to fit are overwritten and running
+        fit(X).transform(X) will not yield the expected results,
+        use fit_transform(X) instead.
+    whiten : bool, optional
+        When True (False by default) the `components_` vectors are divided
+        by n_samples times singular values to ensure uncorrelated outputs
+        with unit component-wise variances.
+        Whitening will remove some information from the transformed signal
+        (the relative variance scales of the components) but can sometime
+        improve the predictive accuracy of the downstream estimators by
+        making there data respect some hard-wired assumptions.
+    Attributes
+    ----------
+    components_ : array, [n_components, n_features]
+        Principal axes in feature space, representing the directions of
+        maximum variance in the data.
+    explained_variance_ratio_ : array, [n_components]
+        Percentage of variance explained by each of the selected components.
+        If ``n_components`` is not set then all components are stored and the
+        sum of explained variances is equal to 1.0
+    mean_ : array, [n_features]
+        Per-feature empirical mean, estimated from the training set.
+    n_components_ : int
+        The estimated number of components. Relevant when n_components is set
+        to 'mle' or a number between 0 and 1 to select using explained
+        variance.
+    noise_variance_ : float
+        The estimated noise covariance following the Probabilistic PCA model
+        from Tipping and Bishop 1999. See "Pattern Recognition and
+        Machine Learning" by C. Bishop, 12.2.1 p. 574 or
+        http://www.miketipping.com/papers/met-mppca.pdf. It is required to
+        computed the estimated data covariance and score samples.
+    Notes
+    -----
+    For n_components='mle', this class uses the method of `Thomas P. Minka:
+    Automatic Choice of Dimensionality for PCA. NIPS 2000: 598-604`
+    Implements the probabilistic PCA model from:
+    M. Tipping and C. Bishop, Probabilistic Principal Component Analysis,
+    Journal of the Royal Statistical Society, Series B, 61, Part 3, pp. 611-622
+    via the score and score_samples methods.
+    See http://www.miketipping.com/papers/met-mppca.pdf
+    Due to implementation subtleties of the Singular Value Decomposition (SVD),
+    which is used in this implementation, running fit twice on the same matrix
+    can lead to principal components with signs flipped (change in direction).
+    For this reason, it is important to always use the same estimator object to
+    transform data in a consistent fashion.
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from sklearn.decomposition import PCA
+    >>> X = np.array([[-1, -1], [-2, -1], [-3, -2], [1, 1], [2, 1], [3, 2]])
+    >>> pca = PCA(n_components=2)
+    >>> pca.fit(X)
+    PCA(copy=True, n_components=2, whiten=False)
+    >>> print(pca.explained_variance_ratio_) # doctest: +ELLIPSIS
+    [ 0.99244...  0.00755...]
+    See also
+    --------
+    RandomizedPCA
+    KernelPCA
+    SparsePCA
+    TruncatedSVD
+    """
     def __init__(self, n_components=None, copy=True, whiten=False):
         self.n_components = int(n_components)
         self.copy = copy

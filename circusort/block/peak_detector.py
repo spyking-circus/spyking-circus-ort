@@ -89,5 +89,6 @@ class Peak_detector(Block):
                     self.peaks[key][i] = self._detect_peaks(batch[i],  thresholds[i]).tolist()
                 elif key == 'positive':
                     self.peaks[key][i] = self._detect_peaks(batch[i],  thresholds[i], valley=True).tolist()
-                self.outputs['peaks'].send(self.peaks)
+
+        self.outputs['peaks'].send(self.peaks)
         return
