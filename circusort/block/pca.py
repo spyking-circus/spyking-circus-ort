@@ -20,6 +20,7 @@ class Pca(Block):
         Block.__init__(self, **kwargs)
         self.add_output('pcs')
         self.add_output('data')
+        self.add_output('peaks', 'dict')
         self.add_input('data')
         self.add_input('peaks', 'dict')
 
@@ -34,6 +35,7 @@ class Pca(Block):
     def _initialize(self):
         self._spike_width_ = int(self.sampling_rate*self.spike_width*1e-3)
         self.sign_peaks    = None
+        self.send_pcs      = True
         if numpy.mod(self._spike_width_, 2) == 0:
             self._spike_width_ += 1
         self._width = (self._spike_width_-1)//2
@@ -111,7 +113,10 @@ class Pca(Block):
 
         if self.is_ready:
             self.outputs['data'].send(batch.flatten())
-            self.outputs['pcs'].send(self.pcs.flatten())
+            self.outputs['peaks'].send(peaks)
+            if self.send_pcs:
+                self.outputs['pcs'].send(self.pcs.flatten())
+                self.send_pcs = False
         return
 
 
