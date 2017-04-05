@@ -88,7 +88,7 @@ class Endpoint(Connection):
             try:
                 batch = self.socket.recv(flags=zmq.NOBLOCK)
             except zmq.Again as e:
-                pass
+                return None
         else:
             batch = self.socket.recv()
     

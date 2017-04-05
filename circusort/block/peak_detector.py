@@ -18,7 +18,6 @@ class Peak_detector(Block):
         self.add_output('peaks', 'dict')
         self.add_input('mads')
         self.add_input('data')
-        self.add_output('data')
 
     def _initialize(self):
         self.peaks = {}
@@ -89,16 +88,17 @@ class Peak_detector(Block):
 
     def _process(self):
         batch      = self.get_input('data').receive()
-        thresholds = self.threshold*self.get_input('mads').receive()
+        thresholds = self.get_input('mads').receive(blocking=False)
 
-        for key in self.peaks.keys():
-            self.peaks[key] = {}
-            for i in xrange(self.nb_channels):
-                if key == 'negative':
-                    self.peaks[key][i] = self._detect_peaks(batch[i],  thresholds[i], mpd=self._spike_width_)
-                elif key == 'positive':
-                    self.peaks[key][i] = self._detect_peaks(batch[i],  thresholds[i], valley=True, mpd=self._spike_width_)
+        if thresholds is not None:
+            thresholds *= self.threshold
+            for key in self.peaks.keys():
+                self.peaks[key] = {}
+                for i in xrange(self.nb_channels):
+                    if key == 'negative':
+                        self.peaks[key][i] = self._detect_peaks(batch[i],  thresholds[i], mpd=self._spike_width_)
+                    elif key == 'positive':
+                        self.peaks[key][i] = self._detect_peaks(batch[i],  thresholds[i], valley=True, mpd=self._spike_width_)
 
-        self.outputs['peaks'].send(self.peaks)
-        self.outputs['data'].send(batch)
+            self.outputs['peaks'].send(self.peaks)
         return

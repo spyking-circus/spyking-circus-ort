@@ -28,13 +28,10 @@ director.initialize()
 
 director.connect(noise.output, filter.input)
 director.connect(filter.output, whitening.input)
-director.connect(whitening.output, [mad_estimator.input, peak_detector.get_input('data'), pca.get_input('data')])
+director.connect(whitening.output, [mad_estimator.input, peak_detector.get_input('data'), pca.get_input('data'), cluster.get_input('data')])
 director.connect(mad_estimator.output, peak_detector.get_input('mads'))
-director.connect(peak_detector.get_output('peaks'), pca.get_input('peaks'))
-
-director.connect(pca.get_output('peaks'), cluster.get_input('peaks'))
+director.connect(peak_detector.get_output('peaks'), [pca.get_input('peaks'), cluster.get_input('peaks')])
 director.connect(pca.get_output('pcs'), cluster.get_input('pcs'))
-director.connect(pca.get_output('data'), cluster.get_input('data'))
 
 director.start()
 director.sleep(duration=30.0)

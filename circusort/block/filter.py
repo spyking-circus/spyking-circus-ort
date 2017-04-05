@@ -40,7 +40,6 @@ class Filter(Block):
         for i in xrange(self.nb_channels):
             self.z[i] = numpy.zeros(m, dtype=numpy.float32)
 
-
     def _process(self):
         batch = self.input.receive()
         for i in xrange(self.nb_channels):

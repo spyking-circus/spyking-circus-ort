@@ -19,8 +19,6 @@ class Pca(Block):
     def __init__(self, **kwargs):
         Block.__init__(self, **kwargs)
         self.add_output('pcs')
-        self.add_output('data')
-        self.add_output('peaks', 'dict')
         self.add_input('data')
         self.add_input('peaks')
 
@@ -47,7 +45,6 @@ class Pca(Block):
         return
 
     def _guess_output_endpoints(self):
-        self.outputs['data'].configure(dtype=self.inputs['data'].dtype, shape=(self.nb_channels, self.nb_samples))
         self.outputs['pcs'].configure(dtype='float32', shape=(2, self.output_dim, self._spike_width_))
         self.pcs = numpy.zeros((2, self.output_dim, self._spike_width_), dtype=numpy.float32)
 
@@ -86,35 +83,35 @@ class Pca(Block):
             self.waveforms[key] = numpy.zeros((self.nb_waveforms, self._spike_width_), dtype=numpy.float32)
 
     def _process(self):
-        peaks = self.inputs['peaks'].receive()
+        peaks = self.inputs['peaks'].receive(blocking=False)
         batch = self.inputs['data'].receive()
-        if self.sign_peaks is None:
-            self._infer_sign_peaks(peaks)
 
-        if not self.is_ready:
+        if peaks is not None:
 
-            for key in self.sign_peaks:
-                for channel, signed_peaks in peaks[key].items():
-                    if self.nb_spikes[key] < self.nb_waveforms:
-                        for peak in signed_peaks:
-                            if self.nb_spikes[key] < self.nb_waveforms:
-                                if self._is_valid(peak):
-                                    self.waveforms[key][self.nb_spikes[key]] = self._get_waveform(batch, int(channel), peak, key)
-                                    self.nb_spikes[key] += 1
+            if self.sign_peaks is None:
+                self._infer_sign_peaks(peaks)
 
-                if self.nb_spikes[key] ==  self.nb_waveforms:
-                    self.log.info("{n} computes the PCA matrix for {m} spikes".format(n=self.name, m=key))
-                    pca          = PCAEstimator(self.output_dim, copy=False)
-                    res_pca      = pca.fit_transform(self.waveforms[key].T).astype(numpy.float32)
-                    if key == 'negative':
-                        self.pcs[0] = res_pca.T
-                    elif key == 'positive':
-                        self.pcs[1] = res_pca.T
+            if not self.is_ready:
 
-        if self.is_ready:
-            self.outputs['data'].send(batch.flatten())
-            self.outputs['peaks'].send(peaks)
-            if self.send_pcs:
+                for key in self.sign_peaks:
+                    for channel, signed_peaks in peaks[key].items():
+                        if self.nb_spikes[key] < self.nb_waveforms:
+                            for peak in signed_peaks:
+                                if self.nb_spikes[key] < self.nb_waveforms:
+                                    if self._is_valid(peak):
+                                        self.waveforms[key][self.nb_spikes[key]] = self._get_waveform(batch, int(channel), peak, key)
+                                        self.nb_spikes[key] += 1
+
+                    if self.nb_spikes[key] ==  self.nb_waveforms:
+                        self.log.info("{n} computes the PCA matrix for {m} spikes".format(n=self.name_and_counter, m=key))
+                        pca          = PCAEstimator(self.output_dim, copy=False)
+                        res_pca      = pca.fit_transform(self.waveforms[key].T).astype(numpy.float32)
+                        if key == 'negative':
+                            self.pcs[0] = res_pca.T
+                        elif key == 'positive':
+                            self.pcs[1] = res_pca.T
+
+            if self.is_ready and self.send_pcs:
                 self.outputs['pcs'].send(self.pcs.flatten())
                 self.send_pcs = False
         return

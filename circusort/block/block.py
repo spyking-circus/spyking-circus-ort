@@ -150,6 +150,10 @@ class Block(threading.Thread):
     def run_time(self):
         return time.time() - self.t_start
 
+    @property
+    def name_and_counter(self):
+        return "{n}[{k} steps]".format(n=self.name, k=self.counter)
+
     def __str__(self):
         res = "Block object %s with params:\n" %self.name
         for key in self.params.keys():

@@ -6,8 +6,7 @@ class Channel_selector(Block):
 
     name   = "Channel Selector"
 
-    params = {'channels'   : [], 
-              'dtype'      : 'float32'}
+    params = {'channels'   : []}
 
     def __init__(self, **kwargs):
         Block.__init__(self, **kwargs)

@@ -138,7 +138,7 @@ class Density_clustering(Block):
 
     def _perform_clustering(self, key, channel):
         a, b, c = self.pca_data[key][channel].shape
-        self.log.info("{n} clusters {m} waveforms on channel {d}".format(n=self.name, m=a, d=channel))
+        self.log.info("{n} clusters {m} waveforms on channel {d}".format(n=self.name_and_counter, m=a, d=channel))
         data    = self.pca_data[key][channel].reshape(a, b*c)
         rho, dist, sdist, nb_selec = rho_estimation(data, compute_rho=True, mratio=self.m_ratio)
         self.clusters[key][channel], r, d, c = clustering(rho, dist, smart_select=True)
@@ -150,7 +150,7 @@ class Density_clustering(Block):
 
         labels = numpy.unique(self.clusters[key][channel])
         labels = labels[labels > -1]
-        self.log.info("{n} found {m} templates on channel {d}".format(n=self.name, m=len(labels), d=channel))
+        self.log.debug("{n} found {m} templates on channel {d}".format(n=self.name_and_counter, m=len(labels), d=channel))
         for l in labels:
             indices = numpy.where(labels == l)[0]
             data = self.raw_data[key][channel][indices]
@@ -192,7 +192,7 @@ class Density_clustering(Block):
     def _process(self):
         if self.receive_pcs:
             self.pcs = self.inputs['pcs'].receive()
-            self.log.info("{n} receives the PCA matrices".format(n=self.name))
+            self.log.info("{n} receives the PCA matrices".format(n=self.name_and_counter))
             self.receive_pcs = False
             self._init_data_structures()
         

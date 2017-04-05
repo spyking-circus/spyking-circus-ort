@@ -1,5 +1,6 @@
 from .block import Block
-
+import numpy
+import scipy
 
 class Template_matcher(Block):
     '''TODO add docstring'''
@@ -49,6 +50,10 @@ class Template_matcher(Block):
         all_peaks = numpy.array(all_peaks, dtype=numpy.int32)
         mask = self._is_valid(all_peaks)
         return all_peaks[all_peaks]
+
+
+    def _computes_overlaps(self, templates):
+        pass
 
 
     def _fit_chunk(self, batch, peaks):
@@ -171,11 +176,14 @@ class Template_matcher(Block):
 
     def _process(self):
         batch = self.inputs['data'].receive()
-        peaks = self.inputs['peaks'].receive()
-        templates = self.inputs['templates'].receive()
-        for key in templates.keys():
-            for channel in templates[key].values():
-                pass
+        peaks = self.inputs['peaks'].receive(blocking=False)
+        templates = self.inputs['templates'].receive(blocking=False)
+        if templates is not None:
+            self._computes_overlaps(templates)
+        # print self.counter
+        # for key in templates.keys():
+        #     for channel in templates[key].values():
+        #         pass
         
 
 

@@ -52,5 +52,5 @@ class Whitening(Block):
             self.silences = numpy.hstack((self.silences, batch))
             if self.silences.shape[1] > self.duration:
                 self._get_whitening_matrix()
-                self.log.info("{n} computes whitening matrix".format(n=self.name))
+                self.log.info("{n} computes whitening matrix".format(n=self.name_and_counter))
         return
