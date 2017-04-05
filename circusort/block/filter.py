@@ -22,6 +22,7 @@ class Filter(Block):
         b, a   = signal.butter(3, cut_off/(self.sampling_rate/2.), 'pass')
         self.b = b
         self.a = a
+        self.z = {}
         return
 
     @property
@@ -34,11 +35,16 @@ class Filter(Block):
 
     def _guess_output_endpoints(self):
         self.output.configure(dtype=self.input.dtype, shape=self.input.shape)        
+        self.z = {}
+        m = max(len(self.a), len(self.b)) - 1
+        for i in xrange(self.nb_channels):
+            self.z[i] = numpy.zeros(m, dtype=numpy.float32)
+
 
     def _process(self):
         batch = self.input.receive()
         for i in xrange(self.nb_channels):
-            batch[i]  = signal.filtfilt(self.b, self.a, batch[i])
+            batch[i], self.z[i]  = signal.lfilter(self.b, self.a, batch[i], zi=self.z[i])
             batch[i] -= numpy.median(batch[i]) 
 
         if self.remove_median:

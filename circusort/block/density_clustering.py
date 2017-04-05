@@ -30,7 +30,7 @@ class Density_clustering(Block):
             self.log.info('{n} reads the probe layout'.format(n=self.name))
         self.add_input('data')
         self.add_input('pcs')
-        self.add_input('peaks', 'dict')
+        self.add_input('peaks')
         self.add_output('templates', 'dict')
 
     def _initialize(self):
@@ -45,10 +45,6 @@ class Density_clustering(Block):
         if self.alignment:
             self.cdata = numpy.linspace(-self._width, self._width, 5*self._spike_width_)
             self.xdata = numpy.arange(-2*self._width, 2*self._width + 1)
-
-        # self.inv_nodes        = numpy.zeros(N_total, dtype=numpy.int32)
-        # self.inv_nodes[nodes] = numpy.argsort(nodes)
-
         return
 
     @property
@@ -83,11 +79,6 @@ class Density_clustering(Block):
 
     def _get_snippet(self, batch, channel, peak, is_neg):
         if self.alignment:
-            #idx     = elec_positions[elec]
-            #indices = numpy.take(inv_nodes, edges[nodes[i]])
-            #elec_positions[i] = numpy.where(indices == i)[0]
-            #indices = numpy.take(inv_nodes, edges[nodes[elec]])
-
             indices = self.probe.edges[channel]
             idx     = self.chan_positions[channel]
             zdata   = batch[indices, peak - 2*self._width:peak + 2*self._width + 1]
@@ -153,7 +144,6 @@ class Density_clustering(Block):
         self.clusters[key][channel], r, d, c = clustering(rho, dist, smart_select=True)
         ### SHould we add the merging step
         self._update_templates(key, channel)
-        self._reset_data_structures(key, channel)
 
 
     def _update_templates(self, key, channel):
@@ -172,6 +162,7 @@ class Density_clustering(Block):
             template = self._center_template(template, key)
             ## Here we should compress the templates for large-scale
             self.templates[key][channel] = numpy.vstack((self.templates[key][channel], template))
+            self.to_reset += [(key, channel)]
 
     def _center_template(self, template, key):
         if key == 'negative':
@@ -204,7 +195,9 @@ class Density_clustering(Block):
             self.log.info("{n} receives the PCA matrices".format(n=self.name))
             self.receive_pcs = False
             self._init_data_structures()
-            
+        
+        self.to_reset = []
+
         batch = self.inputs['data'].receive()
         peaks = self.inputs['peaks'].receive()
 
@@ -227,6 +220,10 @@ class Density_clustering(Block):
                 
                 if len(self.pca_data[key][channel]) >= self.nb_waveforms:
                     self._perform_clustering(key, channel)
+
+        self.outputs['templates'].send(self.templates)
+        for key, channel in self.to_reset:
+            self._reset_data_structures(key, channel)
 
         return
 

@@ -4,6 +4,9 @@ import tempfile
 import os
 import json
 
+
+
+
 class Connection(object):
 
     _defaults_structure = {'array'  : {'dtype': None, 'shape' : None},
@@ -37,8 +40,8 @@ class Connection(object):
             self._initialize(**kwargs)
             self.initialized = True
 
-    def receive(self):
-        return self._get_data()
+    def receive(self, blocking=True):
+        return self._get_data(blocking)
 
     def get_description(self):
         return self._get_description()
@@ -47,6 +50,20 @@ class Connection(object):
         if self.initialized:
             self._send_data(batch)
         return
+
+
+
+class Encoder(json.JSONEncoder):
+
+    def default(self, obj):
+        if obj is None:
+            obj = json.JSONEncoder.default(obj)
+        else:
+            if isinstance(obj, numpy.ndarray):
+                obj = obj.tolist()
+            else:
+                raise TypeError("Type {t} is not serializable.".format(t=type(obj)))
+        return obj
 
 
 class Endpoint(Connection):
@@ -64,10 +81,17 @@ class Endpoint(Connection):
         if self.socket is not None:
             self.socket.close()
 
-    def _get_data(self):
+    def _get_data(self, blocking=True):
         '''TODO add docstring'''
 
-        batch = self.socket.recv()
+        if not blocking:
+            try:
+                batch = self.socket.recv(flags=zmq.NOBLOCK)
+            except zmq.Again as e:
+                pass
+        else:
+            batch = self.socket.recv()
+    
         if self.structure == 'array':
             batch = numpy.fromstring(batch, dtype=self.dtype)
             batch = numpy.reshape(batch, self.shape)
@@ -81,12 +105,12 @@ class Endpoint(Connection):
         if self.structure == 'array':
             self.socket.send(batch)
         elif self.structure == 'dict':
-            self.socket.send(json.dumps(batch))
+            self.socket.send(json.dumps(batch, cls=Encoder))
         elif self.structure == 'boolean':
             self.socket.send(str(batch))
 
     def _get_description(self):
-        description = {'addr' : self.addr}
+        description = {'addr' : self.addr, 'structure' : self.structure}
         if self.structure == 'array':
             description.update({'dtype' : self.dtype, 'shape' : self.shape})
         return description

@@ -22,7 +22,7 @@ class Pca(Block):
         self.add_output('data')
         self.add_output('peaks', 'dict')
         self.add_input('data')
-        self.add_input('peaks', 'dict')
+        self.add_input('peaks')
 
     @property
     def nb_channels(self):
