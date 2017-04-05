@@ -139,12 +139,19 @@ class Block(threading.Thread):
     def stop(self):
         self.running = False
         self.log.debug("{n} is stopped".format(n=self.name))
+        if self.real_time_ratio is not None:
+            self.log.info("{n} worked at {k} x real time".format(n=self.name, k=self.real_time_ratio))
+
 
     def list_parameters(self):
         return self.params.keys()
 
-    def get_time(self, nb_samples, sampling_rate):
-        return self.nb_samples*self.counter/self.sampling_rate
+    @property
+    def real_time_ratio(self):
+        if hasattr(self, 'nb_samples') and hasattr(self, 'sampling_rate'):
+            return (self.nb_samples*self.counter/self.sampling_rate)/self.run_time
+        else:
+            return None
 
     @property
     def run_time(self):

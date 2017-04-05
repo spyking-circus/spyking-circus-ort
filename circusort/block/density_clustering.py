@@ -159,12 +159,13 @@ class Density_clustering(Block):
                 template = numpy.mean(data, 0)
             elif self.extraction == 'median-raw':
                 template = numpy.median(data, 0)
-            template = template.reshape(1, template.shape[0], template.shape[1])
+            template = template.reshape(template.shape[0], template.shape[1]).T
             template = self._center_template(template, key)
-            #template = self._sparsify_template(template, channel)
-        
+
             ## Here we should compress the templates for large-scale
-            self.templates[key][channel] = numpy.vstack((self.templates[key][channel], template))
+            #template = self._sparsify_template(template, channel)
+            
+            self.templates[key][channel] = numpy.vstack((self.templates[key][channel], template.reshape(1, template.shape[0], template.shape[1])))
             self.to_reset += [(key, channel)]
 
     def _center_template(self, template, key):
@@ -189,18 +190,14 @@ class Density_clustering(Block):
         for i in xrange(template.shape[0]):
             if (numpy.abs(templates[i]).max() < 0.5*self.thresholds[i]):
                 template[i] = 0
-        #templates  = templates.ravel()
-        #dx         = templates.nonzero()[0].astype(numpy.int32)
-        #temp_x     = numpy.concatenate((temp_x, dx))
-        #temp_y     = numpy.concatenate((temp_y, count_templates*numpy.ones(len(dx), dtype=numpy.int32)))
-        #temp_data  = numpy.concatenate((temp_data, templates[dx]))
         return template
+
 
     def _reset_data_structures(self, key, channel):
         self.pca_data[key][channel]  = numpy.zeros((0, self.pcs.shape[1], len(self.probe.edges[channel])), dtype=numpy.float32)
         self.raw_data[key][channel]  = numpy.zeros((0, self._spike_width_, len(self.probe.edges[channel])), dtype=numpy.float32)
         self.clusters[key][channel]  = numpy.zeros(0, dtype=numpy.int32)
-        self.templates[key][channel] = numpy.zeros((0, self._spike_width_, len(self.probe.edges[channel])), dtype=numpy.float32)
+        self.templates[key][channel] = numpy.zeros((0, len(self.probe.edges[channel]), self._spike_width_), dtype=numpy.float32)
 
 
     def _process(self):

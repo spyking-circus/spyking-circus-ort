@@ -1,5 +1,6 @@
 from .block import Block
 import numpy
+from circusort.config.probe import Probe
 import scipy.sparse
 
 class Template_matcher(Block):
@@ -20,9 +21,9 @@ class Template_matcher(Block):
         else:
             self.probe = Probe(self.probe, radius=self.radius, logger=self.log)
             self.log.info('{n} reads the probe layout'.format(n=self.name))
-        self.add_input('templates', 'dict')
+        self.add_input('templates')
         self.add_input('data')
-        self.add_input('peaks', 'dict')
+        self.add_input('peaks')
         self.add_output('spikes', 'dict')
 
     def _initialize(self):
@@ -42,8 +43,7 @@ class Template_matcher(Block):
         return self.inputs['data'].shape[1]
 
     def _guess_output_endpoints(self):
-        pass
-
+        self._nb_elements = self.nb_channels*self._spike_width_
 
     def _is_valid(self, peak):
         return (peak >= 2*self._width) and (peak + 2*self._width < self.nb_samples)
@@ -59,11 +59,56 @@ class Template_matcher(Block):
         return all_peaks[all_peaks]
 
 
-    def _computes_overlaps(self, templates):
-        pass
+    def _construct_overlaps(self):
+        over_x    = numpy.zeros(0, dtype=numpy.int32)
+        over_y    = numpy.zeros(0, dtype=numpy.int32)
+        over_data = numpy.zeros(0, dtype=numpy.float32)
+        rows      = numpy.arange(self.nb_channels*self._spike_width_)
+
+        for count, ielec in enumerate(to_explore):
+
+            local_idx = numpy.where(best_elec == ielec)[0]
+            len_local = len(local_idx)
+
+            if not half:
+                local_idx = numpy.concatenate((local_idx, local_idx + upper_bounds))
+
+            if len_local > 0:
+
+                to_consider   = numpy.arange(upper_bounds)
+                if not half:
+                    to_consider = numpy.concatenate((to_consider, to_consider + upper_bounds))
+
+                loc_templates  = templates[:, local_idx].tocsr()
+                loc_templates2 = templates[:, to_consider].tocsr()
+
+                for idelay in all_delays:
+
+                    srows = numpy.where(rows % N_t < idelay)[0]
+                    tmp_1 = loc_templates[srows]
+
+                    srows = numpy.where(rows % N_t >= (N_t - idelay))[0]
+                    tmp_2 = loc_templates2[srows]
+
+                    data  = tmp_1.T.dot(tmp_2)
+                    data  = data.toarray()
+
+                    dx, dy     = data.nonzero()
+                    ddx        = numpy.take(local_idx, dx).astype(numpy.int32)
+                    ddy        = numpy.take(to_consider, dy).astype(numpy.int32)
+                    data       = data.ravel()
+                    dd         = data.nonzero()[0].astype(numpy.int32)
+                    over_x     = numpy.concatenate((over_x, ddx*N_tm + ddy))
+                    over_y     = numpy.concatenate((over_y, (idelay-1)*numpy.ones(len(dx), dtype=numpy.int32)))
+                    over_data  = numpy.concatenate((over_data, numpy.take(data, dd)))
+                    if idelay < self._spike_width_:
+                        over_x     = numpy.concatenate((over_x, ddy*N_tm + ddx))
+                        over_y     = numpy.concatenate((over_y, (2*N_t-idelay-1)*numpy.ones(len(dx), dtype=numpy.int32)))
+                        over_data  = numpy.concatenate((over_data, numpy.take(data, dd)))
 
 
-    def _reconstruct_templates(self, templates):
+
+    def _construct_templates(self, templates):
 
         data      = numpy.zeros(0, dtype=numpy.float32)
         positions = numpy.zeros((2, 0), dtype=numpy.int32)
@@ -76,12 +121,20 @@ class Template_matcher(Block):
                     t             = t.ravel()
                     data          = numpy.concatenate((data, t))
                     tmp_pos       = numpy.zeros((2, len(t)), dtype=numpy.int32)
-                    #indices       = self.probe.edges[channel]
+                    #### TO DO ####
+                    indices       = self.probe.edges[int(channel)]
                     tmp_pos[1]    = nb_templates
+                    ###############
                     positions     = numpy.hstack((positions, tmp_pos))
                     nb_templates += 1
 
-        self.templates = scipy.sparse.csr_matrix((data, (positions[0], positions[1])), shape=(self.nb_channels*self._spike_width_, nb_templates))
+        self.templates = scipy.sparse.csr_matrix((data, (positions[0], positions[1])), shape=(self._nb_elements, nb_templates))
+        self.norms     = numpy.zeros(nb_templates, dtype=numpy.float32)
+
+        for idx in xrange(nb_templates):
+            self.norms[idx] = numpy.sqrt(self.templates[:, idx].sum()**2)/self._nb_elements 
+            #myslice = numpy.arange(templates.indptr[idx], templates.indptr[idx+1])
+            #templates.data[myslice] /= norm_templates[idx]
 
     def _fit_chunk(self, batch, peaks):
 
@@ -119,12 +172,12 @@ class Template_matcher(Block):
             mask        = numpy.ones((n_tm, n_peaks), dtype=numpy.float32)
             sub_b       = b[:n_tm, :]
 
-            min_time     = peaks.min()
-            max_time     = peaks.max()
-            local_len    = max_time - min_time + 1
-            min_times    = numpy.maximum(peaks - min_time - 2*self._width, 0)
-            max_times    = numpy.minimum(peaks - min_time + 2*self._width + 1, max_time - min_time)
-            max_n_t      = int(space_explo*(max_time-min_time+1)//(2*2*self._width + 1))
+            min_time    = peaks.min()
+            max_time    = peaks.max()
+            local_len   = max_time - min_time + 1
+            min_times   = numpy.maximum(peaks - min_time - 2*self._width, 0)
+            max_times   = numpy.minimum(peaks - min_time + 2*self._width + 1, max_time - min_time)
+            max_n_t     = int(space_explo*(max_time-min_time+1)//(2*2*self._width + 1))
                     
             while (numpy.mean(failure) < nb_chances):
 
@@ -204,8 +257,8 @@ class Template_matcher(Block):
         if peaks is not None:
             templates = self.inputs['templates'].receive(blocking=False)
             if templates is not None:
-                self.templates = self._reconstruct_templates(templates)
-                #self._computes_overlaps(templates)
+                self._construct_templates(templates)
+                self._construct_overlaps()
 
 
 
