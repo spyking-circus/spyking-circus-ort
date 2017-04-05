@@ -9,6 +9,7 @@ class Mad_estimator(Block):
 
     params = {'time_constant' : 10.,
               'epsilon'       : 1e-5,
+              'threshold'     : 6,
               'sampling_rate' : 20000.}
 
     def __init__(self, **kwargs):
@@ -49,5 +50,5 @@ class Mad_estimator(Block):
                 self.log.info('{n} has converged'.format(n=self.name_and_counter))
 
             if self.is_ready:
-                self.get_output('mads').send(self.median_means.flatten())
+                self.get_output('mads').send(self.threshold*self.median_means.flatten())
         return

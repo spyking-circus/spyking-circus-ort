@@ -8,7 +8,6 @@ class Peak_detector(Block):
     name = "Peak detector"
 
     params = {'sign_peaks'    : 'negative',
-              'threshold'     : 6,
               'spike_width'   : 5,
               'sampling_rate' : 20000}
 
@@ -91,7 +90,6 @@ class Peak_detector(Block):
         thresholds = self.get_input('mads').receive(blocking=False)
 
         if thresholds is not None:
-            thresholds *= self.threshold
             for key in self.peaks.keys():
                 self.peaks[key] = {}
                 for i in xrange(self.nb_channels):

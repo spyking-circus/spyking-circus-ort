@@ -1,6 +1,6 @@
 from .block import Block
 import numpy
-import scipy
+import scipy.sparse
 
 class Template_matcher(Block):
     '''TODO add docstring'''
@@ -8,11 +8,18 @@ class Template_matcher(Block):
     name   = "Template matcher"
 
     params = {'spike_width' : 5.,
+              'probe'         : None,
+              'radius'        : None,
               'sampling_rate' : 20000}
 
     def __init__(self, **kwargs):
 
         Block.__init__(self, **kwargs)
+        if self.probe == None:
+            self.log.error('{n}: the probe file must be specified!'.format(n=self.name))
+        else:
+            self.probe = Probe(self.probe, radius=self.radius, logger=self.log)
+            self.log.info('{n} reads the probe layout'.format(n=self.name))
         self.add_input('templates', 'dict')
         self.add_input('data')
         self.add_input('peaks', 'dict')
@@ -56,6 +63,26 @@ class Template_matcher(Block):
         pass
 
 
+    def _reconstruct_templates(self, templates):
+
+        data      = numpy.zeros(0, dtype=numpy.float32)
+        positions = numpy.zeros((2, 0), dtype=numpy.int32)
+        nb_templates = 0
+
+        for key in templates.keys():
+            for channel in templates[key].keys():
+                template = numpy.array(templates[key][channel]).astype(numpy.float32)
+                for t in template:
+                    t             = t.ravel()
+                    data          = numpy.concatenate((data, t))
+                    tmp_pos       = numpy.zeros((2, len(t)), dtype=numpy.int32)
+                    #indices       = self.probe.edges[channel]
+                    tmp_pos[1]    = nb_templates
+                    positions     = numpy.hstack((positions, tmp_pos))
+                    nb_templates += 1
+
+        self.templates = scipy.sparse.csr_matrix((data, (positions[0], positions[1])), shape=(self.nb_channels*self._spike_width_, nb_templates))
+
     def _fit_chunk(self, batch, peaks):
 
         peaks   = self._get_all_peaks(peaks)
@@ -73,31 +100,31 @@ class Template_matcher(Block):
                 last_chunk_size = len_chunk
 
             for count, idx in enumerate(peaks):
-                sub_mat[:, count] = numpy.take(batch, slice_indices + idx)
+                sub_batch[:, count] = numpy.take(batch, slice_indices + idx)
 
             del local_chunk
 
             b       = templates.dot(sub_mat)                
 
-            del sub_mat
+            del sub_batch
 
             local_offset = padding[0] + t_offset
-            local_bounds = (temp_2_shift, len_chunk - temp_2_shift)
+            local_bounds = (2*self._width, len_chunk - 2*self._width)
             all_spikes   = local_peaktimes + local_offset
 
             # Because for GPU, slicing by columns is more efficient, we need to transpose b
             #b           = b.transpose()
 
-            failure     = numpy.zeros(n_t, dtype=numpy.int32)
-            mask        = numpy.ones((n_tm, n_t), dtype=numpy.float32)
+            failure     = numpy.zeros(n_peaks, dtype=numpy.int32)
+            mask        = numpy.ones((n_tm, n_peaks), dtype=numpy.float32)
             sub_b       = b[:n_tm, :]
 
-            min_time     = local_peaktimes.min()
-            max_time     = local_peaktimes.max()
+            min_time     = peaks.min()
+            max_time     = peaks.max()
             local_len    = max_time - min_time + 1
-            min_times    = numpy.maximum(local_peaktimes - min_time - temp_2_shift, 0)
-            max_times    = numpy.minimum(local_peaktimes - min_time + temp_2_shift + 1, max_time - min_time)
-            max_n_t      = int(space_explo*(max_time-min_time+1)//(2*temp_2_shift + 1))
+            min_times    = numpy.maximum(peaks - min_time - 2*self._width, 0)
+            max_times    = numpy.minimum(peaks - min_time + 2*self._width + 1, max_time - min_time)
+            max_n_t      = int(space_explo*(max_time-min_time+1)//(2*2*self._width + 1))
                     
             while (numpy.mean(failure) < nb_chances):
 
@@ -137,21 +164,17 @@ class Template_matcher(Block):
                     to_reject    = numpy.where(all_idx == False)[0]
                     ts           = numpy.take(local_peaktimes, inds_t[to_keep])
                     good         = (ts >= local_bounds[0]) & (ts < local_bounds[1])
-
-                    # We reduce to only the good times that will be kept
-                    #to_keep      = to_keep[good]
-                    #ts           = ts[good]
                     
                     if len(ts) > 0:
                         
                         tmp      = numpy.dot(numpy.ones((len(ts), 1), dtype=numpy.int32), local_peaktimes.reshape((1, n_t)))
                         tmp     -= ts.reshape((len(ts), 1))
-                        condition = numpy.abs(tmp) <= temp_2_shift
+                        condition = numpy.abs(tmp) <= 2*self._width
 
                         for count, keep in enumerate(to_keep):
                             
                             idx_b    = numpy.compress(condition[count, :], all_indices)
-                            ytmp     = tmp[count, condition[count, :]] + temp_2_shift
+                            ytmp     = tmp[count, condition[count, :]] + 2*self._width
                             
                             indices  = numpy.zeros((S_over, len(ytmp)), dtype=numpy.float32)
                             indices[ytmp, numpy.arange(len(ytmp))] = 1
@@ -177,14 +200,15 @@ class Template_matcher(Block):
     def _process(self):
         batch = self.inputs['data'].receive()
         peaks = self.inputs['peaks'].receive(blocking=False)
-        templates = self.inputs['templates'].receive(blocking=False)
-        if templates is not None:
-            self._computes_overlaps(templates)
-        # print self.counter
-        # for key in templates.keys():
-        #     for channel in templates[key].values():
-        #         pass
-        
 
+        if peaks is not None:
+            templates = self.inputs['templates'].receive(blocking=False)
+            if templates is not None:
+                self.templates = self._reconstruct_templates(templates)
+                #self._computes_overlaps(templates)
+
+
+
+            #self._fit_chunk(batch, peaks)
 
         return

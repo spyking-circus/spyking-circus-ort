@@ -31,6 +31,7 @@ class Density_clustering(Block):
         self.add_input('data')
         self.add_input('pcs')
         self.add_input('peaks')
+        self.add_input('mads')
         self.add_output('templates', 'dict')
 
     def _initialize(self):
@@ -160,6 +161,8 @@ class Density_clustering(Block):
                 template = numpy.median(data, 0)
             template = template.reshape(1, template.shape[0], template.shape[1])
             template = self._center_template(template, key)
+            #template = self._sparsify_template(template, channel)
+        
             ## Here we should compress the templates for large-scale
             self.templates[key][channel] = numpy.vstack((self.templates[key][channel], template))
             self.to_reset += [(key, channel)]
@@ -182,6 +185,17 @@ class Density_clustering(Block):
         return aligned_template
 
 
+    def _sparsify_template(self, template, channel):
+        for i in xrange(template.shape[0]):
+            if (numpy.abs(templates[i]).max() < 0.5*self.thresholds[i]):
+                template[i] = 0
+        #templates  = templates.ravel()
+        #dx         = templates.nonzero()[0].astype(numpy.int32)
+        #temp_x     = numpy.concatenate((temp_x, dx))
+        #temp_y     = numpy.concatenate((temp_y, count_templates*numpy.ones(len(dx), dtype=numpy.int32)))
+        #temp_data  = numpy.concatenate((temp_data, templates[dx]))
+        return template
+
     def _reset_data_structures(self, key, channel):
         self.pca_data[key][channel]  = numpy.zeros((0, self.pcs.shape[1], len(self.probe.edges[channel])), dtype=numpy.float32)
         self.raw_data[key][channel]  = numpy.zeros((0, self._spike_width_, len(self.probe.edges[channel])), dtype=numpy.float32)
@@ -200,6 +214,7 @@ class Density_clustering(Block):
 
         batch = self.inputs['data'].receive()
         peaks = self.inputs['peaks'].receive()
+        self.thresholds = self.inputs['mads'].receive()
 
         for key in self.sign_peaks:
             for channel, signed_peaks in peaks[key].items():
