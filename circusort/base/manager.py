@@ -68,7 +68,6 @@ class Manager(object):
                 assert protocol in ['tcp', 'ipc'], self.log.error('Invalid connection')
 
                 output_endpoint.initialize(protocol=protocol, host=output_endpoint.block.host)
-                
                 description = output_endpoint.get_description()
                 input_endpoint.configure(**description)
                 input_endpoint.block.connect(input_endpoint.name)
