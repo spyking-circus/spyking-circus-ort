@@ -9,7 +9,7 @@ class Filter(Block):
 
     params = {'cut_off'       : 500,
               'sampling_rate' : 20000,
-              'remove_median' : True}
+              'remove_median' : False}
 
     def __init__(self, **kwargs):
 
@@ -43,7 +43,8 @@ class Filter(Block):
     def _process(self):
         batch = self.input.receive()
         for i in xrange(self.nb_channels):
-            batch[i], self.z[i]  = signal.lfilter(self.b, self.a, batch[i], zi=self.z[i])
+            res, self.z[i]  = signal.lfilter(self.b, self.a, batch[i], zi=self.z[i])
+            batch[i] = res.astype(self.input.dtype)
             batch[i] -= numpy.median(batch[i]) 
 
         if self.remove_median:

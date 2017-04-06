@@ -14,14 +14,10 @@ class Writer(Block):
         self.add_input('data')
 
     def _initialize(self):
-        '''TODO add docstring'''
         self.file = open(self.data_path, mode='wb')
-
         return
 
     def _process(self):
         batch = self.input.receive()
-        batch = batch.tobytes()
-        self.file.write(batch)
-
+        self.file.write(batch.T.tostring())
         return

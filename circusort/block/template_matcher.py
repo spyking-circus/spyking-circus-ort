@@ -121,7 +121,7 @@ class Template_matcher(Block):
                         over_y     = numpy.concatenate((over_y, (2*N_t-idelay-1)*numpy.ones(len(dx), dtype=numpy.int32)))
                         over_data  = numpy.concatenate((over_data, numpy.take(data, dd)))
 
-            self.overlaps = 
+            #self.overlaps = 
 
 
     def _construct_templates(self, templates):

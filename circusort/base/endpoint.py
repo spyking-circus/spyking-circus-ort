@@ -103,7 +103,7 @@ class Endpoint(Connection):
 
     def _send_data(self, batch):
         if self.structure == 'array':
-            self.socket.send(batch)
+            self.socket.send(batch.tostring())
         elif self.structure == 'dict':
             self.socket.send(json.dumps(batch, cls=Encoder))
         elif self.structure == 'boolean':
