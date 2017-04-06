@@ -31,6 +31,6 @@ for i in xrange(nb_groups):
 manager.start()
 
 # TODO save computational times to file
-director.sleep(duration=10.0)
+director.sleep(duration=2.0)
 
 director.stop()

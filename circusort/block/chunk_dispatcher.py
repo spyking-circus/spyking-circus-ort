@@ -1,7 +1,7 @@
 from .block import Block
 import numpy
 
-class Channel_dispatcher(Block):
+class Chunk_dispatcher(Block):
     '''TODO add docstring'''
 
     name   = "Chunk Dispatcher"
@@ -26,14 +26,12 @@ class Channel_dispatcher(Block):
         return
 
     def _guess_output_endpoints(self):
+        self.shape = self.nb_samples // self.nb_groups
         for i in xrange(self.nb_groups):
-            self.get_output('data_%d' %i).configure(dtype=self.input.dtype, shape=(self.nb_channels, self.nb_samples))
-        self.buffer = numpy.zeros((self.nb_channels, self.nb_groups*self.nb_samples), dtype=self.input.dtype)
+            self.get_output('data_%d' %i).configure(dtype=self.input.dtype, shape=(self.nb_channels, self.shape))
 
     def _process(self):
         batch = self.input.receive()
-        self.buffer[:nb_samples] = batch
         for i in xrange(self.nb_groups):
-            self.get_output('data_%d' %i).send(self.buffer[i*self.nb_groups:(i+1)*self.nb_groups].flatten())
-        self.buffer = numpy.roll(self.buffer, self.nb_samples)
+            self.get_output('data_%d' %i).send(batch[:, i*self.shape:(i+1)*self.shape].flatten())
         return
