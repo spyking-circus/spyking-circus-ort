@@ -1,5 +1,6 @@
 from .block import Block
 import numpy
+import time
 import scipy.interpolate
 from circusort.config.probe import Probe
 import scipy.optimize, numpy, pylab, scipy.spatial.distance, scipy.stats
@@ -139,7 +140,7 @@ class Density_clustering(Block):
 
     def _perform_clustering(self, key, channel):
         a, b, c = self.pca_data[key][channel].shape
-        self.log.info("{n} clusters {m} waveforms on channel {d}".format(n=self.name_and_counter, m=a, d=channel))
+        self.log.debug("{n} clusters {m} waveforms on channel {d}".format(n=self.name_and_counter, m=a, d=channel))
         data    = self.pca_data[key][channel].reshape(a, b*c)
         rho, dist, sdist, nb_selec = rho_estimation(data, compute_rho=True, mratio=self.m_ratio)
         self.clusters[key][channel], r, d, c = clustering(rho, dist, smart_select=True)
@@ -206,6 +207,7 @@ class Density_clustering(Block):
             self.log.info("{n} receives the PCA matrices".format(n=self.name_and_counter))
             self.receive_pcs = False
             self._init_data_structures()
+            self.t_start = time.time()
         
         self.to_reset = []
 

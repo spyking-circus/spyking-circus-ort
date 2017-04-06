@@ -173,8 +173,6 @@ class Block(threading.Thread):
         return "{n}[{k} steps]".format(n=self.name, k=self.counter)
 
     def __str__(self):
-        res = "Block object %s with params:\n" %self.name
-        for key in self.params.keys():
-            res += "|%s = %s\n" %(key, str(getattr(self, key)))
+        res = "Block object {n} with params {s}".format(n=self.name, s=self.params)
         return res
 

@@ -9,7 +9,7 @@ import logging
 host = '127.0.0.1' # to run the test locally
 
 director  = circusort.create_director(host=host)
-manager   = director.create_manager(host=host, log_level=logging.INFO)
+manager   = director.create_manager(host=host)
 
 
 noise    = manager.create_block('noise_generator',)

@@ -36,7 +36,7 @@ class Manager(object):
         if log_level is None:
             log_level = self.log_level
 
-        process = Process(log_address=self.log_address, name="{n}".format(n=block_type), log_level=log_level)
+        process = Process(log_address=self.log_address, name="{n}".format(n=block_type), log_level=self.log_level)
         module = process.get_module('circusort.block.{n}'.format(n=block_type))
         block = getattr(module, block_type.capitalize())(log_address=self.log_address, log_level=log_level, **kwargs)
 

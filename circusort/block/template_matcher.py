@@ -65,13 +65,28 @@ class Template_matcher(Block):
         over_data = numpy.zeros(0, dtype=numpy.float32)
         rows      = numpy.arange(self.nb_channels*self._spike_width_)
 
+        to_explore = numpy.arange(self.nb_channels)
+
+        #local_templates = numpy.zeros(0, dtype=numpy.int32)
+        #for ielec in range(comm.rank, N_e, comm.size):
+        #    local_templates = numpy.concatenate((local_templates, numpy.where(best_elec == ielec)[0]))
+        local_templates = numpy.arange(self.nb_templates)
+
+        #if half:
+        nb_total     = len(local_templates)
+        upper_bounds = self.templates.shape[1]
+        #else:
+        #    nb_total     = 2*len(local_templates)
+        #    upper_bounds = N_tm//2
+
+
         for count, ielec in enumerate(to_explore):
 
-            local_idx = numpy.where(best_elec == ielec)[0]
+            local_idx = numpy.where(self.best_elec == ielec)[0]
             len_local = len(local_idx)
 
-            if not half:
-                local_idx = numpy.concatenate((local_idx, local_idx + upper_bounds))
+            # if not half:
+            #     local_idx = numpy.concatenate((local_idx, local_idx + upper_bounds))
 
             if len_local > 0:
 
@@ -79,8 +94,8 @@ class Template_matcher(Block):
                 if not half:
                     to_consider = numpy.concatenate((to_consider, to_consider + upper_bounds))
 
-                loc_templates  = templates[:, local_idx].tocsr()
-                loc_templates2 = templates[:, to_consider].tocsr()
+                loc_templates  = self.templates[:, local_idx]
+                loc_templates2 = self.templates[:, to_consider]
 
                 for idelay in all_delays:
 
@@ -106,32 +121,36 @@ class Template_matcher(Block):
                         over_y     = numpy.concatenate((over_y, (2*N_t-idelay-1)*numpy.ones(len(dx), dtype=numpy.int32)))
                         over_data  = numpy.concatenate((over_data, numpy.take(data, dd)))
 
+            self.overlaps = 
 
 
     def _construct_templates(self, templates):
 
         data      = numpy.zeros(0, dtype=numpy.float32)
         positions = numpy.zeros((2, 0), dtype=numpy.int32)
-        nb_templates = 0
+        self.best_elec = numpy.zeros(0, dtype=numpy.int32)
+
+        self.nb_templates = 0
 
         for key in templates.keys():
             for channel in templates[key].keys():
                 template = numpy.array(templates[key][channel]).astype(numpy.float32)
                 for t in template:
+                    self.best_elec = numpy.concatenate((self.best_elec, [channel]))
                     t             = t.ravel()
                     data          = numpy.concatenate((data, t))
                     tmp_pos       = numpy.zeros((2, len(t)), dtype=numpy.int32)
                     #### TO DO ####
                     indices       = self.probe.edges[int(channel)]
-                    tmp_pos[1]    = nb_templates
+                    tmp_pos[1]    = self.nb_templates
                     ###############
                     positions     = numpy.hstack((positions, tmp_pos))
-                    nb_templates += 1
+                    self.nb_templates += 1
 
-        self.templates = scipy.sparse.csr_matrix((data, (positions[0], positions[1])), shape=(self._nb_elements, nb_templates))
-        self.norms     = numpy.zeros(nb_templates, dtype=numpy.float32)
+        self.templates = scipy.sparse.csr_matrix((data, (positions[0], positions[1])), shape=(self._nb_elements, self.nb_templates))
+        self.norms     = numpy.zeros(self.nb_templates, dtype=numpy.float32)
 
-        for idx in xrange(nb_templates):
+        for idx in xrange(self.nb_templates):
             self.norms[idx] = numpy.sqrt(self.templates[:, idx].sum()**2)/self._nb_elements 
             #myslice = numpy.arange(templates.indptr[idx], templates.indptr[idx+1])
             #templates.data[myslice] /= norm_templates[idx]
