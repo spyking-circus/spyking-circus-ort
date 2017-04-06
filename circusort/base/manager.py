@@ -51,7 +51,7 @@ class Manager(object):
 
         return block
 
-    def connect(self, output_endpoints, input_endpoints, protocol='tcp'):
+    def connect(self, output_endpoints, input_endpoints, protocol='ipc'):
         '''TODO add docstring'''
 
         if not type(input_endpoints) == list:

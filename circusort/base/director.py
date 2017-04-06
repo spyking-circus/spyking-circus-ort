@@ -73,7 +73,7 @@ class Director(object):
         self.log.debug("{d} registers {m}".format(d=str(self), m=manager.name))
         return
 
-    def connect(self, output_endpoints, input_endpoints, protocol='tcp'):
+    def connect(self, output_endpoints, input_endpoints, protocol=None):
         '''TODO add docstring'''
 
         if not type(input_endpoints) == list:
@@ -88,11 +88,19 @@ class Director(object):
                 self.log.info("{d} connects {s} to {t}".format(d=str(self), s=output_endpoint.block.name, t=input_endpoint.block.name))
 
                 if input_endpoint.block.parent == output_endpoint.block.parent:
-                    self.get_manager(input_endpoint.block.parent).connect(output_endpoint, input_endpoint, protocol)
+                    if protocol is None:
+                        local_protocol = 'ipc'
+                    else:
+                        local_protocol = protocol
+                    self.get_manager(input_endpoint.block.parent).connect(output_endpoint, input_endpoint, local_protocol)
                 else:
-                    assert protocol in ['tcp'], self.log.error('Invalid connection')
+                    if protocol is None:
+                        local_protocol = 'tcp'
+                    else:
+                        local_protocol = protocol
+                    assert local_protocol in ['tcp'], self.log.error('Invalid connection')
 
-                    output_endpoint.initialize(protocol=protocol, host=output_endpoint.block.host)
+                    output_endpoint.initialize(protocol=local_protocol, host=output_endpoint.block.host)
                     description = output_endpoint.get_description()
                     input_endpoint.configure(**description)
                     input_endpoint.block.connect(input_endpoint.name)

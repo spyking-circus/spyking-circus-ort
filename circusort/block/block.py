@@ -35,6 +35,7 @@ class Block(threading.Thread):
         self.ready    = False
         self.t_start  = None
         self.nb_steps = None
+        self.check_interval = 100
         self.counter  = 0
 
         self.context = zmq.Context()
@@ -131,10 +132,15 @@ class Block(threading.Thread):
             while self.counter < self.nb_steps:
                 self._process()
                 self.counter += 1
+                if numpy.mod(self.counter, self.check_interval) == 0:
+                    self._check_real_time_ratio()
         else:
             while self.running:
                 self._process()
                 self.counter += 1
+                if numpy.mod(self.counter, self.check_interval) == 0:
+                    self._check_real_time_ratio()
+
 
     def stop(self):
         self.running = False
@@ -142,6 +148,11 @@ class Block(threading.Thread):
         if self.real_time_ratio is not None:
             self.log.info("{n} worked at {k} x real time".format(n=self.name, k=self.real_time_ratio))
 
+
+    def _check_real_time_ratio(self):
+        data = self.real_time_ratio
+        if data is not None and data <= 1:
+            self.log.warning("{n} is lagging, running at {k} x real time".format(n=self.name_and_counter, k=data))
 
     def list_parameters(self):
         return self.params.keys()
