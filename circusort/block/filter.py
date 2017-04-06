@@ -43,8 +43,7 @@ class Filter(Block):
     def _process(self):
         batch = self.input.receive()
         for i in xrange(self.nb_channels):
-            res, self.z[i]  = signal.lfilter(self.b, self.a, batch[i], zi=self.z[i])
-            batch[i] = res.astype(self.input.dtype)
+            batch[i], self.z[i]  = signal.lfilter(self.b, self.a, batch[i], zi=self.z[i])
             batch[i] -= numpy.median(batch[i]) 
 
         if self.remove_median:

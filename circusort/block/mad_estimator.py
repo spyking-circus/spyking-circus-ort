@@ -34,7 +34,7 @@ class Mad_estimator(Block):
         self.mads         = numpy.zeros((self.nb_channels, 1), dtype=numpy.float32)
         self.median_means = numpy.zeros((self.nb_channels, 1), dtype=numpy.float32)
         self.decay_time   = numpy.exp(-(self.nb_samples/self.sampling_rate)/float(self.time_constant))
-        self.outputs['mads'].configure(dtype=self.input.dtype, shape=(self.nb_channels, 1))
+        self.outputs['mads'].configure(dtype='float32', shape=(self.nb_channels, 1))
         self.is_ready     = False
 
     def _process(self):

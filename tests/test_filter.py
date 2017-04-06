@@ -37,6 +37,6 @@ x1 = x1.reshape(x1.size/nb_channels, nb_channels)
 x2 = numpy.memmap('/tmp/output.dat', dtype=numpy.float32)
 x2 = x2.reshape(x2.size/nb_channels, nb_channels)
 
-pylab.plot(x1[:5*20000, 0])
-pylab.plot(x2[:5*20000, 0])
+pylab.plot(x1[:, 0])
+pylab.plot(x2[:, 0])
 pylab.show()
