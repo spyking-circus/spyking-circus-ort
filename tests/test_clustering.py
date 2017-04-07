@@ -14,15 +14,13 @@ manager2      = director.create_manager(host=host, log_level=logging.INFO)
 
 # def generate_mapping()
 
-
-
-noise         = manager.create_block('noise_generator', nb_channels=10)
+noise         = manager.create_block('fake_spike_generator', nb_channels=10)
 filter        = manager.create_block('filter')
 whitening     = manager.create_block('whitening')
 mad_estimator = manager.create_block('mad_estimator')
 peak_detector = manager.create_block('peak_detector', threshold=5, sign_peaks='both')
 pca           = manager.create_block('pca', nb_waveforms=5000)
-cluster       = manager2.create_block('density_clustering', probe='test.prb', nb_waveforms=200)
+cluster       = manager2.create_block('density_clustering', probe='test.prb', nb_waveforms=1000, log_level=logging.DEBUG)
 
 director.initialize()
 

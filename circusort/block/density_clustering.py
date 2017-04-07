@@ -4,7 +4,8 @@ import time
 import scipy.interpolate
 from circusort.config.probe import Probe
 import scipy.optimize, numpy, pylab, scipy.spatial.distance, scipy.stats
-
+import warnings
+warnings.filterwarnings("ignore")
 
 class Density_clustering(Block):
     '''TODO add docstring'''
@@ -218,6 +219,7 @@ class Density_clustering(Block):
 
         for key in self.sign_peaks:
             for channel, signed_peaks in peaks[key].items():
+                channel = int(channel)
                 for peak in signed_peaks:
                     if self._is_valid(peak):
                         channel, is_neg = self._get_best_channel(batch, peak, key)
@@ -232,7 +234,6 @@ class Density_clustering(Block):
 
                         self.pca_data[key][channel] = numpy.vstack((self.pca_data[key][channel], projection))
                         self.raw_data[key][channel] = numpy.vstack((self.raw_data[key][channel], waveforms))
-                
                 if len(self.pca_data[key][channel]) >= self.nb_waveforms:
                     self._perform_clustering(key, channel)
 

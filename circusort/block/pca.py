@@ -54,9 +54,11 @@ class Pca(Block):
         else:
             return (peak >= self._width) and (peak + self._width < self.nb_samples)
 
-    @property
-    def is_ready(self):
-        return bool(numpy.prod([i == self.nb_waveforms for i in self.nb_spikes.values()]))
+    def is_ready(self, key=None):
+        if key is not None:
+            return (self.nb_spikes[key] == self.nb_waveforms) and not self.has_pcs[key]
+        else:
+            return bool(numpy.prod([i for i in self.has_pcs.values()]))
 
     def _get_waveform(self, batch, channel, peak, key):
         if self.alignment:
@@ -78,8 +80,10 @@ class Pca(Block):
 
         self.nb_spikes = {}
         self.waveforms = {}
+        self.has_pcs   = {}
         for key in peaks.keys():
             self.nb_spikes[key] = 0
+            self.has_pcs[key]   = False
             self.waveforms[key] = numpy.zeros((self.nb_waveforms, self._spike_width_), dtype=numpy.float32)
 
     def _process(self):
@@ -93,7 +97,7 @@ class Pca(Block):
                 self._infer_sign_peaks(peaks)
             self._set_active_mode()
 
-            if not self.is_ready:
+            if self.send_pcs:
 
                 for key in self.sign_peaks:
                     for channel, signed_peaks in peaks[key].items():
@@ -104,7 +108,7 @@ class Pca(Block):
                                         self.waveforms[key][self.nb_spikes[key]] = self._get_waveform(batch, int(channel), peak, key)
                                         self.nb_spikes[key] += 1
 
-                    if self.nb_spikes[key] ==  self.nb_waveforms:
+                    if self.is_ready(key):
                         self.log.info("{n} computes the PCA matrix for {m} spikes".format(n=self.name_and_counter, m=key))
                         pca          = PCAEstimator(self.output_dim, copy=False)
                         res_pca      = pca.fit_transform(self.waveforms[key].T).astype(numpy.float32)
@@ -112,8 +116,9 @@ class Pca(Block):
                             self.pcs[0] = res_pca.T
                         elif key == 'positive':
                             self.pcs[1] = res_pca.T
+                        self.has_pcs[key] = True
 
-            if self.is_ready and self.send_pcs:
+            if self.is_ready() and self.send_pcs:
                 self.outputs['pcs'].send(self.pcs.flatten())
                 self.send_pcs = False
         return
