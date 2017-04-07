@@ -28,7 +28,6 @@ class Whitening(Block):
         return self.inputs['data'].shape[1]
 
     def _initialize(self):
-        self.is_ready = False
         self.duration = self.chunks*self.sampling_rate
         return
 
@@ -41,11 +40,11 @@ class Whitening(Block):
         d,V  = eigh(Xcov)
         D    = numpy.diag(1./numpy.sqrt(d+self.fudge))
         self.whitening_matrix = numpy.dot(numpy.dot(V,D), V.T).astype(numpy.float32)
-        self.is_ready = True
+        self._set_active_mode()
 
     def _process(self):
         batch = self.input.receive()
-        if self.is_ready:
+        if self.is_active:
             batch = numpy.dot(self.whitening_matrix, batch)
             self.output.send(batch.flatten())
         else:

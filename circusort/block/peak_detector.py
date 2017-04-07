@@ -19,7 +19,7 @@ class Peak_detector(Block):
         self.add_input('data')
 
     def _initialize(self):
-        self.peaks = {}
+        self.peaks = {'offset' : 0}
         if self.sign_peaks in ['negative', 'both']:
             self.peaks['negative'] = {}
         if self.sign_peaks in ['positive', 'both']:
@@ -27,7 +27,6 @@ class Peak_detector(Block):
 
         self._spike_width_ = int(self.sampling_rate*self.spike_width*1e-3)
         self.sign_peaks    = None
-        self.send_pcs      = True
         if numpy.mod(self._spike_width_, 2) == 0:
             self._spike_width_ += 1
         return
@@ -90,13 +89,22 @@ class Peak_detector(Block):
         thresholds = self.get_input('mads').receive(blocking=False)
 
         if thresholds is not None:
+
+            if not self.is_active:
+                self._set_active_mode()
+
             for key in self.peaks.keys():
                 self.peaks[key] = {}
                 for i in xrange(self.nb_channels):
                     if key == 'negative':
-                        self.peaks[key][i] = self._detect_peaks(batch[i],  thresholds[i], mpd=self._spike_width_)
+                        data = self._detect_peaks(batch[i],  thresholds[i], mpd=self._spike_width_)
+                        if len(data) > 0:
+                            self.peaks[key][i] = data
                     elif key == 'positive':
-                        self.peaks[key][i] = self._detect_peaks(batch[i],  thresholds[i], valley=True, mpd=self._spike_width_)
+                        data = self._detect_peaks(batch[i],  thresholds[i], valley=True, mpd=self._spike_width_)
+                        if len(data) > 0:
+                            self.peaks[key][i] = data
 
+            self.peaks['offset'] = self.counter*self.nb_samples
             self.outputs['peaks'].send(self.peaks)
         return

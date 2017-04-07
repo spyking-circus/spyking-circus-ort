@@ -21,7 +21,8 @@ class Fake_spike_generator(Block):
 
     def _initialize(self):
         self.output.configure(dtype=self.dtype, shape=(self.nb_channels, self.nb_samples))
-        self.decay_time = numpy.exp(-(1./self.sampling_rate)/float(self.time_constant))
+        self.dt         = 1./self.sampling_rate
+        self.decay_time = numpy.exp(-self.dt/float(self.time_constant))
         self.noise      = numpy.zeros(self.nb_channels)
         self.result     = numpy.zeros((self.nb_channels, self.nb_samples), dtype=self.dtype)
         self.positions  = numpy.random.randint(0, self.nb_channels, self.nb_cells)
@@ -31,7 +32,7 @@ class Fake_spike_generator(Block):
     def _process(self):
 
         for i in xrange(0, self.nb_samples-1):
-            self.result[:, i+1] = self.result[:, i]*self.decay_time + 2*numpy.random.randn(self.nb_channels)/self.sampling_rate
+            self.result[:, i+1] = self.result[:, i]*self.decay_time + 2*numpy.random.randn(self.nb_channels)*self.dt
 
         ## Add fake spikes
         nb_spikes = 2
@@ -41,7 +42,7 @@ class Fake_spike_generator(Block):
             self.result[self.positions[a], b] = self.amplitudes[a]
 
         self.output.send(self.result)
-        self.result[:, 0] = self.result[:, -1]*self.decay_time + numpy.random.randn(self.nb_channels)/self.sampling_rate
+        self.result[:, 0] = self.result[:, -1]*self.decay_time + numpy.random.randn(self.nb_channels)*self.dt
 
         
         return

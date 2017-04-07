@@ -35,8 +35,10 @@ class Block(threading.Thread):
         self.ready    = False
         self.t_start  = None
         self.nb_steps = None
+        self.is_active      = False
+        self.start_steps    = None
         self.check_interval = 100
-        self.counter  = 0
+        self.counter        = 0
 
         self.context = zmq.Context()
         self.params.update(kwargs)
@@ -57,7 +59,7 @@ class Block(threading.Thread):
 
     def add_input(self, name, structure='array'):
         self.inputs[name] = Endpoint(self, name, structure)
-        
+
     def initialize(self):
 
         self.log.debug("{n} is initialized".format(n=self.name))
@@ -126,7 +128,7 @@ class Block(threading.Thread):
         self.log.debug("{n} is running".format(n=self.name))
 
         self.running = True
-        self.t_start = time.time()
+        self._set_start_step()
 
         if self.nb_steps is not None:
             while self.counter < self.nb_steps:
@@ -171,6 +173,14 @@ class Block(threading.Thread):
     @property
     def name_and_counter(self):
         return "{n}[{k} steps]".format(n=self.name, k=self.counter)
+
+    def _set_start_step(self):
+        self.t_start    = time.time()
+        self.start_step = self.counter
+
+    def _set_active_mode(self):
+        self.is_active = True
+        self._set_start_step()
 
     def __str__(self):
         res = "Block object {n} with params {s}".format(n=self.name, s=self.params)

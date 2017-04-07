@@ -1,6 +1,6 @@
 from .block import Block
 import tempfile
-
+import os
 
 class Writer(Block):
     '''TODO add docstring'''
@@ -32,13 +32,6 @@ class Writer(Block):
         batch = self.input.receive()
         if self.input.structure == 'array':
             self.file.write(batch.T.tostring())
-        elif self.input.structure == 'dict':
-            pass
-            # for key in batch:
-            #     if not self.recorded_keys.has_key(key):
-            #         self.recorded_keys[key] = self._get_temp_file()
-            #         self.log.info('{n} is recording key {m} into {k}'.format(n=self.name, m=key, k=self.recorded_keys[key]))
-            #         self.recorded_keys[key] = open(self.recorded_keys[key], mode='wb')
-            #     else:
-            #         self.recorded_keys[key].write(batch[key])
+        else:
+            self.log.error('{n} can only write arrays'.format(n=self.name))
         return

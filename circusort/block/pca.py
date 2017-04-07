@@ -88,6 +88,7 @@ class Pca(Block):
 
         if peaks is not None:
 
+            peaks.pop('offset')
             if self.sign_peaks is None:
                 self._infer_sign_peaks(peaks)
 

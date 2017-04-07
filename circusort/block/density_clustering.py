@@ -214,6 +214,7 @@ class Density_clustering(Block):
         batch = self.inputs['data'].receive()
         peaks = self.inputs['peaks'].receive()
         self.thresholds = self.inputs['mads'].receive()
+        peaks.pop('offset')
 
         for key in self.sign_peaks:
             for channel, signed_peaks in peaks[key].items():
