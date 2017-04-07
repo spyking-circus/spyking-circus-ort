@@ -41,9 +41,8 @@ class Mad_estimator(Block):
             self.log.info('{n} has converged'.format(n=self.name_and_counter))
             self._set_active_mode()
 
-
     def _process(self):
-        batch     = self.input.receive(blocking=False)
+        batch     = self.input.receive()
         if batch is not None:
             self.median_means[:,0] = self.median_means[:,0]*self.decay_time + numpy.median(batch, 1)*self.dt
             

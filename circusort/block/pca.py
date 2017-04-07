@@ -91,6 +91,7 @@ class Pca(Block):
             peaks.pop('offset')
             if self.sign_peaks is None:
                 self._infer_sign_peaks(peaks)
+            self._set_active_mode()
 
             if not self.is_ready:
 
