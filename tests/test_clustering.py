@@ -9,8 +9,8 @@ import logging
 host = '127.0.0.1' # to run the test locally
 
 director      = circusort.create_director(host=host)
-manager       = director.create_manager(host=host, log_level=logging.INFO)
-manager2      = director.create_manager(host=host, log_level=logging.INFO)
+manager       = director.create_manager(host=host)
+manager2      = director.create_manager(host=host)
 
 # def generate_mapping()
 

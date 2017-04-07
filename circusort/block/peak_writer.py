@@ -8,7 +8,8 @@ class Peak_writer(Block):
 
     name   = "Peak writer"
 
-    params = {'data_path'  : None}
+    params = {'pos_peaks' : None, 
+              'neg_peaks' : None}
 
     def __init__(self, **kwargs):
 
@@ -34,7 +35,16 @@ class Peak_writer(Block):
             offset = batch.pop('offset')
             for key in batch:
                 if not self.recorded_peaks.has_key(key):
-                    self.recorded_peaks[key] = self._get_temp_file()
+                    if key == 'positive':
+                        if self.pos_peaks is None:
+                            self.recorded_peaks[key] = self._get_temp_file()
+                        else:
+                            self.recorded_peaks[key] = self.pos_peaks
+                    elif key == 'negative':
+                        if self.neg_peaks is None:
+                            self.recorded_peaks[key] = self._get_temp_file()
+                        else:
+                            self.recorded_peaks[key] = self.neg_peaks
                     self.log.info('{n} is recording {m} peaks into {k}'.format(n=self.name, m=key, k=self.recorded_peaks[key]))
                     self.peaks_file[key] = open(self.recorded_peaks[key], mode='wb')
                 

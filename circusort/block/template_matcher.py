@@ -28,6 +28,9 @@ class Template_matcher(Block):
 
     def _initialize(self):
         self.spikes        = {}
+        self.nb_templates  = 0
+        self.space_explo   = 0.5
+        self.nb_chances    = 3
         self._spike_width_ = int(self.sampling_rate*self.spike_width*1e-3)
         if numpy.mod(self._spike_width_, 2) == 0:
             self._spike_width_ += 1
@@ -43,20 +46,20 @@ class Template_matcher(Block):
         return self.inputs['data'].shape[1]
 
     def _guess_output_endpoints(self):
-        self._nb_elements = self.nb_channels*self._spike_width_
+        self._nb_elements  = self.nb_channels*self._spike_width_
 
     def _is_valid(self, peak):
-        return (peak >= 2*self._width) and (peak + 2*self._width < self.nb_samples)
+        return (peak >= 2*self._width) & (peak + 2*self._width < self.nb_samples)
 
-    def _get_all_peaks(self, peaks):
+    def _get_all_valid_peaks(self, peaks):
         all_peaks = set([])
-        for key in peaks.values():
-            for channel in peaks[key].values():
+        for key in peaks.keys():
+            for channel in peaks[key].keys():
                 all_peaks = all_peaks.union(peaks[key][channel])
 
-        all_peaks = numpy.array(all_peaks, dtype=numpy.int32)
+        all_peaks = numpy.array(list(all_peaks), dtype=numpy.int32)
         mask = self._is_valid(all_peaks)
-        return all_peaks[all_peaks]
+        return all_peaks[mask]
 
 
     def _construct_overlaps(self):
@@ -121,8 +124,7 @@ class Template_matcher(Block):
                         over_y     = numpy.concatenate((over_y, (2*N_t-idelay-1)*numpy.ones(len(dx), dtype=numpy.int32)))
                         over_data  = numpy.concatenate((over_data, numpy.take(data, dd)))
 
-            #self.overlaps = 
-
+            self.overlaps = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=(self.nb_templates**2, 2*self._spike_width_ - 1))
 
     def _construct_templates(self, templates):
 
@@ -157,51 +159,44 @@ class Template_matcher(Block):
 
     def _fit_chunk(self, batch, peaks):
 
-        peaks   = self._get_all_peaks(peaks)
+        peaks   = self._get_all_valid_peaks(peaks)
         n_peaks = len(peaks)
 
         if len(peaks) > 0:
 
-            batch     = batch.ravel()
-            sub_batch = numpy.zeros((self.nb_channels*(2*self._width + 1), n_peaks), dtype=numpy.float32)
+            sub_batch = numpy.zeros((self.nb_channels, (2*self._width + 1), n_peaks), dtype=numpy.float32)
 
-            if len_chunk != last_chunk_size:
-                slice_indices = numpy.zeros(0, dtype=numpy.int32)
-                for idx in xrange(N_e):
-                    slice_indices = numpy.concatenate((slice_indices, len_chunk*idx + temp_window))
-                last_chunk_size = len_chunk
+            for count, peak in enumerate(peaks):
+                sub_batch[:, :, count] = batch[:, peak - self._width:peak + self._width + 1]
 
-            for count, idx in enumerate(peaks):
-                sub_batch[:, count] = numpy.take(batch, slice_indices + idx)
+            sub_batch    = sub_batch.reshape(sub_batch.shape[0]*sub_batch.shape[1], sub_batch.shape[2])
+            b            = self.templates.T.dot(sub_batch)                
 
-            del local_chunk
 
-            b       = templates.dot(sub_mat)                
-
-            del sub_batch
-
-            local_offset = padding[0] + t_offset
-            local_bounds = (2*self._width, len_chunk - 2*self._width)
-            all_spikes   = local_peaktimes + local_offset
+            #local_offset = padding[0] + t_offset
+            #local_bounds = (2*self._width, len_chunk - 2*self._width)
+            
+            #all_spikes   = peaks + self.offset
 
             # Because for GPU, slicing by columns is more efficient, we need to transpose b
             #b           = b.transpose()
 
             failure     = numpy.zeros(n_peaks, dtype=numpy.int32)
-            mask        = numpy.ones((n_tm, n_peaks), dtype=numpy.float32)
-            sub_b       = b[:n_tm, :]
+            mask        = numpy.ones((self.nb_templates, n_peaks), dtype=numpy.float32)
+            sub_b       = b[:self.nb_templates, :]
 
             min_time    = peaks.min()
             max_time    = peaks.max()
             local_len   = max_time - min_time + 1
             min_times   = numpy.maximum(peaks - min_time - 2*self._width, 0)
             max_times   = numpy.minimum(peaks - min_time + 2*self._width + 1, max_time - min_time)
-            max_n_t     = int(space_explo*(max_time-min_time+1)//(2*2*self._width + 1))
+            max_n_peaks = int(self.space_explo*(max_time-min_time+1)//(2*2*self._width + 1))
                     
-            while (numpy.mean(failure) < nb_chances):
+            while (numpy.mean(failure) < self.nb_chances):
 
                 data        = sub_b * mask
                 argmax_bi   = numpy.argsort(numpy.max(data, 0))[::-1]
+                print argmax_bi
 
                 while (len(argmax_bi) > 0):
 
@@ -215,31 +210,33 @@ class Template_matcher(Block):
                             subset  += [idx]
                             indices += [count]
                             all_times[min_times[idx]:max_times[idx]] = True
-                        if len(subset) > max_n_t:
+                        if len(subset) > max_n_peaks:
                             break
 
                     subset    = numpy.array(subset, dtype=numpy.int32)
                     argmax_bi = numpy.delete(argmax_bi, indices)
 
-                    inds_t, inds_temp = subset, numpy.argmax(numpy.take(sub_b, subset, axis=1), 0)
+                    inds_t, inds_temp = subset, numpy.argmax(sub_b[:, subset], 0)
 
-                    best_amp  = sub_b[inds_temp, inds_t]/n_scalar
-                    best_amp2 = b[inds_temp + n_tm, inds_t]/n_scalar
+                    best_amp  = sub_b[inds_temp, inds_t]/self._nb_elements
+                    best_amp2 = b[inds_temp + self.nb_templates, inds_t]/self._nb_elements
 
                     mask[inds_temp, inds_t] = 0
 
                     best_amp_n   = best_amp/numpy.take(norm_templates, inds_temp)
-                    best_amp2_n  = best_amp2/numpy.take(norm_templates, inds_temp + n_tm)
+                    best_amp2_n  = best_amp2/numpy.take(norm_templates, inds_temp + self.nb_templates)
 
-                    all_idx      = ((best_amp_n >= amp_limits[inds_temp, 0]) & (best_amp_n <= amp_limits[inds_temp, 1]))
+                    ######## To EDIT
+                    all_idx      = ((best_amp_n >= 0) & (best_amp_n <= 1000))
+                    
                     to_keep      = numpy.where(all_idx == True)[0]
                     to_reject    = numpy.where(all_idx == False)[0]
-                    ts           = numpy.take(local_peaktimes, inds_t[to_keep])
+                    ts           = numpy.take(self.n_peaks, inds_t[to_keep])
                     good         = (ts >= local_bounds[0]) & (ts < local_bounds[1])
                     
                     if len(ts) > 0:
                         
-                        tmp      = numpy.dot(numpy.ones((len(ts), 1), dtype=numpy.int32), local_peaktimes.reshape((1, n_t)))
+                        tmp      = numpy.dot(numpy.ones((len(ts), 1), dtype=numpy.int32), peaks.reshape((1, n_t)))
                         tmp     -= ts.reshape((len(ts), 1))
                         condition = numpy.abs(tmp) <= 2*self._width
 
@@ -252,19 +249,19 @@ class Template_matcher(Block):
                             indices[ytmp, numpy.arange(len(ytmp))] = 1
 
                             tmp1   = c_overs[inds_temp[keep]].multiply(-best_amp[keep]).dot(indices)
-                            tmp2   = c_overs[inds_temp[keep] + n_tm].multiply(-best_amp2[keep]).dot(indices)
+                            tmp2   = c_overs[inds_temp[keep] + self.nb_templates].multiply(-best_amp2[keep]).dot(indices)
                             b[:, idx_b] += tmp1 + tmp2
 
                             if good[count]:
 
-                                t_spike               = ts[count] + local_offset
+                                t_spike               = ts[count] + self.offset
                                 result['spiketimes'] += [t_spike]
                                 result['amplitudes'] += [(best_amp_n[keep], best_amp2_n[keep])]
                                 result['templates']  += [inds_temp[keep]]
 
                     myslice           = numpy.take(inds_t, to_reject)
                     failure[myslice] += 1
-                    sub_idx           = (numpy.take(failure, myslice) >= nb_chances)
+                    sub_idx           = (numpy.take(failure, myslice) >= self.nb_chances)
                     
                     mask[:, numpy.compress(sub_idx, myslice)] = 0
 
@@ -274,13 +271,14 @@ class Template_matcher(Block):
         peaks = self.inputs['peaks'].receive(blocking=False)
 
         if peaks is not None:
+            self.offset = peaks.pop('offset')
             templates = self.inputs['templates'].receive(blocking=False)
             if templates is not None:
                 self._construct_templates(templates)
                 self._construct_overlaps()
 
-
-
-            #self._fit_chunk(batch, peaks)
+            print self.nb_templates
+            if self.nb_templates > 0:
+                self._fit_chunk(batch, peaks)
 
         return

@@ -58,11 +58,25 @@ class Density_clustering(Block):
     def nb_samples(self):
         return self.inputs['data'].shape[1]
 
+    def _get_all_valid_peaks(self, peaks, shuffle=True):
+        all_peaks = {}
+        for key in peaks.keys():
+            all_peaks[key] = set([])
+            for channel in peaks[key].keys():
+                 all_peaks[key] = all_peaks[key].union(peaks[key][channel])
+
+            all_peaks[key] = numpy.array(list(all_peaks[key]), dtype=numpy.int32)
+            mask           = self._is_valid(all_peaks[key])
+            all_peaks[key] = all_peaks[key][mask]
+            if shuffle:
+                all_peaks[key] = numpy.random.permutation(all_peaks[key])
+        return all_peaks
+
     def _is_valid(self, peak):
         if self.alignment:
-            return (peak >= 2*self._width) and (peak + 2*self._width < self.nb_samples)
+            return (peak >= 2*self._width) & (peak + 2*self._width < self.nb_samples)
         else:
-            return (peak >= self._width) and (peak + self._width < self.nb_samples)
+            return (peak >= self._width) & (peak + self._width < self.nb_samples)
 
     def _get_best_channel(self, batch, peak, key):
         if key == 'negative':
@@ -141,7 +155,7 @@ class Density_clustering(Block):
 
     def _perform_clustering(self, key, channel):
         a, b, c = self.pca_data[key][channel].shape
-        self.log.debug("{n} clusters {m} waveforms on channel {d}".format(n=self.name_and_counter, m=a, d=channel))
+        self.log.debug("{n} clusters {m} {k} waveforms on channel {d}".format(n=self.name_and_counter, m=a, k=key, d=channel))
         data    = self.pca_data[key][channel].reshape(a, b*c)
         rho, dist, sdist, nb_selec = rho_estimation(data, compute_rho=True, mratio=self.m_ratio)
         self.clusters[key][channel], r, d, c = clustering(rho, dist, smart_select=True)
@@ -203,25 +217,31 @@ class Density_clustering(Block):
 
 
     def _process(self):
-        if self.receive_pcs:
-            self.pcs = self.inputs['pcs'].receive()
-            self.log.info("{n} receives the PCA matrices".format(n=self.name_and_counter))
-            self.receive_pcs = False
-            self._init_data_structures()
-            self.t_start = time.time()
-        
-        self.to_reset = []
 
         batch = self.inputs['data'].receive()
-        peaks = self.inputs['peaks'].receive()
-        self.thresholds = self.inputs['mads'].receive()
-        peaks.pop('offset')
+        peaks = self.inputs['peaks'].receive(blocking=False)
+        self.thresholds = self.inputs['mads'].receive(blocking=False)
+        if self.receive_pcs:
+            self.pcs = self.inputs['pcs'].receive(blocking=False)
 
-        for key in self.sign_peaks:
-            for channel, signed_peaks in peaks[key].items():
-                channel = int(channel)
-                for peak in signed_peaks:
-                    if self._is_valid(peak):
+
+        if self.pcs is not None:
+
+            if self.receive_pcs:
+                self.log.info("{n} receives the PCA matrices".format(n=self.name_and_counter))
+                self.receive_pcs = False
+                self._init_data_structures()
+                self.t_start = time.time()
+                self._set_active_mode()
+
+            if (peaks is not None) and (self.thresholds is not None):
+
+                self.to_reset = []
+                peaks.pop('offset')
+                peaks = self._get_all_valid_peaks(peaks)
+
+                for key in self.sign_peaks:
+                    for peak in peaks[key]:
                         channel, is_neg = self._get_best_channel(batch, peak, key)
                         waveforms       = self._get_snippet(batch, channel, peak, is_neg)
                         projection      = numpy.dot(self.pcs[0], waveforms)
@@ -234,12 +254,13 @@ class Density_clustering(Block):
 
                         self.pca_data[key][channel] = numpy.vstack((self.pca_data[key][channel], projection))
                         self.raw_data[key][channel] = numpy.vstack((self.raw_data[key][channel], waveforms))
-                if len(self.pca_data[key][channel]) >= self.nb_waveforms:
-                    self._perform_clustering(key, channel)
 
-        self.outputs['templates'].send(self.templates)
-        for key, channel in self.to_reset:
-            self._reset_data_structures(key, channel)
+                    if len(self.pca_data[key][channel]) >= self.nb_waveforms:
+                        self._perform_clustering(key, channel)
+
+                self.outputs['templates'].send(self.templates)
+                for key, channel in self.to_reset:
+                    self._reset_data_structures(key, channel)
 
         return
 
