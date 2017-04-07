@@ -258,9 +258,11 @@ class Density_clustering(Block):
                     if len(self.pca_data[key][channel]) >= self.nb_waveforms:
                         self._perform_clustering(key, channel)
 
-                self.outputs['templates'].send(self.templates)
-                for key, channel in self.to_reset:
-                    self._reset_data_structures(key, channel)
+
+                if len(self.to_reset) > 0:
+                    self.outputs['templates'].send(self.templates)
+                    for key, channel in self.to_reset:
+                        self._reset_data_structures(key, channel)
 
         return
 

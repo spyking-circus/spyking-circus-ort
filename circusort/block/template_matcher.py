@@ -8,7 +8,7 @@ class Template_matcher(Block):
 
     name   = "Template matcher"
 
-    params = {'spike_width' : 5.,
+    params = {'spike_width'   : 5.,
               'probe'         : None,
               'radius'        : None,
               'sampling_rate' : 20000}
@@ -31,6 +31,7 @@ class Template_matcher(Block):
         self.nb_templates  = 0
         self.space_explo   = 0.5
         self.nb_chances    = 3
+        self.temp_indices  = {}
         self._spike_width_ = int(self.sampling_rate*self.spike_width*1e-3)
         if numpy.mod(self._spike_width_, 2) == 0:
             self._spike_width_ += 1
@@ -51,7 +52,15 @@ class Template_matcher(Block):
     def _is_valid(self, peak):
         return (peak >= self._width) & (peak + self._width < self.nb_samples)
 
+    def _get_temp_indices(self, channel):
 
+        if not self.temp_indices.has_key(channel):
+            indices = self.probe.edges[channel]
+            self.temp_indices[channel] = numpy.zeros(0, dtype=numpy.int32)
+            for i in indices:
+                tmp = numpy.arange(i*self._spike_width_, (i+1)*self._spike_width_)
+                self.temp_indices[channel] = numpy.concatenate((self.temp_indices[channel], tmp))
+        return self.temp_indices[channel]
 
     def _get_all_valid_peaks(self, peaks):
         all_peaks = set([])
@@ -145,18 +154,16 @@ class Template_matcher(Block):
 
         for key in templates.keys():
             for channel in templates[key].keys():
-                template = numpy.array(templates[key][channel]).astype(numpy.float32)
-                for t in template:
-                    self.best_elec = numpy.concatenate((self.best_elec, [channel]))
-                    t             = t.ravel()
-                    data          = numpy.concatenate((data, t))
-                    tmp_pos       = numpy.zeros((2, len(t)), dtype=numpy.int32)
-                    #### TO DO ####
-                    indices       = self.probe.edges[int(channel)]
-                    tmp_pos[1]    = self.nb_templates
-                    ###############
-                    positions     = numpy.hstack((positions, tmp_pos))
-                    self.nb_templates += 1
+                template   = numpy.array(templates[key][channel]).astype(numpy.float32)
+                if len(template) > 0:
+                    tmp_pos    = numpy.zeros((2, len(self.probe.edges[int(channel)])*self._spike_width_), dtype=numpy.int32)
+                    tmp_pos[0] = self._get_temp_indices(int(channel))
+                    for t in template:
+                        self.best_elec = numpy.concatenate((self.best_elec, [channel]))
+                        data           = numpy.concatenate((data, t.ravel()))
+                        tmp_pos[1]     = self.nb_templates
+                        positions      = numpy.hstack((positions, tmp_pos))
+                        self.nb_templates += 1
 
         self.templates = scipy.sparse.csc_matrix((data, (positions[0], positions[1])), shape=(self._nb_elements, self.nb_templates))
         self.norms     = numpy.zeros(self.nb_templates, dtype=numpy.float32)
@@ -165,7 +172,7 @@ class Template_matcher(Block):
         for idx in xrange(self.nb_templates):
             self.norms[idx] = numpy.sqrt(self.templates[:, idx].sum()**2)/self._nb_elements 
             myslice = numpy.arange(self.templates.indptr[idx], self.templates.indptr[idx+1])
-            templates.data[myslice] /= self.norms[idx]
+            self.templates.data[myslice] /= self.norms[idx]
 
     def _fit_chunk(self, batch, peaks):
 
@@ -178,8 +185,6 @@ class Template_matcher(Block):
                        'offset'      : self.counter}
 
         if n_peaks > 0:
-
-            print self.counter, n_peaks
 
             sub_batch = numpy.zeros((self.nb_channels, (2*self._width + 1), n_peaks), dtype=numpy.float32)
 
@@ -209,8 +214,6 @@ class Template_matcher(Block):
             max_n_peaks = int(self.space_explo*(max_time-min_time+1)//(2*2*self._width + 1))
                     
             while (numpy.mean(failure) < self.nb_chances):
-
-                print self.counter, numpy.mean(failure)
 
                 data        = sub_b * mask
                 argmax_bi   = numpy.argsort(numpy.max(data, 0))[::-1]
@@ -278,7 +281,7 @@ class Template_matcher(Block):
                     sub_idx           = (numpy.take(failure, myslice) >= self.nb_chances)
                     mask[:, numpy.compress(sub_idx, myslice)] = 0
 
-            self.log.debug('{n} fitted {k} spikes from {m} templates'.format(n=self.name_and_counter, k=len(good), m=self.nb_templates))
+            self.log.debug('{n} fitted {k} spikes from {m} templates'.format(n=self.name_and_counter, k=len(self.result['spike_times']), m=self.nb_templates))
 
     def _process(self):
         batch = self.inputs['data'].receive()
