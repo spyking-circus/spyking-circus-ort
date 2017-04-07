@@ -9,7 +9,7 @@ class Peak_detector(Block):
 
     params = {'sign_peaks'    : 'negative',
               'spike_width'   : 5,
-              'sampling_rate' : 20000}
+              'sampling_rate' : 20000.}
 
     def __init__(self, **kwargs):
 
@@ -20,13 +20,11 @@ class Peak_detector(Block):
 
     def _initialize(self):
         self.peaks = {'offset' : 0}
-        if self.sign_peaks in ['negative', 'both']:
-            self.peaks['negative'] = {}
-        if self.sign_peaks in ['positive', 'both']:
-            self.peaks['positive'] = {}
-
+        if self.sign_peaks == 'both':
+            self.key_peaks = ['negative', 'positive']
+        else:
+            self.key_peaks = [self.sign_peaks]
         self._spike_width_ = int(self.sampling_rate*self.spike_width*1e-3)
-        self.sign_peaks    = None
         if numpy.mod(self._spike_width_, 2) == 0:
             self._spike_width_ += 1
         return
@@ -93,7 +91,7 @@ class Peak_detector(Block):
             if not self.is_active:
                 self._set_active_mode()
 
-            for key in self.peaks.keys():
+            for key in self.key_peaks:
                 self.peaks[key] = {}
                 for i in xrange(self.nb_channels):
                     if key == 'negative':

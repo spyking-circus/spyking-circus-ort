@@ -99,8 +99,8 @@ class Template_matcher(Block):
                 if not half:
                     to_consider = numpy.concatenate((to_consider, to_consider + upper_bounds))
 
-                loc_templates  = self.templates[:, local_idx]
-                loc_templates2 = self.templates[:, to_consider]
+                loc_templates  = self.templates[:, local_idx].tocsr()
+                loc_templates2 = self.templates[:, to_consider].tocsr()
 
                 for idelay in all_delays:
 
@@ -126,14 +126,14 @@ class Template_matcher(Block):
                         over_y     = numpy.concatenate((over_y, (2*N_t-idelay-1)*numpy.ones(len(dx), dtype=numpy.int32)))
                         over_data  = numpy.concatenate((over_data, numpy.take(data, dd)))
 
-            overlaps = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=(self.nb_templates**2, 2*self._spike_width_ - 1))
-            # To be faster, we rearrange the overlaps into a dictionnary. This has a cost: twice the memory usage for 
-            # a short period of time
-            self.overlaps = {}
+        overlaps = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=(self.nb_templates**2, 2*self._spike_width_ - 1))
+        # To be faster, we rearrange the overlaps into a dictionnary. This has a cost: twice the memory usage for 
+        # a short period of time
+        self.overlaps = {}
 
-            for i in xrange(self.nb_templates):
-                self.overlaps[i] = overlaps[i*self.nb_templates:(i+1)*self.nb_templates]
-            del overlaps
+        for i in xrange(self.nb_templates):
+            self.overlaps[i] = overlaps[i*self.nb_templates:(i+1)*self.nb_templates]
+        del overlaps
 
     def _construct_templates(self, templates):
 
@@ -158,22 +158,28 @@ class Template_matcher(Block):
                     positions     = numpy.hstack((positions, tmp_pos))
                     self.nb_templates += 1
 
-        self.templates = scipy.sparse.csr_matrix((data, (positions[0], positions[1])), shape=(self._nb_elements, self.nb_templates))
+        self.templates = scipy.sparse.csc_matrix((data, (positions[0], positions[1])), shape=(self._nb_elements, self.nb_templates))
         self.norms     = numpy.zeros(self.nb_templates, dtype=numpy.float32)
 
+        ## We normalize the templates
         for idx in xrange(self.nb_templates):
             self.norms[idx] = numpy.sqrt(self.templates[:, idx].sum()**2)/self._nb_elements 
-            #myslice = numpy.arange(templates.indptr[idx], templates.indptr[idx+1])
-            #templates.data[myslice] /= norm_templates[idx]
+            myslice = numpy.arange(self.templates.indptr[idx], self.templates.indptr[idx+1])
+            templates.data[myslice] /= self.norms[idx]
 
     def _fit_chunk(self, batch, peaks):
 
         peaks       = self._get_all_valid_peaks(peaks)
         n_peaks     = len(peaks)
         all_indices = numpy.arange(n_peaks)
-        self.result = {'spike_times' : [], 'amplitudes' : [], 'templates' : [], 'offset' : self.counter}
+        self.result = {'spike_times' : numpy.zeros(0, dtype=numpy.int32),
+                       'amplitudes'  : numpy.zeros(0, dtype=numpy.float32),
+                       'templates'   : numpy.zeros(0, dtype=numpy.int32),
+                       'offset'      : self.counter}
 
-        if len(peaks) > 0:
+        if n_peaks > 0:
+
+            print self.counter, n_peaks
 
             sub_batch = numpy.zeros((self.nb_channels, (2*self._width + 1), n_peaks), dtype=numpy.float32)
 
@@ -204,11 +210,12 @@ class Template_matcher(Block):
                     
             while (numpy.mean(failure) < self.nb_chances):
 
+                print self.counter, numpy.mean(failure)
+
                 data        = sub_b * mask
                 argmax_bi   = numpy.argsort(numpy.max(data, 0))[::-1]
 
                 while (len(argmax_bi) > 0):
-
                     subset          = []
                     indices         = []
                     all_times       = numpy.zeros(local_len, dtype=numpy.bool)
@@ -242,7 +249,7 @@ class Template_matcher(Block):
                     to_reject    = numpy.where(all_idx == False)[0]
                     ts           = numpy.take(peaks, inds_t[to_keep])
                     good         = (ts >= 2*self._width) & (ts + 2*self._width < self.nb_samples)
-                    
+
                     if len(ts) > 0:
                         
                         tmp      = numpy.dot(numpy.ones((len(ts), 1), dtype=numpy.int32), peaks.reshape((1, n_peaks)))
@@ -262,16 +269,13 @@ class Template_matcher(Block):
                             b[:, idx_b] += tmp1 #+ tmp2
 
                             if good[count]:
-
-                                t_spike                     = ts[count]
-                                self.result['spike_times'] += [t_spike]
-                                self.result['amplitudes']  += [best_amp_n[keep]]
-                                self.result['templates']   += [inds_temp[keep]]
+                                self.result['spike_times']  = numpy.concatenate((self.result['spike_times'], [ts[count]]))
+                                self.result['amplitudes']   = numpy.concatenate((self.result['amplitudes'], [best_amp_n[keep]]))
+                                self.result['templates']    = numpy.concatenate((self.result['templates'], [inds_temp[keep]]))
 
                     myslice           = numpy.take(inds_t, to_reject)
                     failure[myslice] += 1
                     sub_idx           = (numpy.take(failure, myslice) >= self.nb_chances)
-                    
                     mask[:, numpy.compress(sub_idx, myslice)] = 0
 
             self.log.debug('{n} fitted {k} spikes from {m} templates'.format(n=self.name_and_counter, k=len(good), m=self.nb_templates))
@@ -285,7 +289,8 @@ class Template_matcher(Block):
             templates = self.inputs['templates'].receive(blocking=False)
             if templates is not None:
                 self._construct_templates(templates)
-                self._construct_overlaps()
+                if self.nb_templates > 0:
+                    self._construct_overlaps()
 
             if self.nb_templates > 0:
                 self._fit_chunk(batch, peaks)
