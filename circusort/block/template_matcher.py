@@ -33,6 +33,7 @@ class Template_matcher(Block):
         self.nb_chances    = 3
         self.temp_indices  = {}
         self._spike_width_ = int(self.sampling_rate*self.spike_width*1e-3)
+        self.all_delays    = numpy.arange(1, self.spike_width + 1)
         if numpy.mod(self._spike_width_, 2) == 0:
             self._spike_width_ += 1
         self._width = (self._spike_width_-1)//2
@@ -93,7 +94,6 @@ class Template_matcher(Block):
         #    nb_total     = 2*len(local_templates)
         #    upper_bounds = N_tm//2
 
-
         for count, ielec in enumerate(to_explore):
 
             local_idx = numpy.where(self.best_elec == ielec)[0]
@@ -105,18 +105,18 @@ class Template_matcher(Block):
             if len_local > 0:
 
                 to_consider   = numpy.arange(upper_bounds)
-                if not half:
-                    to_consider = numpy.concatenate((to_consider, to_consider + upper_bounds))
+                #if not half:
+                #    to_consider = numpy.concatenate((to_consider, to_consider + upper_bounds))
 
                 loc_templates  = self.templates[:, local_idx].tocsr()
                 loc_templates2 = self.templates[:, to_consider].tocsr()
 
-                for idelay in all_delays:
+                for idelay in self.all_delays:
 
-                    srows = numpy.where(rows % N_t < idelay)[0]
+                    srows = numpy.where(rows % self._spike_width_ < idelay)[0]
                     tmp_1 = loc_templates[srows]
 
-                    srows = numpy.where(rows % N_t >= (N_t - idelay))[0]
+                    srows = numpy.where(rows % self._spike_width_ >= (self._spike_width_ - idelay))[0]
                     tmp_2 = loc_templates2[srows]
 
                     data  = tmp_1.T.dot(tmp_2)
@@ -127,12 +127,12 @@ class Template_matcher(Block):
                     ddy        = numpy.take(to_consider, dy).astype(numpy.int32)
                     data       = data.ravel()
                     dd         = data.nonzero()[0].astype(numpy.int32)
-                    over_x     = numpy.concatenate((over_x, ddx*N_tm + ddy))
+                    over_x     = numpy.concatenate((over_x, ddx*self.nb_templates + ddy))
                     over_y     = numpy.concatenate((over_y, (idelay-1)*numpy.ones(len(dx), dtype=numpy.int32)))
                     over_data  = numpy.concatenate((over_data, numpy.take(data, dd)))
                     if idelay < self._spike_width_:
-                        over_x     = numpy.concatenate((over_x, ddy*N_tm + ddx))
-                        over_y     = numpy.concatenate((over_y, (2*N_t-idelay-1)*numpy.ones(len(dx), dtype=numpy.int32)))
+                        over_x     = numpy.concatenate((over_x, ddy*self.nb_templates + ddx))
+                        over_y     = numpy.concatenate((over_y, (2*self._spike_width_-idelay-1)*numpy.ones(len(dx), dtype=numpy.int32)))
                         over_data  = numpy.concatenate((over_data, numpy.take(data, dd)))
 
         overlaps = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=(self.nb_templates**2, 2*self._spike_width_ - 1))
@@ -159,7 +159,7 @@ class Template_matcher(Block):
                     tmp_pos    = numpy.zeros((2, len(self.probe.edges[int(channel)])*self._spike_width_), dtype=numpy.int32)
                     tmp_pos[0] = self._get_temp_indices(int(channel))
                     for t in template:
-                        self.best_elec = numpy.concatenate((self.best_elec, [channel]))
+                        self.best_elec = numpy.concatenate((self.best_elec, [int(channel)]))
                         data           = numpy.concatenate((data, t.ravel()))
                         tmp_pos[1]     = self.nb_templates
                         positions      = numpy.hstack((positions, tmp_pos))
@@ -291,6 +291,7 @@ class Template_matcher(Block):
             self.offset = peaks.pop('offset')
             templates = self.inputs['templates'].receive(blocking=False)
             if templates is not None:
+                self.log.debug("{n} is receiving some templates, it need to update the dictionary".format(n=self.name_and_counter))
                 self._construct_templates(templates)
                 if self.nb_templates > 0:
                     self._construct_overlaps()
