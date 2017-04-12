@@ -5,7 +5,7 @@ import numpy
 class Fake_spike_generator(Block):
     '''TODO add docstring'''
 
-    name = "Noise Generator"
+    name = "Fake Spike Generator"
 
     params = {'dtype'         : 'float32',
               'nb_channels'   : 10,

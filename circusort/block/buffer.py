@@ -7,9 +7,8 @@ class Buffer(Block):
 
     name = "Buffer"
 
-    params = {'sampling_rate' : 500,
-              'time_before'   : 5,
-              'time_after'    : 5}
+    params = {'sampling_rate' : 20000,
+              'time_buffer'   : 5}
 
     def __init__(self, **kwargs):
 
@@ -18,11 +17,7 @@ class Buffer(Block):
         self.add_input('data')
 
     def _initialize(self):
-        self._buffer_pre_width_ = int(self.sampling_rate*self.time_before*1e-3)
-        self._buffer_pre_width_ = int(self.sampling_rate*self.time_after*1e-3)
-        if numpy.mod(self._spike_width_, 2) == 0:
-            self._spike_width_ += 1
-        self._width = (self._spike_width_-1)//2        
+        self._buffer_width_ = int(self.sampling_rate*self.time_buffer*1e-3)
         return
 
     @property
@@ -34,21 +29,13 @@ class Buffer(Block):
         return self.input.shape[1]
 
     def _guess_output_endpoints(self):
-        self.output.configure(dtype=self.input.dtype, shape=self.input.shape)        
-        self.z = {}
-        m = max(len(self.a), len(self.b)) - 1
-        for i in xrange(self.nb_channels):
-            self.z[i] = numpy.zeros(m, dtype=numpy.float32)
+        shape       = (self.nb_channels, self.nb_samples + self._buffer_width_)
+        self.buffer = numpy.zeros(shape, dtype=self.input.dtype)
+        self.output.configure(dtype=self.input.dtype, shape=shape)
 
     def _process(self):
         batch = self.input.receive()
-        for i in xrange(self.nb_channels):
-            batch[i], self.z[i]  = signal.lfilter(self.b, self.a, batch[i], zi=self.z[i])
-            batch[i] -= numpy.median(batch[i]) 
-
-        if self.remove_median:
-            global_median = numpy.median(batch, 0)
-            for i in xrange(self.nb_channels):
-                batch[i] -= global_median
-        self.output.send(batch.flatten())
+        self.buffer[:, self._buffer_width_:] = batch
+        self.output.send(self.buffer.flatten())
+        self.buffer[:, :self._buffer_width_] = self.buffer[:, -self._buffer_width_:]
         return
