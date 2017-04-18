@@ -3,7 +3,7 @@ import numpy
 from circusort.config.probe import Probe
 import scipy.sparse
 
-class Template_matcher(Block):
+class Template_updater(Block):
     '''TODO add docstring'''
 
     name   = "Template updater"
@@ -12,7 +12,7 @@ class Template_matcher(Block):
               'probe'         : None,
               'radius'        : None,
               'sampling_rate' : 20000,
-              'decay_time'    : 3600}
+              'cc_merge'      : 0.25    }
 
     def __init__(self, **kwargs):
 
@@ -24,12 +24,10 @@ class Template_matcher(Block):
             self.log.info('{n} reads the probe layout'.format(n=self.name))
         self.add_input('templates')
         self.add_input('data')
-        self.add_input('peaks')
-        self.add_output('spikes', 'dict')
+        self.add_output('overlaps')
 
     def _initialize(self):
         self.spikes        = {}
-        self.nb_templates  = 0
         self.global_id     = 0
         self.temp_indices  = {}
         self._spike_width_ = int(self.sampling_rate*self.spike_width*1e-3)
@@ -47,14 +45,26 @@ class Template_matcher(Block):
     def nb_samples(self):
         return self.inputs['data'].shape[1]
 
-    def _guess_output_endpoints(self):
-        self._nb_elements  = self.nb_channels*self._spike_width_
+    @property
+    def nb_templates(self):
+        return self.templates.shape[1]
 
-    def _is_valid(self, peak):
-        return (peak >= self._width) & (peak + self._width < self.nb_samples)
+    def _guess_output_endpoints(self):
+        self._nb_elements = self.nb_channels*self._spike_width_
+        self.templates    = scipy.sparse.csc_matrix((self._nb_elements, 0), dtype=numpy.float32)
+        self.norms        = numpy.zeros(0, dtype=numpy.float32)
+        self.best_elec    = numpy.zeros(0, dtype=numpy.int32)
+        self.amplitudes   = numpy.zeros((0, 2), dtype=numpy.float32)
+        self.overlaps     = {}
+
+        # ## We normalize the templates
+        # for idx in xrange(self.nb_templates):
+        #     self.norms[idx] = numpy.sqrt(self.templates[:, idx].sum()**2)/self._nb_elements 
+        #     myslice = numpy.arange(self.templates.indptr[idx], self.templates.indptr[idx+1])
+        #     self.templates.data[myslice] /= self.norms[idx]
+
 
     def _get_temp_indices(self, channel):
-
         if not self.temp_indices.has_key(channel):
             indices = self.probe.edges[channel]
             self.temp_indices[channel] = numpy.zeros(0, dtype=numpy.int32)
@@ -63,19 +73,37 @@ class Template_matcher(Block):
                 self.temp_indices[channel] = numpy.concatenate((self.temp_indices[channel], tmp))
         return self.temp_indices[channel]
 
-    def _get_all_valid_peaks(self, peaks):
-        all_peaks = set([])
-        for key in peaks.keys():
-            for channel in peaks[key].keys():
-                all_peaks = all_peaks.union(peaks[key][channel])
-
-        all_peaks = numpy.array(list(all_peaks), dtype=numpy.int32)
-        mask = self._is_valid(all_peaks)
-        return all_peaks[mask]
-
 
     def _dump_template(self, key, channel):
         pass
+
+
+    def _cross_corr(self, t1, t2):
+        t1 = t1.toarray().reshape(self.nb_channels, self._spike_width_)
+        t2 = t2.toarray().reshape(self.nb_channels, self._spike_width_)
+        return numpy.corrcoef(t1.flatten(), t2.flatten())[0, 1]
+
+    def _is_duplicate(self, template):
+        for idx in xrange(self.nb_templates):
+            if self._cross_corr(template, self.templates[:, idx]) >= self.cc_merge:
+                self.log.debug('A duplicate template is found, thus rejected')
+                return True
+        return False
+
+    def _add_template(self, template, amplitude):
+        self.amplitudes = numpy.vstack((self.amplitudes, amplitude))
+        template_norm   = numpy.sqrt(template.sum()**2)/self._nb_elements
+        self.norms      = numpy.concatenate((self.norms, [template_norm]))
+        self.templates  = scipy.sparse.hstack((self.templates, template), format='csc')
+        self.global_id += 1
+
+
+    def _update_overlaps(self, indices):
+
+        for c1 in xrange(indices):
+            for c2 in xrange(self.nb_templates):
+
+
 
     def _construct_overlaps(self):
         over_x    = numpy.zeros(0, dtype=numpy.int32)
@@ -147,54 +175,39 @@ class Template_matcher(Block):
             self.overlaps[i] = overlaps[i*self.nb_templates:(i+1)*self.nb_templates]
         del overlaps
 
-    def _construct_templates(self, templates):
+    def _construct_templates(self, templates_data):
 
-        data      = numpy.zeros(0, dtype=numpy.float32)
-        positions = numpy.zeros((2, 0), dtype=numpy.int32)
-        self.best_elec = numpy.zeros(0, dtype=numpy.int32)
-        self.amplitudes = numpy.zeros((0, 2), dtype=numpy.float32)
+        new_templates = []
 
-        self.nb_templates = 0
+        for key in templates_data['dat'].keys():
+            for channel in templates_data['dat'][key].keys():
+                templates  = numpy.array(templates_data['dat'][key][channel]).astype(numpy.float32)
+                amplitudes = numpy.array(templates_data['amp'][key][channel]).astype(numpy.float32)
+                if len(templates) > 0:
+                    tmp_pos = self._get_temp_indices(int(channel))
+                    n_data  = len(tmp_pos)
+                    for count, t in enumerate(templates):
+                        template = scipy.sparse.csc_matrix((t.ravel(), (tmp_pos, numpy.zeros(n_data))), shape=(self._nb_elements, 1))
 
-        for key in templates['dat'].keys():
-            for channel in templates['dat'][key].keys():
-                template   = numpy.array(templates['dat'][key][channel]).astype(numpy.float32)
-                if len(template) > 0:
-                    tmp_pos    = numpy.zeros((2, len(self.probe.edges[int(channel)])*self._spike_width_), dtype=numpy.int32)
-                    tmp_pos[0] = self._get_temp_indices(int(channel))
-                    for t in template:
-                        self.best_elec = numpy.concatenate((self.best_elec, [int(channel)]))
-                        data           = numpy.concatenate((data, t.ravel()))
-                        tmp_pos[1]     = self.nb_templates
-                        positions      = numpy.hstack((positions, tmp_pos))
-                        self.nb_templates += 1
+                        is_duplicate = self._is_duplicate(template)
+                        if not is_duplicate:
+                            self._add_template(template, amplitudes[count])
+                            self.log.debug('The dictionary has now {k} templates'.format(k=self.nb_templates))
+                            new_templates += [self.global_id]
 
-                    amplitudes = numpy.array(templates['amp'][key][channel]).astype(numpy.float32)
-                    self.amplitudes = numpy.vstack((self.amplitudes, amplitudes))
-    
-        self.templates  = scipy.sparse.csc_matrix((data, (positions[0], positions[1])), shape=(self._nb_elements, self.nb_templates))
-        self.norms      = numpy.zeros(self.nb_templates, dtype=numpy.float32)
-
-        ## We normalize the templates
-        for idx in xrange(self.nb_templates):
-            self.norms[idx] = numpy.sqrt(self.templates[:, idx].sum()**2)/self._nb_elements 
-            myslice = numpy.arange(self.templates.indptr[idx], self.templates.indptr[idx+1])
-            self.templates.data[myslice] /= self.norms[idx]
+        return new_templates
 
     def _process(self):
-        batch = self.inputs['data'].receive()
-        peaks = self.inputs['peaks'].receive(blocking=False)
 
-        if peaks is not None:
-            self.offset = peaks.pop('offset')
-            data = self.inputs['templates'].receive(blocking=False)
-            if data is not None:
-                self.log.debug("{n} is receiving some templates: needs to update the dictionary".format(n=self.name_and_counter))
-                self._construct_templates(data)
-                if self.nb_templates > 0:
-                    self._construct_overlaps()
+        data = self.inputs['templates'].receive(blocking=False)
+        if data is not None:
+            self.log.debug("{n} updates the dictionary of templates".format(n=self.name_and_counter))
+            new_templates = self._construct_templates(data)
+            
+            if len(new_templates) > 0:
+                self._update_overlaps(new_templates)
 
-            if self.nb_templates > 0:
-                self.output.send(self.result)
+        #if self.nb_templates > 0:
+        #    self.output.send(self.result)
 
         return
