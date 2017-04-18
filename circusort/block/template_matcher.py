@@ -249,9 +249,7 @@ class Template_matcher(Block):
                     best_amp_n   = best_amp/numpy.take(self.norms, inds_temp)
                     #best_amp2_n  = best_amp2/numpy.take(norm_templates, inds_temp + self.nb_templates)
 
-                    ######## To EDIT
                     all_idx      = ((best_amp_n >= self.amplitudes[inds_temp, 0]) & (best_amp_n <= self.amplitudes[inds_temp, 1]))
-                    
                     to_keep      = numpy.where(all_idx == True)[0]
                     to_reject    = numpy.where(all_idx == False)[0]
                     ts           = numpy.take(peaks, inds_t[to_keep])

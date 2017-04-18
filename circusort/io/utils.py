@@ -1,5 +1,5 @@
 import os
-
+import tempfile
 
 
 def decompose_path(path):
@@ -46,3 +46,28 @@ def make_local_directory(path):
     if not os.path.exists(directory):
         os.makedirs(directory)
     return
+
+def generate_fake_probe(nb_channels, radius=10):
+    res = '''
+total_nb_channels = %d
+radius            = %d
+channel_groups    = {}
+
+def get_geometry(channels):
+    res = {}
+    for count, c in enumerate(channels):
+        res[c] = [count, count]
+    return res
+
+channel_groups[0]             = {}
+channel_groups[0]["channels"] = range(total_nb_channels)
+channel_groups[0]["geometry"] = get_geometry(range(total_nb_channels))
+channel_groups[0]["graph"]    = []''' %(nb_channels, radius)
+
+    tmp_file  = tempfile.NamedTemporaryFile()
+    data_path = os.path.join(tempfile.gettempdir(), os.path.basename(tmp_file.name)) + ".prb"
+    tmp_file.close()
+    file = open(data_path, 'w')
+    file.write(res)
+    file.close()
+    return data_path
