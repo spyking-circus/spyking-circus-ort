@@ -149,12 +149,13 @@ class Template_matcher(Block):
         data      = numpy.zeros(0, dtype=numpy.float32)
         positions = numpy.zeros((2, 0), dtype=numpy.int32)
         self.best_elec = numpy.zeros(0, dtype=numpy.int32)
+        self.amplitudes = numpy.zeros((0, 2), dtype=numpy.float32)
 
         self.nb_templates = 0
 
-        for key in templates.keys():
-            for channel in templates[key].keys():
-                template   = numpy.array(templates[key][channel]).astype(numpy.float32)
+        for key in templates['dat'].keys():
+            for channel in templates['dat'][key].keys():
+                template   = numpy.array(templates['dat'][key][channel]).astype(numpy.float32)
                 if len(template) > 0:
                     tmp_pos    = numpy.zeros((2, len(self.probe.edges[int(channel)])*self._spike_width_), dtype=numpy.int32)
                     tmp_pos[0] = self._get_temp_indices(int(channel))
@@ -165,8 +166,11 @@ class Template_matcher(Block):
                         positions      = numpy.hstack((positions, tmp_pos))
                         self.nb_templates += 1
 
-        self.templates = scipy.sparse.csc_matrix((data, (positions[0], positions[1])), shape=(self._nb_elements, self.nb_templates))
-        self.norms     = numpy.zeros(self.nb_templates, dtype=numpy.float32)
+                    amplitudes = numpy.array(templates['amp'][key][channel]).astype(numpy.float32)
+                    self.amplitudes = numpy.vstack((self.amplitudes, amplitudes))
+    
+        self.templates  = scipy.sparse.csc_matrix((data, (positions[0], positions[1])), shape=(self._nb_elements, self.nb_templates))
+        self.norms      = numpy.zeros(self.nb_templates, dtype=numpy.float32)
 
         ## We normalize the templates
         for idx in xrange(self.nb_templates):
@@ -246,7 +250,7 @@ class Template_matcher(Block):
                     #best_amp2_n  = best_amp2/numpy.take(norm_templates, inds_temp + self.nb_templates)
 
                     ######## To EDIT
-                    all_idx      = ((best_amp_n >= 0) & (best_amp_n <= 1000))
+                    all_idx      = ((best_amp_n >= self.amplitudes[inds_temp, 0]) & (best_amp_n <= self.amplitudes[inds_temp, 1]))
                     
                     to_keep      = numpy.where(all_idx == True)[0]
                     to_reject    = numpy.where(all_idx == False)[0]
@@ -289,10 +293,10 @@ class Template_matcher(Block):
 
         if peaks is not None:
             self.offset = peaks.pop('offset')
-            templates = self.inputs['templates'].receive(blocking=False)
-            if templates is not None:
-                self.log.debug("{n} is receiving some templates, it need to update the dictionary".format(n=self.name_and_counter))
-                self._construct_templates(templates)
+            data = self.inputs['templates'].receive(blocking=False)
+            if data is not None:
+                self.log.debug("{n} is receiving some templates: needs to update the dictionary".format(n=self.name_and_counter))
+                self._construct_templates(data)
                 if self.nb_templates > 0:
                     self._construct_overlaps()
 

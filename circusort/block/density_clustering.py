@@ -20,6 +20,8 @@ class Density_clustering(Block):
               'probe'         : None,
               'radius'        : None,
               'm_ratio'       : 0.01,
+              'noise_thr'     : 0.8,
+              'dispersion'    : [5, 5],
               'extraction'    : 'median-raw'}
 
     def __init__(self, **kwargs):
@@ -132,10 +134,14 @@ class Density_clustering(Block):
                 self.chan_positions[channel] = numpy.where(self.probe.edges[channel] == channel)[0]
                 
     def _init_data_structures(self):
-        self.pca_data  = {}
-        self.raw_data  = {}
-        self.clusters  = {}
-        self.templates = {}
+        self.pca_data   = {}
+        self.raw_data   = {}
+        self.clusters   = {}
+        self.templates  = {}
+
+        self.templates['dat'] = {}
+        self.templates['amp'] = {}
+
         if not numpy.all(self.pcs[0] == 0):
             self.sign_peaks += ['negative']
         if not numpy.all(self.pcs[1] == 0):
@@ -143,10 +149,11 @@ class Density_clustering(Block):
         self.log.debug("{n} will detect peaks {s}".format(n=self.name, s=self.sign_peaks))
 
         for key in self.sign_peaks:
-            self.pca_data[key]  = {}
-            self.raw_data[key]  = {}
-            self.clusters[key]  = {}
-            self.templates[key] = {}
+            self.pca_data[key]   = {}
+            self.raw_data[key]   = {}
+            self.clusters[key]   = {}
+            self.templates['dat'][key] = {}
+            self.templates['amp'][key] = {}
 
         for key in self.sign_peaks:
             for channel in xrange(self.nb_channels):
@@ -167,7 +174,8 @@ class Density_clustering(Block):
 
         labels = numpy.unique(self.clusters[key][channel])
         labels = labels[labels > -1]
-        self.log.debug("{n} found {m} templates on channel {d}".format(n=self.name_and_counter, m=len(labels), d=channel))
+        if len(labels) > 0:
+            self.log.debug("{n} found {m} templates on channel {d}".format(n=self.name_and_counter, m=len(labels), d=channel))
         for l in labels:
             indices = numpy.where(labels == l)[0]
             data = self.raw_data[key][channel][indices]
@@ -175,14 +183,30 @@ class Density_clustering(Block):
                 template = numpy.mean(data, 0)
             elif self.extraction == 'median-raw':
                 template = numpy.median(data, 0)
-            template = template.reshape(template.shape[0], template.shape[1]).T
-            template = self._center_template(template, key)
+
+            amplitudes = self._get_amplitudes(data, template, channel)
+            template   = template.reshape(template.shape[0], template.shape[1]).T
+            template   = self._center_template(template, key)
 
             ## Here we should compress the templates for large-scale
             #template = self._sparsify_template(template, channel)
             
-            self.templates[key][channel] = numpy.vstack((self.templates[key][channel], template.reshape(1, template.shape[0], template.shape[1])))
+            self.templates['dat'][key][channel] = numpy.vstack((self.templates['dat'][key][channel], template.reshape(1, template.shape[0], template.shape[1])))
+            self.templates['amp'][key][channel] = numpy.vstack((self.templates['amp'][key][channel], amplitudes))
             self.to_reset += [(key, channel)]
+
+    def _get_amplitudes(self, data, template, channel):
+        x, y, z     = data.shape
+        data        = data.reshape(x, y*z)
+        first_flat  = template.reshape(y*z, 1)
+        amplitudes  = numpy.dot(data, first_flat)
+        amplitudes /= numpy.sum(first_flat**2)
+        variation      = numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
+        physical_limit = self.noise_thr*(-self.thresholds[channel])/template.min()
+        amp_min        = min(0.8, max(physical_limit, numpy.median(amplitudes) - self.dispersion[0]*variation))
+        amp_max        = max(1.2, numpy.median(amplitudes) + self.dispersion[1]*variation)
+
+        return numpy.array([amp_min, amp_max], dtype=numpy.float32)
 
     def _center_template(self, template, key):
         if key == 'negative':
@@ -210,11 +234,11 @@ class Density_clustering(Block):
 
 
     def _reset_data_structures(self, key, channel):
-        self.pca_data[key][channel]  = numpy.zeros((0, self.pcs.shape[1], len(self.probe.edges[channel])), dtype=numpy.float32)
-        self.raw_data[key][channel]  = numpy.zeros((0, self._spike_width_, len(self.probe.edges[channel])), dtype=numpy.float32)
-        self.clusters[key][channel]  = numpy.zeros(0, dtype=numpy.int32)
-        self.templates[key][channel] = numpy.zeros((0, len(self.probe.edges[channel]), self._spike_width_), dtype=numpy.float32)
-
+        self.pca_data[key][channel]   = numpy.zeros((0, self.pcs.shape[1], len(self.probe.edges[channel])), dtype=numpy.float32)
+        self.raw_data[key][channel]   = numpy.zeros((0, self._spike_width_, len(self.probe.edges[channel])), dtype=numpy.float32)
+        self.clusters[key][channel]   = numpy.zeros(0, dtype=numpy.int32)
+        self.templates['dat'][key][channel] = numpy.zeros((0, len(self.probe.edges[channel]), self._spike_width_), dtype=numpy.float32)
+        self.templates['amp'][key][channel] = numpy.zeros((0, 2), dtype=numpy.float32)
 
     def _process(self):
 
