@@ -127,10 +127,8 @@ class Density_clustering(Block):
     def _guess_output_endpoints(self):
         if self.inputs['data'].dtype is not None:
             self.decay_time = numpy.exp(-self.nb_samples/float(self.time_constant))
-            #self.output.configure(dtype=self.input.dtype, shape=self.input.shape)        
             self.chan_positions = numpy.zeros(self.nb_channels, dtype=numpy.int32)
             for channel in xrange(self.nb_channels):
-                #indices = numpy.take(inv_nodes, edges[nodes[i]])
                 self.chan_positions[channel] = numpy.where(self.probe.edges[channel] == channel)[0]
                 
     def _init_data_structures(self):
@@ -187,9 +185,6 @@ class Density_clustering(Block):
             amplitudes = self._get_amplitudes(data, template, channel)
             template   = template.reshape(template.shape[0], template.shape[1]).T
             template   = self._center_template(template, key)
-
-            ## Here we should compress the templates for large-scale
-            #template = self._sparsify_template(template, channel)
             
             self.templates['dat'][key][channel] = numpy.vstack((self.templates['dat'][key][channel], template.reshape(1, template.shape[0], template.shape[1])))
             self.templates['amp'][key][channel] = numpy.vstack((self.templates['amp'][key][channel], amplitudes))
@@ -225,20 +220,13 @@ class Density_clustering(Block):
             aligned_template = template
         return aligned_template
 
-
-    def _sparsify_template(self, template, channel):
-        for i in xrange(template.shape[0]):
-            if (numpy.abs(templates[i]).max() < 0.5*self.thresholds[i]):
-                template[i] = 0
-        return template
-
-
     def _reset_data_structures(self, key, channel):
         self.pca_data[key][channel]   = numpy.zeros((0, self.pcs.shape[1], len(self.probe.edges[channel])), dtype=numpy.float32)
         self.raw_data[key][channel]   = numpy.zeros((0, self._spike_width_, len(self.probe.edges[channel])), dtype=numpy.float32)
         self.clusters[key][channel]   = numpy.zeros(0, dtype=numpy.int32)
         self.templates['dat'][key][channel] = numpy.zeros((0, len(self.probe.edges[channel]), self._spike_width_), dtype=numpy.float32)
         self.templates['amp'][key][channel] = numpy.zeros((0, 2), dtype=numpy.float32)
+
 
     def _process(self):
 

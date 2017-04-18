@@ -13,10 +13,8 @@ director      = circusort.create_director(host=host)
 manager       = director.create_manager(host=host)
 manager2      = director.create_manager(host=host)
 
-nb_channels   = 10
+nb_channels   = 50
 probe_file    = generate_fake_probe(nb_channels)
-
-print probe_file
 
 noise         = manager.create_block('fake_spike_generator', nb_channels=nb_channels)
 filter        = manager.create_block('filter')
@@ -25,7 +23,7 @@ mad_estimator = manager.create_block('mad_estimator')
 peak_detector = manager.create_block('peak_detector', threshold=5)
 pca           = manager.create_block('pca', nb_waveforms=5000)
 cluster       = manager2.create_block('density_clustering', probe=probe_file, nb_waveforms=100)
-fitter        = manager2.create_block('template_matcher', probe=probe_file, log_level=logging.DEBUG)
+fitter        = manager2.create_block('template_matcher', probe=probe_file)
 writer_1      = manager2.create_block('spike_writer')
 writer_2      = manager2.create_block('writer')
 
@@ -41,5 +39,5 @@ director.connect(cluster.get_output('templates'), fitter.get_input('templates'))
 director.connect(fitter.output, writer_1.input)
 
 director.start()
-director.sleep(duration=20.0)
+director.sleep(duration=60.0)
 director.stop()

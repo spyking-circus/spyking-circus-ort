@@ -4,7 +4,7 @@
 import circusort
 import settings
 import logging
-
+from circusort.io.utils import generate_fake_probe
 
 host = '127.0.0.1' # to run the test locally
 
@@ -12,15 +12,16 @@ director      = circusort.create_director(host=host)
 manager       = director.create_manager(host=host)
 manager2      = director.create_manager(host=host)
 
-# def generate_mapping()
+nb_channels   = 50
+probe_file    = generate_fake_probe(nb_channels)
 
-noise         = manager.create_block('fake_spike_generator', nb_channels=10)
+noise         = manager.create_block('fake_spike_generator', nb_channels=nb_channels)
 filter        = manager.create_block('filter')
 whitening     = manager.create_block('whitening')
 mad_estimator = manager.create_block('mad_estimator')
 peak_detector = manager.create_block('peak_detector', threshold=5, sign_peaks='both')
 pca           = manager.create_block('pca', nb_waveforms=5000)
-cluster       = manager2.create_block('density_clustering', probe='test.prb', nb_waveforms=1000, log_level=logging.DEBUG)
+cluster       = manager2.create_block('density_clustering', probe=probe_file, nb_waveforms=1000, log_level=logging.DEBUG)
 
 director.initialize()
 
@@ -32,6 +33,6 @@ director.connect(peak_detector.get_output('peaks'), [pca.get_input('peaks'), clu
 director.connect(pca.get_output('pcs'), cluster.get_input('pcs'))
 
 director.start()
-director.sleep(duration=30.0)
+director.sleep(duration=60.0)
 
 director.stop()
