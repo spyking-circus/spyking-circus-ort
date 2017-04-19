@@ -2,6 +2,7 @@ from .block import Block
 import numpy, os, tempfile
 from circusort.config.probe import Probe
 import scipy.sparse
+from circusort.io.utils import save_sparse
 
 class Template_updater(Block):
     '''TODO add docstring'''
@@ -25,7 +26,7 @@ class Template_updater(Block):
             self.probe = Probe(self.probe, radius=self.radius, logger=self.log)
             self.log.info('{n} reads the probe layout'.format(n=self.name))
         self.add_input('templates')
-        self.add_output('overlaps')
+        self.add_output('updater', 'dict')
 
     def _initialize(self):
         self.spikes        = {}
@@ -197,10 +198,11 @@ class Template_updater(Block):
         if data is not None:
             self.log.debug("{n} updates the dictionary of templates".format(n=self.name_and_counter))
             new_templates = self._construct_templates(data)
-            
+            save_sparse('test', self.templates)
+
             if len(new_templates) > 0:
                 self._update_overlaps(new_templates)
-
-                #self.output.send(self.result)
+                #save_sparse_csr('test', self.overlaps)
+                self.output.send({'templates' : 'test'})
 
         return

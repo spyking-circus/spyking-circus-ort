@@ -1,6 +1,7 @@
 from .block import Block
 import numpy
 import scipy.sparse
+from circusort.io.utils import load_sparse
 
 class Template_fitter(Block):
     '''TODO add docstring'''
@@ -8,27 +9,21 @@ class Template_fitter(Block):
     name   = "Template fitter"
 
     params = {'spike_width'   : 5.,
-              'probe'         : None,
-              'radius'        : None,
               'sampling_rate' : 20000}
 
     def __init__(self, **kwargs):
 
         Block.__init__(self, **kwargs)
-        self.add_input('templates')
-        self.add_input('overlaps')
+        self.add_input('updater')
         self.add_input('data')
         self.add_input('peaks')
         self.add_output('spikes', 'dict')
 
     def _initialize(self):
-        self.spikes        = {}
-        self.nb_templates  = 0
         self.space_explo   = 0.5
         self.nb_chances    = 3
-        self.temp_indices  = {}
         self._spike_width_ = int(self.sampling_rate*self.spike_width*1e-3)
-        self.all_delays    = numpy.arange(1, self.spike_width + 1)
+
         if numpy.mod(self._spike_width_, 2) == 0:
             self._spike_width_ += 1
         self._width = (self._spike_width_-1)//2
@@ -48,6 +43,7 @@ class Template_fitter(Block):
 
     def _guess_output_endpoints(self):
         self._nb_elements  = self.nb_channels*self._spike_width_
+        self.templates     = scipy.sparse.csc_matrix((self._nb_elements, 0), dtype=numpy.float32)
 
     def _is_valid(self, peak):
         return (peak >= self._width) & (peak + self._width < self.nb_samples)
@@ -62,16 +58,19 @@ class Template_fitter(Block):
         mask = self._is_valid(all_peaks)
         return all_peaks[mask]
 
-
-    def _fit_chunk(self, batch, peaks):
-
-        peaks       = self._get_all_valid_peaks(peaks)
-        n_peaks     = len(peaks)
-        all_indices = numpy.arange(n_peaks)
+    def _reset(self):
         self.result = {'spike_times' : numpy.zeros(0, dtype=numpy.int32),
                        'amplitudes'  : numpy.zeros(0, dtype=numpy.float32),
                        'templates'   : numpy.zeros(0, dtype=numpy.int32),
                        'offset'      : self.counter}
+
+
+    def _fit_chunk(self, batch, peaks):
+
+        self._reset()
+        peaks       = self._get_all_valid_peaks(peaks)
+        n_peaks     = len(peaks)
+        all_indices = numpy.arange(n_peaks)
 
         if n_peaks > 0:
 
@@ -177,14 +176,13 @@ class Template_fitter(Block):
         if peaks is not None:
             self.offset = peaks.pop('offset')
 
-            templates = self.inputs['templates'].receive(blocking=False)
-            overlaps  = self.inputs['overlaps'].receive(blocking=False)
-
-            if templates is not None:
-                ## Do something
-
+            updater  = self.inputs['updater'].receive(blocking=False)
+            
+            if updater is not None:
+                self.templates = load_sparse(updater['templates'], format='csc')
+            
             if self.nb_templates > 0:
-                self._fit_chunk(batch, peaks)
-                self.output.send(self.result)
+                 self._fit_chunk(batch, peaks)
+                 self.output.send(self.result)
 
         return
