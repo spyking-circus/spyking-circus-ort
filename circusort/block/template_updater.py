@@ -13,7 +13,8 @@ class Template_updater(Block):
               'radius'        : None,
               'sampling_rate' : 20000,
               'cc_merge'      : 0.25, 
-              'data_path'     : None}
+              'data_path'     : None,
+              'nb_channels'   : 10}
 
     def __init__(self, **kwargs):
 
@@ -24,7 +25,6 @@ class Template_updater(Block):
             self.probe = Probe(self.probe, radius=self.radius, logger=self.log)
             self.log.info('{n} reads the probe layout'.format(n=self.name))
         self.add_input('templates')
-        self.add_input('data')
         self.add_output('overlaps')
 
     def _initialize(self):
@@ -49,14 +49,6 @@ class Template_updater(Block):
             os.makedirs(self.data_path)
         self.log.info('Templates data are saved in {k}'.format(k=self.data_path))
         return
-
-    @property
-    def nb_channels(self):
-        return self.inputs['data'].shape[0]
-
-    @property
-    def nb_samples(self):
-        return self.inputs['data'].shape[1]
 
     @property
     def nb_templates(self):
@@ -84,16 +76,16 @@ class Template_updater(Block):
                 self.temp_indices[channel] = numpy.concatenate((self.temp_indices[channel], tmp))
 
         if self.data_path is not None:
-            self.mapping_sparse = -1 * numpy.ones((self.nb_channels, self.max_nn_chan), dtype=numpy.int32)
-            self.writers = {}
+            mapping_sparse  = -1 * numpy.ones((self.nb_channels, self.max_nn_chan), dtype=numpy.int32)
+            self.writers               = {}
             self.writers['mapping']    = os.path.join(self.data_path, 'mapping')
             self.writers['amplitudes'] = open(os.path.join(self.data_path, 'amplitudes.dat'), 'wb')
             self.writers['channels']   = open(os.path.join(self.data_path, 'channels.dat'), 'wb')
             self.writers['templates']  = open(os.path.join(self.data_path, 'templates.dat'), 'wb')
             for channel in xrange(self.nb_channels):
                 indices = self.probe.edges[channel]
-                self.mapping_sparse[channel, :len(indices)] = indices
-            numpy.save(self.writers['mapping'], self.mapping_sparse)
+                mapping_sparse[channel, :len(indices)] = indices
+            numpy.save(self.writers['mapping'], mapping_sparse)
 
         # ## We normalize the templates
         # for idx in xrange(self.nb_templates):
@@ -150,7 +142,6 @@ class Template_updater(Block):
             all_x      = numpy.zeros(0, dtype=numpy.int32)
             all_y      = numpy.zeros(0, dtype=numpy.int32)
             all_data   = numpy.zeros(0, dtype=numpy.float32)
-            iall_y     = numpy.zeros(0, dtype=numpy.int32)
             
             for idelay in self.all_delays:
                 srows      = numpy.where(self.all_rows % self._spike_width_ < idelay)[0]
@@ -175,7 +166,6 @@ class Template_updater(Block):
                 overlap          = self.overlaps[c1][t]
                 overlap.data     = overlap.data[::-1]
                 self.overlaps[t] = scipy.sparse.vstack((self.overlaps[t], overlap), format='csr')
-
 
     def _construct_templates(self, templates_data):
 
@@ -211,7 +201,6 @@ class Template_updater(Block):
             if len(new_templates) > 0:
                 self._update_overlaps(new_templates)
 
-        #if self.nb_templates > 0:
-        #    self.output.send(self.result)
+                #self.output.send(self.result)
 
         return
