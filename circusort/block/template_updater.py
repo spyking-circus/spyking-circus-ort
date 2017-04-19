@@ -12,7 +12,8 @@ class Template_updater(Block):
               'probe'         : None,
               'radius'        : None,
               'sampling_rate' : 20000,
-              'cc_merge'      : 0.25    }
+              'cc_merge'      : 0.25, 
+              'data_path'     : None}
 
     def __init__(self, **kwargs):
 
@@ -35,6 +36,7 @@ class Template_updater(Block):
         if numpy.mod(self._spike_width_, 2) == 0:
             self._spike_width_ += 1
         self._width = (self._spike_width_-1)//2
+        self._overlap_size = 2*self._spike_width_ - 1
         return
 
     @property
@@ -51,11 +53,20 @@ class Template_updater(Block):
 
     def _guess_output_endpoints(self):
         self._nb_elements = self.nb_channels*self._spike_width_
+        self.all_rows     = numpy.arange(self.nb_channels*self._spike_width_)
         self.templates    = scipy.sparse.csc_matrix((self._nb_elements, 0), dtype=numpy.float32)
         self.norms        = numpy.zeros(0, dtype=numpy.float32)
         self.best_elec    = numpy.zeros(0, dtype=numpy.int32)
         self.amplitudes   = numpy.zeros((0, 2), dtype=numpy.float32)
         self.overlaps     = {}
+        self.max_nn_chan  = 0
+
+        for channel in xrange(self.nb_channels):
+            indices = self.probe.edges[channel]
+            self.temp_indices[channel] = numpy.zeros(0, dtype=numpy.int32)
+            for i in indices:
+                tmp = numpy.arange(i*self._spike_width_, (i+1)*self._spike_width_)
+                self.temp_indices[channel] = numpy.concatenate((self.temp_indices[channel], tmp))
 
         # ## We normalize the templates
         # for idx in xrange(self.nb_templates):
@@ -95,85 +106,43 @@ class Template_updater(Block):
         template_norm   = numpy.sqrt(template.sum()**2)/self._nb_elements
         self.norms      = numpy.concatenate((self.norms, [template_norm]))
         self.templates  = scipy.sparse.hstack((self.templates, template), format='csc')
-        self.global_id += 1
 
 
     def _update_overlaps(self, indices):
 
-        for c1 in xrange(indices):
-            for c2 in xrange(self.nb_templates):
+        tmp_loc_c2 = self.templates.tocsr()
 
+        for c1 in indices:
+            tmp_loc_c1 = self.templates[:, c1].tocsr()
+            all_x      = numpy.zeros(0, dtype=numpy.int32)
+            all_y      = numpy.zeros(0, dtype=numpy.int32)
+            all_data   = numpy.zeros(0, dtype=numpy.float32)
+            iall_y     = numpy.zeros(0, dtype=numpy.int32)
+            
+            for idelay in self.all_delays:
+                srows      = numpy.where(self.all_rows % self._spike_width_ < idelay)[0]
+                tmp_1      = tmp_loc_c1[srows]
 
+                srows      = numpy.where(self.all_rows % self._spike_width_ >= (self._spike_width_ - idelay))[0]
+                tmp_2      = tmp_loc_c2[srows]
 
-    def _construct_overlaps(self):
-        over_x    = numpy.zeros(0, dtype=numpy.int32)
-        over_y    = numpy.zeros(0, dtype=numpy.int32)
-        over_data = numpy.zeros(0, dtype=numpy.float32)
-        rows      = numpy.arange(self.nb_channels*self._spike_width_)
+                data       = tmp_1.T.dot(tmp_2)
+                data       = data.toarray()
 
-        to_explore = numpy.arange(self.nb_channels)
+                dx, dy     = data.nonzero()
+                data       = data[data.nonzero()].ravel()
+                all_x      = numpy.concatenate((all_x, dx))
+                all_y      = numpy.concatenate((all_y, dy))
+                all_data   = numpy.concatenate((all_data, data))
 
-        #local_templates = numpy.zeros(0, dtype=numpy.int32)
-        #for ielec in range(comm.rank, N_e, comm.size):
-        #    local_templates = numpy.concatenate((local_templates, numpy.where(best_elec == ielec)[0]))
-        local_templates = numpy.arange(self.nb_templates)
+            self.overlaps[c1] = scipy.sparse.csr_matrix((all_data, (all_x, all_y)), shape=(self.nb_templates, self._overlap_size))
 
-        #if half:
-        nb_total     = len(local_templates)
-        upper_bounds = self.templates.shape[1]
-        #else:
-        #    nb_total     = 2*len(local_templates)
-        #    upper_bounds = N_tm//2
+            # Now we need to add those overlaps to the old ones
+            for t in range(min(indices)):
+                overlap          = self.overlaps[c1][t]
+                overlap.data     = overlap.data[::-1]
+                self.overlaps[t] = scipy.sparse.vstack((self.overlaps[t], overlap), format='csr')
 
-        for count, ielec in enumerate(to_explore):
-
-            local_idx = numpy.where(self.best_elec == ielec)[0]
-            len_local = len(local_idx)
-
-            # if not half:
-            #     local_idx = numpy.concatenate((local_idx, local_idx + upper_bounds))
-
-            if len_local > 0:
-
-                to_consider   = numpy.arange(upper_bounds)
-                #if not half:
-                #    to_consider = numpy.concatenate((to_consider, to_consider + upper_bounds))
-
-                loc_templates  = self.templates[:, local_idx].tocsr()
-                loc_templates2 = self.templates[:, to_consider].tocsr()
-
-                for idelay in self.all_delays:
-
-                    srows = numpy.where(rows % self._spike_width_ < idelay)[0]
-                    tmp_1 = loc_templates[srows]
-
-                    srows = numpy.where(rows % self._spike_width_ >= (self._spike_width_ - idelay))[0]
-                    tmp_2 = loc_templates2[srows]
-
-                    data  = tmp_1.T.dot(tmp_2)
-                    data  = data.toarray()
-
-                    dx, dy     = data.nonzero()
-                    ddx        = numpy.take(local_idx, dx).astype(numpy.int32)
-                    ddy        = numpy.take(to_consider, dy).astype(numpy.int32)
-                    data       = data.ravel()
-                    dd         = data.nonzero()[0].astype(numpy.int32)
-                    over_x     = numpy.concatenate((over_x, ddx*self.nb_templates + ddy))
-                    over_y     = numpy.concatenate((over_y, (idelay-1)*numpy.ones(len(dx), dtype=numpy.int32)))
-                    over_data  = numpy.concatenate((over_data, numpy.take(data, dd)))
-                    if idelay < self._spike_width_:
-                        over_x     = numpy.concatenate((over_x, ddy*self.nb_templates + ddx))
-                        over_y     = numpy.concatenate((over_y, (2*self._spike_width_-idelay-1)*numpy.ones(len(dx), dtype=numpy.int32)))
-                        over_data  = numpy.concatenate((over_data, numpy.take(data, dd)))
-
-        overlaps = scipy.sparse.csr_matrix((over_data, (over_x, over_y)), shape=(self.nb_templates**2, 2*self._spike_width_ - 1))
-        # To be faster, we rearrange the overlaps into a dictionnary. This has a cost: twice the memory usage for 
-        # a short period of time
-        self.overlaps = {}
-
-        for i in xrange(self.nb_templates):
-            self.overlaps[i] = overlaps[i*self.nb_templates:(i+1)*self.nb_templates]
-        del overlaps
 
     def _construct_templates(self, templates_data):
 
@@ -189,11 +158,12 @@ class Template_updater(Block):
                     for count, t in enumerate(templates):
                         template = scipy.sparse.csc_matrix((t.ravel(), (tmp_pos, numpy.zeros(n_data))), shape=(self._nb_elements, 1))
 
-                        is_duplicate = self._is_duplicate(template)
-                        if not is_duplicate:
+                        is_duplicated = self._is_duplicate(template)
+                        if not is_duplicated:
                             self._add_template(template, amplitudes[count])
                             self.log.debug('The dictionary has now {k} templates'.format(k=self.nb_templates))
-                            new_templates += [self.global_id]
+                            new_templates  += [self.global_id]
+                            self.global_id += 1
 
         return new_templates
 
