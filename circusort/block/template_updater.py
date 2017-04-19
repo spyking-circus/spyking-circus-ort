@@ -1,5 +1,5 @@
 from .block import Block
-import numpy
+import numpy, os, tempfile
 from circusort.config.probe import Probe
 import scipy.sparse
 
@@ -37,6 +37,17 @@ class Template_updater(Block):
             self._spike_width_ += 1
         self._width = (self._spike_width_-1)//2
         self._overlap_size = 2*self._spike_width_ - 1
+
+        if self.data_path is None:
+            tmp_file  = tempfile.NamedTemporaryFile()
+            data_path = os.path.join(tempfile.gettempdir(), os.path.basename(tmp_file.name))
+            tmp_file.close()
+            self.data_path = data_path
+        
+        self.data_path = os.path.abspath(os.path.expanduser(self.data_path))
+        if not os.path.exists(self.data_path):
+            os.makedirs(self.data_path)
+        self.log.info('Templates data are saved in {k}'.format(k=self.data_path))
         return
 
     @property
@@ -63,10 +74,26 @@ class Template_updater(Block):
 
         for channel in xrange(self.nb_channels):
             indices = self.probe.edges[channel]
+            
+            if len(indices) > self.max_nn_chan:
+                self.max_nn_chan = len(indices)
+
             self.temp_indices[channel] = numpy.zeros(0, dtype=numpy.int32)
             for i in indices:
                 tmp = numpy.arange(i*self._spike_width_, (i+1)*self._spike_width_)
                 self.temp_indices[channel] = numpy.concatenate((self.temp_indices[channel], tmp))
+
+        if self.data_path is not None:
+            self.mapping_sparse = -1 * numpy.ones((self.nb_channels, self.max_nn_chan), dtype=numpy.int32)
+            self.writers = {}
+            self.writers['mapping']    = os.path.join(self.data_path, 'mapping')
+            self.writers['amplitudes'] = open(os.path.join(self.data_path, 'amplitudes.dat'), 'wb')
+            self.writers['channels']   = open(os.path.join(self.data_path, 'channels.dat'), 'wb')
+            self.writers['templates']  = open(os.path.join(self.data_path, 'templates.dat'), 'wb')
+            for channel in xrange(self.nb_channels):
+                indices = self.probe.edges[channel]
+                self.mapping_sparse[channel, :len(indices)] = indices
+            numpy.save(self.writers['mapping'], self.mapping_sparse)
 
         # ## We normalize the templates
         # for idx in xrange(self.nb_templates):
@@ -85,9 +112,15 @@ class Template_updater(Block):
         return self.temp_indices[channel]
 
 
-    def _dump_template(self, key, channel):
-        pass
+    def _write_template_data(self, template, amplitudes, channel):
+        self.writers['channels'].write(numpy.array([channel], dtype=numpy.int32))
+        self.writers['amplitudes'].write(amplitudes.flatten())
 
+        indices  = self.probe.edges[channel]
+        to_write = numpy.zeros((self._spike_width_, self.max_nn_chan), dtype=numpy.float32)
+        template = template.toarray().reshape(self.nb_channels, self._spike_width_).T
+        to_write[:, :len(indices)] = template[:, indices]
+        self.writers['templates'].write(to_write.flatten())
 
     def _cross_corr(self, t1, t2):
         t1 = t1.toarray().reshape(self.nb_channels, self._spike_width_)
@@ -161,6 +194,7 @@ class Template_updater(Block):
                         is_duplicated = self._is_duplicate(template)
                         if not is_duplicated:
                             self._add_template(template, amplitudes[count])
+                            self._write_template_data(template, amplitudes[count], int(channel))
                             self.log.debug('The dictionary has now {k} templates'.format(k=self.nb_templates))
                             new_templates  += [self.global_id]
                             self.global_id += 1

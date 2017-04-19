@@ -23,7 +23,7 @@ mad_estimator = manager.create_block('mad_estimator')
 peak_detector = manager.create_block('peak_detector', threshold=5)
 pca           = manager.create_block('pca', nb_waveforms=5000)
 cluster       = manager2.create_block('density_clustering', probe=probe_file, nb_waveforms=1000)
-updater       = manager2.create_block('template_updater', probe=probe_file, log_level=logging.DEBUG)
+updater       = manager2.create_block('template_updater', probe=probe_file, data_path='templates', log_level=logging.DEBUG)
 
 director.initialize()
 
