@@ -2,7 +2,7 @@ import os
 import tempfile
 import numpy
 import scipy.sparse
-
+import cPickle
 
 def decompose_path(path):
     root, extension = os.path.splitext(path)
@@ -88,3 +88,15 @@ def load_sparse(filename, format='csr'):
     elif format == 'csc':
         return scipy.sparse.csc_matrix((loader['data'], loader['indices'], loader['indptr']),
                       shape=loader['shape'])
+
+def save_pickle(filename, data):
+    file = open(filename + '.pck', 'w')
+    cPickle.dump(data, file)
+    file.close()
+
+def load_pickle(filename):
+    file = open(filename + '.pck', 'r')
+    res  = cPickle.load(file)
+    file.close()
+    return res
+    

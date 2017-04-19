@@ -1,7 +1,7 @@
 from .block import Block
 import numpy
 import scipy.sparse
-from circusort.io.utils import load_sparse
+from circusort.io.utils import load_sparse, load_pickle
 
 class Template_fitter(Block):
     '''TODO add docstring'''
@@ -179,8 +179,11 @@ class Template_fitter(Block):
             updater  = self.inputs['updater'].receive(blocking=False)
             
             if updater is not None:
-                self.templates = load_sparse(updater['templates'], format='csc')
-            
+                self.templates  = load_sparse(updater['templates'], format='csc')
+                self.overlaps   = load_pickle(updater['overlaps'])
+                self.amplitudes = load_pickle(updater['amplitudes'])
+                self.norms      = load_pickle(updater['norms'])
+                
             if self.nb_templates > 0:
                  self._fit_chunk(batch, peaks)
                  self.output.send(self.result)
