@@ -12,7 +12,7 @@ class Density_clustering(Block):
 
     name = "Density Clustering"
 
-    params = {'alignment'     : False,
+    params = {'alignment'     : True,
               'time_constant' : 1.,
               'sampling_rate' : 20000.,
               'spike_width'   : 5,
@@ -273,9 +273,6 @@ class Density_clustering(Block):
                 self.to_reset = []
                 peaks.pop('offset')
                 all_peaks = self._get_all_valid_peaks(peaks)
-                # import pylab
-                # pylab.imshow(batch, aspect='auto')
-                # pylab.show()
 
                 for key in self.sign_peaks:
                     for peak in all_peaks[key]:

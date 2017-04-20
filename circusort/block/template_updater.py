@@ -99,14 +99,6 @@ class Template_updater(Block):
             self.templates_file = os.path.join(self.data_path, 'templates')
             self.overlaps_file  = os.path.join(self.data_path, 'overlaps')
 
-
-        # ## We normalize the templates
-        # for idx in xrange(self.nb_templates):
-        #     self.norms[idx] = numpy.sqrt(self.templates[:, idx].sum()**2)/self._nb_elements 
-        #     myslice = numpy.arange(self.templates.indptr[idx], self.templates.indptr[idx+1])
-        #     self.templates.data[myslice] /= self.norms[idx]
-
-
     def _get_temp_indices(self, channel):
         if not self.temp_indices.has_key(channel):
             indices = self.probe.edges[channel]
@@ -147,7 +139,7 @@ class Template_updater(Block):
         self.amplitudes = numpy.vstack((self.amplitudes, amplitude))
         template_norm   = numpy.sqrt(template.sum()**2)/self._nb_elements
         self.norms      = numpy.concatenate((self.norms, [template_norm]))
-        self.templates  = scipy.sparse.hstack((self.templates, template), format='csc')
+        self.templates  = scipy.sparse.hstack((self.templates, template/template_norm), format='csc')
 
 
     def _update_overlaps(self, indices):
@@ -197,8 +189,8 @@ class Template_updater(Block):
                     n_data  = len(tmp_pos)
                     for count, t in enumerate(templates):
                         template = scipy.sparse.csc_matrix((t.ravel(), (tmp_pos, numpy.zeros(n_data))), shape=(self._nb_elements, 1))
-
-                        is_duplicated = self._is_duplicate(template)
+                        template_norm = numpy.sqrt(template.sum()**2)/self._nb_elements
+                        is_duplicated = self._is_duplicate(template/template_norm)
                         if not is_duplicated:
                             self._add_template(template, amplitudes[count])
                             self._write_template_data(template, amplitudes[count], int(channel))
@@ -212,6 +204,11 @@ class Template_updater(Block):
 
         data = self.inputs['templates'].receive(blocking=False)
         if data is not None:
+
+            if not self.is_active:
+                self.log.info('{n} starts to manage templates'.format(n=self.name))
+                self._set_active_mode()
+
             self.log.debug("{n} updates the dictionary of templates".format(n=self.name_and_counter))
             new_templates = self._construct_templates(data)
 

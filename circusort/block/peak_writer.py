@@ -53,4 +53,6 @@ class Peak_writer(Block):
                     to_write += [(int(channel), value + offset) for value in batch[key][channel]]
                 to_write = numpy.array(to_write).astype(numpy.int32)
                 self.peaks_file[key].write(to_write)
+                self.peaks_file[key].flush()
+                os.fsync(self.peaks_file[key].fileno())
         return
