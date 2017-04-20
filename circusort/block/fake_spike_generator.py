@@ -14,7 +14,8 @@ class Fake_spike_generator(Block):
               'time_constant' : 60.,
               'rate'          : 5,
               'nb_cells'      : 100,
-              'refractory'    : 5}
+              'refractory'    : 5, 
+              'duration'      : 2}
 
     def __init__(self, **kwargs):
         Block.__init__(self, **kwargs)
@@ -27,8 +28,14 @@ class Fake_spike_generator(Block):
         self.noise      = numpy.zeros(self.nb_channels)
         self.result     = numpy.zeros((self.nb_channels, self.nb_samples), dtype=self.dtype)
         self.positions  = numpy.random.randint(0, self.nb_channels, self.nb_cells)
-        self.amplitudes = 0.1*numpy.random.randn(self.nb_cells)
+        self.amplitudes = 0.1*numpy.ones(self.nb_cells)
         self.refrac     = int(self.refractory * 1e-3 * self.sampling_rate)
+
+        self.nb_steps = int(self.duration*self.sampling_rate/1000)
+        time  = numpy.arange(self.nb_steps).astype(numpy.float32)
+        tau   = 5.0
+        self.waveform = -numpy.sin(2.0 * numpy.pi * time / time[-1])
+        self.waveform *= (time / tau) * numpy  .exp(1.0 - (time / tau))
         return
 
     def _process(self):
@@ -45,8 +52,8 @@ class Fake_spike_generator(Block):
             amp    = self.amplitudes[i]
             t_last = - self.refrac
             for scount, spike in enumerate(spikes):
-                if (spike - t_last) > self.refrac:
-                    self.result[pos, spike] = amp
+                if (spike - t_last) > self.refrac and (self.nb_samples - spike) > self.nb_steps:
+                    self.result[pos, spike:spike+self.nb_steps] += amp*self.waveform
 
         self.output.send(self.result)
         self.result[:, 0] = self.result[:, -1]*self.decay_time + numpy.random.randn(self.nb_channels)*self.dt

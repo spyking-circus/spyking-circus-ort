@@ -2,7 +2,13 @@ from .block import Block
 import numpy, os, tempfile
 from circusort.config.probe import Probe
 import scipy.sparse
-from circusort.io.utils import save_sparse, save_pickle
+from circusort.io.utils import save_pickle
+
+
+def save_data(filename, templates, norms, amplitudes):
+    numpy.savez(filename, data=templates.data, indices=templates.indices,
+             indptr=templates.indptr, shape=templates.shape, norms=norms, amplitudes=amplitudes)
+
 
 class Template_updater(Block):
     '''TODO add docstring'''
@@ -40,10 +46,7 @@ class Template_updater(Block):
         self._overlap_size = 2*self._spike_width_ - 1
 
         if self.data_path is None:
-            tmp_file  = tempfile.NamedTemporaryFile()
-            data_path = os.path.join(tempfile.gettempdir(), os.path.basename(tmp_file.name))
-            tmp_file.close()
-            self.data_path = data_path
+            self.data_path = self._get_tmp_path()
         
         self.data_path = os.path.abspath(os.path.expanduser(self.data_path))
         if not os.path.exists(self.data_path):
@@ -54,6 +57,12 @@ class Template_updater(Block):
     @property
     def nb_templates(self):
         return self.templates.shape[1]
+
+    def _get_tmp_path(self):
+        tmp_file  = tempfile.NamedTemporaryFile()
+        data_path = os.path.join(tempfile.gettempdir(), os.path.basename(tmp_file.name))
+        tmp_file.close()
+        return data_path
 
     def _guess_output_endpoints(self):
         self._nb_elements = self.nb_channels*self._spike_width_
@@ -87,6 +96,9 @@ class Template_updater(Block):
                 indices = self.probe.edges[channel]
                 mapping_sparse[channel, :len(indices)] = indices
             numpy.save(self.writers['mapping'], mapping_sparse)
+            self.templates_file = os.path.join(self.data_path, 'templates')
+            self.overlaps_file  = os.path.join(self.data_path, 'overlaps')
+
 
         # ## We normalize the templates
         # for idx in xrange(self.nb_templates):
@@ -198,13 +210,11 @@ class Template_updater(Block):
         if data is not None:
             self.log.debug("{n} updates the dictionary of templates".format(n=self.name_and_counter))
             new_templates = self._construct_templates(data)
-            save_sparse('templates', self.templates)
-            save_pickle('amplitudes', self.amplitudes)
-            save_pickle('norms', self.norms)
+
+            save_data(self.templates_file, self.templates, self.norms, self.amplitudes)
 
             if len(new_templates) > 0:
                 self._update_overlaps(new_templates)
-                save_pickle('overlaps', self.overlaps)
-                self.output.send({'templates' : 'templates', 'overlaps' : 'overlaps', 'amplitudes' : 'amplitudes', 'norms' : 'norms'})
-
+                save_pickle(self.overlaps_file, self.overlaps)
+                self.output.send({'templates' : self.templates_file, 'overlaps' : self.overlaps_file})
         return

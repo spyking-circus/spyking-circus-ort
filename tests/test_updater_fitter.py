@@ -14,6 +14,7 @@ manager       = director.create_manager(host=host)
 manager2      = director.create_manager(host=host)
 
 nb_channels   = 10
+sampling_rate = 20000
 probe_file    = generate_fake_probe(nb_channels)
 
 noise         = manager.create_block('fake_spike_generator', nb_channels=nb_channels)
@@ -25,21 +26,41 @@ pca           = manager.create_block('pca', nb_waveforms=5000)
 cluster       = manager2.create_block('density_clustering', probe=probe_file, nb_waveforms=1000)
 updater       = manager2.create_block('template_updater', probe=probe_file, data_path='templates', nb_channels=nb_channels, log_level=logging.DEBUG)
 fitter        = manager2.create_block('template_fitter')
+writer        = manager.create_block('writer', data_path='/tmp/output.dat')
+writer_2      = manager2.create_block('spike_writer')
 
 director.initialize()
 
 director.connect(noise.output, filter.input)
 director.connect(filter.output, whitening.input)
-director.connect(whitening.output, [mad_estimator.input, peak_detector.get_input('data'), cluster.get_input('data'), pca.get_input('data'), fitter.get_input('data')])
+director.connect(whitening.output, [mad_estimator.input, peak_detector.get_input('data'), cluster.get_input('data'), pca.get_input('data'), fitter.get_input('data'), writer.input])
 director.connect(mad_estimator.output, [peak_detector.get_input('mads'), cluster.get_input('mads')])
 director.connect(peak_detector.get_output('peaks'), [pca.get_input('peaks'), cluster.get_input('peaks'), fitter.get_input('peaks')])
 director.connect(pca.get_output('pcs'), cluster.get_input('pcs'))
 director.connect(cluster.get_output('templates'), updater.get_input('templates'))
-
-
 director.connect(updater.get_output('updater'), fitter.get_input('updater'))
-
+director.connect(fitter.output, writer_2.input)
 
 director.start()
 director.sleep(duration=60.0)
 director.stop()
+
+
+import numpy, pylab
+
+spikes   = numpy.fromfile(writer_2.recorded_data['spike_times'], dtype=numpy.int32)
+temp_ids = numpy.fromfile(writer_2.recorded_data['templates'], dtype=numpy.int32)
+amps     = numpy.fromfile(writer_2.recorded_data['amplitudes'], dtype=numpy.float32)
+
+raw_data = numpy.fromfile('/tmp/output.dat', dtype=numpy.float32)
+raw_data = raw_data.reshape(nb_channels, raw_data.size/nb_channels)
+
+t_min    = spikes[0] - int(0.1*sampling_rate/1000)
+t_max    = spikes[100] + int(0.1*sampling_rate/1000)
+
+spacing = 100
+
+for i in xrange(nb_channels):
+    pylab.plot(arange(t_min, t_max), raw_data[i, t_min:t_max]+ i*spacing, '0.5')
+
+pylab.scatter(spikes[:100], zeros(100))

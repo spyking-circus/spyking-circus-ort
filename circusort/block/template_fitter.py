@@ -1,7 +1,19 @@
 from .block import Block
 import numpy
 import scipy.sparse
-from circusort.io.utils import load_sparse, load_pickle
+from circusort.io.utils import load_pickle
+
+def load_data(filename, format='csr'):
+    loader = numpy.load(filename + '.npz')
+    if format == 'csr':
+        template = scipy.sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']),
+                      shape=loader['shape'])
+    elif format == 'csc':
+        template = scipy.sparse.csc_matrix((loader['data'], loader['indices'], loader['indptr']),
+                      shape=loader['shape'])
+    return template, loader['norms'], loader['amplitudes']
+
+
 
 class Template_fitter(Block):
     '''TODO add docstring'''
@@ -62,7 +74,7 @@ class Template_fitter(Block):
         self.result = {'spike_times' : numpy.zeros(0, dtype=numpy.int32),
                        'amplitudes'  : numpy.zeros(0, dtype=numpy.float32),
                        'templates'   : numpy.zeros(0, dtype=numpy.int32),
-                       'offset'      : self.counter}
+                       'offset'      : self.offset}
 
 
     def _fit_chunk(self, batch, peaks):
@@ -167,7 +179,8 @@ class Template_fitter(Block):
                     sub_idx           = (numpy.take(failure, myslice) >= self.nb_chances)
                     mask[:, numpy.compress(sub_idx, myslice)] = 0
 
-            self.log.debug('{n} fitted {k} spikes from {m} templates'.format(n=self.name_and_counter, k=len(self.result['spike_times']), m=self.nb_templates))
+            if len(self.result['spike_times']) > 0:
+                self.log.debug('{n} fitted {k} spikes from {m} templates'.format(n=self.name_and_counter, k=len(self.result['spike_times']), m=self.nb_templates))
 
     def _process(self):
         batch = self.inputs['data'].receive()
@@ -179,10 +192,8 @@ class Template_fitter(Block):
             updater  = self.inputs['updater'].receive(blocking=False)
             
             if updater is not None:
-                self.templates  = load_sparse(updater['templates'], format='csc')
+                self.templates, self.norms, self.amplitudes  = load_data(updater['templates'], format='csc')
                 self.overlaps   = load_pickle(updater['overlaps'])
-                self.amplitudes = load_pickle(updater['amplitudes'])
-                self.norms      = load_pickle(updater['norms'])
                 
             if self.nb_templates > 0:
                  self._fit_chunk(batch, peaks)
