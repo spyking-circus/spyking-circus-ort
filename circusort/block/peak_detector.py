@@ -95,11 +95,11 @@ class Peak_detector(Block):
                 self.peaks[key] = {}
                 for i in xrange(self.nb_channels):
                     if key == 'negative':
-                        data = self._detect_peaks(batch[i],  thresholds[i], mpd=self._spike_width_)
+                        data = self._detect_peaks(batch[i],  thresholds[i], valley=True, mpd=self._spike_width_)
                         if len(data) > 0:
                             self.peaks[key][i] = data
                     elif key == 'positive':
-                        data = self._detect_peaks(batch[i],  thresholds[i], valley=True, mpd=self._spike_width_)
+                        data = self._detect_peaks(batch[i],  thresholds[i], valley=False, mpd=self._spike_width_)
                         if len(data) > 0:
                             self.peaks[key][i] = data
 

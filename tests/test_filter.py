@@ -32,9 +32,9 @@ director.stop()
 
 import pylab, numpy
 
-x1 = numpy.memmap('/tmp/input.dat', dtype=numpy.float32)
+x1 = numpy.memmap('/tmp/input.dat', dtype=numpy.float32, mode='r')
 x1 = x1.reshape(x1.size/nb_channels, nb_channels)
-x2 = numpy.memmap('/tmp/output.dat', dtype=numpy.float32)
+x2 = numpy.memmap('/tmp/output.dat', dtype=numpy.float32, mode='r')
 x2 = x2.reshape(x2.size/nb_channels, nb_channels)
 
 pylab.plot(x1[:, 0])

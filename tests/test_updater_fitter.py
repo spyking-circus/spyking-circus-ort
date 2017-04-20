@@ -25,7 +25,7 @@ peak_detector = manager.create_block('peak_detector', threshold=5)
 pca           = manager.create_block('pca', nb_waveforms=5000)
 cluster       = manager2.create_block('density_clustering', probe=probe_file, nb_waveforms=1000)
 updater       = manager2.create_block('template_updater', probe=probe_file, data_path='templates', nb_channels=nb_channels, log_level=logging.DEBUG)
-fitter        = manager2.create_block('template_fitter')
+fitter        = manager2.create_block('template_fitter', log_level=logging.DEBUG)
 writer        = manager.create_block('writer', data_path='/tmp/output.dat')
 writer_2      = manager2.create_block('spike_writer')
 

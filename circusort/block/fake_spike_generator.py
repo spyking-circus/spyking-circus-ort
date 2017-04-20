@@ -31,8 +31,8 @@ class Fake_spike_generator(Block):
         self.amplitudes = 0.1*numpy.ones(self.nb_cells)
         self.refrac     = int(self.refractory * 1e-3 * self.sampling_rate)
 
-        self.nb_steps = int(self.duration*self.sampling_rate/1000)
-        time  = numpy.arange(self.nb_steps).astype(numpy.float32)
+        self._nb_steps = int(self.duration*self.sampling_rate/1000)
+        time  = numpy.arange(self._nb_steps).astype(numpy.float32)
         tau   = 5.0
         self.waveform = -numpy.sin(2.0 * numpy.pi * time / time[-1])
         self.waveform *= (time / tau) * numpy  .exp(1.0 - (time / tau))
@@ -43,7 +43,6 @@ class Fake_spike_generator(Block):
         for i in xrange(0, self.nb_samples-1):
             self.result[:, i+1] = self.result[:, i]*self.decay_time + 2*numpy.random.randn(self.nb_channels)*self.dt
 
-
         ## Add fake spikes
         for i in xrange(self.nb_cells):
             spikes = numpy.random.rand(self.nb_samples) < self.rate / float(self.sampling_rate)
@@ -52,8 +51,8 @@ class Fake_spike_generator(Block):
             amp    = self.amplitudes[i]
             t_last = - self.refrac
             for scount, spike in enumerate(spikes):
-                if (spike - t_last) > self.refrac and (self.nb_samples - spike) > self.nb_steps:
-                    self.result[pos, spike:spike+self.nb_steps] += amp*self.waveform
+                if (spike - t_last) > self.refrac and (self.nb_samples - spike) > self._nb_steps:
+                    self.result[pos, spike:spike+self._nb_steps] += amp*self.waveform
 
         self.output.send(self.result)
         self.result[:, 0] = self.result[:, -1]*self.decay_time + numpy.random.randn(self.nb_channels)*self.dt

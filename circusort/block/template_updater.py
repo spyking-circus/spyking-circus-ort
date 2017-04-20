@@ -19,7 +19,7 @@ class Template_updater(Block):
               'probe'         : None,
               'radius'        : None,
               'sampling_rate' : 20000,
-              'cc_merge'      : 0.25, 
+              'cc_merge'      : 0.2, 
               'data_path'     : None,
               'nb_channels'   : 10}
 
