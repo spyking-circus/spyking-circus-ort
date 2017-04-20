@@ -103,14 +103,14 @@ class Pca(Block):
                     for channel, signed_peaks in peaks[key].items():
                         if self.nb_spikes[key] < self.nb_waveforms:
                             for peak in signed_peaks:
-                                if self.nb_spikes[key] < self.nb_waveforms:
-                                    if self._is_valid(peak):
-                                        self.waveforms[key][self.nb_spikes[key]] = self._get_waveform(batch, int(channel), peak, key)
-                                        self.nb_spikes[key] += 1
+                                if self.nb_spikes[key] < self.nb_waveforms and self._is_valid(peak):
+                                    self.waveforms[key][self.nb_spikes[key]] = self._get_waveform(batch, int(channel), peak, key)
+                                    self.nb_spikes[key] += 1
 
                     if self.is_ready(key):
                         self.log.info("{n} computes the PCA matrix for {m} spikes".format(n=self.name_and_counter, m=key))
                         pca          = PCAEstimator(self.output_dim, copy=False)
+                        #numpy.save('pca_%s' %key, self.waveforms[key])
                         res_pca      = pca.fit_transform(self.waveforms[key].T).astype(numpy.float32)
                         if key == 'negative':
                             self.pcs[0] = res_pca.T

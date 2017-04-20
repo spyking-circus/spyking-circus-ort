@@ -23,7 +23,7 @@ whitening     = manager.create_block('whitening')
 mad_estimator = manager.create_block('mad_estimator')
 peak_detector = manager.create_block('peak_detector', threshold=6)
 pca           = manager.create_block('pca', nb_waveforms=5000)
-cluster       = manager2.create_block('density_clustering', probe=probe_file, nb_waveforms=1000)
+cluster       = manager2.create_block('density_clustering', probe=probe_file, nb_waveforms=2000)
 updater       = manager2.create_block('template_updater', probe=probe_file, data_path='templates', nb_channels=nb_channels)
 fitter        = manager2.create_block('template_fitter')
 writer        = manager.create_block('writer', data_path='/tmp/output.dat')
@@ -80,12 +80,13 @@ basis         = numpy.arange(N_t)
 for idx in xrange(len(templates)):
     indices = mapping[elecs[idx]]
     indices = indices[indices > -1]
-    print indices
-
-    pos_y = numpy.zeros(0, dtype=numpy.int32)
+    pos_y   = numpy.zeros(0, dtype=numpy.int32)
     
     for i in indices:
         pos_y = numpy.concatenate((pos_y, i*N_t + basis))
 
     t = scipy.sparse.csr_matrix((templates[idx, :len(indices)*N_t], (numpy.zeros(len(indices)*N_t), pos_y)), shape=(1, nb_channels*N_t))
     all_templates = scipy.sparse.vstack((all_templates, t))
+
+def get_template(id, all_templates):
+    return all_templates[id].toarray().reshape(N_t, nb_channels).T

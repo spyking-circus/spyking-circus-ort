@@ -12,7 +12,7 @@ class Density_clustering(Block):
 
     name = "Density Clustering"
 
-    params = {'alignment'     : True,
+    params = {'alignment'     : False,
               'time_constant' : 1.,
               'sampling_rate' : 20000.,
               'spike_width'   : 5,
@@ -80,25 +80,36 @@ class Density_clustering(Block):
         else:
             return (peak >= self._width) & (peak + self._width < self.nb_samples)
 
-    def _get_best_channel(self, batch, peak, key):
+    def _get_extrema_indices(self, peak, peaks):
+        res = []
+        for key in peaks.keys():
+            for channel in peaks[key].keys():
+                if peak in peaks[key][channel]:
+                    res += [int(channel)]
+        return res
+
+    def _get_best_channel(self, batch, key, peak, peaks):
+
+        indices = self._get_extrema_indices(peak, peaks)
+
         if key == 'negative':
-            channel = numpy.argmin(batch[:, peak])
+            channel = numpy.argmin(batch[indices, peak])
             is_neg  = True
         elif key == 'positive':
-            channel = numpy.argmax(batch[:, peak])
+            channel = numpy.argmax(batch[indices, peak])
             is_neg  = False
         elif key == 'both':
-            if numpy.abs(numpy.max(batch[:, peak])) > numpy.abs(numpy.min(batch[:, peak])):
-                channel = numpy.argmax(batch[:, peak])
+            if numpy.abs(numpy.max(batch[indices, peak])) > numpy.abs(numpy.min(batch[indices, peak])):
+                channel = numpy.argmax(batch[indices, peak])
                 is_neg  = False
             else:
-                channel = numpy.argmin(batch[:, peak])
+                channel = numpy.argmin(batch[indices, peak])
                 is_neg = True
-        return channel, is_neg
+        return indices[channel], is_neg
 
     def _get_snippet(self, batch, channel, peak, is_neg):
-        if self.alignment:
-            indices = self.probe.edges[channel]
+        indices = self.probe.edges[channel]
+        if self.alignment:    
             idx     = self.chan_positions[channel]
             zdata   = batch[indices, peak - 2*self._width:peak + 2*self._width + 1]
             ydata   = numpy.arange(len(indices))
@@ -114,11 +125,11 @@ class Density_clustering(Block):
             else:
                 f        = scipy.interpolate.RectBivariateSpline(ydata, self.xdata, zdata, s=0, ky=min(len(ydata)-1, 3))
                 if is_neg:
-                    rmin = (numpy.argmin(f(self.cdata, idx)[:, 0]) - len(self.cdata)/2.)/5.
+                    rmin = (numpy.argmin(f(idx, self.cdata)[0, :]) - len(self.cdata)/2.)/5.
                 else:
-                    rmin = (numpy.argmax(f(self.cdata, idx)[:, 0]) - len(self.cdata)/2.)/5.
+                    rmin = (numpy.argmax(f(idx, self.cdata)[0, :]) - len(self.cdata)/2.)/5.
                 ddata    = numpy.linspace(rmin-self._width, rmin+self._width, self._spike_width_)
-                sub_mat  = f(ddata, ydata).astype(numpy.float32)
+                sub_mat  = f(ydata, ddata).astype(numpy.float32)
         else:
             sub_mat = batch[indices, peak - self._width:peak + self._width + 1]
 
@@ -172,6 +183,13 @@ class Density_clustering(Block):
 
         labels = numpy.unique(self.clusters[key][channel])
         labels = labels[labels > -1]
+
+        # import pylab
+        # print key, channel, self.chan_positions[channel]
+        # pylab.title('Global Mean')
+        # pylab.imshow(numpy.mean(self.raw_data[key][channel], 0).T, aspect='auto')
+        # pylab.show()
+
         if len(labels) > 0:
             self.log.debug("{n} found {m} templates on channel {d}".format(n=self.name_and_counter, m=len(labels), d=channel))
         for l in labels:
@@ -183,8 +201,12 @@ class Density_clustering(Block):
                 template = numpy.median(data, 0)
 
             amplitudes = self._get_amplitudes(data, template, channel)
-            template   = template.reshape(template.shape[0], template.shape[1]).T
+            template   = template.T
             template   = self._center_template(template, key)
+            # print key, channel, self.chan_positions[channel]
+            # import pylab
+            # pylab.imshow(template, aspect='auto')
+            # pylab.show()
 
             self.templates['dat'][key][channel] = numpy.vstack((self.templates['dat'][key][channel], template.reshape(1, template.shape[0], template.shape[1])))
             self.templates['amp'][key][channel] = numpy.vstack((self.templates['amp'][key][channel], amplitudes))
@@ -250,12 +272,15 @@ class Density_clustering(Block):
 
                 self.to_reset = []
                 peaks.pop('offset')
-                peaks = self._get_all_valid_peaks(peaks)
+                all_peaks = self._get_all_valid_peaks(peaks)
+                # import pylab
+                # pylab.imshow(batch, aspect='auto')
+                # pylab.show()
 
                 for key in self.sign_peaks:
-                    for peak in peaks[key]:
-                        channel, is_neg = self._get_best_channel(batch, peak, key)
-                        waveforms       = self._get_snippet(batch, channel, peak, is_neg)
+                    for peak in all_peaks[key]:
+                        channel, is_neg = self._get_best_channel(batch, key, peak, peaks)
+                        waveforms       = self._get_snippet(batch, channel, peak, is_neg).T
                         projection      = numpy.dot(self.pcs[0], waveforms)
                         projection      = projection.reshape(1, projection.shape[0], projection.shape[1])
                         waveforms       = waveforms.reshape(1, waveforms.shape[0], waveforms.shape[1])
