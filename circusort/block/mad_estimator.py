@@ -7,8 +7,8 @@ class Mad_estimator(Block):
 
     name = "MAD Estimator"
 
-    params = {'time_constant' : 60.,
-              'epsilon'       : 0.2,
+    params = {'time_constant' : 10.,
+              'epsilon'       : 0.01,
               'threshold'     : 6,
               'sampling_rate' : 20000.}
 

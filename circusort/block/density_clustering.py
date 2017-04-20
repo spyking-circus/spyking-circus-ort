@@ -185,10 +185,11 @@ class Density_clustering(Block):
             amplitudes = self._get_amplitudes(data, template, channel)
             template   = template.reshape(template.shape[0], template.shape[1]).T
             template   = self._center_template(template, key)
-            
+
             self.templates['dat'][key][channel] = numpy.vstack((self.templates['dat'][key][channel], template.reshape(1, template.shape[0], template.shape[1])))
             self.templates['amp'][key][channel] = numpy.vstack((self.templates['amp'][key][channel], amplitudes))
-            self.to_reset += [(key, channel)]
+
+        self.to_reset += [(key, channel)]
 
     def _get_amplitudes(self, data, template, channel):
         x, y, z     = data.shape
@@ -221,12 +222,11 @@ class Density_clustering(Block):
         return aligned_template
 
     def _reset_data_structures(self, key, channel):
-        self.pca_data[key][channel]   = numpy.zeros((0, self.pcs.shape[1], len(self.probe.edges[channel])), dtype=numpy.float32)
-        self.raw_data[key][channel]   = numpy.zeros((0, self._spike_width_, len(self.probe.edges[channel])), dtype=numpy.float32)
-        self.clusters[key][channel]   = numpy.zeros(0, dtype=numpy.int32)
+        self.pca_data[key][channel] = numpy.zeros((0, self.pcs.shape[1], len(self.probe.edges[channel])), dtype=numpy.float32)
+        self.raw_data[key][channel] = numpy.zeros((0, self._spike_width_, len(self.probe.edges[channel])), dtype=numpy.float32)
+        self.clusters[key][channel] = numpy.zeros(0, dtype=numpy.int32)
         self.templates['dat'][key][channel] = numpy.zeros((0, len(self.probe.edges[channel]), self._spike_width_), dtype=numpy.float32)
         self.templates['amp'][key][channel] = numpy.zeros((0, 2), dtype=numpy.float32)
-
 
     def _process(self):
 
@@ -267,15 +267,14 @@ class Density_clustering(Block):
                         self.pca_data[key][channel] = numpy.vstack((self.pca_data[key][channel], projection))
                         self.raw_data[key][channel] = numpy.vstack((self.raw_data[key][channel], waveforms))
 
-                    if len(self.pca_data[key][channel]) >= self.nb_waveforms:
-                        self._perform_clustering(key, channel)
-
+                    for channel in xrange(self.nb_channels):
+                        if len(self.pca_data[key][channel]) >= self.nb_waveforms:
+                            self._perform_clustering(key, channel)
 
                 if len(self.to_reset) > 0:
                     self.outputs['templates'].send(self.templates)
                     for key, channel in self.to_reset:
                         self._reset_data_structures(key, channel)
-
         return
 
 

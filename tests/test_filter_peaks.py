@@ -20,7 +20,7 @@ filter   = manager.create_block('filter', cut_off=100)
 writer_1 = manager.create_block('writer', data_path='/tmp/input.dat')
 writer_2 = manager.create_block('writer', data_path='/tmp/mads.dat')
 writer_3 = manager.create_block('peak_writer')
-mad_estimator = manager.create_block('mad_estimator', threshold=6)
+mad_estimator = manager.create_block('mad_estimator', threshold=6, epsilon=0.2)
 peak_detector = manager.create_block('peak_detector', sign_peaks='both')
 
 manager.initialize()

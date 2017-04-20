@@ -127,6 +127,10 @@ class Template_updater(Block):
         to_write[:, :len(indices)] = template[:, indices]
         self.writers['templates'].write(to_write.flatten())
 
+        for key in ['amplitudes', 'channels', 'templates']:
+            self.writers[key].flush()
+            os.fsync(self.writers[key].fileno())
+
     def _cross_corr(self, t1, t2):
         t1 = t1.toarray().reshape(self.nb_channels, self._spike_width_)
         t2 = t2.toarray().reshape(self.nb_channels, self._spike_width_)
