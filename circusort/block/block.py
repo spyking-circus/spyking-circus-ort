@@ -48,6 +48,9 @@ class Block(threading.Thread):
         self.log.debug("{n} has been created".format(n=self.name))
         self.log.debug(str(self))
 
+    def __del__(self):
+        self.log.debug("{n} is destroyed".format(n=self.name))
+
     def set_manager(self, manager_name):
         self.parent = manager_name
 

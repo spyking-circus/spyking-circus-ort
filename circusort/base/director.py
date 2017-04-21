@@ -22,12 +22,14 @@ class Director(object):
 
         self.host = host
 
-        self.log.info("{d} starts".format(d=str(self)))
+        self.log.info("{d} is created".format(d=str(self)))
         
         self.managers = {}
 
     def __del__(self):
-        self.log.info("{d} stops".format(d=str(self)))
+        self.log.info("{d} is destroyed".format(d=str(self)))
+        for manager in self.managers.itervalues():
+            manager.__del__()
 
     @property
     def nb_managers(self):
@@ -92,7 +94,7 @@ class Director(object):
                         local_protocol = 'ipc'
                     else:
                         local_protocol = protocol
-                    self.get_manager(input_endpoint.block.parent).connect(output_endpoint, input_endpoint, local_protocol)
+                    self.get_manager(input_endpoint.block.parent).connect(output_endpoint, input_endpoint, local_protocol, show_log=False)
                 else:
                     if protocol is None:
                         local_protocol = 'tcp'

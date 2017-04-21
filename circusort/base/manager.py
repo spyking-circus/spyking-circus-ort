@@ -19,7 +19,7 @@ class Manager(object):
         if self.log_address is None:
             raise NotImplementedError("no logger address")
         self.log = utils.get_log(self.log_address, name=__name__, log_level=self.log_level)
-        self.log.info("{d} starts".format(d=str(self)))
+        self.log.info("{d} is created".format(d=str(self)))
 
     def create_block(self, block_type, name=None, log_level=None, **kwargs):
         '''TODO add docstring'''
@@ -51,7 +51,7 @@ class Manager(object):
 
         return block
 
-    def connect(self, output_endpoints, input_endpoints, protocol='ipc'):
+    def connect(self, output_endpoints, input_endpoints, protocol='ipc', show_log=True):
         '''TODO add docstring'''
 
         if not type(input_endpoints) == list:
@@ -62,8 +62,10 @@ class Manager(object):
 
         for input_endpoint in input_endpoints:
             for output_endpoint in output_endpoints:
-        
-                self.log.info("{d} connects {s} to {t}".format(d=str(self), s=output_endpoint.block.name, t=input_endpoint.block.name))
+                if show_log:
+                    self.log.info("{d} connects {s} to {t}".format(d=str(self), s=output_endpoint.block.name, t=input_endpoint.block.name))
+                else:
+                    self.log.debug("{d} connects {s} to {t}".format(d=str(self), s=output_endpoint.block.name, t=input_endpoint.block.name))
                 assert input_endpoint.block.parent == output_endpoint.block.parent == self.name, self.log.error('Manager is not supervising all Blocks!')
                 assert protocol in ['tcp', 'ipc'], self.log.error('Invalid connection')
 
@@ -132,3 +134,8 @@ class Manager(object):
         for block in self.blocks.itervalues():
             block.stop()
         return
+
+    def __del__(self):
+        self.log.info("{d} is destroyed".format(d=str(self)))
+        for block in self.blocks.itervalues():
+            block.__del__()

@@ -22,7 +22,7 @@ class Density_clustering(Block):
               'noise_thr'     : 0.8,
               'n_min'         : 0.002,
               'dispersion'    : [5, 5],
-              'extraction'    : 'mean-raw'}
+              'extraction'    : 'median-raw'}
 
     def __init__(self, **kwargs):
 
@@ -185,8 +185,8 @@ class Density_clustering(Block):
         self.log.debug("{n} clusters {m} {k} waveforms on channel {d}".format(n=self.name_and_counter, m=a, k=key, d=channel))
         data    = self.pca_data[key][channel].reshape(a, b*c)
         n_min   = numpy.maximum(20, int(self.n_min*a))
-        rho, dist, sdist, nb_selec = rho_estimation(data, compute_rho=True, mratio=self.m_ratio)
-        self.clusters[key][channel], r, d, c = density_based_clustering(rho, dist, smart_select=True, n_min=n_min)
+        rho, dist, nb_selec = rho_estimation(data, mratio=self.m_ratio)
+        self.clusters[key][channel], c = density_based_clustering(rho, dist, smart_select=True, n_min=n_min)
         ### SHould we add the merging step
         self._update_templates(key, channel)
 
@@ -206,9 +206,10 @@ class Density_clustering(Block):
             elif self.extraction == 'median-raw':
                 template = numpy.median(data, 0)
 
-            amplitudes = self._get_amplitudes(data, template, channel)
             template   = template.T
             template   = self._center_template(template, key)
+            amplitudes = self._get_amplitudes(data, template, channel)
+            
             
             self.templates['dat'][key][channel] = numpy.vstack((self.templates['dat'][key][channel], template.reshape(1, template.shape[0], template.shape[1])))
             self.templates['amp'][key][channel] = numpy.vstack((self.templates['amp'][key][channel], amplitudes))
@@ -221,7 +222,7 @@ class Density_clustering(Block):
         first_flat  = template.reshape(y*z, 1)
         amplitudes  = numpy.dot(data, first_flat)
         amplitudes /= numpy.sum(first_flat**2)
-        variation      = numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
+        variation   = numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
         physical_limit = self.noise_thr*(-self.thresholds[channel])/template.min()
         amp_min        = min(0.8, max(physical_limit, numpy.median(amplitudes) - self.dispersion[0]*variation))
         amp_max        = max(1.2, numpy.median(amplitudes) + self.dispersion[1]*variation)

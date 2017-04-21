@@ -40,7 +40,6 @@ class Whitening(Block):
         d,V  = eigh(Xcov)
         D    = numpy.diag(1./numpy.sqrt(d+self.fudge))
         self.whitening_matrix = numpy.dot(numpy.dot(V,D), V.T).astype(numpy.float32)
-        self._set_active_mode()
 
     def _process(self):
         batch = self.input.receive()
@@ -52,4 +51,5 @@ class Whitening(Block):
             if self.silences.shape[1] > self.duration:
                 self._get_whitening_matrix()
                 self.log.info("{n} computes whitening matrix".format(n=self.name_and_counter))
+                self._set_active_mode()
         return

@@ -193,7 +193,7 @@ class Template_updater(Block):
                     for count, t in enumerate(templates):
                         template = scipy.sparse.csc_matrix((t.ravel(), (tmp_pos, numpy.zeros(n_data))), shape=(self._nb_elements, 1))
                         template_norm = numpy.sqrt(numpy.sum(template.data**2)/self._nb_elements)
-                        is_duplicated = False #self._is_duplicate(template/template_norm)
+                        is_duplicated = self._is_duplicate(template/template_norm)
                         if not is_duplicated:
                             self._add_template(template, amplitudes[count])
                             self._write_template_data(template, amplitudes[count], int(channel))

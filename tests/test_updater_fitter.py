@@ -16,7 +16,7 @@ manager2      = director.create_manager(host=host)
 
 nb_channels   = 10
 sampling_rate = 20000
-probe_file    = generate_fake_probe(nb_channels, radius=1.1)
+probe_file    = generate_fake_probe(nb_channels, radius=1)
 
 noise         = manager.create_block('fake_spike_generator', nb_channels=nb_channels)
 filter        = manager.create_block('filter')
@@ -24,7 +24,7 @@ whitening     = manager.create_block('whitening')
 mad_estimator = manager.create_block('mad_estimator')
 peak_detector = manager.create_block('peak_detector', threshold=6)
 pca           = manager.create_block('pca', nb_waveforms=5000)
-cluster       = manager2.create_block('density_clustering', probe=probe_file, nb_waveforms=2000, log_level=logging.DEBUG)
+cluster       = manager2.create_block('density_clustering', probe=probe_file, nb_waveforms=1000, log_level=logging.DEBUG)
 updater       = manager2.create_block('template_updater', probe=probe_file, data_path='templates', nb_channels=nb_channels, log_level=logging.DEBUG)
 fitter        = manager2.create_block('template_fitter', log_level=logging.DEBUG)
 writer        = manager.create_block('writer', data_path='/tmp/output.dat')
@@ -44,7 +44,7 @@ director.connect(updater.get_output('updater'), fitter.get_input('updater'))
 director.connect(fitter.output, writer_2.input)
 
 director.start()
-director.sleep(duration=60.0)
+director.sleep(duration=30.0)
 director.stop()
 
 
@@ -57,7 +57,9 @@ amps     = numpy.fromfile(writer_2.recorded_data['amplitudes'], dtype=numpy.floa
 raw_data = numpy.fromfile('/tmp/output.dat', dtype=numpy.float32)
 raw_data = raw_data.reshape(raw_data.size/nb_channels, nb_channels)
 
-t_min    = spikes[-100] - int(10*sampling_rate/1000)
+nb_spikes = 10
+
+t_min    = spikes[-nb_spikes] - int(10*sampling_rate/1000)
 t_max    = spikes[-1] + int(10*sampling_rate/1000)
 
 N_t       = updater._spike_width_
@@ -99,9 +101,25 @@ def load_data(filename, format='csr'):
 all_templates, norms, amplitudes = load_data('templates/templates', 'csc')
 all_templates = all_templates.T
 
+labels = numpy.unique(elecs)
+for l in labels:
+    idx = numpy.where(elecs == l)[0]
+    pylab.figure()
+    nb_cols  = 3
+    nb_lines = int(len(idx)/nb_cols) + 1 
+    count =  1
+    for i in idx:
+        data = get_template(i, all_templates)*norms[i]
+        pylab.subplot(nb_lines, nb_cols, count)
+        pylab.imshow(data, aspect='auto')
+        pylab.colorbar()
+        pylab.clim(-5, 5)
+        count += 1
+
+
 curve = numpy.zeros((nb_channels, t_max-t_min), dtype=numpy.float32)
 
-for spike, temp_id, amp in zip(spikes[-100:], temp_ids[-100:], amps[-100:]):
+for spike, temp_id, amp in zip(spikes[-nb_spikes:], temp_ids[-nb_spikes:], amps[-nb_spikes:]):
     spike -= t_min
     tmp1   = get_template(temp_id, all_templates)
     curve[:, spike-tmp1.shape[1]/2:spike+tmp1.shape[1]/2+1] += amp*tmp1*norms[temp_id]
@@ -112,6 +130,7 @@ neg_peaks = numpy.fromfile('/tmp/peaks.dat', dtype=numpy.int32)
 neg_peaks = neg_peaks.reshape(neg_peaks.size/2, 2)
 
 spacing  = 10
+pylab.figure()
 for i in xrange(nb_channels):
     pylab.plot(numpy.arange(t_min, t_max), raw_data[t_min:t_max, i]+ i*spacing, '0.5')
     pylab.plot(numpy.arange(t_min, t_max), curve[i, :]+ i*spacing, 'r')

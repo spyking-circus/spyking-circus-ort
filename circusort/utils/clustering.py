@@ -2,15 +2,11 @@ import scipy.optimize, numpy, pylab, scipy.spatial.distance, scipy.stats
 import warnings
 warnings.filterwarnings("ignore")
 
-def distancematrix(data, ydata=None):
-    
-    if ydata is None:
-        distances = scipy.spatial.distance.pdist(data, 'euclidean')
-    else:
-        distances = scipy.spatial.distance.cdist(data, ydata, 'euclidean')
-    return distances.astype(numpy.float32)
+def distancematrix(data):
 
-def fit_rho_delta(xdata, ydata, smart_select=False, display=False, max_clusters=10, save=False):
+    return scipy.spatial.distance.pdist(data, 'euclidean').astype(numpy.float32)
+
+def fit_rho_delta(xdata, ydata, smart_select=False, max_clusters=10):
 
     if smart_select:
 
@@ -21,9 +17,6 @@ def fit_rho_delta(xdata, ydata, smart_select=False, display=False, max_clusters=
 
         def myfunc(x, a, b, c, d):
             return a*numpy.log(1. + c*((xmax - x)**b)) + d
-
-        def imyfunc(x, a, b, c, d):
-            return numpy.exp(d)*((1. + c*(xmax - x)**b)**a)
 
         try:
             result, pcov = scipy.optimize.curve_fit(myfunc, xdata, ydata, p0=[a_0, 1., 1., off])
@@ -37,53 +30,25 @@ def fit_rho_delta(xdata, ydata, smart_select=False, display=False, max_clusters=
     else:
         subidx = numpy.argsort(xdata*numpy.log(1 + ydata))[::-1][:max_clusters]
 
-    if display:
-        fig = pylab.figure()
-        ax = fig.add_subplot(111)
-        ax.plot(xdata, ydata, 'ko')
-        ax.plot(xdata[subidx[:len(subidx)]], ydata[subidx[:len(subidx)]], 'ro')
-        if smart_select:
-            idx = numpy.argsort(xdata)
-            ax.plot(xdata[idx], prediction[idx], 'r')
-            ax.set_yscale('log')
-        if save:
-            pylab.savefig(os.path.join(save[0], 'rho_delta_%s.png' %(save[1])))
-            pylab.close()
-        else:
-            pylab.show()
     return subidx, len(subidx)
 
 
-def rho_estimation(data, update=None, compute_rho=True, mratio=0.01):
+def rho_estimation(data, mratio=0.01):
 
     N     = len(data)
     rho   = numpy.zeros(N, dtype=numpy.float32)
         
-    if update is None:
-        dist = distancematrix(data)
-        didx = lambda i,j: i*N + j - i*(i+1)//2 - i - 1
-        nb_selec = max(5, int(mratio*N))
-        sdist    = {}
+    dist = distancematrix(data)
+    didx = lambda i,j: i*N + j - i*(i+1)//2 - i - 1
+    nb_selec = max(5, int(mratio*N))
 
-        if compute_rho:
-            for i in xrange(N):
-                indices  = numpy.concatenate((didx(i, numpy.arange(i+1, N)), didx(numpy.arange(0, i-1), i)))
-                tmp      = numpy.argsort(numpy.take(dist, indices))[:nb_selec]
-                sdist[i] = numpy.take(dist, numpy.take(indices, tmp))
-                rho[i]   = numpy.mean(sdist[i])
+    for i in xrange(N):
+        indices  = numpy.concatenate((didx(i, numpy.arange(i+1, N)), didx(numpy.arange(0, i-1), i)))
+        tmp      = numpy.argsort(numpy.take(dist, indices))[:nb_selec]
+        sdist    = numpy.take(dist, numpy.take(indices, tmp))
+        rho[i]   = numpy.mean(sdist)
 
-    else:
-        M        = len(update[0])
-        nb_selec = max(5, int(mratio*M))
-        sdist    = {}  
-
-        for i in xrange(N):
-            dist     = distancematrix(data[i].reshape(1, len(data[i])), update[0]).ravel()
-            all_dist = numpy.concatenate((dist, update[1][i]))
-            idx      = numpy.argsort(all_dist)[:nb_selec]
-            sdist[i] = numpy.take(all_dist, idx)
-            rho[i]   = numpy.mean(sdist[i])
-    return rho, dist, sdist, nb_selec
+    return rho, dist, nb_selec
 
 
 def density_based_clustering(rho, dist, smart_select=True, n_min=None, max_clusters=10):
@@ -134,4 +99,4 @@ def density_based_clustering(rho, dist, smart_select=True, n_min=None, max_clust
 
     halo, NCLUST = assign_halo(clust_idx[:max_clusters+1])
 
-    return halo, rho, delta, clust_idx[:max_clusters]
+    return halo, clust_idx[:max_clusters]
