@@ -13,7 +13,7 @@ class Density_clustering(Block):
     name = "Density Clustering"
 
     params = {'alignment'     : True,
-              'time_constant' : 1.,
+              'time_constant' : 30.,
               'sampling_rate' : 20000.,
               'spike_width'   : 5,
               'nb_waveforms'  : 10000, 
@@ -21,6 +21,7 @@ class Density_clustering(Block):
               'radius'        : None,
               'm_ratio'       : 0.01,
               'noise_thr'     : 0.8,
+              'n_min'         : 0.002,
               'dispersion'    : [5, 5],
               'extraction'    : 'median-raw'}
 
@@ -73,6 +74,10 @@ class Density_clustering(Block):
             if shuffle:
                 all_peaks[key] = numpy.random.permutation(all_peaks[key])
         return all_peaks
+
+    def _remove_nn_peaks(self, peak, peaks):
+        mask = numpy.abs(peaks - peak) > self._width
+        return peaks[mask]
 
     def _is_valid(self, peak):
         if self.alignment:
@@ -139,9 +144,16 @@ class Density_clustering(Block):
         if self.inputs['data'].dtype is not None:
             self.decay_time = numpy.exp(-self.nb_samples/float(self.time_constant))
             self.chan_positions = numpy.zeros(self.nb_channels, dtype=numpy.int32)
+            self.sub_pcas = {}
             for channel in xrange(self.nb_channels):
                 self.chan_positions[channel] = numpy.where(self.probe.edges[channel] == channel)[0]
-                
+
+    def _get_sub_pca(self, channel):
+        if self.sub_pcas.has_key(channel):
+            return self.sub_pcas[channel]
+        else:
+            pass
+
     def _init_data_structures(self):
         self.pca_data   = {}
         self.raw_data   = {}
@@ -173,8 +185,9 @@ class Density_clustering(Block):
         a, b, c = self.pca_data[key][channel].shape
         self.log.debug("{n} clusters {m} {k} waveforms on channel {d}".format(n=self.name_and_counter, m=a, k=key, d=channel))
         data    = self.pca_data[key][channel].reshape(a, b*c)
+        n_min   = numpy.maximum(20, int(self.n_min*a))
         rho, dist, sdist, nb_selec = rho_estimation(data, compute_rho=True, mratio=self.m_ratio)
-        self.clusters[key][channel], r, d, c = clustering(rho, dist, smart_select=True)
+        self.clusters[key][channel], r, d, c = clustering(rho, dist, smart_select=True, n_min=n_min)
         ### SHould we add the merging step
         self._update_templates(key, channel)
 
@@ -183,12 +196,6 @@ class Density_clustering(Block):
 
         labels = numpy.unique(self.clusters[key][channel])
         labels = labels[labels > -1]
-
-        # import pylab
-        # print key, channel, self.chan_positions[channel]
-        # pylab.title('Global Mean')
-        # pylab.imshow(numpy.mean(self.raw_data[key][channel], 0).T, aspect='auto')
-        # pylab.show()
 
         if len(labels) > 0:
             self.log.debug("{n} found {m} templates on channel {d}".format(n=self.name_and_counter, m=len(labels), d=channel))
@@ -203,10 +210,6 @@ class Density_clustering(Block):
             amplitudes = self._get_amplitudes(data, template, channel)
             template   = template.T
             template   = self._center_template(template, key)
-            # print key, channel, self.chan_positions[channel]
-            # import pylab
-            # pylab.imshow(template, aspect='auto')
-            # pylab.show()
 
             self.templates['dat'][key][channel] = numpy.vstack((self.templates['dat'][key][channel], template.reshape(1, template.shape[0], template.shape[1])))
             self.templates['amp'][key][channel] = numpy.vstack((self.templates['amp'][key][channel], amplitudes))
@@ -265,7 +268,6 @@ class Density_clustering(Block):
                 self.log.info("{n} receives the PCA matrices".format(n=self.name_and_counter))
                 self.receive_pcs = False
                 self._init_data_structures()
-                self.t_start = time.time()
                 self._set_active_mode()
 
             if (peaks is not None) and (self.thresholds is not None):
@@ -275,7 +277,9 @@ class Density_clustering(Block):
                 all_peaks = self._get_all_valid_peaks(peaks)
 
                 for key in self.sign_peaks:
-                    for peak in all_peaks[key]:
+                    while len(all_peaks[key]) > 0:
+                        peak            = all_peaks[key][0]
+                        all_peaks[key]  = self._remove_nn_peaks(peak, all_peaks[key])
                         channel, is_neg = self._get_best_channel(batch, key, peak, peaks)
                         waveforms       = self._get_snippet(batch, channel, peak, is_neg).T
                         projection      = numpy.dot(self.pcs[0], waveforms)

@@ -201,7 +201,7 @@ class Template_fitter(Block):
                 self.overlaps   = load_pickle(updater['overlaps'])
                 
             if self.nb_templates > 0:
-                 self._fit_chunk(batch, peaks)
-                 self.output.send(self.result)
+                self._fit_chunk(batch, peaks)
+                self.output.send(self.result)
 
         return

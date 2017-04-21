@@ -19,7 +19,7 @@ class Template_updater(Block):
               'probe'         : None,
               'radius'        : None,
               'sampling_rate' : 20000,
-              'cc_merge'      : 0.2, 
+              'cc_merge'      : 0.9, 
               'data_path'     : None,
               'nb_channels'   : 10}
 
@@ -99,15 +99,6 @@ class Template_updater(Block):
             self.templates_file = os.path.join(self.data_path, 'templates')
             self.overlaps_file  = os.path.join(self.data_path, 'overlaps')
 
-    def _get_temp_indices(self, channel):
-        if not self.temp_indices.has_key(channel):
-            indices = self.probe.edges[channel]
-            self.temp_indices[channel] = numpy.zeros(0, dtype=numpy.int32)
-            for i in indices:
-                tmp = numpy.arange(i*self._spike_width_, (i+1)*self._spike_width_)
-                self.temp_indices[channel] = numpy.concatenate((self.temp_indices[channel], tmp))
-        return self.temp_indices[channel]
-
 
     def _write_template_data(self, template, amplitudes, channel):
         self.writers['channels'].write(numpy.array([channel], dtype=numpy.int32))
@@ -124,6 +115,7 @@ class Template_updater(Block):
             os.fsync(self.writers[key].fileno())
 
     def _cross_corr(self, t1, t2):
+        ## To optimize based on positions
         t1 = t1.toarray().reshape(self.nb_channels, self._spike_width_)
         t2 = t2.toarray().reshape(self.nb_channels, self._spike_width_)
         return numpy.corrcoef(t1.flatten(), t2.flatten())[0, 1]
@@ -137,7 +129,7 @@ class Template_updater(Block):
 
     def _add_template(self, template, amplitude):
         self.amplitudes = numpy.vstack((self.amplitudes, amplitude))
-        template_norm   = numpy.sqrt(template.sum()**2)/self._nb_elements
+        template_norm   = numpy.sqrt(numpy.sum(template.data**2))/self._nb_elements
         self.norms      = numpy.concatenate((self.norms, [template_norm]))
         self.templates  = scipy.sparse.hstack((self.templates, template/template_norm), format='csc')
 
@@ -185,7 +177,7 @@ class Template_updater(Block):
                 templates  = numpy.array(templates_data['dat'][key][channel]).astype(numpy.float32)
                 amplitudes = numpy.array(templates_data['amp'][key][channel]).astype(numpy.float32)
                 if len(templates) > 0:
-                    tmp_pos = self._get_temp_indices(int(channel))
+                    tmp_pos = self.temp_indices[int(channel)]
                     n_data  = len(tmp_pos)
                     for count, t in enumerate(templates):
                         template = scipy.sparse.csc_matrix((t.ravel(), (tmp_pos, numpy.zeros(n_data))), shape=(self._nb_elements, 1))
