@@ -39,10 +39,10 @@ class Template_updater(Block):
         self.global_id     = 0
         self.temp_indices  = {}
         self._spike_width_ = int(self.sampling_rate*self.spike_width*1e-3)
-        self.all_delays    = numpy.arange(1, self.spike_width + 1)
         if numpy.mod(self._spike_width_, 2) == 0:
             self._spike_width_ += 1
-        self._width = (self._spike_width_-1)//2
+        self.all_delays    = numpy.arange(1, self._spike_width_ + 1)
+        self._width        = (self._spike_width_-1)//2
         self._overlap_size = 2*self._spike_width_ - 1
 
         if self.data_path is None:
@@ -86,7 +86,7 @@ class Template_updater(Block):
                 self.temp_indices[channel] = numpy.concatenate((self.temp_indices[channel], tmp))
 
         if self.data_path is not None:
-            mapping_sparse  = -1 * numpy.ones((self.nb_channels, self.max_nn_chan), dtype=numpy.int32)
+            mapping_sparse             = -1 * numpy.ones((self.nb_channels, self.max_nn_chan), dtype=numpy.int32)
             self.writers               = {}
             self.writers['mapping']    = os.path.join(self.data_path, 'mapping')
             self.writers['amplitudes'] = open(os.path.join(self.data_path, 'amplitudes.dat'), 'wb')
@@ -114,17 +114,23 @@ class Template_updater(Block):
             self.writers[key].flush()
             os.fsync(self.writers[key].fileno())
 
-    def _cross_corr(self, t1, t2):
-        ## To optimize based on positions
-        t1 = t1.toarray().reshape(self.nb_channels, self._spike_width_)
-        t2 = t2.toarray().reshape(self.nb_channels, self._spike_width_)
-        return numpy.corrcoef(t1.flatten(), t2.flatten())[0, 1]
-
     def _is_duplicate(self, template):
-        for idx in xrange(self.nb_templates):
-            if self._cross_corr(template, self.templates[:, idx]) >= self.cc_merge:
-                self.log.debug('A duplicate template is found, thus rejected')
-                return True
+
+        tmp_loc_c2 = self.templates.tocsr()
+        tmp_loc_c1 = template.tocsr()
+        all_data   = numpy.zeros(0, dtype=numpy.float32)
+
+        for idelay in self.all_delays:
+            srows      = numpy.where(self.all_rows % self._spike_width_ < idelay)[0]
+            tmp_1      = tmp_loc_c1[srows]
+            srows      = numpy.where(self.all_rows % self._spike_width_ >= (self._spike_width_ - idelay))[0]
+            tmp_2      = tmp_loc_c2[srows]
+            data       = tmp_1.T.dot(tmp_2)
+            all_data   = numpy.concatenate((all_data, data.data))        
+
+        if numpy.any(all_data >= self.cc_merge):
+            self.log.debug('A duplicate template is found, thus rejected')
+            return True
         return False
 
     def _add_template(self, template, amplitude):
@@ -157,8 +163,14 @@ class Template_updater(Block):
                 dx, dy     = data.nonzero()
                 data       = data[data.nonzero()].ravel()
                 all_x      = numpy.concatenate((all_x, dx))
-                all_y      = numpy.concatenate((all_y, dy))
+                all_y      = numpy.concatenate((all_y, (idelay-1)*numpy.ones(len(dx), dtype=numpy.int32)))
                 all_data   = numpy.concatenate((all_data, data))
+
+                if idelay < self._spike_width_:
+                    all_x     = numpy.concatenate((all_x, dx))
+                    all_y     = numpy.concatenate((all_y, (2*self._spike_width_ - idelay - 1)*numpy.ones(len(dx), dtype=numpy.int32)))
+                    all_data  = numpy.concatenate((all_data, data))
+
 
             self.overlaps[c1] = scipy.sparse.csr_matrix((all_data, (all_x, all_y)), shape=(self.nb_templates, self._overlap_size))
 
@@ -181,7 +193,7 @@ class Template_updater(Block):
                     n_data  = len(tmp_pos)
                     for count, t in enumerate(templates):
                         template = scipy.sparse.csc_matrix((t.ravel(), (tmp_pos, numpy.zeros(n_data))), shape=(self._nb_elements, 1))
-                        template_norm = numpy.sqrt(template.sum()**2)/self._nb_elements
+                        template_norm = numpy.sqrt(numpy.sum(template.data**2))/self._nb_elements
                         is_duplicated = self._is_duplicate(template/template_norm)
                         if not is_duplicated:
                             self._add_template(template, amplitudes[count])

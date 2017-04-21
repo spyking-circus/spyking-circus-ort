@@ -51,11 +51,15 @@ class Template_fitter(Block):
 
     @property
     def nb_templates(self):
-        return self.templates.shape[1]
+        return self.templates.shape[0]
 
     def _guess_output_endpoints(self):
         self._nb_elements  = self.nb_channels*self._spike_width_
-        self.templates     = scipy.sparse.csc_matrix((self._nb_elements, 0), dtype=numpy.float32)
+        self.templates     = scipy.sparse.csc_matrix((0, self._nb_elements), dtype=numpy.float32)
+        self.slice_indices = numpy.zeros(0, dtype=numpy.int32)
+        temp_window        = numpy.arange(-self._width, self._width + 1)
+        for idx in xrange(self.nb_channels):
+            self.slice_indices = numpy.concatenate((self.slice_indices, self.nb_samples*idx + temp_window))
 
     def _is_valid(self, peak):
         return (peak >= self._width) & (peak + self._width < self.nb_samples)
@@ -86,18 +90,17 @@ class Template_fitter(Block):
 
         if n_peaks > 0:
 
-            sub_batch = numpy.zeros((self.nb_channels, (2*self._width + 1), n_peaks), dtype=numpy.float32)
+            batch     = batch.flatten()
+            sub_batch = numpy.zeros((self.nb_channels*self._spike_width_, n_peaks), dtype=numpy.float32)
 
             for count, peak in enumerate(peaks):
-                sub_batch[:, :, count] = batch[:, peak - self._width:peak + self._width + 1]
+                sub_batch[:, count] = batch[self.slice_indices + peak]
 
-            sub_batch    = sub_batch.reshape(sub_batch.shape[0]*sub_batch.shape[1], sub_batch.shape[2])
-            b            = self.templates.T.dot(sub_batch)                
+            #sub_batch    = sub_batch.reshape(sub_batch.shape[0]*sub_batch.shape[1], sub_batch.shape[2])
+            b            = self.templates.dot(sub_batch)                
 
             #local_offset = padding[0] + t_offset
             #local_bounds = (2*self._width, len_chunk - 2*self._width)
-            
-            #all_spikes   = peaks + self.offset
 
             # Because for GPU, slicing by columns is more efficient, we need to transpose b
             #b           = b.transpose()
@@ -198,7 +201,8 @@ class Template_fitter(Block):
             
             if updater is not None:
                 self.templates, self.norms, self.amplitudes  = load_data(updater['templates'], format='csc')
-                self.overlaps   = load_pickle(updater['overlaps'])
+                self.templates = self.templates.T
+                self.overlaps  = load_pickle(updater['overlaps'])
                 
             if self.nb_templates > 0:
                 self._fit_chunk(batch, peaks)

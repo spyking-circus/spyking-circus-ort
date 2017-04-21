@@ -4,6 +4,7 @@
 import circusort
 import settings
 import logging
+import scipy
 from circusort.io.utils import generate_fake_probe
 
 
@@ -14,7 +15,7 @@ manager       = director.create_manager(host=host)
 manager2      = director.create_manager(host=host)
 
 nb_channels   = 10
-probe_file    = generate_fake_probe(nb_channels, radius=2)
+probe_file    = generate_fake_probe(nb_channels, radius=1.1)
 
 noise         = manager.create_block('fake_spike_generator', nb_channels=nb_channels)
 filter        = manager.create_block('filter')
@@ -42,40 +43,43 @@ director.stop()
 import numpy, pylab
 
 N_t       = updater._spike_width_
-templates = numpy.fromfile('templates/templates.dat', dtype=numpy.float32)
+# templates = numpy.fromfile('templates/templates.dat', dtype=numpy.float32)
 elecs     = numpy.fromfile('templates/channels.dat', dtype=numpy.int32)
-mapping   = numpy.load('templates/mapping.npy')
+# mapping   = numpy.load('templates/mapping.npy')
 
-templates = templates.reshape(len(elecs), mapping.shape[1]*N_t)
+# templates = templates.reshape(len(elecs), mapping.shape[1]*N_t)
 
-import scipy.sparse
-all_templates = scipy.sparse.csr_matrix((0, nb_channels*N_t))
-basis         = numpy.arange(N_t)
+# import scipy.sparse
+# all_templates = scipy.sparse.csr_matrix((0, nb_channels*N_t), dtype=numpy.float32)
+# basis         = numpy.arange(N_t)
 
-for idx in xrange(len(templates)):
-    indices = mapping[elecs[idx]]
-    indices = indices[indices > -1]
-    pos_y   = numpy.zeros(0, dtype=numpy.int32)
+# for idx in xrange(len(templates)):
+#     indices = mapping[elecs[idx]]
+#     indices = indices[indices > -1]
+#     pos_y   = numpy.zeros(0, dtype=numpy.int32)
     
-    for i in indices:
-        pos_y = numpy.concatenate((pos_y, i*N_t + basis))
+#     for i in indices:
+#         pos_y = numpy.concatenate((pos_y, i*N_t + basis))
 
-    t = scipy.sparse.csr_matrix((templates[idx, :len(indices)*N_t], (numpy.zeros(len(indices)*N_t), pos_y)), shape=(1, nb_channels*N_t))
-    all_templates = scipy.sparse.vstack((all_templates, t))
+#     t = scipy.sparse.csr_matrix((templates[idx, :len(indices)*N_t], (numpy.zeros(len(indices)*N_t), pos_y)), shape=(1, nb_channels*N_t))
+#     all_templates = scipy.sparse.vstack((all_templates, t))
 
 def get_template(id, all_templates):
-    return all_templates[id].toarray().reshape(N_t, nb_channels).T
+    return all_templates[id].toarray().reshape(nb_channels, N_t)
 
 
 def load_data(filename, format='csr'):
     loader = numpy.load(filename + '.npz')
     if format == 'csr':
         template = scipy.sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']),
-                      shape=loader['shape'])
+                      shape=loader['shape'], dtype=numpy.float32)
     elif format == 'csc':
         template = scipy.sparse.csc_matrix((loader['data'], loader['indices'], loader['indptr']),
-                      shape=loader['shape'])
+                      shape=loader['shape'], dtype=numpy.float32)
     return template, loader['norms'], loader['amplitudes']
+
+all_templates, norms, amplitudes = load_data('templates/templates', 'csc')
+all_templates = all_templates.T
 
 labels = numpy.unique(elecs)
 for l in labels:
@@ -85,7 +89,7 @@ for l in labels:
     nb_lines = int(len(idx)/nb_cols) + 1 
     count =  1
     for i in idx:
-        data = get_template(i, all_templates)
+        data = get_template(i, all_templates)*norms[i]
         pylab.subplot(nb_lines, nb_cols, count)
         pylab.imshow(data, aspect='auto')
         pylab.colorbar()
