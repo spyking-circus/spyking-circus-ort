@@ -57,8 +57,8 @@ amps     = numpy.fromfile(writer_2.recorded_data['amplitudes'], dtype=numpy.floa
 raw_data = numpy.fromfile('/tmp/output.dat', dtype=numpy.float32)
 raw_data = raw_data.reshape(raw_data.size/nb_channels, nb_channels)
 
-t_min    = spikes[0] - int(10*sampling_rate/1000)
-t_max    = spikes[100] + int(10*sampling_rate/1000)
+t_min    = spikes[-100] - int(10*sampling_rate/1000)
+t_max    = spikes[-1] + int(10*sampling_rate/1000)
 
 N_t       = updater._spike_width_
 # templates = numpy.fromfile('templates/templates.dat', dtype=numpy.float32)
@@ -99,16 +99,13 @@ def load_data(filename, format='csr'):
 all_templates, norms, amplitudes = load_data('templates/templates', 'csc')
 all_templates = all_templates.T
 
-
 curve = numpy.zeros((nb_channels, t_max-t_min), dtype=numpy.float32)
 
-for spike, temp_id, amp in zip(spikes[:100], temp_ids[:100], amps[:100]):
+for spike, temp_id, amp in zip(spikes[-100:], temp_ids[-100:], amps[-100:]):
     spike -= t_min
     tmp1   = get_template(temp_id, all_templates)
-    try:
-        curve[:, spike-tmp1.shape[1]/2:spike+tmp1.shape[1]/2+1] += amp*tmp1*norms[temp_id]
-    except Exception:
-        pass
+    curve[:, spike-tmp1.shape[1]/2:spike+tmp1.shape[1]/2+1] += amp*tmp1*norms[temp_id]
+    
 
 
 neg_peaks = numpy.fromfile('/tmp/peaks.dat', dtype=numpy.int32)

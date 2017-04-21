@@ -171,7 +171,6 @@ class Template_updater(Block):
                     all_y     = numpy.concatenate((all_y, (2*self._spike_width_ - idelay - 1)*numpy.ones(len(dx), dtype=numpy.int32)))
                     all_data  = numpy.concatenate((all_data, data))
 
-
             self.overlaps[c1] = scipy.sparse.csr_matrix((all_data, (all_x, all_y)), shape=(self.nb_templates, self._overlap_size))
 
             # Now we need to add those overlaps to the old ones
@@ -193,8 +192,8 @@ class Template_updater(Block):
                     n_data  = len(tmp_pos)
                     for count, t in enumerate(templates):
                         template = scipy.sparse.csc_matrix((t.ravel(), (tmp_pos, numpy.zeros(n_data))), shape=(self._nb_elements, 1))
-                        template_norm = numpy.sqrt(numpy.sum(template.data**2))/self._nb_elements
-                        is_duplicated = self._is_duplicate(template/template_norm)
+                        template_norm = numpy.sqrt(numpy.sum(template.data**2)/self._nb_elements)
+                        is_duplicated = False #self._is_duplicate(template/template_norm)
                         if not is_duplicated:
                             self._add_template(template, amplitudes[count])
                             self._write_template_data(template, amplitudes[count], int(channel))

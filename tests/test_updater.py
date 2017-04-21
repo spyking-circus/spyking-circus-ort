@@ -15,11 +15,11 @@ manager       = director.create_manager(host=host)
 manager2      = director.create_manager(host=host)
 
 nb_channels   = 10
-probe_file    = generate_fake_probe(nb_channels, radius=1.1)
+probe_file    = generate_fake_probe(nb_channels, radius=5)
 
 noise         = manager.create_block('fake_spike_generator', nb_channels=nb_channels)
-filter        = manager.create_block('filter')
-whitening     = manager.create_block('whitening')
+filter        = manager.create_block('filter', cut_off=100)
+#whitening     = manager.create_block('whitening')
 mad_estimator = manager.create_block('mad_estimator')
 peak_detector = manager.create_block('peak_detector', threshold=6)
 pca           = manager.create_block('pca', nb_waveforms=5000)
@@ -29,8 +29,8 @@ updater       = manager2.create_block('template_updater', probe=probe_file, data
 director.initialize()
 
 director.connect(noise.output, filter.input)
-director.connect(filter.output, whitening.input)
-director.connect(whitening.output, [mad_estimator.input, peak_detector.get_input('data'), cluster.get_input('data'), pca.get_input('data')])
+#director.connect(filter.output, whitening.input)
+director.connect(filter.output, [mad_estimator.input, peak_detector.get_input('data'), cluster.get_input('data'), pca.get_input('data')])
 director.connect(mad_estimator.output, [peak_detector.get_input('mads'), cluster.get_input('mads')])
 director.connect(peak_detector.get_output('peaks'), [pca.get_input('peaks'), cluster.get_input('peaks')])
 director.connect(pca.get_output('pcs'), cluster.get_input('pcs'))

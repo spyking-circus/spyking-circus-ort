@@ -22,7 +22,7 @@ class Density_clustering(Block):
               'noise_thr'     : 0.8,
               'n_min'         : 0.002,
               'dispersion'    : [5, 5],
-              'extraction'    : 'median-raw'}
+              'extraction'    : 'mean-raw'}
 
     def __init__(self, **kwargs):
 
@@ -235,7 +235,6 @@ class Density_clustering(Block):
             tmpidx = divmod(template.argmax(), template.shape[1])
 
         shift            = self._width - tmpidx[1]
-
         aligned_template = numpy.zeros(template.shape, dtype=numpy.float32)
         if shift > 0:
             aligned_template[:, shift:] = template[:, :-shift]

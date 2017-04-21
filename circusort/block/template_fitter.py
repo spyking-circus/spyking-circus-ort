@@ -39,6 +39,7 @@ class Template_fitter(Block):
         if numpy.mod(self._spike_width_, 2) == 0:
             self._spike_width_ += 1
         self._width = (self._spike_width_-1)//2
+        self._overlap_size = 2*self._spike_width_ - 1
         return
 
     @property
@@ -106,7 +107,7 @@ class Template_fitter(Block):
             #b           = b.transpose()
 
             failure     = numpy.zeros(n_peaks, dtype=numpy.int32)
-            mask        = numpy.ones((self.nb_templates, n_peaks), dtype=numpy.float32)
+            mask        = numpy.ones((self.nb_templates, n_peaks), dtype=numpy.int32)
             sub_b       = b[:self.nb_templates, :]
 
             min_time    = peaks.min()
@@ -115,7 +116,7 @@ class Template_fitter(Block):
             min_times   = numpy.maximum(peaks - min_time - 2*self._width, 0)
             max_times   = numpy.minimum(peaks - min_time + 2*self._width + 1, max_time - min_time)
             max_n_peaks = int(self.space_explo*(max_time-min_time+1)//(2*2*self._width + 1))
-                    
+
             while (numpy.mean(failure) < self.nb_chances):
 
                 data        = sub_b * mask
@@ -138,7 +139,7 @@ class Template_fitter(Block):
                     subset    = numpy.array(subset, dtype=numpy.int32)
                     argmax_bi = numpy.delete(argmax_bi, indices)
 
-                    inds_t, inds_temp = subset, numpy.argmax(sub_b[:, subset], 0)
+                    inds_t, inds_temp = subset, numpy.argmax(numpy.take(sub_b, subset, axis=1), 0)
 
                     best_amp  = sub_b[inds_temp, inds_t]/self._nb_elements
                     #best_amp2 = b[inds_temp + self.nb_templates, inds_t]/self._nb_elements
@@ -165,7 +166,7 @@ class Template_fitter(Block):
                             idx_b    = numpy.compress(condition[count, :], all_indices)
                             ytmp     = tmp[count, condition[count, :]] + 2*self._width
                             
-                            indices  = numpy.zeros((2*self._spike_width_ - 1, len(ytmp)), dtype=numpy.float32)
+                            indices  = numpy.zeros((self._overlap_size, len(ytmp)), dtype=numpy.int32)
                             indices[ytmp, numpy.arange(len(ytmp))] = 1
 
                             tmp1   = self.overlaps[inds_temp[keep]].multiply(-best_amp[keep]).dot(indices)
