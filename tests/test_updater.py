@@ -5,7 +5,8 @@ import circusort
 import settings
 import logging
 import scipy
-from circusort.io.utils import generate_fake_probe
+import cPickle
+from circusort.io.utils import generate_fake_probe, load_pickle
 
 
 host = '127.0.0.1' # to run the test locally
@@ -16,10 +17,10 @@ manager2      = director.create_manager(host=host)
 
 nb_channels   = 10
 sampling_rate = 20000
-probe_file    = generate_fake_probe(nb_channels)
+probe_file    = generate_fake_probe(nb_channels, radius=1)
 
 noise         = manager.create_block('fake_spike_generator', nb_channels=nb_channels)
-filter        = manager.create_block('filter', cut_off=100)
+filter        = manager.create_block('filter')
 whitening     = manager.create_block('whitening')
 mad_estimator = manager.create_block('mad_estimator')
 peak_detector = manager.create_block('peak_detector', threshold=6)
@@ -38,7 +39,7 @@ director.connect(pca.get_output('pcs'), cluster.get_input('pcs'))
 director.connect(cluster.get_output('templates'), updater.get_input('templates'))
 
 director.start()
-director.sleep(duration=60.0)
+director.sleep(duration=30.0)
 director.stop()
 
 import numpy, pylab
@@ -80,6 +81,7 @@ def load_data(filename, format='csr'):
     return template, loader['norms'], loader['amplitudes']
 
 all_templates, norms, amplitudes = load_data('templates/templates', 'csc')
+overlaps = load_pickle('templates/overlaps')
 all_templates = all_templates.T
 
 labels = numpy.unique(elecs)

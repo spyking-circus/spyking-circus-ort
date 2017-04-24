@@ -199,7 +199,7 @@ class Density_clustering(Block):
         if len(labels) > 0:
             self.log.debug("{n} found {m} templates on channel {d}".format(n=self.name_and_counter, m=len(labels), d=channel))
         for l in labels:
-            indices = numpy.where(labels == l)[0]
+            indices = numpy.where(self.clusters[key][channel] == l)[0]
             data = self.raw_data[key][channel][indices]
             if self.extraction == 'mean-raw':
                 template = numpy.mean(data, 0)
@@ -210,7 +210,17 @@ class Density_clustering(Block):
             template   = self._center_template(template, key)
             amplitudes = self._get_amplitudes(data, template, channel)
             
-            
+            # import pylab
+            # pylab.figure()
+            # for i in xrange(len(template)):
+            #     if i == self.chan_positions[channel]:
+            #         c = 'r'
+            #     else: 
+            #         c = '0.5'
+            #     pylab.plot(template[i, :], c=c)
+            #     pylab.title("nb_samples %d" %len(indices))
+            # pylab.savefig("test_key_channel_%d.png" %time.time())
+
             self.templates['dat'][key][channel] = numpy.vstack((self.templates['dat'][key][channel], template.reshape(1, template.shape[0], template.shape[1])))
             self.templates['amp'][key][channel] = numpy.vstack((self.templates['amp'][key][channel], amplitudes))
 
@@ -291,6 +301,8 @@ class Density_clustering(Block):
 
                         self.pca_data[key][channel] = numpy.vstack((self.pca_data[key][channel], projection))
                         self.raw_data[key][channel] = numpy.vstack((self.raw_data[key][channel], waveforms))
+
+                        #print "count", key, channel, self.raw_data[key][channel].shape
 
                     for channel in xrange(self.nb_channels):
                         if len(self.pca_data[key][channel]) >= self.nb_waveforms:
