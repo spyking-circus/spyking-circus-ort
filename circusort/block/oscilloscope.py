@@ -39,8 +39,14 @@ class Oscilloscope(Block):
         self.log.info('Templates data are saved in {k}'.format(k=self.data_path))
 
         self.buffer = DictionaryBuffer()
-
-        pylab.figure()
+        self.data_available = False
+        self.batch = None
+        self.thresholds = None
+        self.peaks = None
+        self.data_lines = None
+        self.threshold_lines = None
+        self.peak_points = None
+        # pylab.figure()
         return
 
     @property
@@ -53,41 +59,70 @@ class Oscilloscope(Block):
 
     def _guess_output_endpoints(self):
         pass
-    
+
     def _process(self):
 
-        batch = self.inputs['data'].receive()
-        thresholds = self.inputs['mads'].receive(blocking=False)
-        peaks = self.inputs['peaks'].receive(blocking=False)
-        pylab.gca().clear()
+        self.batch = self.inputs['data'].receive()
+        self.thresholds = self.inputs['mads'].receive(blocking=False)
+        self.peaks = self.inputs['peaks'].receive(blocking=False)
 
-        for i in xrange(self.nb_channels):
-            offset = self.spacing*i
-            pylab.plot(offset + batch[i, :], '0.5')
+        self.data_available = True
 
-            if thresholds is not None:
-                pylab.plot([0, self.nb_samples], [offset - thresholds[i], offset - thresholds[i]], 'k--')
-                pylab.plot([0, self.nb_samples], [offset + thresholds[i], offset + thresholds[i]], 'k--')
+    def _plot(self):
+        # Called from the main thread
+        pylab.ion()
 
-        if peaks is not None:
+        if not getattr(self, 'data_available', False):
+            return
+        self.data_available = False
 
-            if not self.is_active:
-                self._set_active_mode
-        
-            self.buffer.add(peaks)
-            peaks, offset = self.buffer.get()
-            offset        = offset / self.nb_samples
-            if offset == self.counter:
-                for key in peaks.keys():
-                    for channel in peaks[key].keys():
-                        data = peaks[key][channel]
-                        pylab.plot(data, self.spacing*int(channel)*numpy.ones(len(data)), 'r.')
-                self.buffer.remove()
+        if self.data_lines is None:
+            self.data_lines = []
+            for i in xrange(self.nb_channels):
+                offset = self.spacing*i
+                self.data_lines.append(pylab.plot(offset + self.batch[i, :], '0.5')[0])
+        else:
+            for i, line in enumerate(self.data_lines):
+                offset = self.spacing*i
+                line.set_ydata(offset + self.batch[i, :])
 
-        pylab.xlim(0, self.nb_samples)
-        pylab.xlabel('Time [steps]')
-        pylab.title('Buffer %d' %self.counter)
+        if self.thresholds is not None:
+            if self.threshold_lines is None:
+                self.threshold_lines = []
+                for i in xrange(self.nb_channels):
+                    offset = self.spacing * i
+                    self.threshold_lines.append((pylab.plot([0, self.nb_samples], [offset - self.thresholds[i],
+                                                                                  offset - self.thresholds[i]],
+                                                           'k--')[0],
+                                                pylab.plot([0, self.nb_samples], [offset + self.thresholds[i],
+                                                                                  offset + self.thresholds[i]],
+                                                           'k--')[0]))
+            else:
+                for i, (lower_line, upper_line) in enumerate(self.threshold_lines):
+                    offset = self.spacing * i
+                    lower_line.set_ydata([offset - self.thresholds[i], offset - self.thresholds[i]])
+                    upper_line.set_ydata([offset + self.thresholds[i], offset + self.thresholds[i]])
 
-        pylab.savefig(os.path.join(self.data_path, 'oscillo_%05d.png' %self.counter))
+        # if self.peaks is not None:
+        #
+        #     if not self.is_active:
+        #         self._set_active_mode
+        #
+        #     self.buffer.add(self.peaks)
+        #     peaks, offset = self.buffer.get()
+        #     offset        = offset / self.nb_samples
+        #     if offset == self.counter:
+        #         for key in peaks.keys():
+        #             for channel in peaks[key].keys():
+        #                 data = peaks[key][channel]
+        #                 pylab.plot(data, self.spacing*int(channel)*numpy.ones(len(data)), 'r.')
+        #         self.buffer.remove()
+
+        if self.data_lines is None:
+            pylab.xlim(0, self.nb_samples)
+            pylab.xlabel('Time [steps]')
+        pylab.gca().set_title('Buffer %d' %self.counter)
+        pylab.draw()
+        # pylab.savefig(os.path.join(self.data_path, 'oscillo_%05d.png' %self.counter))
 
         return

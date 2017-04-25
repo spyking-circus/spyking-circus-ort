@@ -2,7 +2,7 @@
 # associated to one manager.
 
 import circusort
-import settings
+# import settings
 import logging
 
 
@@ -36,5 +36,5 @@ director.stop()
 
 delay = 100
 
-import os
-os.system('convert -delay %d oscillo/oscillo_*.png oscilloscope.mov' %delay)
+# import os
+# os.system('convert -delay %d oscillo/oscillo_*.png oscilloscope.mov' %delay)
