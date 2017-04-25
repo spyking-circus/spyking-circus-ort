@@ -71,6 +71,8 @@ class Oscilloscope(Block):
             if not self.is_active:
                 self._set_active_mode()
         
+            print self.counter, peaks['offset']/self.nb_samples
+
             self.buffer.add(peaks)
             offset = self.counter * self.nb_samples
             peaks  = self.buffer.get(offset)

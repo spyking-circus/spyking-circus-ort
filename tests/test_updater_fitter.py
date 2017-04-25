@@ -101,21 +101,6 @@ def load_data(filename, format='csr'):
 all_templates, norms, amplitudes = load_data('templates/templates', 'csc')
 all_templates = all_templates.T
 
-labels = numpy.unique(elecs)
-for l in labels:
-    idx = numpy.where(elecs == l)[0]
-    pylab.figure()
-    nb_cols  = 3
-    nb_lines = int(len(idx)/nb_cols) + 1 
-    count =  1
-    for i in idx:
-        data = get_template(i, all_templates)*norms[i]
-        pylab.subplot(nb_lines, nb_cols, count)
-        pylab.imshow(data, aspect='auto')
-        pylab.colorbar()
-        pylab.clim(-5, 5)
-        count += 1
-
 
 curve = numpy.zeros((nb_channels, t_max-t_min), dtype=numpy.float32)
 

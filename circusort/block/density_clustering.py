@@ -222,9 +222,9 @@ class Density_clustering(Block):
                 else: 
                     c = '0.5'
                 pylab.plot(template[i, :], c=c)
-                xmin, xmax = pylab.xlim()
-                pylab.plot([xmin, xmax], [-self.thresholds[channel], -self.thresholds[channel]], 'k--')
-                pylab.title("nb_samples %d" %len(indices))
+            xmin, xmax = pylab.xlim()
+            pylab.plot([xmin, xmax], [-self.thresholds[channel], -self.thresholds[channel]], 'k--')
+            pylab.title("nb_samples %d" %len(indices))
             pylab.savefig("test_%d_%s_%d_%d.png" %(self.counter, key, channel, l))
 
             self.templates['dat'][key][channel] = numpy.vstack((self.templates['dat'][key][channel], template.reshape(1, template.shape[0], template.shape[1])))
@@ -276,7 +276,6 @@ class Density_clustering(Block):
         if self.receive_pcs:
             self.pcs = self.inputs['pcs'].receive(blocking=False)
 
-
         if self.pcs is not None:
 
             if self.receive_pcs:
@@ -289,11 +288,8 @@ class Density_clustering(Block):
 
                 self.to_reset = []
 
-                # self.buffer.add(peaks)
-                # offset = self.counter * self.nb_samples
-                # peaks  = self.buffer.get(offset)
-
-                #print peaks.pop('offset')/self.nb_samples, self.counter
+                while peaks.pop('offset')/self.nb_samples < self.counter:
+                    peaks = self.inputs['peaks'].receive()
 
                 if peaks is not None:
 
@@ -316,8 +312,6 @@ class Density_clustering(Block):
                             self.pca_data[key][channel] = numpy.vstack((self.pca_data[key][channel], projection))
                             self.raw_data[key][channel] = numpy.vstack((self.raw_data[key][channel], waveforms))
 
-                            #print "count", key, channel, self.raw_data[key][channel].shape
-
                         for channel in xrange(self.nb_channels):
                             if len(self.pca_data[key][channel]) >= self.nb_waveforms:
                                 self._perform_clustering(key, channel)
@@ -326,6 +320,4 @@ class Density_clustering(Block):
                         self.outputs['templates'].send(self.templates)
                         for key, channel in self.to_reset:
                             self._reset_data_structures(key, channel)
-
-                    #self.buffer.remove(offset)
         return

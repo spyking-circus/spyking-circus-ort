@@ -209,7 +209,6 @@ class Template_updater(Block):
         if data is not None:
 
             if not self.is_active:
-                self.log.info('{n} starts to manage templates'.format(n=self.name))
                 self._set_active_mode()
 
             self.log.debug("{n} updates the dictionary of templates".format(n=self.name_and_counter))
