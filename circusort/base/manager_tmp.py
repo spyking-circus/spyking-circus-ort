@@ -116,43 +116,17 @@ class Manager(object):
             block.join()
         return
 
-    @property
-    def data_producers(self):
-        res = []
-        for block in self.blocks.itervalues():
-            if block.nb_inputs == 0:
-                res += [block]
-        return res
-
-    @property
-    def data_consumers(self):
-        res = []
-        for block in self.blocks.itervalues():
-            if block.nb_outputs == 0:
-                res += [block]
-        return res
-
-    @property
-    def data_consumers_and_producers(self):
-        res = []
-        for block in self.blocks.itervalues():
-            if block.nb_inputs != 0 and block.nb_outputs != 0:
-                res += [block]
-        return res
-
     def start(self, nb_steps=None):
         if nb_steps is None:
             self.log.info("{d} starts {s}".format(d=str(self), s=", ".join(self.list_blocks())))
-            for sources in [self.data_consumers, self.data_consumers_and_producers, self.data_producers]:
-                for block in sources:
-                    block.start()
+            for block in self.blocks.itervalues():
+                block.start()
         else:
             self.log.info("{d} runs {s} for {n} steps".format(d=str(self), s=", ".join(self.list_blocks()), n=nb_steps))
-            for sources in [self.data_consumers, self.data_consumers_and_producers, self.data_producers]:
-                for block in sources:
-                    block.nb_steps = nb_steps
-                    block.start()
-                    block.nb_steps = None
+            for block in self.blocks.itervalues():
+                block.nb_steps = nb_steps
+                block.start()
+                block.nb_steps = None
         return
 
     def stop(self):

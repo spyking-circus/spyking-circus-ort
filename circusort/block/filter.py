@@ -50,5 +50,6 @@ class Filter(Block):
             global_median = numpy.median(batch, 0)
             for i in xrange(self.nb_channels):
                 batch[i] -= global_median
-        self.output.send(batch.flatten())
+        self.output.send(batch)
+
         return

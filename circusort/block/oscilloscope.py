@@ -50,9 +50,6 @@ class Oscilloscope(Block):
     @property
     def nb_samples(self):
         return self.inputs['data'].shape[1]
-
-    def _guess_output_endpoints(self):
-        pass
     
     def _process(self):
 
@@ -72,17 +69,17 @@ class Oscilloscope(Block):
         if peaks is not None:
 
             if not self.is_active:
-                self._set_active_mode
+                self._set_active_mode()
         
             self.buffer.add(peaks)
-            peaks, offset = self.buffer.get()
-            offset        = offset / self.nb_samples
-            if offset == self.counter:
+            offset = self.counter * self.nb_samples
+            peaks  = self.buffer.get(offset)
+            if peaks is not None:
                 for key in peaks.keys():
                     for channel in peaks[key].keys():
                         data = peaks[key][channel]
                         pylab.plot(data, self.spacing*int(channel)*numpy.ones(len(data)), 'r.')
-                self.buffer.remove()
+            self.buffer.remove(offset)
 
         pylab.xlim(0, self.nb_samples)
         pylab.xlabel('Time [steps]')

@@ -85,12 +85,14 @@ class Pca(Block):
             self.waveforms[key] = numpy.zeros((self.nb_waveforms, self._spike_width_), dtype=numpy.float32)
 
     def _process(self):
-        peaks = self.inputs['peaks'].receive(blocking=False)
-        batch = self.inputs['data'].receive()
 
+        batch = self.inputs['data'].receive()
+        peaks = self.inputs['peaks'].receive(blocking=False)
+        
         if peaks is not None:
 
-            peaks.pop('offset')
+            print self.counter, peaks.pop('offset')/self.nb_samples
+            
             if self.sign_peaks is None:
                 self._infer_sign_peaks(peaks)
             self._set_active_mode()

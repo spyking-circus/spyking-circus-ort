@@ -183,6 +183,7 @@ class Block(threading.Thread):
 
     def _set_active_mode(self):
         self.is_active = True
+        self.log.debug("{n} is now active".format(n=self.name_and_counter))
         self._set_start_step()
 
     def __str__(self):

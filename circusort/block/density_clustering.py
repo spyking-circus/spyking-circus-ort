@@ -289,12 +289,13 @@ class Density_clustering(Block):
 
                 self.to_reset = []
 
-                self.buffer.add(peaks)
-                peaks, offset = self.buffer.get()
-                offset        = offset / self.nb_samples
+                # self.buffer.add(peaks)
+                # offset = self.counter * self.nb_samples
+                # peaks  = self.buffer.get(offset)
 
-                print self.counter, offset
-                if offset == self.counter:
+                #print peaks.pop('offset')/self.nb_samples, self.counter
+
+                if peaks is not None:
 
                     all_peaks = self._get_all_valid_peaks(peaks)
 
@@ -326,5 +327,5 @@ class Density_clustering(Block):
                         for key, channel in self.to_reset:
                             self._reset_data_structures(key, channel)
 
-                    self.buffer.remove()
+                    #self.buffer.remove(offset)
         return

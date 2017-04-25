@@ -1,24 +1,29 @@
+import numpy
+
 class DictionaryBuffer(object):
 
     def __init__(self, limit=1000):
         self.data    = []
-        self.offsets = [] 
+        self.offsets = numpy.zeros(0, dtype=numpy.uint32)
         self.limit   = limit
 
     def add(self, data):
-        if len(self.data) < self.limit:
-            offset = data.pop('offset')
-            self.data    += [data]
-            self.offsets += [offset]
+        offset        = data.pop('offset')
+        self.data    += [data]
+        self.offsets  = numpy.concatenate((self.offsets, numpy.array([offset], dtype=numpy.uint32)))
             
     def __len__(self):
         return len(self.data)
 
-    def get(self, idx=0):
-        x = self.data[idx]
-        y = self.offsets[idx]
-        return x, y
+    def get(self, offset):
+        idx = numpy.where(self.offsets == offset)[0]
+        if len(idx) > 0:
+            return self.data[idx[0]]
+        else:
+            return None
 
-    def remove(self, idx=0):
-        self.data.pop(idx)
-        self.offsets.pop(idx)
+    def remove(self, offset):
+        indices = numpy.where(self.offsets <= offset)[0]
+        for idx in indices:
+            self.data.pop(idx)
+        self.offsets = numpy.delete(self.offsets, indices)
