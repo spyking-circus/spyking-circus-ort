@@ -211,7 +211,7 @@ class Template_updater(Block):
             if not self.is_active:
                 self._set_active_mode()
 
-            self.log.debug("{n} updates the dictionary of templates".format(n=self.name_and_counter))
+            self.log.debug("{n} updates the dictionary of templates".format(n=self.name))
             new_templates = self._construct_templates(data)
 
             save_data(self.templates_file, self.templates, self.norms, self.amplitudes)

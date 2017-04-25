@@ -23,7 +23,8 @@ class Density_clustering(Block):
               'noise_thr'     : 0.8,
               'n_min'         : 0.002,
               'dispersion'    : [5, 5],
-              'extraction'    : 'median-raw'}
+              'extraction'    : 'median-raw', 
+              'two_components': True}
 
     def __init__(self, **kwargs):
 
@@ -165,6 +166,8 @@ class Density_clustering(Block):
 
         self.templates['dat'] = {}
         self.templates['amp'] = {}
+        if self.two_components:
+            self.templates['two'] = {}
 
         if not numpy.all(self.pcs[0] == 0):
             self.sign_peaks += ['negative']
@@ -178,6 +181,8 @@ class Density_clustering(Block):
             self.clusters[key]   = {}
             self.templates['dat'][key] = {}
             self.templates['amp'][key] = {}
+            if self.two_components:
+                self.templates['two'][key] = {}
 
         for key in self.sign_peaks:
             for channel in xrange(self.nb_channels):
@@ -212,27 +217,32 @@ class Density_clustering(Block):
 
             template   = template.T
             template   = self._center_template(template, key)
+
+            
             amplitudes = self._get_amplitudes(data, template, channel)
             
-            import pylab
-            pylab.figure()
-            for i in xrange(len(template)):
-                if i == self.chan_positions[channel]:
-                    c = 'r'
-                else: 
-                    c = '0.5'
-                pylab.plot(template[i, :], c=c)
-            xmin, xmax = pylab.xlim()
-            pylab.plot([xmin, xmax], [-self.thresholds[channel], -self.thresholds[channel]], 'k--')
-            pylab.title("nb_samples %d" %len(indices))
-            pylab.savefig("test_%d_%s_%d_%d.png" %(self.counter, key, channel, l))
+            # import pylab
+            # pylab.figure()
+            # for i in xrange(len(template)):
+            #     if i == self.chan_positions[channel]:
+            #         c = 'r'
+            #     else: 
+            #         c = '0.5'
+            #     pylab.plot(template[i, :], c=c)
+            # xmin, xmax = pylab.xlim()
+            # pylab.plot([xmin, xmax], [-self.thresholds[channel], -self.thresholds[channel]], 'k--')
+            # pylab.title("nb_samples %d" %len(indices))
+            # pylab.savefig("test_%d_%s_%d_%d.png" %(self.counter, key, channel, l))
 
             self.templates['dat'][key][channel] = numpy.vstack((self.templates['dat'][key][channel], template.reshape(1, template.shape[0], template.shape[1])))
             self.templates['amp'][key][channel] = numpy.vstack((self.templates['amp'][key][channel], amplitudes))
 
+            if self.two_components:
+                self.templates['two'][key][channel] = numpy.vstack((self.templates['two'][key][channel], template2.reshape(1, template2.shape[0], template2.shape[1])))
+
         self.to_reset += [(key, channel)]
 
-    def _get_amplitudes(self, data, template, channel):
+    def _get_amplitudes(self, data, template, channeln template2=None):
         x, y, z     = data.shape
         data        = data.reshape(x, y*z)
         first_flat  = template.reshape(y*z, 1)

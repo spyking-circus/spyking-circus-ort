@@ -185,6 +185,8 @@ class Template_fitter(Block):
 
             if len(self.result['spike_times']) > 0:
                 self.log.debug('{n} fitted {k} spikes from {m} templates'.format(n=self.name_and_counter, k=len(self.result['spike_times']), m=self.nb_templates))
+            else:
+                self.log.debug('{n} fitted no spikes from {s} peaks'.format(n=self.name_and_counter, s=n_peaks))
 
     def _process(self):
         batch = self.inputs['data'].receive()

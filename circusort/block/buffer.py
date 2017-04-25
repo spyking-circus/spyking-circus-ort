@@ -36,6 +36,6 @@ class Buffer(Block):
     def _process(self):
         batch = self.input.receive()
         self.buffer[:, self._buffer_width_:] = batch
-        self.output.send(self.buffer.flatten())
+        self.output.send(self.buffer)
         self.buffer[:, :self._buffer_width_] = self.buffer[:, -self._buffer_width_:]
         return
