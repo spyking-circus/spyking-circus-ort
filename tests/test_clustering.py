@@ -21,7 +21,7 @@ whitening     = manager.create_block('whitening')
 mad_estimator = manager.create_block('mad_estimator')
 peak_detector = manager.create_block('peak_detector', threshold=6, sign_peaks='both')
 pca           = manager.create_block('pca', nb_waveforms=5000)
-cluster       = manager2.create_block('density_clustering', probe=probe_file, nb_waveforms=1000, log_level=logging.DEBUG)
+cluster       = manager2.create_block('density_clustering', probe=probe_file, nb_waveforms=1000, two_components=True, log_level=logging.DEBUG)
 
 director.initialize()
 

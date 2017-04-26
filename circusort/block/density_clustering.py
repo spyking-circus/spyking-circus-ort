@@ -24,7 +24,7 @@ class Density_clustering(Block):
               'n_min'         : 0.002,
               'dispersion'    : [5, 5],
               'extraction'    : 'median-raw', 
-              'two_components': True}
+              'two_components': False}
 
     def __init__(self, **kwargs):
 
@@ -215,53 +215,87 @@ class Density_clustering(Block):
             elif self.extraction == 'median-raw':
                 template = numpy.median(data, 0)
 
-            template   = template.T
-            template   = self._center_template(template, key)
+            template         = template.T
+            template, shift  = self._center_template(template, key)
+            amplitudes, amps = self._get_amplitudes(data, template, channel)
 
-            
-            amplitudes = self._get_amplitudes(data, template, channel)
-            
+            if self.two_components:
+
+                x, y, z     = data.shape
+                data_flat   = data.reshape(x, y*z)
+                first_flat  = template.reshape(y*z, 1)
+
+                for i in xrange(x):
+                    data_flat[i, :] -= amps[i]*first_flat[:, 0]
+
+                if len(data_flat) > 1:
+                    pca       = PCAEstimator(1)
+                    res_pca   = pca.fit_transform(data_flat).astype(numpy.float32)
+                    template2 = pca.components_.T.astype(numpy.float32).reshape(y, z)
+                else:
+                    template2 = data_flat.reshape(y, z)/numpy.sum(data_flat**2)
+
+                template2    = template2.T
+                template2, _ = self._center_template(template2, key, shift)
+
             # import pylab
             # pylab.figure()
+            # if self.two_components:
+            #     pylab.subplot(1, 2, 1)
+            # else:
+            #     pylab.subplot(1, 1, 1)
             # for i in xrange(len(template)):
             #     if i == self.chan_positions[channel]:
             #         c = 'r'
-            #     else: 
+            #     else:
             #         c = '0.5'
             #     pylab.plot(template[i, :], c=c)
+
             # xmin, xmax = pylab.xlim()
+            # pylab.title("Template [nb_samples %d]" %len(indices))
             # pylab.plot([xmin, xmax], [-self.thresholds[channel], -self.thresholds[channel]], 'k--')
-            # pylab.title("nb_samples %d" %len(indices))
+            
+            # if self.two_components:
+            #     pylab.subplot(1, 2, 2)
+            #     for i in xrange(len(template)):
+            #         if i == self.chan_positions[channel]:
+            #             c = 'r'
+            #         else:
+            #             c = '0.5'
+            #         pylab.plot(template2[i, :], c=c)
+            #     pylab.title('Second Template')
+
             # pylab.savefig("test_%d_%s_%d_%d.png" %(self.counter, key, channel, l))
 
             self.templates['dat'][key][channel] = numpy.vstack((self.templates['dat'][key][channel], template.reshape(1, template.shape[0], template.shape[1])))
             self.templates['amp'][key][channel] = numpy.vstack((self.templates['amp'][key][channel], amplitudes))
-
             if self.two_components:
                 self.templates['two'][key][channel] = numpy.vstack((self.templates['two'][key][channel], template2.reshape(1, template2.shape[0], template2.shape[1])))
 
         self.to_reset += [(key, channel)]
 
-    def _get_amplitudes(self, data, template, channeln template2=None):
+    def _get_amplitudes(self, data, template, channel):
         x, y, z     = data.shape
         data        = data.reshape(x, y*z)
         first_flat  = template.reshape(y*z, 1)
         amplitudes  = numpy.dot(data, first_flat)
         amplitudes /= numpy.sum(first_flat**2)
         variation   = numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
-        physical_limit = self.noise_thr*(-self.thresholds[channel])/template.min()
+        physical_limit = self.noise_thr*(-self.thresholds[channel])/template[self.chan_positions[channel], self._width]
         amp_min        = min(0.8, max(physical_limit, numpy.median(amplitudes) - self.dispersion[0]*variation))
         amp_max        = max(1.2, numpy.median(amplitudes) + self.dispersion[1]*variation)
 
-        return numpy.array([amp_min, amp_max], dtype=numpy.float32)
+        return numpy.array([amp_min, amp_max], dtype=numpy.float32), amplitudes
 
-    def _center_template(self, template, key):
-        if key == 'negative':
-            tmpidx = divmod(template.argmin(), template.shape[1])
-        elif key == 'positive':
-            tmpidx = divmod(template.argmax(), template.shape[1])
+    def _center_template(self, template, key, shift=None):
+        if shift is None:
+            if key == 'negative':
+                tmpidx = divmod(template.argmin(), template.shape[1])
+            elif key == 'positive':
+                tmpidx = divmod(template.argmax(), template.shape[1])
 
-        shift            = self._width - tmpidx[1]
+            shift = self._width - tmpidx[1]
+    
         aligned_template = numpy.zeros(template.shape, dtype=numpy.float32)
         if shift > 0:
             aligned_template[:, shift:] = template[:, :-shift]
@@ -269,7 +303,7 @@ class Density_clustering(Block):
             aligned_template[:, :shift] = template[:, -shift:]
         else:
             aligned_template = template
-        return aligned_template
+        return aligned_template, shift
 
     def _reset_data_structures(self, key, channel):
         self.pca_data[key][channel] = numpy.zeros((0, self.pcs.shape[1], len(self.probe.edges[channel])), dtype=numpy.float32)
@@ -277,6 +311,8 @@ class Density_clustering(Block):
         self.clusters[key][channel] = numpy.zeros(0, dtype=numpy.int32)
         self.templates['dat'][key][channel] = numpy.zeros((0, len(self.probe.edges[channel]), self._spike_width_), dtype=numpy.float32)
         self.templates['amp'][key][channel] = numpy.zeros((0, 2), dtype=numpy.float32)
+        if self.two_components:
+            self.templates['two'][key][channel] = numpy.zeros((0, len(self.probe.edges[channel]), self._spike_width_), dtype=numpy.float32)
 
     def _process(self):
 

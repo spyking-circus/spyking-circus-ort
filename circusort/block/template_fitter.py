@@ -35,6 +35,7 @@ class Template_fitter(Block):
         self.space_explo   = 0.5
         self.nb_chances    = 3
         self._spike_width_ = int(self.sampling_rate*self.spike_width*1e-3)
+        self.two_components = False
 
         if numpy.mod(self._spike_width_, 2) == 0:
             self._spike_width_ += 1
@@ -97,15 +98,7 @@ class Template_fitter(Block):
             for count, peak in enumerate(peaks):
                 sub_batch[:, count] = batch[self.slice_indices + peak]
 
-            #sub_batch    = sub_batch.reshape(sub_batch.shape[0]*sub_batch.shape[1], sub_batch.shape[2])
-            b            = self.templates.dot(sub_batch)                
-
-            #local_offset = padding[0] + t_offset
-            #local_bounds = (2*self._width, len_chunk - 2*self._width)
-
-            # Because for GPU, slicing by columns is more efficient, we need to transpose b
-            #b           = b.transpose()
-
+            b           = self.templates.dot(sub_batch)                
             failure     = numpy.zeros(n_peaks, dtype=numpy.int32)
             mask        = numpy.ones((self.nb_templates, n_peaks), dtype=numpy.int32)
             sub_b       = b[:self.nb_templates, :]
@@ -142,12 +135,14 @@ class Template_fitter(Block):
                     inds_t, inds_temp = subset, numpy.argmax(numpy.take(sub_b, subset, axis=1), 0)
 
                     best_amp  = sub_b[inds_temp, inds_t]/self._nb_elements
-                    #best_amp2 = b[inds_temp + self.nb_templates, inds_t]/self._nb_elements
+                    if self.two_components:
+                        best_amp2 = b[inds_temp + self.nb_templates, inds_t]/self._nb_elements
 
                     mask[inds_temp, inds_t] = 0
 
                     best_amp_n   = best_amp/numpy.take(self.norms, inds_temp)
-                    #best_amp2_n  = best_amp2/numpy.take(norm_templates, inds_temp + self.nb_templates)
+                    if self.two_components:
+                        best_amp2_n  = best_amp2/numpy.take(norm_templates, inds_temp + self.nb_templates)
 
                     all_idx      = ((best_amp_n >= self.amplitudes[inds_temp, 0]) & (best_amp_n <= self.amplitudes[inds_temp, 1]))
                     to_keep      = numpy.where(all_idx == True)[0]
@@ -170,8 +165,11 @@ class Template_fitter(Block):
                             indices[ytmp, numpy.arange(len(ytmp))] = 1
 
                             tmp1   = self.overlaps[inds_temp[keep]].multiply(-best_amp[keep]).dot(indices)
-                            #tmp2   = c_overs[inds_temp[keep] + self.nb_templates].multiply(-best_amp2[keep]).dot(indices)
-                            b[:, idx_b] += tmp1 #+ tmp2
+                            b[:, idx_b] += tmp1
+
+                            if self.two_components:
+                                tmp2   = c_overs[inds_temp[keep] + self.nb_templates].multiply(-best_amp2[keep]).dot(indices)
+                                b[:, idx_b] += tmp2
 
                             if good[count]:
                                 self.result['spike_times']  = numpy.concatenate((self.result['spike_times'], [ts[count]]))
