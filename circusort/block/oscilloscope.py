@@ -103,20 +103,25 @@ class Oscilloscope(Block):
                     lower_line.set_ydata([offset - self.thresholds[i], offset - self.thresholds[i]])
                     upper_line.set_ydata([offset + self.thresholds[i], offset + self.thresholds[i]])
 
-        # if self.peaks is not None:
-        #
-        #     if not self.is_active:
-        #         self._set_active_mode
-        #
-        #     self.buffer.add(self.peaks)
-        #     peaks, offset = self.buffer.get()
-        #     offset        = offset / self.nb_samples
-        #     if offset == self.counter:
-        #         for key in peaks.keys():
-        #             for channel in peaks[key].keys():
-        #                 data = peaks[key][channel]
-        #                 pylab.plot(data, self.spacing*int(channel)*numpy.ones(len(data)), 'r.')
-        #         self.buffer.remove()
+        if self.peaks is not None:
+            if not self.is_active:
+                self._set_active_mode
+
+            self.buffer.add(self.peaks)
+            peaks, offset = self.buffer.get()
+            offset        = offset / self.nb_samples
+
+            # # I think this does not work because we never get the peaks for the current data
+            if offset == self.counter:
+                data, channel = zip(*[(peaks[key][channel], channel) for key in peaks for channel in peaks[key]])
+                lengths = [len(d) for d in data]
+                channel = numpy.repeat(numpy.int_(channel), lengths)
+                data = numpy.hstack(data)
+                if self.peak_points is None:
+                    self.peak_points, = pylab.plot(data, self.spacing*channel, 'r.')
+                else:
+                    self.peak_points.set_data(data, self.spacing*channel)
+            self.buffer.remove()
 
         if self.data_lines is None:
             pylab.xlim(0, self.nb_samples)
