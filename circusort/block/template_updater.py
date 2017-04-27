@@ -135,7 +135,7 @@ class Template_updater(Block):
 
     def _add_template(self, template, amplitude):
         self.amplitudes = numpy.vstack((self.amplitudes, amplitude))
-        template_norm   = numpy.sqrt(numpy.sum(template.data**2))/self._nb_elements
+        template_norm   = numpy.sqrt(numpy.sum(template.data**2)/self._nb_elements)
         self.norms      = numpy.concatenate((self.norms, [template_norm]))
         self.templates  = scipy.sparse.hstack((self.templates, template/template_norm), format='csc')
 

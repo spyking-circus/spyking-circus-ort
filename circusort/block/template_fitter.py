@@ -1,7 +1,8 @@
 from .block import Block
 import numpy
+import sys
 import scipy.sparse
-from circusort.io.utils import load_pickle
+from circusort.io.utils import load_pickle, save_pickle
 
 def load_data(filename, format='csr'):
     loader = numpy.load(filename + '.npz')
@@ -116,20 +117,19 @@ class Template_fitter(Block):
                 argmax_bi   = numpy.argsort(numpy.max(data, 0))[::-1]
 
                 while (len(argmax_bi) > 0):
-                    subset          = []
-                    indices         = []
+                    subset          = numpy.zeros(0, dtype=numpy.int32)
+                    indices         = numpy.zeros(0, dtype=numpy.int32)
                     all_times       = numpy.zeros(local_len, dtype=numpy.bool)
 
                     for count, idx in enumerate(argmax_bi):
                         myslice = all_times[min_times[idx]:max_times[idx]]
                         if not myslice.any():
-                            subset  += [idx]
-                            indices += [count]
+                            subset  = numpy.concatenate((subset, [idx]))
+                            indices = numpy.concatenate((indices, [count]))
                             all_times[min_times[idx]:max_times[idx]] = True
                         if len(subset) > max_n_peaks:
                             break
 
-                    subset    = numpy.array(subset, dtype=numpy.int32)
                     argmax_bi = numpy.delete(argmax_bi, indices)
 
                     inds_t, inds_temp = subset, numpy.argmax(numpy.take(sub_b, subset, axis=1), 0)
