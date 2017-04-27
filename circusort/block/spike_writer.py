@@ -63,6 +63,8 @@ class Spike_writer(Block):
                 elif key in ['amplitudes']:
                     to_write = numpy.array(batch[key]).astype(numpy.float32)
                 self.data_file[key].write(to_write)
-                self.data_file[key].flush()
-                os.fsync(self.data_file[key].fileno())
         return
+
+    def __del__(self):
+        for file in self.data_file.values(): 
+            file.close()

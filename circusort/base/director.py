@@ -146,8 +146,8 @@ class Director(object):
             manager.join()
         return
 
-    def destroy_all(self):
-        return
+    def destroy(self):
+        self.__del__()
 
     def __str__(self):
         return "{d}[{i}]".format(d=self.name, i=self.host)

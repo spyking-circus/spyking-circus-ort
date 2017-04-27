@@ -46,7 +46,7 @@ director.connect(fitter.output, writer_2.input)
 director.start()
 director.sleep(duration=30.0)
 director.stop()
-
+director.destroy()
 
 import numpy, pylab
 
