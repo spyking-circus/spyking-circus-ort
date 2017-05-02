@@ -5,7 +5,6 @@ import scipy.interpolate
 from circusort.config.probe import Probe
 from circusort.utils.algorithms import PCAEstimator
 from circusort.utils.clustering import rho_estimation, density_based_clustering
-from circusort.utils.buffer import DictionaryBuffer
 
 class Density_clustering(Block):
     '''TODO add docstring'''
@@ -23,8 +22,13 @@ class Density_clustering(Block):
               'noise_thr'     : 0.8,
               'n_min'         : 0.002,
               'dispersion'    : [5, 5],
+              'sub_dim'       : 5,
               'extraction'    : 'median-raw', 
-              'two_components': False}
+              'two_components': False, 
+              'decay_factor'  : 0.35,
+              'mu'            : 4,
+              'epsilon'       : 0.5,
+              'theta'         : -numpy.log(0.001)}
 
     def __init__(self, **kwargs):
 
@@ -48,8 +52,6 @@ class Density_clustering(Block):
         if numpy.mod(self._spike_width_, 2) == 0:
             self._spike_width_ += 1
         self._width = (self._spike_width_-1)//2
-
-        self.buffer = DictionaryBuffer()
 
         if self.alignment:
             self.cdata = numpy.linspace(-self._width, self._width, 5*self._spike_width_)
@@ -152,11 +154,11 @@ class Density_clustering(Block):
             for channel in xrange(self.nb_channels):
                 self.chan_positions[channel] = numpy.where(self.probe.edges[channel] == channel)[0]
 
-    def _get_sub_pca(self, channel):
-        if self.sub_pcas.has_key(channel):
-            return self.sub_pcas[channel]
+    def _get_sub_pca(self, key, channel):
+        if self.sub_pcas[key].has_key(channel):
+            return self.sub_pcas[key][channel]
         else:
-            pass
+            return None
 
     def _init_data_structures(self):
         self.pca_data   = {}
@@ -179,6 +181,7 @@ class Density_clustering(Block):
             self.pca_data[key]   = {}
             self.raw_data[key]   = {}
             self.clusters[key]   = {}
+            self.sub_pcas[key]   = {}
             self.templates['dat'][key] = {}
             self.templates['amp'][key] = {}
             if self.two_components:
@@ -190,7 +193,15 @@ class Density_clustering(Block):
 
 
     def _perform_clustering(self, key, channel):
+
         a, b, c = self.pca_data[key][channel].shape
+
+        if self._get_sub_pca(key, channel) is None:
+            self.log.debug("{n} computes local {k} PCA for channel {d}".format(n=self.name_and_counter, k=key, d=channel))
+            pca     = PCAEstimator(self.sub_dim, copy=False)
+            res_pca = pca.fit_transform(self.pca_data[key][channel].reshape(a, b*c).T).astype(numpy.float32)
+            self.sub_pcas[key][channel] = res_pca.T
+        
         self.log.debug("{n} clusters {m} {k} waveforms on channel {d}".format(n=self.name_and_counter, m=a, k=key, d=channel))
         data    = self.pca_data[key][channel].reshape(a, b*c)
         n_min   = numpy.maximum(20, int(self.n_min*a))
@@ -306,13 +317,167 @@ class Density_clustering(Block):
         return aligned_template, shift
 
     def _reset_data_structures(self, key, channel):
-        self.pca_data[key][channel] = numpy.zeros((0, self.pcs.shape[1], len(self.probe.edges[channel])), dtype=numpy.float32)
+        if self._get_sub_pca(key, channel) is not None:
+            self.pca_data[key][channel] = numpy.zeros((0, self.sub_dim, 1), dtype=numpy.float32)
+        else:
+            self.pca_data[key][channel] = numpy.zeros((0, self.pcs.shape[1], len(self.probe.edges[channel])), dtype=numpy.float32)
         self.raw_data[key][channel] = numpy.zeros((0, self._spike_width_, len(self.probe.edges[channel])), dtype=numpy.float32)
         self.clusters[key][channel] = numpy.zeros(0, dtype=numpy.int32)
         self.templates['dat'][key][channel] = numpy.zeros((0, len(self.probe.edges[channel]), self._spike_width_), dtype=numpy.float32)
         self.templates['amp'][key][channel] = numpy.zeros((0, 2), dtype=numpy.float32)
         if self.two_components:
             self.templates['two'][key][channel] = numpy.zeros((0, len(self.probe.edges[channel]), self._spike_width_), dtype=numpy.float32)
+
+
+
+    # def _online_update(self):
+    #     self.D_thred  = mu/(len(densities)*(1-2**(-self.decay_factor)))
+
+    #     #if D_thred > 1:
+    #     #    time_gap = (1/(decay_factor))*numpy.log(D_thred/(D_thred - 1))
+    #     #   #time_gap = numpy.log(mu/(mu - len(densities)*(1-2**-decay_factor)))/numpy.log(decay_factor)
+    #     #else:
+    #         #time_gap = 1
+    #     self.time_gap = 100
+
+
+    #     # Update of D_thred and time_gap to know when we need to clean clusters, and where
+    #     # is the threshold between sparse and dense clusters
+
+    #     if time == 0:
+    #         self.sparse_clusters = []
+    #         self.dense_clusters  = []
+    #         # We label clusters as sparse or dense
+    #         for cluster in densities.keys():
+    #             if densities[cluster] >= self.D_thred:
+    #                 dense_clusters  += [cluster]
+    #             else:
+    #                 sparse_clusters += [cluster]
+
+    #     #for cluster in (sparse_clusters + dense_clusters):
+    #     #    densities[cluster]        *= 2**(-decay_factor)
+    #     #    summed_centers[cluster]   *= 2**(-decay_factor)
+    #     #    summed_centers_2[cluster] *= 2**(-decay_factor)
+
+    #     # First, we collect all dense cluster centers
+    #     dense_centers = numpy.zeros((0, nb_dimensions))
+    #     dense_radius  = []
+    #     for cluster in dense_clusters:
+    #         dense_centers = numpy.vstack((dense_centers, numpy.array(summed_centers[cluster]/densities[cluster])))
+    #         x_src         = summed_centers_2[cluster]/densities[cluster]
+    #         x_tgt         = (summed_centers[cluster]/densities[cluster])**2
+    #         #dense_radius += [numpy.sqrt(numpy.max([0, numpy.linalg.norm(x_src) - numpy.linalg.norm(x_tgt)]))]   #[1.8*numpy.sqrt(numpy.max(numpy.maximum(x_src - x_tgt, numpy.zeros(nb_dimensions))))] #[scipy.spatial.distance.cdist(x_src.reshape(1, nb_dimensions), x_tgt.reshape(1, nb_dimensions))[0, 0]]
+    #         dense_radius += [1.8*numpy.sqrt(numpy.max(numpy.maximum(x_src - x_tgt, numpy.zeros(nb_dimensions))))]
+
+    #     # We check if a point is next to a dense cluster, up to epsilon [TO DEFINE]
+    #     to_be_merged = False
+    #     if len(dense_centers) > 0:
+    #         new_dist = scipy.spatial.distance.cdist(new_data, dense_centers, 'euclidean')[0]
+    #         dist_min = numpy.min(new_dist)
+    #         dist_idx = dense_clusters[numpy.argmin(new_dist)]
+
+    #         factor     = 2**(-decay_factor*(time - last_updates[dist_idx]))
+    #         x_src      = (summed_centers_2[dist_idx]*factor +  new_data[0]**2)/(densities[dist_idx]*factor + 1)
+    #         x_tgt      = ((summed_centers[dist_idx]*factor + new_data[0])/(densities[dist_idx]*factor + 1))**2
+    #         #new_radius = numpy.sqrt(numpy.max([0, numpy.linalg.norm(x_src) - numpy.linalg.norm(x_tgt)]))   #1.8*numpy.sqrt(numpy.max(numpy.maximum(x_src - x_tgt, numpy.zeros(nb_dimensions))))
+    #         new_radius = 1.8*numpy.sqrt(numpy.max(numpy.maximum(x_src - x_tgt, numpy.zeros(nb_dimensions))))
+
+    #         to_be_merged = new_radius < epsilon #dense_radius[numpy.argmin(new_dist)]
+
+    #     if to_be_merged:
+    #         # If yes, we assign it to the dense cluster, and update the corresponding density and center
+    #         if verbose:
+    #             print "Data assigned to dense cluster", dist_idx 
+    #         densities[dist_idx]        = factor*densities[dist_idx] + 1
+    #         summed_centers[dist_idx]   = factor*summed_centers[dist_idx] + new_data[0]
+    #         summed_centers_2[dist_idx] = factor*summed_centers_2[dist_idx] + new_data[0]**2
+    #         #densities[dist_idx]        += 1
+    #         #summed_centers[dist_idx]   += new_data[0]
+    #         #summed_centers_2[dist_idx] += new_data[0]**2
+    #         last_updates[dist_idx]     = time
+    #     else:
+    #         # If no, we search in the sparse clusters
+    #         sparse_centers = numpy.zeros((0, nb_dimensions))
+    #         sparse_radius  = []
+    #         for cluster in sparse_clusters:
+    #             sparse_centers = numpy.vstack((sparse_centers, numpy.array(summed_centers[cluster]/densities[cluster])))
+    #             x_src          = summed_centers_2[cluster]/densities[cluster]
+    #             x_tgt          = (summed_centers[cluster]/densities[cluster])**2
+    #             #sparse_radius += [numpy.sqrt(numpy.max([0, numpy.linalg.norm(x_src) - numpy.linalg.norm(x_tgt)]))]   #[1.8*numpy.sqrt(numpy.max(numpy.maximum(x_src - x_tgt, numpy.zeros(nb_dimensions))))] #[scipy.spatial.distance.cdist(x_src.reshape(1, nb_dimensions), x_tgt.reshape(1, nb_dimensions))[0, 0]]
+    #             sparse_radius  += [1.8*numpy.sqrt(numpy.max(numpy.maximum(x_src - x_tgt, numpy.zeros(nb_dimensions))))]
+
+    #         to_be_merged = False
+    #         if len(sparse_clusters) > 0:
+    #             new_dist = scipy.spatial.distance.cdist(new_data, sparse_centers, 'euclidean')[0]
+    #             dist_min = numpy.min(new_dist)
+    #             dist_idx = sparse_clusters[numpy.argmin(new_dist)]
+                
+    #             factor     = 2**(-decay_factor*(time - last_updates[dist_idx]))
+    #             x_src      = (summed_centers_2[dist_idx]*factor +  new_data[0]**2)/(densities[dist_idx]*factor + 1)
+    #             x_tgt      = ((summed_centers[dist_idx]*factor + new_data[0])/(densities[dist_idx]*factor + 1))**2
+    #             #new_radius = numpy.sqrt(numpy.max([0, numpy.linalg.norm(x_src) - numpy.linalg.norm(x_tgt)])) #1.8*numpy.sqrt(numpy.max(numpy.maximum(x_src - x_tgt, numpy.zeros(nb_dimensions))))
+    #             new_radius = 1.8*numpy.sqrt(numpy.max(numpy.maximum(x_src - x_tgt, numpy.zeros(nb_dimensions))))
+
+    #             to_be_merged = new_radius < epsilon #dense_radius[numpy.argmin(new_dist)]
+
+    #             #to_be_merged = dist_min < epsilon #sparse_radius[numpy.argmin(new_dist)]
+
+
+    #         if to_be_merged:
+    #             if verbose:
+    #                 print "Data assigned to sparse cluster", dist_idx 
+    #             densities[dist_idx]        = factor*densities[dist_idx] + 1
+    #             summed_centers[dist_idx]   = factor*summed_centers[dist_idx] + new_data[0]
+    #             summed_centers_2[dist_idx] = factor*summed_centers_2[dist_idx] + new_data[0]**2
+    #             #densities[dist_idx]        += 1
+    #             #summed_centers[dist_idx]   += new_data[0]
+    #             #summed_centers_2[dist_idx] += new_data[0]**2
+    #             last_updates[dist_idx]     = time
+    #             if densities[dist_idx] >= D_thred:
+    #                 sparse_clusters.remove(dist_idx)
+    #                 dense_clusters += [dist_idx]
+    #         else:
+    #             new_idx = numpy.max(densities.keys()) + 1
+    #             if verbose:
+    #                 print "Creating a new cluster", new_idx
+    #             densities[new_idx]        = 1.
+    #             creation_times[new_idx]   = time
+    #             last_updates[new_idx]     = time
+    #             summed_centers[new_idx]   = new_data[0]
+    #             summed_centers_2[new_idx] = new_data[0]**2
+    #             sparse_clusters          += [new_idx]
+
+    #     if numpy.mod(time, time_gap) < 1:
+
+    # #        for cluster in (sparse_clusters + dense_clusters):
+    # #            densities[cluster]        *= 2**(-decay_factor*(time - last_updates[cluster]))
+    # #            summed_centers[cluster]   *= 2**(-decay_factor*(time - last_updates[cluster]))
+    # #            summed_centers_2[cluster] *= 2**(-decay_factor*(time - last_updates[cluster]))
+
+    #         if verbose:
+    #             print "Time gap reached, time to clean clusters..."
+
+    #         for cluster in dense_clusters:
+    #             if densities[cluster] < D_thred:
+    #                 dense_clusters.remove(cluster)
+    #                 sparse_clusters += [cluster]
+
+    #         for cluster in sparse_clusters:
+
+    #             T_0     = creation_times[cluster]
+    #             if T_0 < time and T_0 > 0:
+    #                 zeta    = (2**(-decay_factor*(time - T_0 + time_gap)) - 1)/(2**(-decay_factor*time_gap) - 1)
+    #                 delta_t = theta*(last_updates[cluster] - T_0)/densities[cluster] 
+
+    #                 if densities[cluster] < zeta or ((time - last_updates[cluster]) > delta_t):
+    #                     if verbose:
+    #                         print "Removing sparse cluster", cluster
+    #                     densities.pop(cluster)
+    #                     last_updates.pop(cluster)
+    #                     summed_centers.pop(cluster)
+    #                     summed_centers_2.pop(cluster)
+    #                     creation_times.pop(cluster)
+    #                     sparse_clusters.remove(cluster)
 
     def _process(self):
 
@@ -348,6 +513,10 @@ class Density_clustering(Block):
                             channel, is_neg = self._get_best_channel(batch, key, peak, peaks)
                             waveforms       = self._get_snippet(batch, channel, peak, is_neg).T
                             projection      = numpy.dot(self.pcs[0], waveforms)
+                            sub_pca         = self._get_sub_pca(key, channel)
+                            if sub_pca is not None:
+                                projection  = numpy.dot(sub_pca, projection.reshape(projection.shape[0]*projection.shape[1], 1))
+
                             projection      = projection.reshape(1, projection.shape[0], projection.shape[1])
                             waveforms       = waveforms.reshape(1, waveforms.shape[0], waveforms.shape[1])
                             if is_neg:

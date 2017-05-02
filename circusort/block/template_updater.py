@@ -147,6 +147,11 @@ class Template_updater(Block):
         self.norms      = numpy.concatenate((self.norms, [template_norm]))
         self.templates  = scipy.sparse.hstack((self.templates, template/template_norm), format='csc')
 
+    def _add_second_template(self, template):
+        template_norm   = numpy.sqrt(numpy.sum(template.data**2)/self._nb_elements)
+        self.norms2     = numpy.concatenate((self.norms2, [template_norm]))
+        self.templates2 = scipy.sparse.hstack((self.templates2, template/template_norm), format='csc')
+
 
     def _update_overlaps(self, indices):
 
@@ -204,12 +209,15 @@ class Template_updater(Block):
                     tmp_pos = self.temp_indices[int(channel)]
                     n_data  = len(tmp_pos)
 
-                    for count, t in enumerate(templates):
-                        template = scipy.sparse.csc_matrix((t.ravel(), (tmp_pos, numpy.zeros(n_data))), shape=(self._nb_elements, 1))
+                    for count in xrange(len(templates)):
+                        template = scipy.sparse.csc_matrix((templates[count].ravel(), (tmp_pos, numpy.zeros(n_data))), shape=(self._nb_elements, 1))
                         template_norm = numpy.sqrt(numpy.sum(template.data**2)/self._nb_elements)
                         is_duplicated = self._is_duplicated(template/template_norm)
                         if not is_duplicated:
                             self._add_template(template, amplitudes[count])
+                            if self.two_components:
+                                template2 = scipy.sparse.csc_matrix((templates2[count].ravel(), (tmp_pos, numpy.zeros(n_data))), shape=(self._nb_elements, 1))
+                                self._add_second_template(template2)
                             #self._write_template_data(template, amplitudes[count], int(channel))
                             self.log.debug('The dictionary has now {k} templates'.format(k=self.nb_templates))
                             new_templates  += [self.global_id]
