@@ -5,10 +5,14 @@ import scipy.sparse
 from circusort.io.utils import save_pickle
 
 
-def save_data(filename, templates, norms, amplitudes):
-    numpy.savez(filename, data=templates.data, indices=templates.indices,
-             indptr=templates.indptr, shape=templates.shape, norms=norms, amplitudes=amplitudes)
-
+def save_data(filename, templates, norms, amplitudes, templates2=None, norms2=None):
+    if templates2 is None:
+        numpy.savez(filename, data=templates.data, indices=templates.indices,
+                 indptr=templates.indptr, shape=templates.shape, norms=norms, amplitudes=amplitudes)
+    else:
+        numpy.savez(filename, data=templates.data, indices=templates.indices,
+                 indptr=templates.indptr, shape=templates.shape, norms=norms, amplitudes=amplitudes,
+                 data2=templates2.data, norms2=norms2)
 
 class Template_updater(Block):
     '''TODO add docstring'''
@@ -112,11 +116,7 @@ class Template_updater(Block):
 
     def _is_duplicated(self, template):
 
-        if not self.two_components:
-            tmp_loc_c2 = self.templates.tocsr()
-        else:
-            tmp_loc_c2 = self.templates[:, self.nb_templates].tocsr()
-
+        tmp_loc_c2 = self.templates.tocsr()
         tmp_loc_c1 = template.tocsr()
         all_data   = numpy.zeros(0, dtype=numpy.float32)
 
@@ -240,7 +240,10 @@ class Template_updater(Block):
             self.log.debug("{n} updates the dictionary of templates".format(n=self.name))
             new_templates = self._construct_templates(data)
 
-            save_data(self.templates_file, self.templates, self.norms, self.amplitudes)
+            if self.two_components:
+                save_data(self.templates_file, self.templates, self.norms, self.amplitudes, self.templates2, self.norms2)
+            else:
+                save_data(self.templates_file, self.templates, self.norms, self.amplitudes)
 
             if len(new_templates) > 0:
                 self._update_overlaps(new_templates)
