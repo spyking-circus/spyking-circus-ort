@@ -4,16 +4,28 @@ import sys
 import scipy.sparse
 from circusort.io.utils import load_pickle, save_pickle
 
-def load_data(filename, format='csr'):
+def load_data(filename, two_components=False, format='csr'):
     loader = numpy.load(filename + '.npz')
-    if format == 'csr':
-        template = scipy.sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']),
-                      shape=loader['shape'])
-    elif format == 'csc':
-        template = scipy.sparse.csc_matrix((loader['data'], loader['indices'], loader['indptr']),
-                      shape=loader['shape'])
-    return template, loader['norms'], loader['amplitudes']
-
+    if two_components == False:
+        if format == 'csr':
+            template = scipy.sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']),
+                          shape=loader['shape'])
+        elif format == 'csc':
+            template = scipy.sparse.csc_matrix((loader['data'], loader['indices'], loader['indptr']),
+                          shape=loader['shape'])
+        return template, loader['norms'], loader['amplitudes']
+    else:
+        if format == 'csr':
+            template  = scipy.sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']),
+                          shape=loader['shape'])
+            template2 = scipy.sparse.csr_matrix((loader['data2'], loader['indices'], loader['indptr']),
+                          shape=loader['shape'])
+        elif format == 'csc':
+            template = scipy.sparse.csc_matrix((loader['data'], loader['indices'], loader['indptr']),
+                          shape=loader['shape'])
+            template2 = scipy.sparse.csc_matrix((loader['data2'], loader['indices'], loader['indptr']),
+                          shape=loader['shape'])
+        return template, loader['norms'], loader['amplitudes'], template2, loader['norms2']
 
 
 class Template_fitter(Block):
@@ -21,8 +33,9 @@ class Template_fitter(Block):
 
     name   = "Template fitter"
 
-    params = {'spike_width'   : 5.,
-              'sampling_rate' : 20000}
+    params = {'spike_width'    : 5.,
+              'sampling_rate'  : 20000, 
+              'two_components' : False}
 
     def __init__(self, **kwargs):
 
@@ -36,7 +49,6 @@ class Template_fitter(Block):
         self.space_explo   = 0.5
         self.nb_chances    = 3
         self._spike_width_ = int(self.sampling_rate*self.spike_width*1e-3)
-        self.two_components = False
 
         if numpy.mod(self._spike_width_, 2) == 0:
             self._spike_width_ += 1
@@ -54,7 +66,10 @@ class Template_fitter(Block):
 
     @property
     def nb_templates(self):
-        return self.templates.shape[0]
+        if self.two_components:
+            return self.templates.shape[0] / 2
+        else:
+            return self.templates.shape[0]
 
     def _guess_output_endpoints(self):
         self._nb_elements  = self.nb_channels*self._spike_width_
@@ -142,7 +157,7 @@ class Template_fitter(Block):
 
                     best_amp_n   = best_amp/numpy.take(self.norms, inds_temp)
                     if self.two_components:
-                        best_amp2_n  = best_amp2/numpy.take(norm_templates, inds_temp + self.nb_templates)
+                        best_amp2_n  = best_amp2/numpy.take(self.norms2, inds_temp)
 
                     all_idx      = ((best_amp_n >= self.amplitudes[inds_temp, 0]) & (best_amp_n <= self.amplitudes[inds_temp, 1]))
                     to_keep      = numpy.where(all_idx == True)[0]
@@ -168,7 +183,7 @@ class Template_fitter(Block):
                             b[:, idx_b] += tmp1
 
                             if self.two_components:
-                                tmp2   = c_overs[inds_temp[keep] + self.nb_templates].multiply(-best_amp2[keep]).dot(indices)
+                                tmp2   = self.overlaps[inds_temp[keep] + self.nb_templates].multiply(-best_amp2[keep]).dot(indices)
                                 b[:, idx_b] += tmp2
 
                             if good[count]:
@@ -203,8 +218,12 @@ class Template_fitter(Block):
             updater  = self.inputs['updater'].receive(blocking=False)
             
             if updater is not None:
-                self.templates, self.norms, self.amplitudes  = load_data(updater['templates'], format='csc')
-                self.templates = self.templates.T
+                if not self.two_components:
+                    self.templates, self.norms, self.amplitudes  = load_data(updater['templates'], format='csc')
+                    self.templates = self.templates.T
+                else:
+                    self.templates, self.norms, self.amplitudes, self.templates2, self.norms2  = load_data(updater['templates'], two_components=True, format='csc')
+                    self.templates  = scipy.sparse.vstack((self.templates.T, self.templates2.T))
                 self.overlaps  = load_pickle(updater['overlaps'])
                 
             if self.nb_templates > 0:
