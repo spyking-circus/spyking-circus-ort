@@ -50,9 +50,14 @@ class MacroCluster(object):
     def get_z_score(self, data, sigma):
         return numpy.linalg.norm(self.center - data)/sigma
 
+    @property
+    def tracking_properties(self):
+        return [self.center, self.sigma]
+
+
 class OnlineManager(object):
 
-    def __init__(self, decay_factor=0.35, mu=4, epsilon=0.5, theta=-numpy.log(0.001), logger=None, name=None):
+    def __init__(self, decay_factor=0.35, mu=2, epsilon=0.1, theta=-numpy.log(0.001), logger=None, name=None):
 
         if name is None:
             self.name = "OnlineManager"
@@ -64,6 +69,8 @@ class OnlineManager(object):
         self.epsilon          = epsilon
         self.theta            = theta
         self.is_ready         = False
+        self.nb_updates       = 0
+        self.tracking         = {}
         if logger is None:
             self.log = logging.getLogger(__name__)
         else:
@@ -89,6 +96,7 @@ class OnlineManager(object):
 
             indices = numpy.where(labels == i)[0]
             self.clusters[count] = MacroCluster(count, data[indices], creation_time=time)
+            self.tracking[count] = self.clusters[count].tracking_properties
 
         for cluster in self.clusters.values():
             if cluster.density >= self.D_threshold:
@@ -120,6 +128,9 @@ class OnlineManager(object):
 
     def _get_id(self):
         return numpy.max(self.clusters.keys()) + 1
+
+    def _get_tracking_id(self):
+        return numpy.max(self.tracking.keys()) + 1
 
     def _get_clusters(self, cluster_type):
         if cluster_type == 'sparse':
@@ -192,39 +203,75 @@ class OnlineManager(object):
 
                     self.clusters.pop(cluster.id)
 
-    def update(self, time, new_data):
+    def update(self, time, new_data=None):
         
         self.time = time
         self.log.debug("Processing time {t} with {s} sparse/ {d} dense".format(t=time, s=self.nb_sparse, d=self.nb_dense)) 
-        if self._merged_into(new_data, 'dense'):
-            self.log.debug("We merged the time point", self.time, 'into a dense cluster')
-        else:
-            if self._merged_into(new_data, 'sparse'):
-                self.log.debug("We merged the time point", self.time, 'into a sparse cluster')
+        
+        if new_data is not None:
+            if self._merged_into(new_data, 'dense'):
+                self.log.debug("We merged the time point", self.time, 'into a dense cluster')
             else:
-                self.log.debug("We can not merged time point", self.time, "so creating a new sparse cluster")
-                new_id      = self._get_id()
-                new_cluster = MacroCluster(new_id, new_data, creation_time=self.time)
-                new_cluster.set_label('sparse')
-                self.clusters[new_id] = new_cluster
+                if self._merged_into(new_data, 'sparse'):
+                    self.log.debug("We merged the time point", self.time, 'into a sparse cluster')
+                else:
+                    self.log.debug("We can not merged time point", self.time, "so creating a new sparse cluster")
+                    new_id      = self._get_id()
+                    new_cluster = MacroCluster(new_id, new_data, creation_time=self.time)
+                    new_cluster.set_label('sparse')
+                    self.clusters[new_id] = new_cluster
+
+            self.nb_updates += 1
 
         if numpy.mod(self.time, self.time_gap) == 0:
             self._prune()
 
+    def _perform_tracking(self, new_clusters):
+
+        max_idx = self.real_clusters['indices'].max()
+
+        for count in xrange(len(new_clusters['indices'])):
+            new_dist = scipy.spatial.distance.cdist(numpy.array([new_clusters['mus'][count]]), self.real_clusters['mus'], 'euclidean')
+            dist_min = numpy.min(new_dist)
+            dist_idx = numpy.argmin(new_dist)
+
+            if dist_min < 3*max(new_clusters['sigmas'][count], self.real_clusters['sigmas'][dist_idx]):
+                self.log.debug("Match between target", new_clusters['indices'][count], "and source", dist_idx)
+                new_clusters['indices'][count] = self.real_clusters['indices'][dist_idx] 
+            else:
+                max_idx += 1
+                new_clusters['indices'][count] = max_idx
+                self.log.debug("No match for target", new_clusters['indices'][count], "assigned to", max_idx)
+
+        self.real_clusters = new_clusters
 
     def cluster(self):
-        final_data = numpy.zeros((self.nb_dense, self.nb_dimensions))
-        for count, cluster in enumerate(self.dense_clusters):
-            final_data[count] = cluster.center
 
-        rhos, dist        = rho_estimation(final_data)
-        rhos              = -rhos + rhos.max() 
-        clusters, r, d, c = clustering(rhos, dist, n_min=None)
+        centers       = self._get_centers('dense')
+        rhos, dist, _ = rho_estimation(centers)
+        rhos          = -rhos + rhos.max() 
+        labels, c     = density_based_clustering(rhos, dist, n_min=None)
+        self.nb_updates   = 0
+
+        new_tracking_data = {}
+        mask              = labels > -1
+        for l in numpy.unique(labels[mask]):
+            idx = numpy.where(labels == l)[0]
+            cluster = MacroCluster(-1, data=centers[idx])
+            new_tracking_data[l] = cluster.tracking_properties
+
+        self._perform_tracking(data, clusters, c)
+
+        #self.tracking[count] = self.clusters[count].tracking_properties
 
 
-def distancematrix(data):
 
-    return scipy.spatial.distance.pdist(data, 'euclidean').astype(numpy.float32)
+
+
+
+
+
+
 
 def fit_rho_delta(xdata, ydata, smart_select=False, max_clusters=10):
 
@@ -258,7 +305,7 @@ def rho_estimation(data, mratio=0.01):
     N     = len(data)
     rho   = numpy.zeros(N, dtype=numpy.float32)
         
-    dist = distancematrix(data)
+    dist = scipy.spatial.distance.pdist(data, 'euclidean').astype(numpy.float32)
     didx = lambda i,j: i*N + j - i*(i+1)//2 - i - 1
     nb_selec = max(5, int(mratio*N))
 
