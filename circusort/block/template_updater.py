@@ -194,6 +194,7 @@ class Template_updater(Block):
                 overlap.data     = overlap.data[::-1]
                 self.overlaps[t] = scipy.sparse.vstack((self.overlaps[t], overlap), format='csr')
 
+
     def _construct_templates(self, templates_data):
 
         new_templates = []

@@ -16,6 +16,7 @@ manager2      = director.create_manager(host=host)
 
 nb_channels   = 10
 sampling_rate = 20000
+two_components= False
 probe_file    = generate_fake_probe(nb_channels, radius=5)
 
 noise         = manager.create_block('fake_spike_generator', nb_channels=nb_channels)
@@ -24,9 +25,9 @@ whitening     = manager.create_block('whitening')
 mad_estimator = manager.create_block('mad_estimator')
 peak_detector = manager.create_block('peak_detector', threshold=6)
 pca           = manager.create_block('pca', nb_waveforms=5000)
-cluster       = manager2.create_block('density_clustering', probe=probe_file, nb_waveforms=2000, log_level=logging.DEBUG, two_components=True)
+cluster       = manager2.create_block('density_clustering', probe=probe_file, nb_waveforms=2000, log_level=logging.DEBUG, two_components=two_components)
 updater       = manager2.create_block('template_updater', probe=probe_file, data_path='templates', nb_channels=nb_channels, log_level=logging.DEBUG)
-fitter        = manager2.create_block('template_fitter', log_level=logging.INFO, two_components=True)
+fitter        = manager2.create_block('template_fitter', log_level=logging.INFO, two_components=two_components)
 writer        = manager.create_block('writer', data_path='/tmp/output.dat')
 writer_2      = manager2.create_block('spike_writer')
 writer_3      = manager2.create_block('peak_writer', neg_peaks='/tmp/peaks.dat')
