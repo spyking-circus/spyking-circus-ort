@@ -9,7 +9,7 @@ decay_factor  = 0.35
 sim_same_elec = 3
 mu            = 4
 epsilon       = 0.5
-nb_stream     = 5000
+nb_stream     = 10000
 offset        = 0
 theta         = -numpy.log(0.001)
 time_stream   = numpy.round(numpy.linspace(0, nb_stream/2., nb_extras))
@@ -37,8 +37,9 @@ manager.initialize(0, data, labels)
 
 for time in xrange(nb_stream):
 
-    print time
     idx          = numpy.random.randint(0, nb_clusters+numpy.searchsorted(time_stream, time))
     new_data     = numpy.array([numpy.random.randn(nb_dimensions) + gt_centers[idx]])
 
     manager.update(time, new_data)
+    if manager.nb_updates == 2500:
+        manager.cluster()

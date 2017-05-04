@@ -5,6 +5,7 @@ import scipy.interpolate
 from circusort.config.probe import Probe
 from circusort.utils.algorithms import PCAEstimator
 from circusort.utils.clustering import rho_estimation, density_based_clustering
+from circusort.utils.clustering import OnlineManager
 
 class Density_clustering(Block):
     '''TODO add docstring'''
@@ -165,6 +166,7 @@ class Density_clustering(Block):
         self.raw_data   = {}
         self.clusters   = {}
         self.templates  = {}
+        self.managers   = {}
 
         self.templates['dat'] = {}
         self.templates['amp'] = {}
@@ -178,10 +180,11 @@ class Density_clustering(Block):
         self.log.debug("{n} will detect peaks {s}".format(n=self.name, s=self.sign_peaks))
 
         for key in self.sign_peaks:
-            self.pca_data[key]   = {}
-            self.raw_data[key]   = {}
-            self.clusters[key]   = {}
-            self.sub_pcas[key]   = {}
+            self.pca_data[key] = {}
+            self.raw_data[key] = {}
+            self.clusters[key] = {}
+            self.sub_pcas[key] = {}
+            self.managers[key] = {}
             self.templates['dat'][key] = {}
             self.templates['amp'][key] = {}
             if self.two_components:
@@ -189,6 +192,7 @@ class Density_clustering(Block):
 
         for key in self.sign_peaks:
             for channel in xrange(self.nb_channels):
+                self.managers[key][channel] = OnlineManager()
                 self._reset_data_structures(key, channel)
 
 
@@ -207,6 +211,9 @@ class Density_clustering(Block):
         n_min   = numpy.maximum(20, int(self.n_min*a))
         rho, dist, nb_selec = rho_estimation(data, mratio=self.m_ratio)
         self.clusters[key][channel], c = density_based_clustering(rho, dist, smart_select=True, n_min=n_min)
+        
+        if not self.managers[key][channel].is_ready:
+            self.managers[key][channel].initialize(self.counter, data, self.clusters[key][channel])
         ### SHould we add the merging step
         self._update_templates(key, channel)
 
