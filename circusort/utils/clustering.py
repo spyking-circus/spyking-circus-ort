@@ -104,7 +104,7 @@ class OnlineManager(object):
         else:
             return 100
 
-    def initialize(self, time, data):
+    def initialize(self, time, data, two_components=False):
 
         if len(data.shape) == 3:
             a, b, c  = data.shape
@@ -122,6 +122,10 @@ class OnlineManager(object):
         mask               = labels > -1
         self.nb_dimensions = sub_data.shape[1]
         amplitudes         = numpy.zeros((0, 2), dtype=numpy.float32)
+        if two_components:
+            templates2     = numpy.zeros((0, self.pca.shape[1]), dtype=numpy.float32)
+        else:
+            templates2     = None
 
         for count, i in enumerate(numpy.unique(labels[mask])):
 
@@ -129,6 +133,7 @@ class OnlineManager(object):
             self.clusters[count] = MacroCluster(count, sub_data[indices], data[indices], creation_time=time)
             self.tracking[count] = self.clusters[count].tracking_properties
             amplitudes = numpy.vstack((amplitudes, self._compute_amplitudes(sub_data[indices], self.clusters[count].center)))
+            templates2 = numpy.vstack((templates2, self._compute_template2(sub_data[indices], self.clusters[count].center)))
 
         for cluster in self.clusters.values():
             if cluster.density >= self.D_threshold:
@@ -139,7 +144,10 @@ class OnlineManager(object):
         self.is_ready = True
         self.log.debug('{n} is initialized with {k} templates'.format(n=self.name, k=len(self.clusters)))
 
-        return self._get_centers_full('dense'), amplitudes
+        if two_components:
+            return {'dat' : self._get_centers_full('dense'), 'two' : template2, 'amp' : amplitudes}
+        else:
+            return {'dat' : self._get_centers_full('dense'), 'amp' : amplitudes}
 
     @property
     def nb_sparse(self):
@@ -323,6 +331,25 @@ class OnlineManager(object):
 
         return numpy.array([amp_min, amp_max], dtype=numpy.float32)
 
+    def _compute_template2(self, data, template):
+
+        temp_flat   = template.reshape(template.size, 1)
+        amplitudes  = numpy.dot(data, temp_flat)
+        amplitudes /= numpy.sum(temp_flat**2)
+
+        for i in xrange(len(data)):
+            data[i, :] -= amps[i]*temp_flat[:, 0]
+
+        if len(data_flat) > 1:
+            pca       = PCAEstimator(1)
+            res_pca   = pca.fit_transform(data).astype(numpy.float32)
+            template2 = pca.components_.T.astype(numpy.float32)
+        else:
+            template2 = data/numpy.sum(data**2)
+     
+        return template2
+
+
     def cluster(self, get_new=True, get_merged=False, two_components=False):
 
         self.log.debug('{n} launches clustering'.format(n=self.name))
@@ -344,6 +371,8 @@ class OnlineManager(object):
 
         templates  = numpy.zeros((0, self.pca.shape[0]), dtype=numpy.float32)
         amplitudes = numpy.zeros((0, 2), dtype=numpy.float32)
+        if two_components:
+            templates2 = numpy.zeros((0, self.pca.shape[0]), dtype=numpy.float32)
 
         if get_new:
             for key, value in changes['new'].items():
@@ -351,6 +380,9 @@ class OnlineManager(object):
                 template   = numpy.median(data, 0)
                 templates  = numpy.vstack((templates, template))
                 amplitudes = numpy.vstack((amplitudes, self._compute_amplitudes(data, template)))
+                if two_components:
+                    template2  = self._compute_template2(data, template)
+                    templates2 = numpy.vstack((templates, template2))
 
         if get_merged:
             for key, value in changes['merged'].items():
@@ -358,25 +390,19 @@ class OnlineManager(object):
                 template   = numpy.median(data, 0)
                 templates  = numpy.vstack((templates, template))
                 amplitudes = numpy.vstack((amplitudes, self._compute_amplitudes(data, template)))
+                if two_components:
+                    template2  = self._compute_template2(data, template)
+                    templates2 = numpy.vstack((templates, template2))
 
         self.log.debug('{n} found {a} new templates and {b} modified ones'.format(n=self.name, a=len(changes['new']), b=len(changes['merged'])))
 
-        return templates, amplitudes
+        if two_components:
+            return {'dat' : templates, 'two' : template2, 'amp' : amplitudes}
+        else:
+            return {'dat' : templates, 'amp' : amplitudes}
 
 
-
-        # x, y, z     = data.shape
-        # data        = data.reshape(x, y*z)
-        # first_flat  = template.reshape(y*z, 1)
-        # amplitudes  = numpy.dot(data, first_flat)
-        # amplitudes /= numpy.sum(first_flat**2)
-        # variation   = numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
-        # physical_limit = self.noise_thr*(-self.thresholds[channel])/template[self.chan_positions[channel], self._width]
-        # amp_min        = min(0.8, max(physical_limit, numpy.median(amplitudes) - self.dispersion[0]*variation))
-        # amp_max        = max(1.2, numpy.median(amplitudes) + self.dispersion[1]*variation)
-
-        # return numpy.array([amp_min, amp_max], dtype=numpy.float32), amplitudes
-
+            
 
 
 

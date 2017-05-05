@@ -183,53 +183,20 @@ class Density_clustering(Block):
                 self.managers[key][channel] = OnlineManager(name='OnlineManger for {p} peak on channel {c}'.format(p=key, c=channel), logger=self.log)
                 self._reset_data_structures(key, channel)
 
-    def _update_templates(self, templates, amplitudes, key, channel):
-       
+    def _prepare_templates(self, templates, key, channel):
+
         for t in templates:
     
             template         = t.reshape(self._spike_width_, len(self.probe.edges[channel])).T
             template, shift  = self._center_template(template, key)
-            #amplitudes, amps = self._get_amplitudes(data, template, channel)
-
-            # if self.two_components:
-
-            #     x, y, z     = data.shape
-            #     data_flat   = data.reshape(x, y*z)
-            #     first_flat  = template.reshape(y*z, 1)
-
-            #     for i in xrange(x):
-            #         data_flat[i, :] -= amps[i]*first_flat[:, 0]
-
-            #     if len(data_flat) > 1:
-            #         pca       = PCAEstimator(1)
-            #         res_pca   = pca.fit_transform(data_flat).astype(numpy.float32)
-            #         template2 = pca.components_.T.astype(numpy.float32).reshape(y, z)
-            #     else:
-            #         template2 = data_flat.reshape(y, z)/numpy.sum(data_flat**2)
-
-            #     template2    = template2.T
-            #     template2, _ = self._center_template(template2, key, shift)
 
             self.templates['dat'][key][channel] = numpy.vstack((self.templates['dat'][key][channel], template.reshape(1, template.shape[0], template.shape[1])))
-        
-        self.templates['amp'][key][channel] = amplitudes
-        if self.two_components:
-            self.templates['two'][key][channel] = numpy.vstack((self.templates['two'][key][channel], template2.reshape(1, template2.shape[0], template2.shape[1])))
+            if self.two_components:
+                self.templates['two'][key][channel] = numpy.vstack((self.templates['two'][key][channel], template2.reshape(1, template2.shape[0], template2.shape[1])))
 
+
+        self.templates['amp'][key][channel] = templates.pop('amp')    
         self.to_reset += [(key, channel)]
-
-    def _get_amplitudes(self, data, template, channel):
-        x, y, z     = data.shape
-        data        = data.reshape(x, y*z)
-        first_flat  = template.reshape(y*z, 1)
-        amplitudes  = numpy.dot(data, first_flat)
-        amplitudes /= numpy.sum(first_flat**2)
-        variation   = numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
-        physical_limit = self.noise_thr*(-self.thresholds[channel])/template[self.chan_positions[channel], self._width]
-        amp_min        = min(0.8, max(physical_limit, numpy.median(amplitudes) - self.dispersion[0]*variation))
-        amp_max        = max(1.2, numpy.median(amplitudes) + self.dispersion[1]*variation)
-
-        return numpy.array([amp_min, amp_max], dtype=numpy.float32), amplitudes
 
     def _center_template(self, template, key, shift=None):
         if shift is None:
@@ -279,7 +246,6 @@ class Density_clustering(Block):
                 while peaks.pop('offset')/self.nb_samples < self.counter:
                     peaks = self.inputs['peaks'].receive()
 
-
                 if peaks is not None:
 
                     all_peaks = self._get_all_valid_peaks(peaks)
@@ -307,12 +273,13 @@ class Density_clustering(Block):
                             self.managers[key][channel].set_physical_threshold(self.thresholds[channel])
 
                             if len(self.raw_data[key][channel]) >= self.nb_waveforms and not self.managers[key][channel].is_ready:
-                                templates, amplitudes = self.managers[key][channel].initialize(self.counter, self.raw_data[key][channel])
-                                self._update_templates(templates, amplitudes, key, channel)
+                                templates = self.managers[key][channel].initialize(self.counter, self.raw_data[key][channel], self.two_components)
+                                self._prepare_templates(templates, key, channel)
+                                
 
                             elif self.managers[key][channel].time_to_cluster(self.frequency):
-                                templates, amplitudes = self.managers[key][channel].cluster()
-                                self._update_templates(templates, amplitudes, key, channel)
+                                templates = self.managers[key][channel].cluster(two_components=self.two_components)
+                                self._prepare_templates(templates, key, channel)
 
                     if len(self.to_reset) > 0:
                         self.outputs['templates'].send(self.templates)
