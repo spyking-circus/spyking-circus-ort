@@ -185,15 +185,28 @@ class Density_clustering(Block):
 
     def _prepare_templates(self, templates, key, channel):
 
-        for t in templates:
-    
-            template         = t.reshape(self._spike_width_, len(self.probe.edges[channel])).T
-            template, shift  = self._center_template(template, key)
+        nb_templates = len(templates['amp'])
+        nb_elecs     = len(self.probe.edges[channel])
 
-            self.templates['dat'][key][channel] = numpy.vstack((self.templates['dat'][key][channel], template.reshape(1, template.shape[0], template.shape[1])))
+        t1 = templates.pop('dat')
+        t1 = t1.reshape(nb_templates, nb_elecs, self._spike_width_)
+        #t1 = t1.reshape(nb_templates, self._spike_width_, nb_elecs)
+        #t1 = numpy.transpose(t1, axes=(0, 2, 1))
+
+        if self.two_components:
+            t2 = templates.pop('two')
+            t2 = t2.reshape(nb_templates, nb_elecs, self._spike_width_)
+            #t2 = t2.reshape(nb_templates, self._spike_width_, nb_elecs)
+            #t2 = numpy.transpose(t2, axes=(0, 2, 1))
+
+        for count in xrange(nb_templates):
+            t1[count], shift  = self._center_template(t1[count], key)
             if self.two_components:
-                self.templates['two'][key][channel] = numpy.vstack((self.templates['two'][key][channel], template2.reshape(1, template2.shape[0], template2.shape[1])))
+                t2[count], _  = self._center_template(t2[count], key, shift)
 
+        self.templates['dat'][key][channel] = t1
+        if self.two_components:
+            self.templates['two'][key][channel] = t2
 
         self.templates['amp'][key][channel] = templates.pop('amp')    
         self.to_reset += [(key, channel)]
@@ -275,8 +288,6 @@ class Density_clustering(Block):
                             if len(self.raw_data[key][channel]) >= self.nb_waveforms and not self.managers[key][channel].is_ready:
                                 templates = self.managers[key][channel].initialize(self.counter, self.raw_data[key][channel], self.two_components)
                                 self._prepare_templates(templates, key, channel)
-                                
-
                             elif self.managers[key][channel].time_to_cluster(self.frequency):
                                 templates = self.managers[key][channel].cluster(two_components=self.two_components)
                                 self._prepare_templates(templates, key, channel)

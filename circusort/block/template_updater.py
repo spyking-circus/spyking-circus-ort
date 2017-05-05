@@ -139,7 +139,7 @@ class Template_updater(Block):
                 all_data = numpy.concatenate((all_data, data.data))
 
         if numpy.any(all_data >= self.cc_merge):
-            self.log.debug('{n} found a duplicate template, thus rejected'.format(n=self.name))
+            self.nb_duplicates += 1
             return True
         return False
 
@@ -200,6 +200,7 @@ class Template_updater(Block):
     def _construct_templates(self, templates_data):
 
         new_templates = []
+        self.nb_duplicates = 0
 
         for key in templates_data['dat'].keys():
             for channel in templates_data['dat'][key].keys():
@@ -226,6 +227,8 @@ class Template_updater(Block):
                             new_templates  += [self.global_id]
                             self.global_id += 1
 
+        self.log.debug('{n} rejected {s} duplicated templates'.format(n=self.name, s=self.nb_duplicates))
+            
         return new_templates
 
     def _process(self):

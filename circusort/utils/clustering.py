@@ -122,18 +122,19 @@ class OnlineManager(object):
         mask               = labels > -1
         self.nb_dimensions = sub_data.shape[1]
         amplitudes         = numpy.zeros((0, 2), dtype=numpy.float32)
+        templates          = numpy.zeros((0, self.pca.shape[0]), dtype=numpy.float32)
         if two_components:
-            templates2     = numpy.zeros((0, self.pca.shape[1]), dtype=numpy.float32)
-        else:
-            templates2     = None
-
+            templates2     = numpy.zeros((0, self.pca.shape[0]), dtype=numpy.float32)
+    
         for count, i in enumerate(numpy.unique(labels[mask])):
 
             indices = numpy.where(labels == i)[0]
             self.clusters[count] = MacroCluster(count, sub_data[indices], data[indices], creation_time=time)
             self.tracking[count] = self.clusters[count].tracking_properties
             amplitudes = numpy.vstack((amplitudes, self._compute_amplitudes(sub_data[indices], self.clusters[count].center)))
-            templates2 = numpy.vstack((templates2, self._compute_template2(sub_data[indices], self.clusters[count].center)))
+            templates  = numpy.vstack((templates, numpy.median(data[indices], 0)))
+            if two_components:
+                templates2 = numpy.vstack((templates2, self._compute_template2(data[indices], self.clusters[count].center_full)))
 
         for cluster in self.clusters.values():
             if cluster.density >= self.D_threshold:
@@ -145,9 +146,9 @@ class OnlineManager(object):
         self.log.debug('{n} is initialized with {k} templates'.format(n=self.name, k=len(self.clusters)))
 
         if two_components:
-            return {'dat' : self._get_centers_full('dense'), 'two' : template2, 'amp' : amplitudes}
+            return {'dat' : templates, 'two' : templates2, 'amp' : amplitudes}
         else:
-            return {'dat' : self._get_centers_full('dense'), 'amp' : amplitudes}
+            return {'dat' : templates, 'amp' : amplitudes}
 
     @property
     def nb_sparse(self):
@@ -325,7 +326,7 @@ class OnlineManager(object):
         amplitudes     = numpy.dot(data, temp_flat)
         amplitudes    /= numpy.sum(temp_flat**2)
         variation      = numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
-        physical_limit = self.threshold
+        #physical_limit = self.threshold
         amp_min        = min(0.8, numpy.median(amplitudes) - self.dispersion[0]*variation)
         amp_max        = max(1.2, numpy.median(amplitudes) + self.dispersion[1]*variation)
 
@@ -338,16 +339,16 @@ class OnlineManager(object):
         amplitudes /= numpy.sum(temp_flat**2)
 
         for i in xrange(len(data)):
-            data[i, :] -= amps[i]*temp_flat[:, 0]
+            data[i, :] -= amplitudes[i]*temp_flat[:, 0]
 
-        if len(data_flat) > 1:
+        if len(temp_flat) > 1:
             pca       = PCAEstimator(1)
             res_pca   = pca.fit_transform(data).astype(numpy.float32)
             template2 = pca.components_.T.astype(numpy.float32)
         else:
             template2 = data/numpy.sum(data**2)
      
-        return template2
+        return template2.reshape(1, template2.size)
 
 
     def cluster(self, get_new=True, get_merged=False, two_components=False):
