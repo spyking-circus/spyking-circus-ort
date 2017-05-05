@@ -192,7 +192,7 @@ class Density_clustering(Block):
 
         for key in self.sign_peaks:
             for channel in xrange(self.nb_channels):
-                self.managers[key][channel] = OnlineManager()
+                self.managers[key][channel] = OnlineManager(name='OnlineManger for {p} peak on channel {c}'.format(p=key, c=channel), logger=self.log)
                 self._reset_data_structures(key, channel)
 
 

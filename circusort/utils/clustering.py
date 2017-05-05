@@ -5,15 +5,15 @@ warnings.filterwarnings("ignore")
 
 class MacroCluster(object):
 
-    def __init__(self, id, data, creation_time=0):
+    def __init__(self, id, pca_data, creation_time=0):
 
-        self.id             = id
-        self.density        = len(data)
-        self.sum_centers    = numpy.sum(data, 0)
-        self.sum_centers_sq = numpy.sum(data**2, 0)
-        self.creation_time  = creation_time
-        self.last_update    = creation_time
-        self.label          = None
+        self.id            = id
+        self.density       = len(pca_data)
+        self.sum_pca       = numpy.sum(pca_data, 0)
+        self.sum_pca_sq    = numpy.sum(pca_data**2, 0)
+        self.creation_time = creation_time
+        self.last_update   = creation_time
+        self.label         = None
 
     def set_label(self, label):
         assert label in ['sparse', 'dense']
@@ -27,32 +27,40 @@ class MacroCluster(object):
     def is_dense(self):
         return self.label == 'dense'
 
-    def add_and_update(self, data, time, decay_factor):
-        factor              = 2**(-decay_factor*(time - self.last_update))
-        self.density        = factor*self.density + 1.
-        self.sum_centers    = factor*self.sum_centers + data
-        self.sum_centers_sq = factor*self.sum_centers_sq + data**2
-        self.last_update    = time
+    def add_and_update(self, pca_data, data, time, decay_factor):
+        factor           = 2**(-decay_factor*(time - self.last_update))
+        self.density     = factor*self.density + 1.
+        self.sum_pca     = factor*self.sum_pca + pca_data
+        self.sum_pca_sq  = factor*self.sum_pca_sq + pca_data**2
+        self.sum_full    = factor*self.sum_full + data
+        self.last_update = time
 
-    def remove(self, data):
-        self.density        -= 1
-        self.sum_centers    -= data
-        self.sum_centers_sq -= data**2
+    def remove(self, pca_data, data):
+        self.density    -= 1
+        self.sum_pca    -= pca_data
+        self.sum_pca_sq -= pca_data**2
+        self.sum_full   -= data
 
     @property
     def center(self):
-        return self.sum_centers/self.density
+        return self.sum_pca/self.density
+
+    @property
+    def center_full(self):
+        return self.sum_full/self.density
 
     @property
     def sigma(self):
-        return numpy.sqrt(numpy.linalg.norm(self.sum_centers_sq/self.density - self.center**2))
+        return numpy.sqrt(numpy.linalg.norm(self.sum_pca_sq/self.density - self.center**2))
 
-    def get_z_score(self, data, sigma):
-        return numpy.linalg.norm(self.center - data)/sigma
+    def get_z_score(self, pca_data, sigma):
+        return numpy.linalg.norm(self.center - pca_data)/sigma
 
     @property
     def tracking_properties(self):
         return [self.center, self.sigma]
+
+
 
 
 class OnlineManager(object):
@@ -71,11 +79,13 @@ class OnlineManager(object):
         self.is_ready         = False
         self.nb_updates       = 0
         self.radius           = radius
+        self.pca              = None
         self.tracking         = {}
         if logger is None:
             self.log = logging.getLogger(__name__)
         else:
             self.log = logger
+        self.log.debug('{n} is created'.format(n=self.name))
     
     @property
     def D_threshold(self):
@@ -173,7 +183,6 @@ class OnlineManager(object):
 
         return to_be_merged
 
-
     def _estimate_sigma(self):
         sigma = 0
         count = 0
@@ -204,12 +213,16 @@ class OnlineManager(object):
 
                     self.clusters.pop(cluster.id)
 
-    def update(self, time, new_data=None):
+    def update(self, time, data=None):
         
         self.time = time
         self.log.debug("{n} processes time {t} with {s} sparse and {d} dense clusters".format(n=self.name, t=time, s=self.nb_sparse, d=self.nb_dense)) 
         
-        if new_data is not None:
+        if data is not None:
+        
+            if self.pca is not None:
+                new_data = numpy.dot(pca, data)
+
             if self._merged_into(new_data, 'dense'):
                 self.log.debug("{n} merges the data at time {t} into a dense cluster".format(n=self.name, t=self.time))
             else:
@@ -233,6 +246,8 @@ class OnlineManager(object):
         all_sigmas  = [i[1] for i in self.tracking.values()]
         all_indices = self.tracking.keys()
 
+        changes = {'new' : {}, 'merged' : {}}
+
         for key, value in new_tracking_data.items():
             center, sigma = value
             new_dist      = scipy.spatial.distance.cdist(numpy.array([center]), all_centers, 'euclidean')
@@ -241,14 +256,17 @@ class OnlineManager(object):
 
             if dist_min < self.radius*max(sigma, all_sigmas[dist_idx]):
                 self.log.debug("{n} establishes a match between target {t} and source {s}".format(n=self.name, t=key, s=all_indices[dist_idx]))
-                #new_clusters['indices'][count] = self.real_clusters['indices'][dist_idx]
+                ## Need to merge templates in self.tracking
+                changes['merged'][key] = all_indices[dist_idx]
             else:
                 idx = self._get_tracking_id()
                 self.tracking[idx] = center, sigma
                 self.log.debug("{n} can not found a match for target {t} assigned to {s}".format(n=self.name, t=key, s=idx))
+                changes['new'][key] = idx
 
+        return changes
 
-    def cluster(self):
+    def cluster(self, get_new=True, get_merged=False):
 
         self.log.debug('{n} launches clustering'.format(n=self.name))
         centers       = self._get_centers('dense')
@@ -264,10 +282,23 @@ class OnlineManager(object):
             cluster = MacroCluster(-1, centers[idx])
             new_tracking_data[l] = cluster.tracking_properties
 
-        self._perform_tracking(new_tracking_data)
+        changes = self._perform_tracking(new_tracking_data)
 
-        #self.tracking[count] = self.clusters[count].tracking_properties
+        if get_new:
+            for key, value in changes['new'].items():
+                clusters = centers[labels == key]
+                template = self._get_templates(clusters)
 
+
+        if get_merged:
+            for key, value in changes['merged'].items():
+                clusters = centers[labels == key]
+                template = self._get_templates(clusters)
+
+        return templates
+
+    def _get_templates(self, clusters):
+        pass
 
 
 
