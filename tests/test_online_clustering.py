@@ -4,7 +4,7 @@ import numpy
 nb_points     = 1000
 nb_clusters   = 2
 nb_extras     = 5
-nb_dimensions = 2
+nb_dimensions = 10
 decay_factor  = 0.35
 sim_same_elec = 3
 mu            = 4
@@ -27,13 +27,9 @@ for i in xrange(nb_points):
     idx = numpy.random.randint(0, nb_clusters)
     data[i] = numpy.random.randn(nb_dimensions) + gt_centers[idx]
 
-rhos, dist, _  = rho_estimation(data)
-rhos           = -rhos + rhos.max() 
-labels, c      = density_based_clustering(rhos, dist, n_min=None)
-
 
 manager = OnlineManager()
-manager.initialize(0, data, labels)
+manager.initialize(0, data)
 
 for time in xrange(nb_stream):
 

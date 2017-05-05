@@ -151,18 +151,10 @@ class Density_clustering(Block):
         if self.inputs['data'].dtype is not None:
             self.decay_time = numpy.exp(-self.nb_samples/float(self.time_constant))
             self.chan_positions = numpy.zeros(self.nb_channels, dtype=numpy.int32)
-            self.sub_pcas = {}
             for channel in xrange(self.nb_channels):
                 self.chan_positions[channel] = numpy.where(self.probe.edges[channel] == channel)[0]
 
-    def _get_sub_pca(self, key, channel):
-        if self.sub_pcas[key].has_key(channel):
-            return self.sub_pcas[key][channel]
-        else:
-            return None
-
     def _init_data_structures(self):
-        self.pca_data   = {}
         self.raw_data   = {}
         self.clusters   = {}
         self.templates  = {}
@@ -180,10 +172,8 @@ class Density_clustering(Block):
         self.log.debug("{n} will detect peaks {s}".format(n=self.name, s=self.sign_peaks))
 
         for key in self.sign_peaks:
-            self.pca_data[key] = {}
             self.raw_data[key] = {}
             self.clusters[key] = {}
-            self.sub_pcas[key] = {}
             self.managers[key] = {}
             self.templates['dat'][key] = {}
             self.templates['amp'][key] = {}
@@ -196,26 +186,18 @@ class Density_clustering(Block):
                 self._reset_data_structures(key, channel)
 
 
-    def _perform_clustering(self, key, channel):
-
-        a, b, c = self.pca_data[key][channel].shape
-
-        if self._get_sub_pca(key, channel) is None:
-            self.log.debug("{n} computes local {k} PCA for channel {d}".format(n=self.name_and_counter, k=key, d=channel))
-            pca     = PCAEstimator(self.sub_dim, copy=False)
-            res_pca = pca.fit_transform(self.pca_data[key][channel].reshape(a, b*c).T).astype(numpy.float32)
-            self.sub_pcas[key][channel] = res_pca.T
+    # def _perform_clustering(self, key, channel):
         
-        self.log.debug("{n} clusters {m} {k} waveforms on channel {d}".format(n=self.name_and_counter, m=a, k=key, d=channel))
-        data    = self.pca_data[key][channel].reshape(a, b*c)
-        n_min   = numpy.maximum(20, int(self.n_min*a))
-        rho, dist, nb_selec = rho_estimation(data, mratio=self.m_ratio)
-        self.clusters[key][channel], c = density_based_clustering(rho, dist, smart_select=True, n_min=n_min)
+    #     self.log.debug("{n} clusters {m} {k} waveforms on channel {d}".format(n=self.name_and_counter, m=a, k=key, d=channel))
+    #     data    = self.pca_data[key][channel].reshape(a, b*c)
+    #     n_min   = numpy.maximum(20, int(self.n_min*a))
+    #     rho, dist, nb_selec = rho_estimation(data, mratio=self.m_ratio)
+    #     self.clusters[key][channel], c = density_based_clustering(rho, dist, smart_select=True, n_min=n_min)
         
-        if not self.managers[key][channel].is_ready:
-            self.managers[key][channel].initialize(self.counter, data, self.clusters[key][channel])
-        ### SHould we add the merging step
-        self._update_templates(key, channel)
+    #     if not self.managers[key][channel].is_ready:
+    #         self.managers[key][channel].initialize(self.counter, data, self.clusters[key][channel])
+    #     ### SHould we add the merging step
+    #     self._update_templates(key, channel)
 
 
     def _update_templates(self, key, channel):
@@ -324,11 +306,7 @@ class Density_clustering(Block):
         return aligned_template, shift
 
     def _reset_data_structures(self, key, channel):
-        if self._get_sub_pca(key, channel) is not None:
-            self.pca_data[key][channel] = numpy.zeros((0, self.sub_dim, 1), dtype=numpy.float32)
-        else:
-            self.pca_data[key][channel] = numpy.zeros((0, self.pcs.shape[1], len(self.probe.edges[channel])), dtype=numpy.float32)
-        self.raw_data[key][channel] = numpy.zeros((0, self._spike_width_, len(self.probe.edges[channel])), dtype=numpy.float32)
+        self.raw_data[key][channel] = numpy.zeros((0, self._spike_width_ * len(self.probe.edges[channel])), dtype=numpy.float32)
         self.clusters[key][channel] = numpy.zeros(0, dtype=numpy.int32)
         self.templates['dat'][key][channel] = numpy.zeros((0, len(self.probe.edges[channel]), self._spike_width_), dtype=numpy.float32)
         self.templates['amp'][key][channel] = numpy.zeros((0, 2), dtype=numpy.float32)
@@ -369,27 +347,29 @@ class Density_clustering(Block):
                             all_peaks[key]  = self._remove_nn_peaks(peak, all_peaks[key])
                             channel, is_neg = self._get_best_channel(batch, key, peak, peaks)
                             waveforms       = self._get_snippet(batch, channel, peak, is_neg).T
-                            projection      = numpy.dot(self.pcs[0], waveforms)
-                            sub_pca         = self._get_sub_pca(key, channel)
-                            if sub_pca is not None:
-                                projection  = numpy.dot(sub_pca, projection.reshape(projection.shape[0]*projection.shape[1], 1))
-
-                            projection      = projection.reshape(1, projection.shape[0], projection.shape[1])
-                            waveforms       = waveforms.reshape(1, waveforms.shape[0], waveforms.shape[1])
+                            waveforms       = waveforms.reshape(1, waveforms.shape[0]*waveforms.shape[1])
                             if is_neg:
                                 key = 'negative'
                             else:
                                 key = 'positive'
 
-                            self.pca_data[key][channel] = numpy.vstack((self.pca_data[key][channel], projection))
-                            self.raw_data[key][channel] = numpy.vstack((self.raw_data[key][channel], waveforms))
-
+                            if not self.managers[key][channel].is_ready:
+                                self.raw_data[key][channel] = numpy.vstack((self.raw_data[key][channel], waveforms))
+                            else:
+                                self.managers[key][channel].update(self.counter, waveforms)
+                           
                         for channel in xrange(self.nb_channels):
-                            if len(self.pca_data[key][channel]) >= self.nb_waveforms:
-                                self._perform_clustering(key, channel)
+                            
+                            if len(self.raw_data[key][channel]) >= self.nb_waveforms:
+                                templates = self.managers[key][channel].initialize(self.counter, self.raw_data[key][channel])
+                                self._reset_data_structures(key, channel)
+                                print templates.shape
+
+                            if self.managers[key][channel].time_to_cluster(1000):
+                                templates = self.managers[key][channel].cluster()
+                                print templates.shape
 
                     if len(self.to_reset) > 0:
                         self.outputs['templates'].send(self.templates)
-                        for key, channel in self.to_reset:
-                            self._reset_data_structures(key, channel)
+
         return
