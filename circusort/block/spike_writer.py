@@ -52,7 +52,7 @@ class Spike_writer(Block):
                         else:
                             self.recorded_data[key] = self.templates
 
-                    self.log.info('{n} is recording {m} into {k}'.format(n=self.name, m=key, k=self.recorded_data[key]))
+                    self.log.info('{n} records {m} into {k}'.format(n=self.name, m=key, k=self.recorded_data[key]))
                     self.data_file[key] = open(self.recorded_data[key], mode='wb')
                 
                 if key in ['spike_times']:            

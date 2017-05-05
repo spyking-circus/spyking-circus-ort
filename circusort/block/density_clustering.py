@@ -29,6 +29,7 @@ class Density_clustering(Block):
               'decay_factor'  : 0.35,
               'mu'            : 4,
               'epsilon'       : 0.5,
+              'frequency'     : 5000,
               'theta'         : -numpy.log(0.001)}
 
     def __init__(self, **kwargs):
@@ -255,7 +256,6 @@ class Density_clustering(Block):
         if self.two_components:
             self.templates['two'][key][channel] = numpy.zeros((0, len(self.probe.edges[channel]), self._spike_width_), dtype=numpy.float32)
 
-
     def _process(self):
 
         batch = self.inputs['data'].receive()
@@ -310,7 +310,7 @@ class Density_clustering(Block):
                                 templates, amplitudes = self.managers[key][channel].initialize(self.counter, self.raw_data[key][channel])
                                 self._update_templates(templates, amplitudes, key, channel)
 
-                            elif self.managers[key][channel].time_to_cluster(1000):
+                            elif self.managers[key][channel].time_to_cluster(self.frequency):
                                 templates, amplitudes = self.managers[key][channel].cluster()
                                 self._update_templates(templates, amplitudes, key, channel)
 

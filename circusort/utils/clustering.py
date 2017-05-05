@@ -203,7 +203,6 @@ class OnlineManager(object):
 
             centers  = self._get_centers(cluster_type)
             new_dist = scipy.spatial.distance.cdist(pca_data, centers, 'euclidean')[0]
-            dist_min = numpy.min(new_dist)
             cluster  = clusters[numpy.argmin(new_dist)]
 
             cluster.add_and_update(pca_data[0], data[0], self.time, self.decay_factor)
@@ -255,6 +254,8 @@ class OnlineManager(object):
     def update(self, time, data=None):
         
         self.time = time
+        if self.nb_sparse > 500:
+            self.log.warning('{n} has {s} sparse clusters'.format(n=self.name, s=self.nb_sparse))
         #self.log.debug("{n} processes time {t} with {s} sparse and {d} dense clusters".format(n=self.name, t=time, s=self.nb_sparse, d=self.nb_dense)) 
         
         if data is not None:
@@ -316,7 +317,7 @@ class OnlineManager(object):
         amplitudes     = numpy.dot(data, temp_flat)
         amplitudes    /= numpy.sum(temp_flat**2)
         variation      = numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
-        #physical_limit = self.threshold
+        physical_limit = self.threshold
         amp_min        = min(0.8, numpy.median(amplitudes) - self.dispersion[0]*variation)
         amp_max        = max(1.2, numpy.median(amplitudes) + self.dispersion[1]*variation)
 
