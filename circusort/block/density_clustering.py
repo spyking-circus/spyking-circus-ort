@@ -156,7 +156,6 @@ class Density_clustering(Block):
 
     def _init_data_structures(self):
         self.raw_data   = {}
-        self.clusters   = {}
         self.templates  = {}
         self.managers   = {}
 
@@ -173,104 +172,48 @@ class Density_clustering(Block):
 
         for key in self.sign_peaks:
             self.raw_data[key] = {}
-            self.clusters[key] = {}
             self.managers[key] = {}
             self.templates['dat'][key] = {}
             self.templates['amp'][key] = {}
             if self.two_components:
                 self.templates['two'][key] = {}
 
-        for key in self.sign_peaks:
             for channel in xrange(self.nb_channels):
                 self.managers[key][channel] = OnlineManager(name='OnlineManger for {p} peak on channel {c}'.format(p=key, c=channel), logger=self.log)
                 self._reset_data_structures(key, channel)
 
-
-    # def _perform_clustering(self, key, channel):
-        
-    #     self.log.debug("{n} clusters {m} {k} waveforms on channel {d}".format(n=self.name_and_counter, m=a, k=key, d=channel))
-    #     data    = self.pca_data[key][channel].reshape(a, b*c)
-    #     n_min   = numpy.maximum(20, int(self.n_min*a))
-    #     rho, dist, nb_selec = rho_estimation(data, mratio=self.m_ratio)
-    #     self.clusters[key][channel], c = density_based_clustering(rho, dist, smart_select=True, n_min=n_min)
-        
-    #     if not self.managers[key][channel].is_ready:
-    #         self.managers[key][channel].initialize(self.counter, data, self.clusters[key][channel])
-    #     ### SHould we add the merging step
-    #     self._update_templates(key, channel)
-
-
-    def _update_templates(self, key, channel):
-
-        labels = numpy.unique(self.clusters[key][channel])
-        labels = labels[labels > -1]
-
-        if len(labels) > 0:
-            self.log.debug("{n} found {m} templates on channel {d}".format(n=self.name_and_counter, m=len(labels), d=channel))
-        for l in labels:
-            indices = numpy.where(self.clusters[key][channel] == l)[0]
-            data = self.raw_data[key][channel][indices]
-            if self.extraction == 'mean-raw':
-                template = numpy.mean(data, 0)
-            elif self.extraction == 'median-raw':
-                template = numpy.median(data, 0)
-
-            template         = template.T
+    def _update_templates(self, templates, amplitudes, key, channel):
+       
+        for t in templates:
+    
+            template         = t.reshape(self._spike_width_, len(self.probe.edges[channel])).T
             template, shift  = self._center_template(template, key)
-            amplitudes, amps = self._get_amplitudes(data, template, channel)
+            #amplitudes, amps = self._get_amplitudes(data, template, channel)
 
-            if self.two_components:
-
-                x, y, z     = data.shape
-                data_flat   = data.reshape(x, y*z)
-                first_flat  = template.reshape(y*z, 1)
-
-                for i in xrange(x):
-                    data_flat[i, :] -= amps[i]*first_flat[:, 0]
-
-                if len(data_flat) > 1:
-                    pca       = PCAEstimator(1)
-                    res_pca   = pca.fit_transform(data_flat).astype(numpy.float32)
-                    template2 = pca.components_.T.astype(numpy.float32).reshape(y, z)
-                else:
-                    template2 = data_flat.reshape(y, z)/numpy.sum(data_flat**2)
-
-                template2    = template2.T
-                template2, _ = self._center_template(template2, key, shift)
-
-            # import pylab
-            # pylab.figure()
             # if self.two_components:
-            #     pylab.subplot(1, 2, 1)
-            # else:
-            #     pylab.subplot(1, 1, 1)
-            # for i in xrange(len(template)):
-            #     if i == self.chan_positions[channel]:
-            #         c = 'r'
+
+            #     x, y, z     = data.shape
+            #     data_flat   = data.reshape(x, y*z)
+            #     first_flat  = template.reshape(y*z, 1)
+
+            #     for i in xrange(x):
+            #         data_flat[i, :] -= amps[i]*first_flat[:, 0]
+
+            #     if len(data_flat) > 1:
+            #         pca       = PCAEstimator(1)
+            #         res_pca   = pca.fit_transform(data_flat).astype(numpy.float32)
+            #         template2 = pca.components_.T.astype(numpy.float32).reshape(y, z)
             #     else:
-            #         c = '0.5'
-            #     pylab.plot(template[i, :], c=c)
+            #         template2 = data_flat.reshape(y, z)/numpy.sum(data_flat**2)
 
-            # xmin, xmax = pylab.xlim()
-            # pylab.title("Template [nb_samples %d]" %len(indices))
-            # pylab.plot([xmin, xmax], [-self.thresholds[channel], -self.thresholds[channel]], 'k--')
-            
-            # if self.two_components:
-            #     pylab.subplot(1, 2, 2)
-            #     for i in xrange(len(template)):
-            #         if i == self.chan_positions[channel]:
-            #             c = 'r'
-            #         else:
-            #             c = '0.5'
-            #         pylab.plot(template2[i, :], c=c)
-            #     pylab.title('Second Template')
-
-            # pylab.savefig("test_%d_%s_%d_%d.png" %(self.counter, key, channel, l))
+            #     template2    = template2.T
+            #     template2, _ = self._center_template(template2, key, shift)
 
             self.templates['dat'][key][channel] = numpy.vstack((self.templates['dat'][key][channel], template.reshape(1, template.shape[0], template.shape[1])))
-            self.templates['amp'][key][channel] = numpy.vstack((self.templates['amp'][key][channel], amplitudes))
-            if self.two_components:
-                self.templates['two'][key][channel] = numpy.vstack((self.templates['two'][key][channel], template2.reshape(1, template2.shape[0], template2.shape[1])))
+        
+        self.templates['amp'][key][channel] = amplitudes
+        if self.two_components:
+            self.templates['two'][key][channel] = numpy.vstack((self.templates['two'][key][channel], template2.reshape(1, template2.shape[0], template2.shape[1])))
 
         self.to_reset += [(key, channel)]
 
@@ -307,7 +250,6 @@ class Density_clustering(Block):
 
     def _reset_data_structures(self, key, channel):
         self.raw_data[key][channel] = numpy.zeros((0, self._spike_width_ * len(self.probe.edges[channel])), dtype=numpy.float32)
-        self.clusters[key][channel] = numpy.zeros(0, dtype=numpy.int32)
         self.templates['dat'][key][channel] = numpy.zeros((0, len(self.probe.edges[channel]), self._spike_width_), dtype=numpy.float32)
         self.templates['amp'][key][channel] = numpy.zeros((0, 2), dtype=numpy.float32)
         if self.two_components:
@@ -337,11 +279,13 @@ class Density_clustering(Block):
                 while peaks.pop('offset')/self.nb_samples < self.counter:
                     peaks = self.inputs['peaks'].receive()
 
+
                 if peaks is not None:
 
                     all_peaks = self._get_all_valid_peaks(peaks)
 
                     for key in self.sign_peaks:
+
                         while len(all_peaks[key]) > 0:
                             peak            = all_peaks[key][0]
                             all_peaks[key]  = self._remove_nn_peaks(peak, all_peaks[key])
@@ -360,16 +304,18 @@ class Density_clustering(Block):
                            
                         for channel in xrange(self.nb_channels):
                             
-                            if len(self.raw_data[key][channel]) >= self.nb_waveforms:
-                                templates = self.managers[key][channel].initialize(self.counter, self.raw_data[key][channel])
-                                self._reset_data_structures(key, channel)
-                                print templates.shape
+                            self.managers[key][channel].set_physical_threshold(self.thresholds[channel])
 
-                            if self.managers[key][channel].time_to_cluster(1000):
-                                templates = self.managers[key][channel].cluster()
-                                print templates.shape
+                            if len(self.raw_data[key][channel]) >= self.nb_waveforms and not self.managers[key][channel].is_ready:
+                                templates, amplitudes = self.managers[key][channel].initialize(self.counter, self.raw_data[key][channel])
+                                self._update_templates(templates, amplitudes, key, channel)
+
+                            elif self.managers[key][channel].time_to_cluster(1000):
+                                templates, amplitudes = self.managers[key][channel].cluster()
+                                self._update_templates(templates, amplitudes, key, channel)
 
                     if len(self.to_reset) > 0:
                         self.outputs['templates'].send(self.templates)
-
+                        for key, channel in self.to_reset:
+                            self._reset_data_structures(key, channel)
         return

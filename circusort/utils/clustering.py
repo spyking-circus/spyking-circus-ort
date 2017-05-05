@@ -84,6 +84,8 @@ class OnlineManager(object):
         self.sub_dim          = 5
         self.n_min            = None
         self.pca              = None
+        self.noise_thr        = 0.8
+        self.dispersion       = [5, 5]
         self.tracking         = {}
         if logger is None:
             self.log = logging.getLogger(__name__)
@@ -119,12 +121,14 @@ class OnlineManager(object):
         labels, c          = density_based_clustering(rhos, dist, n_min=self.n_min)
         mask               = labels > -1
         self.nb_dimensions = sub_data.shape[1]
+        amplitudes         = numpy.zeros((0, 2), dtype=numpy.float32)
 
         for count, i in enumerate(numpy.unique(labels[mask])):
 
             indices = numpy.where(labels == i)[0]
             self.clusters[count] = MacroCluster(count, sub_data[indices], data[indices], creation_time=time)
             self.tracking[count] = self.clusters[count].tracking_properties
+            amplitudes = numpy.vstack((amplitudes, self._compute_amplitudes(sub_data[indices], self.clusters[count].center)))
 
         for cluster in self.clusters.values():
             if cluster.density >= self.D_threshold:
@@ -133,8 +137,9 @@ class OnlineManager(object):
                 cluster.set_label('sparse')
 
         self.is_ready = True
+        self.log.debug('{n} is initialized with {k} templates'.format(n=self.name, k=len(self.clusters)))
 
-        return self._get_centers_full('dense')
+        return self._get_centers_full('dense'), amplitudes
 
     @property
     def nb_sparse(self):
@@ -160,10 +165,16 @@ class OnlineManager(object):
         return self.is_ready and self.nb_updates >= nb_updates
 
     def _get_id(self):
-        return numpy.max(self.clusters.keys()) + 1
+        if len(self.clusters) > 0:
+            return numpy.max(self.clusters.keys()) + 1
+        else:
+            return 0
 
     def _get_tracking_id(self):
-        return numpy.max(self.tracking.keys()) + 1
+        if len(self.tracking) > 0:
+            return numpy.max(self.tracking.keys()) + 1
+        else:
+            return 0
 
     def _get_clusters(self, cluster_type):
         if cluster_type == 'sparse':
@@ -221,7 +232,7 @@ class OnlineManager(object):
         return sigma/count
 
     def _prune(self):
-        self.log.debug("{n} cleans clusters...".format(n=self.name))
+        #self.log.debug("{n} cleans clusters...".format(n=self.name))
 
         for cluster in self.dense_clusters:
             if cluster.density < self.D_threshold:
@@ -236,15 +247,15 @@ class OnlineManager(object):
                 zeta    = (2**(-self.decay_factor*(self.time - T_0 + self.time_gap)) - 1)/(2**(-self.decay_factor*self.time_gap) - 1)
                 delta_t = self.theta*(cluster.last_update - T_0)/cluster.density
 
-                if cluster.density < zeta or ((time - cluster.last_update) > delta_t):
-                    self.log.debug("{n} removes sparse cluster {l}".format(n=self.name, l=cluster.id))
+                if cluster.density < zeta or ((self.time - cluster.last_update) > delta_t):
+                    #self.log.debug("{n} removes sparse cluster {l}".format(n=self.name, l=cluster.id))
 
                     self.clusters.pop(cluster.id)
 
     def update(self, time, data=None):
         
         self.time = time
-        self.log.debug("{n} processes time {t} with {s} sparse and {d} dense clusters".format(n=self.name, t=time, s=self.nb_sparse, d=self.nb_dense)) 
+        #self.log.debug("{n} processes time {t} with {s} sparse and {d} dense clusters".format(n=self.name, t=time, s=self.nb_sparse, d=self.nb_dense)) 
         
         if data is not None:
         
@@ -252,12 +263,14 @@ class OnlineManager(object):
                 pca_data = numpy.dot(data, self.pca)
 
             if self._merged_into(pca_data, data, 'dense'):
-                self.log.debug("{n} merges the data at time {t} into a dense cluster".format(n=self.name, t=self.time))
+                #self.log.debug("{n} merges the data at time {t} into a dense cluster".format(n=self.name, t=self.time))
+                pass
             else:
                 if self._merged_into(pca_data, data, 'sparse'):
-                    self.log.debug("{n} merges data at time {t} into a sparse cluster".format(n=self.name, t=self.time))
+                    pass
+                    #self.log.debug("{n} merges data at time {t} into a sparse cluster".format(n=self.name, t=self.time))
                 else:
-                    self.log.debug("{n} can not merge data at time {t} and creates a new sparse cluster".format(n=self.name, t=self.time))
+                    #self.log.debug("{n} can not merge data at time {t} and creates a new sparse cluster".format(n=self.name, t=self.time))
                     new_id      = self._get_id()
                     new_cluster = MacroCluster(new_id, pca_data, data, creation_time=self.time)
                     new_cluster.set_label('sparse')
@@ -283,18 +296,33 @@ class OnlineManager(object):
             dist_idx      = numpy.argmin(new_dist)
 
             if dist_min < self.radius*max(sigma, all_sigmas[dist_idx]):
-                self.log.debug("{n} establishes a match between target {t} and source {s}".format(n=self.name, t=key, s=all_indices[dist_idx]))
+                #self.log.debug("{n} establishes a match between target {t} and source {s}".format(n=self.name, t=key, s=all_indices[dist_idx]))
                 ## Need to merge templates in self.tracking
                 changes['merged'][key] = all_indices[dist_idx]
             else:
                 idx = self._get_tracking_id()
                 self.tracking[idx] = center, sigma
-                self.log.debug("{n} can not found a match for target {t} assigned to {s}".format(n=self.name, t=key, s=idx))
+                #self.log.debug("{n} can not found a match for target {t} assigned to {s}".format(n=self.name, t=key, s=idx))
                 changes['new'][key] = idx
 
         return changes
 
-    def cluster(self, get_new=True, get_merged=False):
+
+    def set_physical_threshold(self, threshold):
+        self.threshold = -self.noise_thr*threshold
+
+    def _compute_amplitudes(self, data, template):
+        temp_flat      = template.reshape(template.size, 1)
+        amplitudes     = numpy.dot(data, temp_flat)
+        amplitudes    /= numpy.sum(temp_flat**2)
+        variation      = numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
+        #physical_limit = self.threshold
+        amp_min        = min(0.8, numpy.median(amplitudes) - self.dispersion[0]*variation)
+        amp_max        = max(1.2, numpy.median(amplitudes) + self.dispersion[1]*variation)
+
+        return numpy.array([amp_min, amp_max], dtype=numpy.float32)
+
+    def cluster(self, get_new=True, get_merged=False, two_components=False):
 
         self.log.debug('{n} launches clustering'.format(n=self.name))
         centers       = self._get_centers('dense')
@@ -313,24 +341,40 @@ class OnlineManager(object):
 
         changes = self._perform_tracking(new_tracking_data)
 
-        templates = numpy.zeros((0, self.pca.shape[0]), dtype=numpy.float32)
+        templates  = numpy.zeros((0, self.pca.shape[0]), dtype=numpy.float32)
+        amplitudes = numpy.zeros((0, 2), dtype=numpy.float32)
 
         if get_new:
             for key, value in changes['new'].items():
-               templates = numpy.vstack((templates, numpy.median(centers_full[labels == key], 0)))
+                data       = centers_full[labels == key]
+                template   = numpy.median(data, 0)
+                templates  = numpy.vstack((templates, template))
+                amplitudes = numpy.vstack((amplitudes, self._compute_amplitudes(data, template)))
 
         if get_merged:
             for key, value in changes['merged'].items():
-                templates = numpy.vstack((templates, numpy.median(centers_full[labels == key], 0)))
+                data       = centers_full[labels == key]
+                template   = numpy.median(data, 0)
+                templates  = numpy.vstack((templates, template))
+                amplitudes = numpy.vstack((amplitudes, self._compute_amplitudes(data, template)))
 
-        return templates
+        self.log.debug('{n} found {a} new templates and {b} modified ones'.format(n=self.name, a=len(changes['new']), b=len(changes['merged'])))
 
-    def _get_templates(self, clusters):
-        pass
-
+        return templates, amplitudes
 
 
 
+        # x, y, z     = data.shape
+        # data        = data.reshape(x, y*z)
+        # first_flat  = template.reshape(y*z, 1)
+        # amplitudes  = numpy.dot(data, first_flat)
+        # amplitudes /= numpy.sum(first_flat**2)
+        # variation   = numpy.median(numpy.abs(amplitudes - numpy.median(amplitudes)))
+        # physical_limit = self.noise_thr*(-self.thresholds[channel])/template[self.chan_positions[channel], self._width]
+        # amp_min        = min(0.8, max(physical_limit, numpy.median(amplitudes) - self.dispersion[0]*variation))
+        # amp_max        = max(1.2, numpy.median(amplitudes) + self.dispersion[1]*variation)
+
+        # return numpy.array([amp_min, amp_max], dtype=numpy.float32), amplitudes
 
 
 
