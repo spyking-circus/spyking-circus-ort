@@ -13,7 +13,6 @@ class Density_clustering(Block):
     name = "Density Clustering"
 
     params = {'alignment'     : True,
-              'time_constant' : 30.,
               'sampling_rate' : 20000.,
               'spike_width'   : 5,
               'nb_waveforms'  : 10000, 
@@ -27,8 +26,9 @@ class Density_clustering(Block):
               'extraction'    : 'median-raw', 
               'two_components': False, 
               'decay_factor'  : 0.35,
-              'mu'            : 4,
-              'epsilon'       : 0.5,
+              'mu'            : 2,
+              'sigma_rad'     : 3,
+              'epsilon'       : 0.1,
               'frequency'     : 5000,
               'theta'         : -numpy.log(0.001)}
 
@@ -150,7 +150,7 @@ class Density_clustering(Block):
 
     def _guess_output_endpoints(self):
         if self.inputs['data'].dtype is not None:
-            self.decay_time = numpy.exp(-self.nb_samples/float(self.time_constant))
+            self.decay_time = self.decay_factor #1 - numpy.exp(-1000*(self.nb_samples/self.sampling_rate)/float(self.decay_factor))
             self.chan_positions = numpy.zeros(self.nb_channels, dtype=numpy.int32)
             for channel in xrange(self.nb_channels):
                 self.chan_positions[channel] = numpy.where(self.probe.edges[channel] == channel)[0]
@@ -180,7 +180,19 @@ class Density_clustering(Block):
                 self.templates['two'][key] = {}
 
             for channel in xrange(self.nb_channels):
-                self.managers[key][channel] = OnlineManager(name='OnlineManger for {p} peak on channel {c}'.format(p=key, c=channel), logger=self.log)
+
+                params = {'dispersion' : self.dispersion,
+                          'mu'         : self.mu,
+                          'sigma_rad'  : self.sigma_rad,
+                          'decay'      : self.decay_time,
+                          'epsilon'    : self.epsilon,
+                          'theta'      : self.theta,
+                          'n_min'      : self.n_min,
+                          'noise_thr'  : self.noise_thr,
+                          'name'       : 'OnlineManger for {p} peak on channel {c}'.format(p=key, c=channel),
+                          'logger'     : self.log}
+
+                self.managers[key][channel] = OnlineManager(**params)
                 self._reset_data_structures(key, channel)
 
     def _prepare_templates(self, templates, key, channel):

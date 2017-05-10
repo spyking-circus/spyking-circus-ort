@@ -67,25 +67,27 @@ class MacroCluster(object):
 
 class OnlineManager(object):
 
-    def __init__(self, decay_factor=0.35, mu=2, radius=3, epsilon=0.1, theta=-numpy.log(0.001), logger=None, name=None):
+    def __init__(self, decay=0.35, mu=2, sigma_rad=3, epsilon=0.1, theta=-numpy.log(0.001), dispersion=(5, 5), n_min=None, noise_thr=0.8, logger=None, name=None):
 
         if name is None:
             self.name = "OnlineManager"
         else:
             self.name = name
         self.clusters         = {}
-        self.decay_factor     = decay_factor
+        self.decay_factor     = decay
         self.mu               = mu
         self.epsilon          = epsilon
         self.theta            = theta
+        self.radius           = sigma_rad
+        self.dispersion       = dispersion
+        self.noise_thr        = noise_thr
+        self.n_min            = n_min
+
         self.is_ready         = False
+        self.abs_n_min        = 20
         self.nb_updates       = 0
-        self.radius           = radius
         self.sub_dim          = 5
-        self.n_min            = None
         self.pca              = None
-        self.noise_thr        = 0.8
-        self.dispersion       = [5, 5]
         self.tracking         = {}
         if logger is None:
             self.log = logging.getLogger(__name__)
@@ -117,8 +119,9 @@ class OnlineManager(object):
 
         sub_data           = numpy.dot(data, self.pca)
         rhos, dist, _      = rho_estimation(sub_data)
-        rhos               = -rhos + rhos.max() 
-        labels, c          = density_based_clustering(rhos, dist, n_min=self.n_min)
+        rhos               = -rhos + rhos.max()
+        n_min              = numpy.maximum(self.abs_n_min, int(self.n_min*len(data)))
+        labels, c          = density_based_clustering(rhos, dist, n_min=n_min)
         mask               = labels > -1
         self.nb_dimensions = sub_data.shape[1]
         amplitudes         = numpy.zeros((0, 2), dtype=numpy.float32)
@@ -264,7 +267,7 @@ class OnlineManager(object):
         
         self.time = time
         if self.nb_sparse > 500:
-            self.log.warning('{n} has {s} sparse clusters'.format(n=self.name, s=self.nb_sparse))
+            self.log.warning('{n} has too many ({s}) sparse clusters'.format(n=self.name, s=self.nb_sparse))
         #self.log.debug("{n} processes time {t} with {s} sparse and {d} dense clusters".format(n=self.name, t=time, s=self.nb_sparse, d=self.nb_dense)) 
         
         if data is not None:
@@ -288,7 +291,7 @@ class OnlineManager(object):
 
             self.nb_updates += 1
 
-        if numpy.mod(self.time, self.time_gap) == 0:
+        if numpy.mod(self.time, self.time_gap) < 1:
             self._prune()
 
     def _perform_tracking(self, new_tracking_data):
@@ -307,8 +310,8 @@ class OnlineManager(object):
 
             if dist_min < self.radius*max(sigma, all_sigmas[dist_idx]):
                 #self.log.debug("{n} establishes a match between target {t} and source {s}".format(n=self.name, t=key, s=all_indices[dist_idx]))
-                ## Need to merge templates in self.tracking
-                changes['merged'][key] = all_indices[dist_idx]
+                changes['merged'][key] = all_indices[dist_idx] 
+                self.tracking[key]     = center, sigma
             else:
                 idx = self._get_tracking_id()
                 self.tracking[idx] = center, sigma
@@ -357,7 +360,7 @@ class OnlineManager(object):
         centers       = self._get_centers('dense')
         centers_full  = self._get_centers_full('dense')
         rhos, dist, _ = rho_estimation(centers)
-        rhos          = -rhos + rhos.max() 
+        rhos          = -rhos + rhos.max()
         labels, c     = density_based_clustering(rhos, dist, n_min=None)
         self.nb_updates   = 0
 
