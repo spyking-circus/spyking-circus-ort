@@ -17,6 +17,7 @@ manager2      = director.create_manager(host=host)
 
 nb_channels   = 10
 sampling_rate = 20000
+two_components= True
 probe_file    = generate_fake_probe(nb_channels, radius=1)
 
 noise         = manager.create_block('fake_spike_generator', nb_channels=nb_channels)
@@ -25,7 +26,7 @@ whitening     = manager.create_block('whitening')
 mad_estimator = manager.create_block('mad_estimator')
 peak_detector = manager.create_block('peak_detector', threshold=6)
 pca           = manager.create_block('pca', nb_waveforms=5000)
-cluster       = manager2.create_block('density_clustering', probe=probe_file, nb_waveforms=200, log_level=logging.DEBUG)
+cluster       = manager2.create_block('density_clustering', probe=probe_file, nb_waveforms=200, two_components=two_components, log_level=logging.DEBUG)
 updater       = manager2.create_block('template_updater', probe=probe_file, data_path='templates', nb_channels=nb_channels, log_level=logging.DEBUG)
 
 director.initialize()

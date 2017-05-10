@@ -17,7 +17,7 @@ manager2      = director.create_manager(host=host)
 nb_channels   = 10
 sampling_rate = 20000
 two_components= False
-probe_file    = generate_fake_probe(nb_channels, radius=5)
+probe_file    = generate_fake_probe(nb_channels, radius=1)
 
 noise         = manager.create_block('fake_spike_generator', nb_channels=nb_channels)
 filter        = manager.create_block('filter')
@@ -45,7 +45,7 @@ director.connect(updater.get_output('updater'), fitter.get_input('updater'))
 director.connect(fitter.output, writer_2.input)
 
 director.start()
-director.sleep(duration=200.0)
+director.sleep(duration=60.0)
 director.stop()
 director.destroy()
 

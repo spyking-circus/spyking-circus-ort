@@ -56,7 +56,7 @@ class Template_updater(Block):
         self.data_path = os.path.abspath(os.path.expanduser(self.data_path))
         if not os.path.exists(self.data_path):
             os.makedirs(self.data_path)
-        self.log.info('Templates data are saved in {k}'.format(k=self.data_path))
+        self.log.info('{n} records templates into {k}'.format(k=self.data_path, n=self.name))
         return
 
     @property
@@ -106,13 +106,15 @@ class Template_updater(Block):
 
     def _write_template_data(self, template, amplitudes, channel):
         self.writers['channels'].write(numpy.array([channel], dtype=numpy.int32))
-        self.writers['amplitudes'].write(amplitudes.flatten())
+        self.writers['channels'].flush()
+        os.fsync(self.writers['channels'].fileno())
+        # self.writers['amplitudes'].write(amplitudes.flatten())
 
-        indices  = self.probe.edges[channel]
-        to_write = numpy.zeros((self._spike_width_, self.max_nn_chan), dtype=numpy.float32)
-        template = template.toarray().reshape(self.nb_channels, self._spike_width_).T
-        to_write[:, :len(indices)] = template[:, indices]
-        self.writers['templates'].write(to_write.flatten())
+        # indices  = self.probe.edges[channel]
+        # to_write = numpy.zeros((self._spike_width_, self.max_nn_chan), dtype=numpy.float32)
+        # template = template.toarray().reshape(self.nb_channels, self._spike_width_).T
+        # to_write[:, :len(indices)] = template[:, indices]
+        # self.writers['templates'].write(to_write.flatten())
 
     def _is_duplicated(self, template):
 
@@ -137,7 +139,7 @@ class Template_updater(Block):
                 all_data = numpy.concatenate((all_data, data.data))
 
         if numpy.any(all_data >= self.cc_merge):
-            self.log.debug('A duplicate template is found, thus rejected')
+            self.nb_duplicates += 1
             return True
         return False
 
@@ -198,6 +200,7 @@ class Template_updater(Block):
     def _construct_templates(self, templates_data):
 
         new_templates = []
+        self.nb_duplicates = 0
 
         for key in templates_data['dat'].keys():
             for channel in templates_data['dat'][key].keys():
@@ -219,11 +222,13 @@ class Template_updater(Block):
                             if self.two_components:
                                 template2 = scipy.sparse.csc_matrix((templates2[count].ravel(), (tmp_pos, numpy.zeros(n_data))), shape=(self._nb_elements, 1))
                                 self._add_second_template(template2)
-                            #self._write_template_data(template, amplitudes[count], int(channel))
-                            self.log.debug('The dictionary has now {k} templates'.format(k=self.nb_templates))
+                            self._write_template_data(template, amplitudes[count], int(channel))
+                            self.log.debug('{n} has now a dictionary with {k} templates'.format(n=self.name, k=self.nb_templates))
                             new_templates  += [self.global_id]
                             self.global_id += 1
 
+        self.log.debug('{n} rejected {s} duplicated templates'.format(n=self.name, s=self.nb_duplicates))
+            
         return new_templates
 
     def _process(self):

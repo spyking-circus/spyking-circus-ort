@@ -23,7 +23,7 @@ class Writer(Block):
     def _initialize(self):
         if self.data_path is None:
             self.data_path = self._get_temp_file()
-        self.log.info('{n} is recording into {k}'.format(n=self.name, k=self.data_path))
+        self.log.info('{n} records data into {k}'.format(n=self.name, k=self.data_path))
         self.file = open(self.data_path, mode='wb')
         self.recorded_keys = {}
         return

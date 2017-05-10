@@ -45,7 +45,7 @@ class Peak_writer(Block):
                             self.recorded_peaks[key] = self._get_temp_file()
                         else:
                             self.recorded_peaks[key] = self.neg_peaks
-                    self.log.info('{n} is recording {m} peaks into {k}'.format(n=self.name, m=key, k=self.recorded_peaks[key]))
+                    self.log.info('{n} records {m} peaks into {k}'.format(n=self.name, m=key, k=self.recorded_peaks[key]))
                     self.peaks_file[key] = open(self.recorded_peaks[key], mode='wb')
                 
                 to_write = []
