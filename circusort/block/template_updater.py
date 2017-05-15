@@ -23,7 +23,7 @@ class Template_updater(Block):
               'probe'         : None,
               'radius'        : None,
               'sampling_rate' : 20000,
-              'cc_merge'      : 0.9, 
+              'cc_merge'      : 1,
               'data_path'     : None,
               'nb_channels'   : 10}
 
@@ -118,8 +118,8 @@ class Template_updater(Block):
 
     def _is_duplicated(self, template):
 
-        tmp_loc_c2 = self.templates.tocsr()
         tmp_loc_c1 = template.tocsr()
+        tmp_loc_c2 = self.templates.tocsr()
         all_data   = numpy.zeros(0, dtype=numpy.float32)
 
         for idelay in self.all_delays:
@@ -154,9 +154,9 @@ class Template_updater(Block):
         self.norms2     = numpy.concatenate((self.norms2, [template_norm]))
         self.templates2 = scipy.sparse.hstack((self.templates2, template/template_norm), format='csc')
 
-
     def _update_overlaps(self, indices):
 
+        #### First pass ##############
         tmp_loc_c1 = self.templates[:, indices].tocsr()
         tmp_loc_c2 = self.templates.tocsr()
 
@@ -190,7 +190,7 @@ class Template_updater(Block):
         selection = list(set(range(self.nb_templates)).difference(indices))
 
         for count, c1 in enumerate(indices):
-            self.overlaps[c1] = overlaps[count*self.nb_templates:(count+1)*self.nb_templates]            
+            self.overlaps[c1] = overlaps[count*self.nb_templates:(count+1)*self.nb_templates]
             for t in selection:
                 overlap          = self.overlaps[c1][t]
                 overlap.data     = overlap.data[::-1]
