@@ -134,10 +134,11 @@ class OnlineManager(object):
             indices = numpy.where(labels == i)[0]
             self.clusters[count] = MacroCluster(count, sub_data[indices], data[indices], creation_time=time)
             self.tracking[count] = self.clusters[count].tracking_properties
-            amplitudes = numpy.vstack((amplitudes, self._compute_amplitudes(sub_data[indices], self.clusters[count].center)))
-            templates  = numpy.vstack((templates, numpy.median(data[indices], 0)))
+            template   = numpy.median(data[indices], 0)
+            amplitudes = numpy.vstack((amplitudes, self._compute_amplitudes(data[indices], template)))
+            templates  = numpy.vstack((templates, template))
             if two_components:
-                templates2 = numpy.vstack((templates2, self._compute_template2(data[indices], self.clusters[count].center_full)))
+                templates2 = numpy.vstack((templates2, self._compute_template2(data[indices], template)))
 
         for cluster in self.clusters.values():
             if cluster.density >= self.D_threshold:
@@ -376,6 +377,7 @@ class OnlineManager(object):
         templates  = numpy.zeros((0, self.pca.shape[0]), dtype=numpy.float32)
         amplitudes = numpy.zeros((0, 2), dtype=numpy.float32)
         if two_components:
+
             templates2 = numpy.zeros((0, self.pca.shape[0]), dtype=numpy.float32)
 
         if get_new:
@@ -386,7 +388,7 @@ class OnlineManager(object):
                 amplitudes = numpy.vstack((amplitudes, self._compute_amplitudes(data, template)))
                 if two_components:
                     template2  = self._compute_template2(data, template)
-                    templates2 = numpy.vstack((templates, template2))
+                    templates2 = numpy.vstack((templates2, template2))
 
         if get_merged:
             for key, value in changes['merged'].items():
@@ -396,12 +398,12 @@ class OnlineManager(object):
                 amplitudes = numpy.vstack((amplitudes, self._compute_amplitudes(data, template)))
                 if two_components:
                     template2  = self._compute_template2(data, template)
-                    templates2 = numpy.vstack((templates, template2))
+                    templates2 = numpy.vstack((templates2, template2))
 
         self.log.debug('{n} found {a} new templates and {b} modified ones'.format(n=self.name, a=len(changes['new']), b=len(changes['merged'])))
 
         if two_components:
-            return {'dat' : templates, 'two' : template2, 'amp' : amplitudes}
+            return {'dat' : templates, 'two' : templates2, 'amp' : amplitudes}
         else:
             return {'dat' : templates, 'amp' : amplitudes}
 

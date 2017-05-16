@@ -29,7 +29,7 @@ class Density_clustering(Block):
               'mu'            : 2,
               'sigma_rad'     : 3,
               'epsilon'       : 0.1,
-              'frequency'     : 5000,
+              'frequency'     : 500,
               'theta'         : -numpy.log(0.001)}
 
     def __init__(self, **kwargs):
@@ -202,7 +202,6 @@ class Density_clustering(Block):
 
         t1 = templates.pop('dat')
         #t1 = t1.reshape(nb_templates, nb_elecs, self._spike_width_)
-
         t1 = t1.reshape(nb_templates, self._spike_width_, nb_elecs)
         t1 = numpy.transpose(t1, axes=(0, 2, 1))
 
