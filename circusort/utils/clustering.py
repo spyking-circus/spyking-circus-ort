@@ -326,6 +326,7 @@ class OnlineManager(object):
         self.threshold = -self.noise_thr*threshold
 
     def _compute_amplitudes(self, data, template):
+        ### We could to this in the PCA space, to speed up the computation
         temp_flat      = template.reshape(template.size, 1)
         amplitudes     = numpy.dot(data, temp_flat)
         amplitudes    /= numpy.sum(temp_flat**2)
