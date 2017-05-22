@@ -77,21 +77,6 @@ channel_groups[0]["graph"]    = []''' %(nb_channels, radius)
     file.close()
     return prb_file
 
-def save_sparse(filename, array):
-    # note that .npz extension is added automatically
-    numpy.savez(filename, data=array.data, indices=array.indices,
-             indptr=array.indptr, shape=array.shape)
-
-def load_sparse(filename, format='csr'):
-    # here we need to add .npz extension manually
-    loader = numpy.load(filename + '.npz')
-    if format == 'csr':
-        return scipy.sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']),
-                      shape=loader['shape'])
-    elif format == 'csc':
-        return scipy.sparse.csc_matrix((loader['data'], loader['indices'], loader['indptr']),
-                      shape=loader['shape'])
-
 def save_pickle(filename, data):
     file = open(filename + '.pck', 'w')
     cPickle.dump(data, file)
