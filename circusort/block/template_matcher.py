@@ -1,6 +1,6 @@
 from .block import Block
 import numpy
-from circusort.config.probe import Probe
+from circusort.io.probe import Probe
 import scipy.sparse
 
 class Template_matcher(Block):

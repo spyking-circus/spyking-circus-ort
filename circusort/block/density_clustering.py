@@ -2,7 +2,7 @@ from .block import Block
 import numpy
 import time
 import scipy.interpolate
-from circusort.config.probe import Probe
+from circusort.io.probe import Probe
 from circusort.utils.algorithms import PCAEstimator
 from circusort.utils.clustering import rho_estimation, density_based_clustering
 from circusort.utils.clustering import OnlineManager

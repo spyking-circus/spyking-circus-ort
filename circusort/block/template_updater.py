@@ -1,6 +1,6 @@
 from .block import Block
 import numpy, os, tempfile
-from circusort.config.probe import Probe
+from circusort.io.probe import Probe
 import scipy.sparse
 from circusort.io.utils import save_pickle
 
@@ -206,6 +206,7 @@ class Template_updater(Block):
             for channel in templates_data['dat'][key].keys():
                 templates  = numpy.array(templates_data['dat'][key][channel]).astype(numpy.float32)
                 amplitudes = numpy.array(templates_data['amp'][key][channel]).astype(numpy.float32)
+
                 if self.two_components:
                     templates2 = numpy.array(templates_data['two'][key][channel]).astype(numpy.float32)
 
