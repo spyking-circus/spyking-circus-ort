@@ -2,7 +2,6 @@
 # associated to one manager.
 
 import circusort
-import settings
 import logging
 import scipy
 from circusort.io.utils import generate_fake_probe
@@ -17,7 +16,7 @@ manager2      = director.create_manager(host=host)
 nb_channels   = 10
 sampling_rate = 20000
 two_components= False
-probe_file    = generate_fake_probe(nb_channels, radius=1)
+probe_file    = generate_fake_probe(nb_channels, radius=5, prb_file='test.prb')
 
 noise         = manager.create_block('fake_spike_generator', nb_channels=nb_channels)
 filter        = manager.create_block('filter')

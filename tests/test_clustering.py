@@ -2,7 +2,6 @@
 # associated to one manager.
 
 import circusort
-import settings
 import logging
 from circusort.io.utils import generate_fake_probe
 
