@@ -95,6 +95,9 @@ class Probe(object):
             self._nodes, self._edges = self.get_nodes_and_edges()
         return self._nodes
 
+    @property
+    def nb_channels(self):
+        return len(self.nodes)
 
     def get_averaged_n_edges(self):
         n = 0

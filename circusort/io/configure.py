@@ -2,15 +2,11 @@ import os
 import ConfigParser as configparser
 import re
 
-
-
-# CONFIGURATION_PATH = "~/.config/spyking-circus-ort/base.conf"
-# CONFIGURATION_PATH = "~/.config/spyking-circus-ort/hosts.conf"
 CONFIGURATION_PATH = "~/.config/spyking-circus-ort"
-CONFIGURATION_FILES = {
-    'base': "base.conf",
-    'hosts': "hosts.conf",
-}
+# CONFIGURATION_FILES = {
+#     'base': "base.conf",
+#     'hosts': "hosts.conf",
+# }
 
 def load_configuration():
     '''TODO add docstring...'''
@@ -22,7 +18,7 @@ def load_configuration():
         config = Configuration()
     return config
 
-def create():
+def create_configuration():
     '''TODO add docstring...'''
     path = CONFIGURATION_PATH
     path = os.path.expanduser(path)
@@ -88,7 +84,7 @@ def remove_section(section):
     f.close()
     return
 
-def delete():
+def delete_configuration():
     '''TODO add docstring...'''
     path = CONFIGURATION_PATH
     path = os.path.expanduser(path)
@@ -100,85 +96,100 @@ def delete():
 
 
 
-class Host(object):
-    '''TODO add docstring...'''
-    def __init__(self, host):
-        if '@' in host:
-            host = host.split('@')
-            self.name = host[1]
-            self.username = host[0]
-        else:
-            self.name = host
-            self.username = None
+# class Host(object):
+#     '''TODO add docstring...'''
+#     def __init__(self, host):
+#         if '@' in host:
+#             host = host.split('@')
+#             self.name = host[1]
+#             self.username = host[0]
+#         else:
+#             self.name = host
+#             self.username = None
 
-    def __repr__(self):
-        fmt = "Host (name: {}, username: {})"
-        return fmt.format(self.name, self.username)
+#     def __repr__(self):
+#         fmt = "Host (name: {}, username: {})"
+#         return fmt.format(self.name, self.username)
 
-class HostsParser(object):
-    '''TODO add doctring...'''
-    def __init__(self):
-        self.parameters = dict()
+# class HostsParser(object):
+#     '''TODO add doctring...'''
+#     def __init__(self):
+#         self.parameters = dict()
 
-    def read(self, path):
-        self.path = path
-        f = open(self.path, mode='r')
-        text = f.read()
-        pattern = re.compile('\S+') # \S matches any non-whitspace character
-        hosts = pattern.findall(text)
-        f.close()
-        hosts = [Host(host) for host in hosts]
-        self.parameters['hosts'] = hosts
-        return
+#     def read(self, path):
+#         self.path = path
+#         f = open(self.path, mode='r')
+#         text = f.read()
+#         pattern = re.compile('\S+') # \S matches any non-whitspace character
+#         hosts = pattern.findall(text)
+#         f.close()
+#         hosts = [Host(host) for host in hosts]
+#         self.parameters['hosts'] = hosts
+#         return
 
 class Configuration(object):
     '''TODO add docstring...'''
     __default_settings__ = {
-        'acquisition': {
-            'server_interface': "*"
+        'daemon': {
+            'ip'    : '127.0.0.1',
         },
-        'deamon': {
-            'protocol': None,
-            'interface': None,
-            'port': None
+
+        'acquisition' : {
+            'ip'       : '127.0.0.1',
+            'protocol' : 'tcp',
+            'port'     : '*'
+        }, 
+
+        'data' : {
+            'sampling_rate' : '20000',
+            'dtype'         : 'int16',
+            'mapping'       : ''
         }
+
     }
 
     def __init__(self, path=None):
         for section_key, section_value in self.__default_settings__.items():
             section_value = ConfigurationSection(section_value)
             setattr(self, section_key, section_value)
+
         if path is not None:
-            self.path = path
+            self.path = os.path.abspath(os.path.expanduser(path))
             # Parse base configuration
             self.parser = configparser.ConfigParser()
-            base_path = os.path.join(self.path, CONFIGURATION_FILES['base'])
-            self.parser.read(base_path)
+            #base_path = os.path.join(self.path, CONFIGURATION_FILES['base'])
+            self.parser.read(self.path)
+
             for section_key in self.parser.sections():
                 section_value = self.parser.items(section_key)
                 section_value = dict(section_value)
                 section_value = ConfigurationSection(section_value)
-            setattr(self, section_key, section_value)
+                self.__default_settings__[section_key] = section_value
+
+                setattr(self, section_key, section_value)
+
             # Parser hosts configuration
-            hosts_parser = HostsParser()
-            hosts_path = os.path.join(self.path, CONFIGURATION_FILES['hosts'])
-            hosts_parser.read(hosts_path)
-            self.update(hosts_parser.parameters)
+            # hosts_parser = HostsParser()
+            # hosts_path = os.path.join(self.path, CONFIGURATION_FILES['hosts'])
+            # hosts_parser.read(hosts_path)
+            # self.update(hosts_parser.parameters)
 
     def __repr__(self):
-        l = ["[{}]\n{}".format(key, getattr(self, key)) for key in self.__default_settings__.keys()]
-        s = '\n\n'.join(l)
-        return s
+        return str(self.__default_settings__)
 
-    def list_sections(self):
-        sections_list = self.__default_settings__.keys()
-        return sections_list
+    @property
+    def sections(self):
+        return self.__default_settings__.keys()
 
-    def list_options(self):
-        sections_list = self.list_sections()
-        options_list = [(section_key, getattr(self, section_key).list_options()) for section_key in sections_list]
-        options_list = dict(options_list)
+    @property
+    def options(self):
+        options_list  = dict([(section_key, getattr(self, section_key).options) for section_key in self.sections])
         return options_list
+
+    @property
+    def values(self):
+        values_list  = dict([(section_key, getattr(self, section_key).values) for section_key in self.sections])
+        return values_list
 
     def update(self, parameters):
         for key, value in parameters.iteritems():
@@ -187,19 +198,34 @@ class Configuration(object):
             setattr(self, key, value)
         return
 
+    @property 
+    def nb_nodes(self):
+        return len(self.hosts)
 
 class ConfigurationSection(object):
     '''TODO add docstring...'''
     def __init__(self, section):
-        self.section = section
+        self._section = section
         for option_key, option_value in section.items():
-            setattr(self, option_key, option_value)
+            value    = option_value.split('#')[0].replace(' ', '').replace('\t', '')
+            if value.lower() in ['true', 'false']:
+                value = bool(value)
+            else:
+                try:
+                    value = float(value)
+                except Exception:
+                    pass
+            setattr(self, option_key, value)
+
+    @property
+    def options(self):
+        options_list = self._section.keys()
+        return options_list
+
+    @property
+    def values(self):
+        values_list = dict([(option_key, getattr(self, option_key)) for option_key in self.options])
+        return values_list
 
     def __repr__(self):
-        l = ["{} = {}".format(key, value) for key, value in self.section.items()]
-        s = '\n'.join(l)
-        return s
-
-    def list_options(self):
-        options_list = self.section.keys()
-        return options_list
+        return str(self._section)
