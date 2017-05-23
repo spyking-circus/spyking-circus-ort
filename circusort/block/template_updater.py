@@ -3,16 +3,16 @@ import numpy, os, tempfile
 from circusort.io.probe import Probe
 import scipy.sparse
 from circusort.io.utils import save_pickle
+from circusort.io.template import TemplateStore
 
-
-def save_data(filename, templates, norms, amplitudes, templates2=None, norms2=None):
-    if templates2 is None:
-        numpy.savez(filename, data=templates.data, indices=templates.indices,
-                 indptr=templates.indptr, shape=templates.shape, norms=norms, amplitudes=amplitudes)
-    else:
-        numpy.savez(filename, data=templates.data, indices=templates.indices,
-                 indptr=templates.indptr, shape=templates.shape, norms=norms, amplitudes=amplitudes,
-                 data2=templates2.data, norms2=norms2)
+# def save_data(filename, templates, norms, amplitudes, templates2=None, norms2=None):
+#     if templates2 is None:
+#         numpy.savez(filename, data=templates.data, indices=templates.indices,
+#                  indptr=templates.indptr, shape=templates.shape, norms=norms, amplitudes=amplitudes)
+#     else:
+#         numpy.savez(filename, data=templates.data, indices=templates.indices,
+#                  indptr=templates.indptr, shape=templates.shape, norms=norms, amplitudes=amplitudes,
+#                  data2=templates2.data, norms2=norms2)
 
 class Template_updater(Block):
     '''TODO add docstring'''
@@ -56,7 +56,9 @@ class Template_updater(Block):
         self.data_path = os.path.abspath(os.path.expanduser(self.data_path))
         if not os.path.exists(self.data_path):
             os.makedirs(self.data_path)
-        self.log.info('{n} records templates into {k}'.format(k=self.data_path, n=self.name))
+        self.log.info('{n} records templates into {k}'.format(k=self.data_path, n=self.name))        
+        self.template_store = TemplateStore(os.path.join(self.data_path, 'templates.h5'))
+
         return
 
     @property
@@ -248,9 +250,9 @@ class Template_updater(Block):
             new_templates = self._construct_templates(data)
 
             if self.two_components:
-                save_data(self.templates_file, self.templates, self.norms, self.amplitudes, self.templates2, self.norms2)
+                self.template_store.add(self.templates_file, self.templates, self.norms, self.amplitudes, self.templates2, self.norms2)
             else:
-                save_data(self.templates_file, self.templates, self.norms, self.amplitudes)
+                self.template_store.add(self.templates_file, self.templates, self.norms, self.amplitudes)
 
             if len(new_templates) > 0:
                 self._update_overlaps(new_templates)

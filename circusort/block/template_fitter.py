@@ -2,30 +2,30 @@ from .block import Block
 import numpy
 import sys
 import scipy.sparse
-from circusort.io.utils import load_pickle, save_pickle
+from circusort.io.template import TemplateStore
 
-def load_data(filename, two_components=False, format='csr'):
-    loader = numpy.load(filename + '.npz')
-    if two_components == False:
-        if format == 'csr':
-            template = scipy.sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']),
-                          shape=loader['shape'])
-        elif format == 'csc':
-            template = scipy.sparse.csc_matrix((loader['data'], loader['indices'], loader['indptr']),
-                          shape=loader['shape'])
-        return template, loader['norms'], loader['amplitudes']
-    else:
-        if format == 'csr':
-            template  = scipy.sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']),
-                          shape=loader['shape'])
-            template2 = scipy.sparse.csr_matrix((loader['data2'], loader['indices'], loader['indptr']),
-                          shape=loader['shape'])
-        elif format == 'csc':
-            template = scipy.sparse.csc_matrix((loader['data'], loader['indices'], loader['indptr']),
-                          shape=loader['shape'])
-            template2 = scipy.sparse.csc_matrix((loader['data2'], loader['indices'], loader['indptr']),
-                          shape=loader['shape'])
-        return template, loader['norms'], loader['amplitudes'], template2, loader['norms2']
+# def load_data(filename, two_components=False, format='csr'):
+#     loader = numpy.load(filename + '.npz')
+#     if two_components == False:
+#         if format == 'csr':
+#             template = scipy.sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']),
+#                           shape=loader['shape'])
+#         elif format == 'csc':
+#             template = scipy.sparse.csc_matrix((loader['data'], loader['indices'], loader['indptr']),
+#                           shape=loader['shape'])
+#         return template, loader['norms'], loader['amplitudes']
+#     else:
+#         if format == 'csr':
+#             template  = scipy.sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']),
+#                           shape=loader['shape'])
+#             template2 = scipy.sparse.csr_matrix((loader['data2'], loader['indices'], loader['indptr']),
+#                           shape=loader['shape'])
+#         elif format == 'csc':
+#             template = scipy.sparse.csc_matrix((loader['data'], loader['indices'], loader['indptr']),
+#                           shape=loader['shape'])
+#             template2 = scipy.sparse.csc_matrix((loader['data2'], loader['indices'], loader['indptr']),
+#                           shape=loader['shape'])
+#         return template, loader['norms'], loader['amplitudes'], template2, loader['norms2']
 
 
 class Template_fitter(Block):
@@ -49,6 +49,7 @@ class Template_fitter(Block):
         self.space_explo   = 0.5
         self.nb_chances    = 3
         self._spike_width_ = int(self.sampling_rate*self.spike_width*1e-3)
+        self.template_store = None
 
         if numpy.mod(self._spike_width_, 2) == 0:
             self._spike_width_ += 1
