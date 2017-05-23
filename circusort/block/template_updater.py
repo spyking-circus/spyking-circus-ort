@@ -5,14 +5,6 @@ import scipy.sparse
 from circusort.io.utils import save_pickle
 from circusort.io.template import TemplateStore
 
-# def save_data(filename, templates, norms, amplitudes, templates2=None, norms2=None):
-#     if templates2 is None:
-#         numpy.savez(filename, data=templates.data, indices=templates.indices,
-#                  indptr=templates.indptr, shape=templates.shape, norms=norms, amplitudes=amplitudes)
-#     else:
-#         numpy.savez(filename, data=templates.data, indices=templates.indices,
-#                  indptr=templates.indptr, shape=templates.shape, norms=norms, amplitudes=amplitudes,
-#                  data2=templates2.data, norms2=norms2)
 
 class Template_updater(Block):
     '''TODO add docstring'''

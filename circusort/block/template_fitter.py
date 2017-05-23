@@ -1,31 +1,8 @@
 from .block import Block
 import numpy
-import sys
 import scipy.sparse
 from circusort.io.template import TemplateStore
-
-# def load_data(filename, two_components=False, format='csr'):
-#     loader = numpy.load(filename + '.npz')
-#     if two_components == False:
-#         if format == 'csr':
-#             template = scipy.sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']),
-#                           shape=loader['shape'])
-#         elif format == 'csc':
-#             template = scipy.sparse.csc_matrix((loader['data'], loader['indices'], loader['indptr']),
-#                           shape=loader['shape'])
-#         return template, loader['norms'], loader['amplitudes']
-#     else:
-#         if format == 'csr':
-#             template  = scipy.sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']),
-#                           shape=loader['shape'])
-#             template2 = scipy.sparse.csr_matrix((loader['data2'], loader['indices'], loader['indptr']),
-#                           shape=loader['shape'])
-#         elif format == 'csc':
-#             template = scipy.sparse.csc_matrix((loader['data'], loader['indices'], loader['indptr']),
-#                           shape=loader['shape'])
-#             template2 = scipy.sparse.csc_matrix((loader['data2'], loader['indices'], loader['indptr']),
-#                           shape=loader['shape'])
-#         return template, loader['norms'], loader['amplitudes'], template2, loader['norms2']
+from circusort.io.utils import load_pickle
 
 
 class Template_fitter(Block):
@@ -50,6 +27,8 @@ class Template_fitter(Block):
         self.nb_chances    = 3
         self._spike_width_ = int(self.sampling_rate*self.spike_width*1e-3)
         self.template_store = None
+        self.norms          = numpy.zeros(0, dtype=numpy.float32)
+        self.amplitudes     = numpy.zeros((0, 2), dtype=numpy.float32) 
 
         if numpy.mod(self._spike_width_, 2) == 0:
             self._spike_width_ += 1
@@ -224,6 +203,8 @@ class Template_fitter(Block):
                     self.template_store = TemplateStore(updater['store_file'], 'r', self.two_components)
 
                 data = self.template_store.get(updater['indices'])
+                self.norms      = numpy.concatenate((self.norms, data['norms']))
+                self.amplitudes = numpy.vstack((self.norms, data['amplitudes']))
 
                 if not self.two_components:
                     self.templates, self.norms, self.amplitudes  = load_data(updater['templates'], format='csc')
