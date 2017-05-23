@@ -57,7 +57,7 @@ class Template_updater(Block):
         if not os.path.exists(self.data_path):
             os.makedirs(self.data_path)
         self.log.info('{n} records templates into {k}'.format(k=self.data_path, n=self.name))        
-        self.template_store = TemplateStore(os.path.join(self.data_path, 'templates.h5'))
+        self.template_store = TemplateStore(os.path.join(self.data_path, 'template_store.h5'))
 
         return
 
@@ -77,6 +77,7 @@ class Template_updater(Block):
         self.templates    = scipy.sparse.csc_matrix((self._nb_elements, 0), dtype=numpy.float32)
         self.norms        = numpy.zeros(0, dtype=numpy.float32)
         self.amplitudes   = numpy.zeros((0, 2), dtype=numpy.float32)
+        self.channels     = numpy.zeros(0, dtype=numpy.int32)
         self.overlaps     = {}
         self.max_nn_chan  = 0
 
@@ -92,31 +93,8 @@ class Template_updater(Block):
                 self.temp_indices[channel] = numpy.concatenate((self.temp_indices[channel], tmp))
 
         if self.data_path is not None:
-            mapping_sparse             = -1 * numpy.ones((self.nb_channels, self.max_nn_chan), dtype=numpy.int32)
-            self.writers               = {}
-            self.writers['mapping']    = os.path.join(self.data_path, 'mapping')
-            self.writers['amplitudes'] = open(os.path.join(self.data_path, 'amplitudes.dat'), 'wb')
-            self.writers['channels']   = open(os.path.join(self.data_path, 'channels.dat'), 'wb')
-            self.writers['templates']  = open(os.path.join(self.data_path, 'templates.dat'), 'wb')
-            for channel in xrange(self.nb_channels):
-                indices = self.probe.edges[channel]
-                mapping_sparse[channel, :len(indices)] = indices
-            numpy.save(self.writers['mapping'], mapping_sparse)
-            self.templates_file = os.path.join(self.data_path, 'templates')
             self.overlaps_file  = os.path.join(self.data_path, 'overlaps')
 
-
-    def _write_template_data(self, template, amplitudes, channel):
-        self.writers['channels'].write(numpy.array([channel], dtype=numpy.int32))
-        self.writers['channels'].flush()
-        os.fsync(self.writers['channels'].fileno())
-        # self.writers['amplitudes'].write(amplitudes.flatten())
-
-        # indices  = self.probe.edges[channel]
-        # to_write = numpy.zeros((self._spike_width_, self.max_nn_chan), dtype=numpy.float32)
-        # template = template.toarray().reshape(self.nb_channels, self._spike_width_).T
-        # to_write[:, :len(indices)] = template[:, indices]
-        # self.writers['templates'].write(to_write.flatten())
 
     def _is_duplicated(self, template):
 
@@ -225,7 +203,8 @@ class Template_updater(Block):
                             if self.two_components:
                                 template2 = scipy.sparse.csc_matrix((templates2[count].ravel(), (tmp_pos, numpy.zeros(n_data))), shape=(self._nb_elements, 1))
                                 self._add_second_template(template2)
-                            self._write_template_data(template, amplitudes[count], int(channel))
+
+                            self.channels = numpy.concatenate((self.channels, [int(channel)]))
                             self.log.debug('{n} has now a dictionary with {k} templates'.format(n=self.name, k=self.nb_templates))
                             new_templates  += [self.global_id]
                             self.global_id += 1
@@ -243,24 +222,29 @@ class Template_updater(Block):
                 self._set_active_mode()
                 if data.has_key('two'):
                     self.two_components = True
+                    self.template_store.two_components = True
                     self.templates2     = scipy.sparse.csc_matrix((self._nb_elements, 0), dtype=numpy.float32)
                     self.norms2         = numpy.zeros(0, dtype=numpy.float32)
 
             self.log.debug("{n} updates the dictionary of templates".format(n=self.name))
+
+            nb_before     = self.nb_templates
             new_templates = self._construct_templates(data)
 
-            if self.two_components:
-                self.template_store.add(self.templates_file, self.templates, self.norms, self.amplitudes, self.templates2, self.norms2)
-            else:
-                self.template_store.add(self.templates_file, self.templates, self.norms, self.amplitudes)
-
             if len(new_templates) > 0:
+
+                params = {'templates'  : self.templates[:, nb_before:], 
+                          'norms'      : self.norms[nb_before:], 
+                          'amplitudes' : self.amplitudes[nb_before:], 
+                          'channels'   : self.channels[nb_before:]}
+
+                if self.two_components:
+                    params['templates2'] = self.templates2[:, nb_before:]
+                    params['norms2']     = self.norms2[nb_before:]
+                
+                self.template_store.add(params)
+
                 self._update_overlaps(new_templates)
                 save_pickle(self.overlaps_file, self.overlaps)
-                self.output.send({'templates' : self.templates_file, 'overlaps' : self.overlaps_file})
+                #self.output.send({'templates' : self.templates_file, 'overlaps' : self.overlaps_file})
         return
-
-    def __del__(self):
-        for key in ['amplitudes', 'channels', 'templates']:
-            self.writers[key].flush()
-            os.fsync(self.writers[key].fileno())
