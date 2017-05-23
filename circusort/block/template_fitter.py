@@ -219,6 +219,12 @@ class Template_fitter(Block):
             updater  = self.inputs['updater'].receive(blocking=False)
             
             if updater is not None:
+
+                if self.template_store is None:
+                    self.template_store = TemplateStore(updater['store_file'], 'r', self.two_components)
+
+                data = self.template_store.get(updater['indices'])
+
                 if not self.two_components:
                     self.templates, self.norms, self.amplitudes  = load_data(updater['templates'], format='csc')
                     self.templates = self.templates.T

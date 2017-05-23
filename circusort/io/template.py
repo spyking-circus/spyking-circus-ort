@@ -3,12 +3,12 @@ import os
 
 class TemplateStore(object):
 
-    def __init__(self, file_name):
+    def __init__(self, file_name, mode='w', two_components=False):
 
         self.file_name      = os.path.abspath(file_name)
-        self.h5_file        = h5py.File(self.file_name, 'w')
+        self.h5_file        = h5py.File(self.file_name, mode)
         self.initialized    = False
-        self.two_components = False
+        self.two_components = two_components
 
     def add(self, data):
 
@@ -52,9 +52,11 @@ class TemplateStore(object):
             new_shape_3  = nb_indptr + nb_new
 
             self.h5_file['norms'].resize((new_shape_1, 1))
+            self.h5_file['channels'].resize((new_shape_1, 1))
             self.h5_file['amplitudes'].resize((new_shape_1, 2))
             self.h5_file['amplitudes'][nb_templates:, :] = amplitudes
             self.h5_file['norms'][nb_templates:, 0]      = norms
+            self.h5_file['channels'][nb_templates:, 0]   = channels
             self.h5_file['shape'][1]                     = new_shape_1
 
             if self.two_components:
@@ -90,7 +92,7 @@ class TemplateStore(object):
     def info(self):
         return self._nb_nnz, self._nb_indptr
 
-    def get(self, two_component=True):
+    def get(self):
 
         templates = scipy.sparse.csc_matrix((self.h5_file['data'][:], self.h5_file['indices'][:], self.h5_file['indptr'][:]),
                           shape=self.h5_file['shape'][:])
