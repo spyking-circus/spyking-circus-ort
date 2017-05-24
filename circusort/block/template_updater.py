@@ -4,6 +4,7 @@ from circusort.io.probe import Probe
 import scipy.sparse
 from circusort.io.utils import save_pickle
 from circusort.io.template import TemplateStore
+from circusort.io.overlap import OverlapStore
 
 
 class Template_updater(Block):
@@ -50,7 +51,6 @@ class Template_updater(Block):
             os.makedirs(self.data_path)
         self.log.info('{n} records templates into {k}'.format(k=self.data_path, n=self.name))        
         self.template_store = TemplateStore(os.path.join(self.data_path, 'template_store.h5'))
-
         return
 
     @property
@@ -110,7 +110,7 @@ class Template_updater(Block):
                 data     = tmp_1.T.dot(tmp_2)
                 all_data = numpy.concatenate((all_data, data.data))
 
-        if numpy.any(all_data >= self.cc_merge):
+        if numpy.any(all_data >= self.cc_merge*self._nb_elements):
             self.nb_duplicates += 1
             return True
         return False
@@ -119,12 +119,16 @@ class Template_updater(Block):
         self.amplitudes = numpy.vstack((self.amplitudes, amplitude))
         template_norm   = numpy.sqrt(numpy.sum(template.data**2)/self._nb_elements)
         self.norms      = numpy.concatenate((self.norms, [template_norm]))
-        self.templates  = scipy.sparse.hstack((self.templates, template/template_norm), format='csc')
+        to_write        = template/template_norm
+        to_write.data   = to_write.data.astype(numpy.float32)
+        self.templates  = scipy.sparse.hstack((self.templates, to_write), format='csc')
 
     def _add_second_template(self, template):
         template_norm   = numpy.sqrt(numpy.sum(template.data**2)/self._nb_elements)
         self.norms2     = numpy.concatenate((self.norms2, [template_norm]))
-        self.templates2 = scipy.sparse.hstack((self.templates2, template/template_norm), format='csc')
+        to_write        = template/template_norm
+        to_write.data   = to_write.data.astype(numpy.float32)
+        self.templates2 = scipy.sparse.hstack((self.templates2, to_write), format='csc')
 
     def _update_overlaps(self, indices):
 
@@ -220,6 +224,9 @@ class Template_updater(Block):
 
             self.log.debug("{n} updates the dictionary of templates".format(n=self.name))
 
+            if self.two_components:
+                self.templates2 = scipy.sparse.csc_matrix((self._nb_elements, 0), dtype=numpy.float32)
+
             nb_before     = self.nb_templates
             new_templates = self._construct_templates(data)
 
@@ -231,10 +238,18 @@ class Template_updater(Block):
                           'channels'   : self.channels[nb_before:]}
 
                 if self.two_components:
-                    params['templates2'] = self.templates2[:, nb_before:]
+                    params['templates2'] = self.templates2
                     params['norms2']     = self.norms2[nb_before:]
                 
                 self.template_store.add(params)
+
+                #params = {'templates' : self.templates[:, nb_before:], 
+                #          'indices'   : new_templates}
+
+                #if self.two_components:
+                #    params['templates2'] = self.templates2
+
+                #self.overlap_store.add(params)
 
                 self._update_overlaps(new_templates)
                 save_pickle(self.overlaps_file, self.overlaps)

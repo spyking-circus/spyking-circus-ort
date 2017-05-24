@@ -12,7 +12,7 @@ class OverlapStore(object):
         self.mode           = mode
         self.two_components = two_components
 
-    def add(self, data):
+    def add(self, templates):
 
         norms      = data['norms']
         templates  = data['templates']
@@ -101,6 +101,103 @@ class OverlapStore(object):
     @property
     def info(self):
         return self._nb_nnz, self._nb_indptr
+
+
+    def _update_overlaps(self, indices):
+
+        #### First pass ##############
+        tmp_loc_c1 = self.templates[:, indices].tocsr()
+        tmp_loc_c2 = self.templates.tocsr()
+
+        all_x      = numpy.zeros(0, dtype=numpy.int32)
+        all_y      = numpy.zeros(0, dtype=numpy.int32)
+        all_data   = numpy.zeros(0, dtype=numpy.float32)
+        
+        for idelay in self.all_delays:
+            srows    = numpy.where(self.all_rows % self._spike_width_ < idelay)[0]
+            tmp_1    = tmp_loc_c1[srows]
+            srows    = numpy.where(self.all_rows % self._spike_width_ >= (self._spike_width_ - idelay))[0]
+            tmp_2    = tmp_loc_c2[srows]
+            data     = tmp_1.T.dot(tmp_2).toarray()
+
+            dx, dy   = data.nonzero()
+            data     = data[data.nonzero()].ravel()
+            
+            all_x    = numpy.concatenate((all_x, dx*self.nb_templates + dy))
+            all_y    = numpy.concatenate((all_y, (idelay - 1)*numpy.ones(len(dx), dtype=numpy.int32)))
+            all_data = numpy.concatenate((all_data, data))
+
+            if idelay < self._spike_width_:
+                all_x    = numpy.concatenate((all_x, dy*len(indices) + dx))
+                all_y    = numpy.concatenate((all_y, (2*self._spike_width_ - idelay - 1)*numpy.ones(len(dx), dtype=numpy.int32)))
+                all_data = numpy.concatenate((all_data, data))
+
+        overlaps  = scipy.sparse.csr_matrix((all_data, (all_x, all_y)), shape=(self.nb_templates*len(indices), self._overlap_size))
+
+        del all_x, all_y, all_data
+
+        selection = list(set(range(self.nb_templates)).difference(indices))
+
+        for count, c1 in enumerate(indices):
+            self.overlaps[c1] = overlaps[count*self.nb_templates:(count+1)*self.nb_templates]
+            for t in selection:
+                overlap          = self.overlaps[c1][t]
+                overlap.data     = overlap.data[::-1]
+                self.overlaps[t] = scipy.sparse.vstack((self.overlaps[t], overlap), format='csr')
+
+    def _update_overlaps(self, indices):
+
+        #### First pass ##############
+        tmp_loc_c1 = self.templates[:, indices].tocsr()
+        tmp_loc_c2 = self.templates.tocsr()
+
+        all_x      = numpy.zeros(0, dtype=numpy.int32)
+        all_y      = numpy.zeros(0, dtype=numpy.int32)
+        all_data   = numpy.zeros(0, dtype=numpy.float32)
+        
+        for idelay in self.all_delays:
+            srows    = numpy.where(self.all_rows % self._spike_width_ < idelay)[0]
+            tmp_1    = tmp_loc_c1[srows]
+            srows    = numpy.where(self.all_rows % self._spike_width_ >= (self._spike_width_ - idelay))[0]
+            tmp_2    = tmp_loc_c2[srows]
+            data     = tmp_1.T.dot(tmp_2).toarray()
+
+            dx, dy   = data.nonzero()
+            data     = data[data.nonzero()].ravel()
+            
+            all_x    = numpy.concatenate((all_x, dx*self.nb_templates + dy))
+            all_y    = numpy.concatenate((all_y, (idelay - 1)*numpy.ones(len(dx), dtype=numpy.int32)))
+            all_data = numpy.concatenate((all_data, data))
+
+            if idelay < self._spike_width_:
+                all_x    = numpy.concatenate((all_x, dy*len(indices) + dx))
+                all_y    = numpy.concatenate((all_y, (2*self._spike_width_ - idelay - 1)*numpy.ones(len(dx), dtype=numpy.int32)))
+                all_data = numpy.concatenate((all_data, data))
+
+        overlaps  = scipy.sparse.csr_matrix((all_data, (all_x, all_y)), shape=(self.nb_templates*len(indices), self._overlap_size))
+
+        del all_x, all_y, all_data
+
+        selection = list(set(range(self.nb_templates)).difference(indices))
+
+        for count, c1 in enumerate(indices):
+            self.overlaps[c1] = overlaps[count*self.nb_templates:(count+1)*self.nb_templates]
+            for t in selection:
+                overlap          = self.overlaps[c1][t]
+                overlap.data     = overlap.data[::-1]
+                self.overlaps[t] = scipy.sparse.vstack((self.overlaps[t], overlap), format='csr')
+
+
+
+
+
+
+
+
+
+
+
+
 
     def get(self, indices=None):
 
