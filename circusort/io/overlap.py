@@ -3,7 +3,7 @@ import os
 import scipy.sparse
 import numpy
 
-class TemplateStore(object):
+class OverlapStore(object):
 
     def __init__(self, file_name, mode='w', two_components=False):
 
@@ -49,15 +49,15 @@ class TemplateStore(object):
             
             self.h5_file = h5py.File(self.file_name, 'r+')
 
-            nb_templates = len(self.h5_file['amplitudes'])
+            nb_templates = self.nb_templates
             nb_new       = len(amplitudes)
             new_shape_1  = nb_templates + nb_new
 
-            nb_data      = len(self.h5_file['data'])
+            nb_data      = self._nb_nnz
             nb_new       = len(templates.data)
             new_shape_2  = nb_data + nb_new
 
-            nb_indptr    = len(self.h5_file['indptr'])
+            nb_indptr    = self._nb_indptr
             nb_new       = len(templates.indptr)
             new_shape_3  = nb_indptr + nb_new - 1
 
@@ -88,18 +88,19 @@ class TemplateStore(object):
 
     @property
     def nb_templates(self):
-        self.h5_file = h5py.File(self.file_name, 'r')
-        res = len(self.h5_file['amplitudes'])
-        self.h5_file.close()
-        return res
+        return len(self.h5_file['amplitudes'])
 
     @property
-    def nnz(self):
-        self.h5_file = h5py.File(self.file_name, 'r')
-        res = len(self.h5_file['data'])
-        self.h5_file.close()
-        return res
+    def _nb_nnz(self):
+        return len(self.h5_file['data'])
 
+    @property
+    def _nb_indptr(self):
+        return len(self.h5_file['indptr'])
+
+    @property
+    def info(self):
+        return self._nb_nnz, self._nb_indptr
 
     def get(self, indices=None):
 
