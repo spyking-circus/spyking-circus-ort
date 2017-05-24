@@ -29,7 +29,6 @@ class TemplateStore(object):
 
             self.h5_file = h5py.File(self.file_name, self.mode)
 
-
             self.h5_file.create_dataset('norms', data=norms.reshape(nb_template, 1), chunks=True, maxshape=(None, 1))
             self.h5_file.create_dataset('channels', data=channels.reshape(nb_template, 1), chunks=True, maxshape=(None, 1))
             self.h5_file.create_dataset('amplitudes', data=amplitudes, chunks=True, maxshape=(None, 2))
@@ -100,7 +99,6 @@ class TemplateStore(object):
         self.h5_file.close()
         return res
 
-
     def get(self, indices=None):
 
         result = {}
@@ -150,7 +148,7 @@ class TemplateStore(object):
     def remove(self, index):
         pass
 
-    def get_overlaps(self):
+    def get_overlaps(self, indices, templates):
         pass
 
     def close(self):

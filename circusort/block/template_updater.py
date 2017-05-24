@@ -16,7 +16,7 @@ class Template_updater(Block):
               'probe'         : None,
               'radius'        : None,
               'sampling_rate' : 20000,
-              'cc_merge'      : 1,
+              'cc_merge'      : 0.9,
               'data_path'     : None,
               'nb_channels'   : 10}
 
@@ -90,8 +90,8 @@ class Template_updater(Block):
 
     def _is_duplicated(self, template):
 
-        tmp_loc_c1 = template.tocsr()
-        tmp_loc_c2 = self.templates.tocsr()
+        tmp_loc_c1 = template
+        tmp_loc_c2 = self.templates
         all_data   = numpy.zeros(0, dtype=numpy.float32)
 
         for idelay in self.all_delays:
@@ -133,8 +133,8 @@ class Template_updater(Block):
     def _update_overlaps(self, indices):
 
         #### First pass ##############
-        tmp_loc_c1 = self.templates[:, indices].tocsr()
-        tmp_loc_c2 = self.templates.tocsr()
+        tmp_loc_c1 = self.templates[:, indices]
+        tmp_loc_c2 = self.templates
 
         all_x      = numpy.zeros(0, dtype=numpy.int32)
         all_y      = numpy.zeros(0, dtype=numpy.int32)

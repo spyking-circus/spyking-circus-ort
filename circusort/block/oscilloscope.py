@@ -3,7 +3,6 @@ import numpy
 import time
 import pylab
 import os
-from circusort.utils.buffer import DictionaryBuffer
 
 
 class Oscilloscope(Block):
@@ -38,7 +37,6 @@ class Oscilloscope(Block):
             os.makedirs(self.data_path)
         self.log.info('Templates data are saved in {k}'.format(k=self.data_path))
 
-        self.buffer = DictionaryBuffer()
         self.data_available = False
         self.batch = None
         self.thresholds = None
@@ -62,9 +60,12 @@ class Oscilloscope(Block):
 
     def _process(self):
 
-        self.batch = self.inputs['data'].receive()
+        self.batch      = self.inputs['data'].receive()
         self.thresholds = self.inputs['mads'].receive(blocking=False)
-        self.peaks = self.inputs['peaks'].receive(blocking=False)
+        self.peaks      = self.inputs['peaks'].receive(blocking=False)
+        if self.peaks is not None:
+            while self.peaks.pop('offset')/self.nb_samples < self.counter:
+                self.peaks = self.inputs['peaks'].receive()
 
         self.data_available = True
 
@@ -104,28 +105,24 @@ class Oscilloscope(Block):
                     upper_line.set_ydata([offset + self.thresholds[i], offset + self.thresholds[i]])
 
         if self.peaks is not None:
+            
             if not self.is_active:
-                self._set_active_mode
+                self._set_active_mode()
 
-            self.buffer.add(self.peaks)
-            peaks, offset = self.buffer.get()
-            offset        = offset / self.nb_samples
+            data, channel = zip(*[(self.peaks[key][channel], channel) for key in self.peaks for channel in self.peaks[key]])
+            lengths = [len(d) for d in data]
+            channel = numpy.repeat(numpy.int_(channel), lengths)
+            data = numpy.hstack(data)
+            if self.peak_points is None:
+                self.peak_points, = pylab.plot(data, self.spacing*channel, 'r.')
+            else:
+                self.peak_points.set_data(data, self.spacing*channel)
 
-            # # I think this does not work because we never get the peaks for the current data
-            if offset == self.counter:
-                data, channel = zip(*[(peaks[key][channel], channel) for key in peaks for channel in peaks[key]])
-                lengths = [len(d) for d in data]
-                channel = numpy.repeat(numpy.int_(channel), lengths)
-                data = numpy.hstack(data)
-                if self.peak_points is None:
-                    self.peak_points, = pylab.plot(data, self.spacing*channel, 'r.')
-                else:
-                    self.peak_points.set_data(data, self.spacing*channel)
-            self.buffer.remove()
 
         if self.data_lines is None:
             pylab.xlim(0, self.nb_samples)
             pylab.xlabel('Time [steps]')
+            
         pylab.gca().set_title('Buffer %d' %self.counter)
         pylab.draw()
         # pylab.savefig(os.path.join(self.data_path, 'oscillo_%05d.png' %self.counter))

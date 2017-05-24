@@ -69,7 +69,7 @@ for l in labels:
         pylab.subplot(nb_lines, nb_cols, count)
         pylab.imshow(data, aspect='auto')
         pylab.colorbar()
-        pylab.clim(-5, 5)
+        #pylab.clim(-5, 5)
         count += 1
 
 pylab.show()

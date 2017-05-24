@@ -98,12 +98,7 @@ class OverlapStore(object):
     def _nb_indptr(self):
         return len(self.h5_file['indptr'])
 
-    @property
-    def info(self):
-        return self._nb_nnz, self._nb_indptr
-
-
-    def _update_overlaps(self, indices):
+    def update(self, templates, indices):
 
         #### First pass ##############
         tmp_loc_c1 = self.templates[:, indices].tocsr()
@@ -186,70 +181,6 @@ class OverlapStore(object):
                 overlap          = self.overlaps[c1][t]
                 overlap.data     = overlap.data[::-1]
                 self.overlaps[t] = scipy.sparse.vstack((self.overlaps[t], overlap), format='csr')
-
-
-
-
-
-
-
-
-
-
-
-
-
-    def get(self, indices=None):
-
-        result = {}
-
-        self.h5_file = h5py.File(self.file_name, 'r')
-
-        if indices is None:
-            result['norms']      = self.h5_file['norms'][:, 0]
-            result['amplitudes'] = self.h5_file['amplitudes'][:, :]
-            result['channels']   = self.h5_file['channels'][:, 0]
-            result['templates']  = scipy.sparse.csc_matrix((self.h5_file['data'][:, 0], self.h5_file['indices'][:, 0], self.h5_file['indptr'][:, 0]),
-                        shape=self.h5_file['shape'][:])
-            if self.two_components:
-                result['norms2']     = self.h5_file['norms2'][:]
-                result['templates2'] = scipy.sparse.csc_matrix((self.h5_file['data'][:, 0], self.h5_file['indices'][:, 0], self.h5_file['indptr'][:, 0]),
-                        shape=self.h5_file['shape'][:])
-        else:
-            result['norms']      = self.h5_file['norms'][indices, 0]
-            result['amplitudes'] = self.h5_file['amplitudes'][indices, :]
-            result['channels']   = self.h5_file['channels'][indices, 0]
-
-            myshape = self.h5_file['shape'][0]
-            indptr  = self.h5_file['indptr'][:, 0]
-
-            result['templates'] = scipy.sparse.csc_matrix((myshape, 0), dtype=numpy.float32)
-
-            for item in indices:
-                myslice = numpy.arange(indptr[item], indptr[item+1])
-                n_data  = len(myslice)
-                temp    = scipy.sparse.csc_matrix((self.h5_file['data'][myslice, 0], (self.h5_file['indices'][myslice, 0], numpy.zeros(n_data))), shape=(myshape, 1))    
-                result['templates']  = scipy.sparse.hstack((result['templates'], temp), 'csc')
- 
-            if self.two_components:
-                result['norms2']     = self.h5_file['norms2'][indices]
-                result['templates2'] = scipy.sparse.csc_matrix((myshape, 0), dtype=numpy.float32)
-
-                for item in indices:
-                    myslice = numpy.arange(indptr[item], indptr[item+1])
-                    n_data  = len(myslice)
-                    temp    = scipy.sparse.csc_matrix((self.h5_file['data2'][myslice, 0], (self.h5_file['indices'][myslice, 0], numpy.zeros(n_data))), shape=(myshape, 1))    
-                    result['templates2'] = scipy.sparse.hstack((result['templates2'], temp), 'csc')
-
-        self.h5_file.close()
-
-        return result
-        
-    def remove(self, index):
-        pass
-
-    def get_overlaps(self):
-        pass
 
     def close(self):
         try:

@@ -56,8 +56,6 @@ class Template_fitter(Block):
     def _guess_output_endpoints(self):
         self._nb_elements   = self.nb_channels*self._spike_width_
         self.templates      = scipy.sparse.csr_matrix((0, self._nb_elements), dtype=numpy.float32)
-        if self.two_components:
-            self.templates2 = scipy.sparse.csr_matrix((0, self._nb_elements), dtype=numpy.float32)
         self.slice_indices  = numpy.zeros(0, dtype=numpy.int32)
         temp_window         = numpy.arange(-self._width, self._width + 1)
         for idx in xrange(self.nb_channels):
@@ -209,12 +207,11 @@ class Template_fitter(Block):
                 data            = self.template_store.get(updater['indices'])
                 self.norms      = numpy.concatenate((self.norms, data.pop('norms')))
                 self.amplitudes = numpy.vstack((self.amplitudes, data.pop('amplitudes')))
-
                 self.templates  = scipy.sparse.vstack((self.templates, data.pop('templates').T), 'csr')
 
                 if self.two_components:
-                    self.norms2     = numpy.concatenate((self.norms2, data.pop('norms2')))
-                    self.templates2 = scipy.sparse.vstack((self.templates2, data.pop('templates2').T), 'csr')                
+                    self.norms2    = numpy.concatenate((self.norms2, data.pop('norms2')))
+                    self.templates = scipy.sparse.vstack((self.templates, data.pop('templates2').T), 'csr')
                 
                 self.overlaps  = load_pickle(updater['overlaps'])
                 
