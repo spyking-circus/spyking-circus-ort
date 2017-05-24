@@ -49,7 +49,7 @@ def make_local_directory(path):
         os.makedirs(directory)
     return
 
-def generate_fake_probe(nb_channels, radius=10):
+def generate_fake_probe(nb_channels, radius=10, prb_file=None):
     res = '''
 total_nb_channels = %d
 radius            = %d
@@ -66,28 +66,16 @@ channel_groups[0]["channels"] = range(total_nb_channels)
 channel_groups[0]["geometry"] = get_geometry(range(total_nb_channels))
 channel_groups[0]["graph"]    = []''' %(nb_channels, radius)
 
-    tmp_file  = tempfile.NamedTemporaryFile()
-    data_path = os.path.join(tempfile.gettempdir(), os.path.basename(tmp_file.name)) + ".prb"
-    tmp_file.close()
-    file = open(data_path, 'w')
+    if prb_file is None:
+        tmp_file  = tempfile.NamedTemporaryFile()
+        prb_file = os.path.join(tempfile.gettempdir(), os.path.basename(tmp_file.name)) + ".prb"
+        tmp_file.close()
+    else:
+        prb_file = os.path.abspath(prb_file)
+    file = open(prb_file, 'w')
     file.write(res)
     file.close()
-    return data_path
-
-def save_sparse(filename, array):
-    # note that .npz extension is added automatically
-    numpy.savez(filename, data=array.data, indices=array.indices,
-             indptr=array.indptr, shape=array.shape)
-
-def load_sparse(filename, format='csr'):
-    # here we need to add .npz extension manually
-    loader = numpy.load(filename + '.npz')
-    if format == 'csr':
-        return scipy.sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']),
-                      shape=loader['shape'])
-    elif format == 'csc':
-        return scipy.sparse.csc_matrix((loader['data'], loader['indices'], loader['indptr']),
-                      shape=loader['shape'])
+    return prb_file
 
 def save_pickle(filename, data):
     file = open(filename + '.pck', 'w')

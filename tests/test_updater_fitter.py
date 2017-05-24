@@ -2,10 +2,10 @@
 # associated to one manager.
 
 import circusort
-import settings
 import logging
 import scipy
 from circusort.io.utils import generate_fake_probe
+from circusort.io.template import TemplateStore
 
 
 host = '127.0.0.1' # to run the test locally
@@ -16,7 +16,8 @@ manager2      = director.create_manager(host=host)
 
 nb_channels   = 10
 sampling_rate = 20000
-probe_file    = generate_fake_probe(nb_channels, radius=1)
+two_components= False
+probe_file    = generate_fake_probe(nb_channels, radius=5, prb_file='test.prb')
 
 noise         = manager.create_block('fake_spike_generator', nb_channels=nb_channels)
 filter        = manager.create_block('filter')
@@ -24,9 +25,9 @@ whitening     = manager.create_block('whitening')
 mad_estimator = manager.create_block('mad_estimator')
 peak_detector = manager.create_block('peak_detector', threshold=6)
 pca           = manager.create_block('pca', nb_waveforms=5000)
-cluster       = manager2.create_block('density_clustering', probe=probe_file, nb_waveforms=1000, log_level=logging.DEBUG)
+cluster       = manager2.create_block('density_clustering', probe=probe_file, nb_waveforms=500, log_level=logging.DEBUG, two_components=two_components)
 updater       = manager2.create_block('template_updater', probe=probe_file, data_path='templates', nb_channels=nb_channels, log_level=logging.DEBUG)
-fitter        = manager2.create_block('template_fitter', log_level=logging.DEBUG)
+fitter        = manager2.create_block('template_fitter', log_level=logging.INFO, two_components=two_components)
 writer        = manager.create_block('writer', data_path='/tmp/output.dat')
 writer_2      = manager2.create_block('spike_writer')
 writer_3      = manager2.create_block('peak_writer', neg_peaks='/tmp/peaks.dat')
@@ -44,9 +45,8 @@ director.connect(updater.get_output('updater'), fitter.get_input('updater'))
 director.connect(fitter.output, writer_2.input)
 
 director.start()
-director.sleep(duration=30.0)
+director.sleep(duration=60.0)
 director.stop()
-
 
 import numpy, pylab
 
@@ -57,83 +57,39 @@ amps     = numpy.fromfile(writer_2.recorded_data['amplitudes'], dtype=numpy.floa
 raw_data = numpy.fromfile('/tmp/output.dat', dtype=numpy.float32)
 raw_data = raw_data.reshape(raw_data.size/nb_channels, nb_channels)
 
-nb_spikes = 10
+nb_buffers = 10
+nb_samples = 1024
 
-t_min    = spikes[-nb_spikes] - int(10*sampling_rate/1000)
-t_max    = spikes[-1] + int(10*sampling_rate/1000)
+t_max    = spikes.max() + nb_samples
+
+t_min    = t_max - nb_buffers * nb_samples
 
 N_t       = updater._spike_width_
-# templates = numpy.fromfile('templates/templates.dat', dtype=numpy.float32)
-elecs     = numpy.fromfile('templates/channels.dat', dtype=numpy.int32)
-# mapping   = numpy.load('templates/mapping.npy')
 
-# templates = templates.reshape(len(elecs), mapping.shape[1]*N_t)
+template_store = TemplateStore('templates/template_store.h5', 'r')
 
-# import scipy.sparse
-# all_templates = scipy.sparse.csr_matrix((0, nb_channels*N_t))
-# basis         = numpy.arange(N_t)
-
-# for idx in xrange(len(templates)):
-#     indices = mapping[elecs[idx]]
-#     indices = indices[indices > -1]
-#     pos_y   = numpy.zeros(0, dtype=numpy.int32)
-    
-#     for i in indices:
-#         pos_y = numpy.concatenate((pos_y, i*N_t + basis))
-
-#     t = scipy.sparse.csr_matrix((templates[idx, :len(indices)*N_t], (numpy.zeros(len(indices)*N_t), pos_y)), shape=(1, nb_channels*N_t))
-#     all_templates = scipy.sparse.vstack((all_templates, t))
-
-def get_template(id, all_templates):
-    return all_templates[id].toarray().reshape(nb_channels, N_t)
-
-
-def load_data(filename, format='csr'):
-    loader = numpy.load(filename + '.npz')
-    if format == 'csr':
-        template = scipy.sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']),
-                      shape=loader['shape'], dtype=numpy.float32)
-    elif format == 'csc':
-        template = scipy.sparse.csc_matrix((loader['data'], loader['indices'], loader['indptr']),
-                      shape=loader['shape'], dtype=numpy.float32)
-    return template, loader['norms'], loader['amplitudes']
-
-all_templates, norms, amplitudes = load_data('templates/templates', 'csc')
-all_templates = all_templates.T
-
-labels = numpy.unique(elecs)
-for l in labels:
-    idx = numpy.where(elecs == l)[0]
-    pylab.figure()
-    nb_cols  = 3
-    nb_lines = int(len(idx)/nb_cols) + 1 
-    count =  1
-    for i in idx:
-        data = get_template(i, all_templates)*norms[i]
-        pylab.subplot(nb_lines, nb_cols, count)
-        pylab.imshow(data, aspect='auto')
-        pylab.colorbar()
-        pylab.clim(-5, 5)
-        count += 1
-
+data          = template_store.get()
+all_templates = data.pop('templates').T
+norms         = data.pop('norms')
 
 curve = numpy.zeros((nb_channels, t_max-t_min), dtype=numpy.float32)
 
-for spike, temp_id, amp in zip(spikes[-nb_spikes:], temp_ids[-nb_spikes:], amps[-nb_spikes:]):
-    spike -= t_min
-    tmp1   = get_template(temp_id, all_templates)
-    curve[:, spike-tmp1.shape[1]/2:spike+tmp1.shape[1]/2+1] += amp*tmp1*norms[temp_id]
+idx    = numpy.where(spikes > t_min)[0]
+
+for spike, temp_id, amp in zip(spikes[idx], temp_ids[idx], amps[idx]):
+    if spike > t_min + N_t/2:
+        spike -= t_min
+        tmp1   = all_templates[temp_id].toarray().reshape(nb_channels, N_t)
+        curve[:, spike-N_t/2:spike+N_t/2+1] += amp*tmp1*norms[temp_id]
     
-
-
 neg_peaks = numpy.fromfile('/tmp/peaks.dat', dtype=numpy.int32)
 neg_peaks = neg_peaks.reshape(neg_peaks.size/2, 2)
 
 spacing  = 10
 pylab.figure()
 for i in xrange(nb_channels):
-    pylab.plot(numpy.arange(t_min, t_max), raw_data[t_min:t_max, i]+ i*spacing, '0.5')
-    pylab.plot(numpy.arange(t_min, t_max), curve[i, :]+ i*spacing, 'r')
+    pylab.plot(numpy.arange(t_min, t_max), raw_data[t_min:t_max, i] + i*spacing, '0.5')
+    pylab.plot(numpy.arange(t_min, t_max), curve[i, :] + i*spacing, 'r')
     idx = numpy.where((neg_peaks[:,1] < t_max) & (neg_peaks[:,1] >= t_min) & (neg_peaks[:,0] == i))
     sub_peaks = neg_peaks[idx]
     pylab.scatter(sub_peaks[:, 1], spacing*sub_peaks[:, 0], c='k')

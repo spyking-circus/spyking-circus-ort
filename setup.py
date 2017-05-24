@@ -5,7 +5,7 @@ from os.path import join as pjoin
 import sys, subprocess, re
 
 
-requires = ['numpy', 'tqdm', 'zmq', 'scipy']
+requires = ['numpy', 'tqdm', 'zmq', 'scipy', 'h5py']
 
 def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()

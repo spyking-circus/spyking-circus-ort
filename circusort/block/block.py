@@ -151,8 +151,10 @@ class Block(threading.Thread):
         self.running = False
         self.log.debug("{n} is stopped".format(n=self.name))
         if self.real_time_ratio is not None:
-            self.log.info("{n} worked at {k} x real time".format(n=self.name, k=self.real_time_ratio))
-
+            self.log.info("{n} processed {m} buffers [{k} x real time]".format(n=self.name, m=self.counter - self.start_step, k=self.real_time_ratio))
+        else:
+            self.log.info("{n} processed {m} buffers".format(n=self.name, m=self.counter - self.start_step))
+            
 
     def _check_real_time_ratio(self):
         data = self.real_time_ratio
@@ -183,6 +185,7 @@ class Block(threading.Thread):
 
     def _set_active_mode(self):
         self.is_active = True
+        self.log.debug("{n} is now active".format(n=self.name_and_counter))
         self._set_start_step()
 
     def __str__(self):

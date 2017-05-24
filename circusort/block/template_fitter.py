@@ -1,18 +1,8 @@
 from .block import Block
 import numpy
 import scipy.sparse
+from circusort.io.template import TemplateStore
 from circusort.io.utils import load_pickle
-
-def load_data(filename, format='csr'):
-    loader = numpy.load(filename + '.npz')
-    if format == 'csr':
-        template = scipy.sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']),
-                      shape=loader['shape'])
-    elif format == 'csc':
-        template = scipy.sparse.csc_matrix((loader['data'], loader['indices'], loader['indptr']),
-                      shape=loader['shape'])
-    return template, loader['norms'], loader['amplitudes']
-
 
 
 class Template_fitter(Block):
@@ -20,8 +10,9 @@ class Template_fitter(Block):
 
     name   = "Template fitter"
 
-    params = {'spike_width'   : 5.,
-              'sampling_rate' : 20000}
+    params = {'spike_width'    : 5.,
+              'sampling_rate'  : 20000, 
+              'two_components' : False}
 
     def __init__(self, **kwargs):
 
@@ -32,9 +23,14 @@ class Template_fitter(Block):
         self.add_output('spikes', 'dict')
 
     def _initialize(self):
-        self.space_explo   = 0.5
-        self.nb_chances    = 3
-        self._spike_width_ = int(self.sampling_rate*self.spike_width*1e-3)
+        self.space_explo    = 0.5
+        self.nb_chances     = 3
+        self._spike_width_  = int(self.sampling_rate*self.spike_width*1e-3)
+        self.template_store = None
+        self.norms          = numpy.zeros(0, dtype=numpy.float32)
+        self.amplitudes     = numpy.zeros((0, 2), dtype=numpy.float32)
+        if self.two_components:
+            self.norms2     = numpy.zeros(0, dtype=numpy.float32)
 
         if numpy.mod(self._spike_width_, 2) == 0:
             self._spike_width_ += 1
@@ -52,13 +48,18 @@ class Template_fitter(Block):
 
     @property
     def nb_templates(self):
-        return self.templates.shape[0]
+        if self.two_components:
+            return self.templates.shape[0] / 2
+        else:
+            return self.templates.shape[0]
 
     def _guess_output_endpoints(self):
-        self._nb_elements  = self.nb_channels*self._spike_width_
-        self.templates     = scipy.sparse.csc_matrix((0, self._nb_elements), dtype=numpy.float32)
-        self.slice_indices = numpy.zeros(0, dtype=numpy.int32)
-        temp_window        = numpy.arange(-self._width, self._width + 1)
+        self._nb_elements   = self.nb_channels*self._spike_width_
+        self.templates      = scipy.sparse.csr_matrix((0, self._nb_elements), dtype=numpy.float32)
+        if self.two_components:
+            self.templates2 = scipy.sparse.csr_matrix((0, self._nb_elements), dtype=numpy.float32)
+        self.slice_indices  = numpy.zeros(0, dtype=numpy.int32)
+        temp_window         = numpy.arange(-self._width, self._width + 1)
         for idx in xrange(self.nb_channels):
             self.slice_indices = numpy.concatenate((self.slice_indices, self.nb_samples*idx + temp_window))
 
@@ -97,15 +98,7 @@ class Template_fitter(Block):
             for count, peak in enumerate(peaks):
                 sub_batch[:, count] = batch[self.slice_indices + peak]
 
-            #sub_batch    = sub_batch.reshape(sub_batch.shape[0]*sub_batch.shape[1], sub_batch.shape[2])
-            b            = self.templates.dot(sub_batch)                
-
-            #local_offset = padding[0] + t_offset
-            #local_bounds = (2*self._width, len_chunk - 2*self._width)
-
-            # Because for GPU, slicing by columns is more efficient, we need to transpose b
-            #b           = b.transpose()
-
+            b           = self.templates.dot(sub_batch)                
             failure     = numpy.zeros(n_peaks, dtype=numpy.int32)
             mask        = numpy.ones((self.nb_templates, n_peaks), dtype=numpy.int32)
             sub_b       = b[:self.nb_templates, :]
@@ -123,31 +116,32 @@ class Template_fitter(Block):
                 argmax_bi   = numpy.argsort(numpy.max(data, 0))[::-1]
 
                 while (len(argmax_bi) > 0):
-                    subset          = []
-                    indices         = []
+                    subset          = numpy.zeros(0, dtype=numpy.int32)
+                    indices         = numpy.zeros(0, dtype=numpy.int32)
                     all_times       = numpy.zeros(local_len, dtype=numpy.bool)
 
                     for count, idx in enumerate(argmax_bi):
                         myslice = all_times[min_times[idx]:max_times[idx]]
                         if not myslice.any():
-                            subset  += [idx]
-                            indices += [count]
+                            subset  = numpy.concatenate((subset, [idx]))
+                            indices = numpy.concatenate((indices, [count]))
                             all_times[min_times[idx]:max_times[idx]] = True
                         if len(subset) > max_n_peaks:
                             break
 
-                    subset    = numpy.array(subset, dtype=numpy.int32)
                     argmax_bi = numpy.delete(argmax_bi, indices)
 
                     inds_t, inds_temp = subset, numpy.argmax(numpy.take(sub_b, subset, axis=1), 0)
 
                     best_amp  = sub_b[inds_temp, inds_t]/self._nb_elements
-                    #best_amp2 = b[inds_temp + self.nb_templates, inds_t]/self._nb_elements
+                    if self.two_components:
+                        best_amp2 = b[inds_temp + self.nb_templates, inds_t]/self._nb_elements
 
                     mask[inds_temp, inds_t] = 0
 
                     best_amp_n   = best_amp/numpy.take(self.norms, inds_temp)
-                    #best_amp2_n  = best_amp2/numpy.take(norm_templates, inds_temp + self.nb_templates)
+                    if self.two_components:
+                        best_amp2_n  = best_amp2/numpy.take(self.norms2, inds_temp)
 
                     all_idx      = ((best_amp_n >= self.amplitudes[inds_temp, 0]) & (best_amp_n <= self.amplitudes[inds_temp, 1]))
                     to_keep      = numpy.where(all_idx == True)[0]
@@ -170,8 +164,11 @@ class Template_fitter(Block):
                             indices[ytmp, numpy.arange(len(ytmp))] = 1
 
                             tmp1   = self.overlaps[inds_temp[keep]].multiply(-best_amp[keep]).dot(indices)
-                            #tmp2   = c_overs[inds_temp[keep] + self.nb_templates].multiply(-best_amp2[keep]).dot(indices)
-                            b[:, idx_b] += tmp1 #+ tmp2
+                            b[:, idx_b] += tmp1
+
+                            if self.two_components:
+                                tmp2   = self.overlaps[inds_temp[keep] + self.nb_templates].multiply(-best_amp2[keep]).dot(indices)
+                                b[:, idx_b] += tmp2
 
                             if good[count]:
                                 self.result['spike_times']  = numpy.concatenate((self.result['spike_times'], [ts[count]]))
@@ -185,6 +182,8 @@ class Template_fitter(Block):
 
             if len(self.result['spike_times']) > 0:
                 self.log.debug('{n} fitted {k} spikes from {m} templates'.format(n=self.name_and_counter, k=len(self.result['spike_times']), m=self.nb_templates))
+            else:
+                self.log.debug('{n} fitted no spikes from {s} peaks'.format(n=self.name_and_counter, s=n_peaks))
 
     def _process(self):
         batch = self.inputs['data'].receive()
@@ -193,16 +192,30 @@ class Template_fitter(Block):
         if peaks is not None:
 
             if not self.is_active:
-                self.log.info('{n} starts to fit'.format(n=self.name_and_counter))
                 self._set_active_mode()
 
-            self.offset = peaks.pop('offset')
+            while peaks.pop('offset')/self.nb_samples < self.counter:
+                    peaks = self.inputs['peaks'].receive()
+
+            self.offset = self.counter * self.nb_samples
 
             updater  = self.inputs['updater'].receive(blocking=False)
             
             if updater is not None:
-                self.templates, self.norms, self.amplitudes  = load_data(updater['templates'], format='csc')
-                self.templates = self.templates.T
+
+                if self.template_store is None:
+                    self.template_store = TemplateStore(updater['store_file'], 'r', self.two_components)
+
+                data            = self.template_store.get(updater['indices'])
+                self.norms      = numpy.concatenate((self.norms, data.pop('norms')))
+                self.amplitudes = numpy.vstack((self.amplitudes, data.pop('amplitudes')))
+
+                self.templates  = scipy.sparse.vstack((self.templates, data.pop('templates').T), 'csr')
+
+                if self.two_components:
+                    self.norms2     = numpy.concatenate((self.norms2, data.pop('norms2')))
+                    self.templates2 = scipy.sparse.vstack((self.templates2, data.pop('templates2').T), 'csr')                
+                
                 self.overlaps  = load_pickle(updater['overlaps'])
                 
             if self.nb_templates > 0:

@@ -2,7 +2,6 @@
 # associated to one manager.
 
 import circusort
-import settings
 import logging
 
 
@@ -34,6 +33,7 @@ manager.start()
 director.sleep(duration=5.0)
 
 director.stop()
+director.destroy()
 
 start_mad     = mad_estimator.start_step
 neg_peak_file = writer_3.recorded_peaks['negative']

@@ -1,6 +1,6 @@
 from .block import Block
 import numpy
-
+import time
 
 class Fake_spike_generator(Block):
     '''TODO add docstring'''
@@ -54,8 +54,8 @@ class Fake_spike_generator(Block):
                 if (spike - t_last) > self.refrac and (self.nb_samples - spike) > self._nb_steps:
                     self.result[pos, spike:spike+self._nb_steps] += amp*self.waveform
 
+        time.sleep(self.nb_samples/self.sampling_rate)
         self.output.send(self.result)
         self.result[:, 0] = self.result[:, -1]*self.decay_time + numpy.random.randn(self.nb_channels)*self.dt
-
         
         return

@@ -52,7 +52,7 @@ class Spike_writer(Block):
                         else:
                             self.recorded_data[key] = self.templates
 
-                    self.log.info('{n} is recording {m} into {k}'.format(n=self.name, m=key, k=self.recorded_data[key]))
+                    self.log.info('{n} records {m} into {k}'.format(n=self.name, m=key, k=self.recorded_data[key]))
                     self.data_file[key] = open(self.recorded_data[key], mode='wb')
                 
                 if key in ['spike_times']:            
@@ -63,6 +63,8 @@ class Spike_writer(Block):
                 elif key in ['amplitudes']:
                     to_write = numpy.array(batch[key]).astype(numpy.float32)
                 self.data_file[key].write(to_write)
-                self.data_file[key].flush()
-                os.fsync(self.data_file[key].fileno())
         return
+
+    def __del__(self):
+        for file in self.data_file.values(): 
+            file.close()

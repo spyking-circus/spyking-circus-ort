@@ -5,8 +5,6 @@ import os
 import json
 
 
-
-
 class Connection(object):
 
     _defaults_structure = {'array'  : {'dtype': None, 'shape' : None},
@@ -118,12 +116,18 @@ class Endpoint(Connection):
     def _initialize(self, protocol='tcp', host='127.0.0.1', port='*'):
         if protocol == 'ipc':
             tmp_file = tempfile.NamedTemporaryFile()
-            tmp_name = os.path.join(tempfile.gettempdir(), os.path.basename(tmp_file.name)) + ".ipc"
+            self.tmp_name = os.path.join(tempfile.gettempdir(), os.path.basename(tmp_file.name)) + ".ipc"
             tmp_file.close()
-            address = '{t}://{e}'.format(t=protocol, e=tmp_name)
+            address = '{t}://{e}'.format(t=protocol, e=self.tmp_name)
         else:
+            self.tmp_name = None
             endpoint = '{h}:{p}'.format(h=host, p=port)
             address  = '{t}://{e}'.format(t=protocol, e=endpoint)
         self.socket = self.block.context.socket(zmq.PUB)
         self.socket.bind(address)
         self.addr = self.socket.getsockopt(zmq.LAST_ENDPOINT)
+
+    def __del__(self):
+        self.socket.close()
+        if self.tmp_name is not None:
+            os.remove(self.tmp_name)
