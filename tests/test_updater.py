@@ -27,7 +27,7 @@ whitening     = manager.create_block('whitening')
 mad_estimator = manager.create_block('mad_estimator')
 peak_detector = manager.create_block('peak_detector', threshold=6)
 pca           = manager.create_block('pca', nb_waveforms=5000)
-cluster       = manager2.create_block('density_clustering', probe=probe_file, nb_waveforms=200, two_components=two_components, log_level=logging.DEBUG)
+cluster       = manager2.create_block('density_clustering', probe=probe_file, nb_waveforms=500, two_components=two_components, log_level=logging.DEBUG)
 updater       = manager2.create_block('template_updater', probe=probe_file, data_path='templates', nb_channels=nb_channels, log_level=logging.DEBUG)
 
 director.initialize()
@@ -44,6 +44,7 @@ director.start()
 director.sleep(duration=30.0)
 director.stop()
 
+
 import numpy, pylab
 
 N_t       = updater._spike_width_
@@ -52,9 +53,9 @@ template_store = TemplateStore('templates/template_store.h5', 'r')
 overlaps = load_pickle('templates/overlaps')
 
 data          = template_store.get()
-all_templates = data['templates'].T
-elecs         = data['channels']
-norms         = data['norms']
+all_templates = data.pop('templates').T
+elecs         = data.pop('channels')
+norms         = data.pop('norms')
 
 labels = numpy.unique(elecs)
 for l in labels:

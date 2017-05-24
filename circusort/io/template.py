@@ -8,8 +8,8 @@ class TemplateStore(object):
     def __init__(self, file_name, mode='w', two_components=False):
 
         self.file_name      = os.path.abspath(file_name)
-        self.h5_file        = h5py.File(self.file_name, mode)
         self.initialized    = False
+        self.mode           = mode
         self.two_components = two_components
 
     def add(self, data):
@@ -23,9 +23,13 @@ class TemplateStore(object):
             templates2  = data['templates2']
 
         if not self.initialized:
-            nb_template = len(norms)
-            nb_data     = len(templates.data)
-            nb_indptr   = len(templates.indptr)
+            nb_template  = len(norms)
+            nb_data      = len(templates.data)
+            nb_indptr    = len(templates.indptr)
+
+            self.h5_file = h5py.File(self.file_name, self.mode)
+
+
             self.h5_file.create_dataset('norms', data=norms.reshape(nb_template, 1), chunks=True, maxshape=(None, 1))
             self.h5_file.create_dataset('channels', data=channels.reshape(nb_template, 1), chunks=True, maxshape=(None, 1))
             self.h5_file.create_dataset('amplitudes', data=amplitudes, chunks=True, maxshape=(None, 2))
@@ -39,8 +43,12 @@ class TemplateStore(object):
             self.h5_file.create_dataset('indices', data=templates.indices.reshape(nb_data, 1), chunks=True, maxshape=(None, 1))
             self.h5_file.create_dataset('shape', data=templates.shape, chunks=True)
             self.initialized = True
+            self.h5_file.close()
 
         else:
+            
+            self.h5_file = h5py.File(self.file_name, 'r+')
+
             nb_templates = self.nb_templates
             nb_new       = len(amplitudes)
             new_shape_1  = nb_templates + nb_new
@@ -76,6 +84,7 @@ class TemplateStore(object):
             to_write = templates.indptr[1:] + self.h5_file['indptr'][-1, 0]
             self.h5_file['indptr'].resize((new_shape_3, 1))
             self.h5_file['indptr'][nb_indptr:, 0] = to_write
+            self.h5_file.close()
 
     @property
     def nb_templates(self):
@@ -96,6 +105,8 @@ class TemplateStore(object):
     def get(self, indices=None):
 
         result = {}
+
+        self.h5_file = h5py.File(self.file_name, 'r')
 
         if indices is None:
             result['norms']      = self.h5_file['norms'][:, 0]
@@ -133,6 +144,8 @@ class TemplateStore(object):
                     temp    = scipy.sparse.csc_matrix((self.h5_file['data2'][myslice, 0], (self.h5_file['indices'][myslice, 0], numpy.zeros(n_data))), shape=(myshape, 1))    
                     result['templates2'] = scipy.sparse.hstack((result['templates2'], temp), 'csc')
 
+        self.h5_file.close()
+
         return result
         
     def remove(self, index):
@@ -141,5 +154,8 @@ class TemplateStore(object):
     def get_overlaps(self):
         pass
 
-    def __del__(self):
-        self.h5_file.close()
+    def close(self):
+        try:
+            self.h5_file.close()
+        except Exception:
+            pass

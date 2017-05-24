@@ -23,12 +23,14 @@ class Template_fitter(Block):
         self.add_output('spikes', 'dict')
 
     def _initialize(self):
-        self.space_explo   = 0.5
-        self.nb_chances    = 3
-        self._spike_width_ = int(self.sampling_rate*self.spike_width*1e-3)
+        self.space_explo    = 0.5
+        self.nb_chances     = 3
+        self._spike_width_  = int(self.sampling_rate*self.spike_width*1e-3)
         self.template_store = None
         self.norms          = numpy.zeros(0, dtype=numpy.float32)
-        self.amplitudes     = numpy.zeros((0, 2), dtype=numpy.float32) 
+        self.amplitudes     = numpy.zeros((0, 2), dtype=numpy.float32)
+        if self.two_components:
+            self.norms2     = numpy.zeros(0, dtype=numpy.float32)
 
         if numpy.mod(self._spike_width_, 2) == 0:
             self._spike_width_ += 1
@@ -52,10 +54,12 @@ class Template_fitter(Block):
             return self.templates.shape[0]
 
     def _guess_output_endpoints(self):
-        self._nb_elements  = self.nb_channels*self._spike_width_
-        self.templates     = scipy.sparse.csc_matrix((0, self._nb_elements), dtype=numpy.float32)
-        self.slice_indices = numpy.zeros(0, dtype=numpy.int32)
-        temp_window        = numpy.arange(-self._width, self._width + 1)
+        self._nb_elements   = self.nb_channels*self._spike_width_
+        self.templates      = scipy.sparse.csr_matrix((0, self._nb_elements), dtype=numpy.float32)
+        if self.two_components:
+            self.templates2 = scipy.sparse.csr_matrix((0, self._nb_elements), dtype=numpy.float32)
+        self.slice_indices  = numpy.zeros(0, dtype=numpy.int32)
+        temp_window         = numpy.arange(-self._width, self._width + 1)
         for idx in xrange(self.nb_channels):
             self.slice_indices = numpy.concatenate((self.slice_indices, self.nb_samples*idx + temp_window))
 
@@ -202,16 +206,16 @@ class Template_fitter(Block):
                 if self.template_store is None:
                     self.template_store = TemplateStore(updater['store_file'], 'r', self.two_components)
 
-                data = self.template_store.get(updater['indices'])
-                self.norms      = numpy.concatenate((self.norms, data['norms']))
-                self.amplitudes = numpy.vstack((self.norms, data['amplitudes']))
+                data            = self.template_store.get(updater['indices'])
+                self.norms      = numpy.concatenate((self.norms, data.pop('norms')))
+                self.amplitudes = numpy.vstack((self.amplitudes, data.pop('amplitudes')))
 
-                if not self.two_components:
-                    self.templates, self.norms, self.amplitudes  = load_data(updater['templates'], format='csc')
-                    self.templates = self.templates.T
-                else:
-                    self.templates, self.norms, self.amplitudes, self.templates2, self.norms2  = load_data(updater['templates'], two_components=True, format='csc')
-                    self.templates  = scipy.sparse.vstack((self.templates.T, self.templates2.T))
+                self.templates  = scipy.sparse.vstack((self.templates, data.pop('templates').T), 'csr')
+
+                if self.two_components:
+                    self.norms2     = numpy.concatenate((self.norms2, data.pop('norms2')))
+                    self.templates2 = scipy.sparse.vstack((self.templates2, data.pop('templates2').T), 'csr')                
+                
                 self.overlaps  = load_pickle(updater['overlaps'])
                 
             if self.nb_templates > 0:
