@@ -3,6 +3,7 @@ import zmq
 
 from circusort.base import utils
 from circusort.base.proxy import Proxy
+from circusort.block.block import Block
 
 
 
@@ -59,6 +60,8 @@ class Process(object):
 
         self.last_obj_id = -1
         self.objs = {}
+        self.poller = zmq.Poller()
+        self.poller.register(self.socket, zmq.POLLIN)
 
     def get_attr(self, obj, name):
         '''TODO add docstring'''
@@ -72,9 +75,17 @@ class Process(object):
 
         self.running = True
         while self.running:
-            message = self.receive()
-            self.process(message)
-
+            socks = self.poller.poll(timeout=10)
+            if len(socks):
+                message = self.receive()
+                self.process(message)
+            else:
+                # print self.objs
+                for obj in self.objs.itervalues():
+                    if isinstance(obj, Block) and obj.name == 'Oscilloscope 1':
+                        obj._plot()
+                        import matplotlib.pyplot as plt
+                        plt.pause(0.09)
         return
 
     def unwrap_proxy(self, proxy):
