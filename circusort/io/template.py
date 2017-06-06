@@ -148,9 +148,6 @@ class TemplateStore(object):
     def remove(self, index):
         pass
 
-    def get_overlaps(self, indices, templates):
-        pass
-
     def close(self):
         try:
             self.h5_file.close()
