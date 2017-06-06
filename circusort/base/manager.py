@@ -31,7 +31,7 @@ class Manager(object):
             else:
                 suffix = 1
                 self.blocks_types[block_type] = 1
-                
+
 
         if log_level is None:
             log_level = self.log_level
@@ -46,7 +46,7 @@ class Manager(object):
             block.name = name
 
         self.log.info("{d} creates block {s}[{n}]".format(d=str(self), s=block.name, n=block_type))
-        
+
         self.register_block(block)
 
         return block
@@ -74,8 +74,8 @@ class Manager(object):
                 input_endpoint.configure(**description)
                 input_endpoint.block.connect(input_endpoint.name)
                 input_endpoint.block.guess_output_endpoints()
-                self.log.debug("Connection established from {a}[{s}] to {b}[{t}]".format(s=(output_endpoint.name, output_endpoint.structure), 
-                                                                                                    t=(input_endpoint.name, input_endpoint.structure), 
+                self.log.debug("Connection established from {a}[{s}] to {b}[{t}]".format(s=(output_endpoint.name, output_endpoint.structure),
+                                                                                                    t=(input_endpoint.name, input_endpoint.structure),
                                                                                                     a=output_endpoint.block.name,
                                                                                                     b=input_endpoint.block.name))
 
@@ -159,6 +159,8 @@ class Manager(object):
         self.log.info("{d} stops {s}".format(d=str(self), s=", ".join(self.list_blocks())))
         for block in self.blocks.itervalues():
             block.stop()
+        for block in self.blocks.itervalues():
+            block.join()
         return
 
     def __del__(self):
