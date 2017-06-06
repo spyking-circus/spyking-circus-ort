@@ -11,7 +11,7 @@ class Probe(object):
     def __init__(self, filename, radius=None, logger=None):
         probe       = {}
         self.path   = os.path.abspath(os.path.expanduser(filename))
-        
+
         if logger is None:
             self.logger = logging.getLogger(__name__)
         else:
@@ -57,11 +57,11 @@ class Probe(object):
     def get_nodes_and_edges(self):
         """
         Retrieve the topology of the probe.
-        
+
         Other parameters
         ----------------
         radius : integer
-        
+
         Returns
         -------
         nodes : ndarray of integers
@@ -69,9 +69,9 @@ class Probe(object):
         edges : dictionary
             Dictionary which link each channel id to the ids of the channels whose
             distance is less or equal than radius.
-        
+
         """
-        
+
         edges  = {}
         nodes  = []
 
@@ -98,6 +98,46 @@ class Probe(object):
     @property
     def nb_channels(self):
         return len(self.nodes)
+
+    @property
+    def field_of_view(self):
+        """
+        Field_of_view of the probe.
+
+        return
+        ------
+        fov: dict
+            Field of view of the probe.
+        """
+
+        # Collect the x-coordinate and y-coordinate of each channel.
+        x = []
+        y = []
+        for key in self.channel_groups.keys():
+            group = self.channel_groups[key]
+            x.extend([group['geometry'][c][0] for c in group['channels']])
+            y.extend([group['geometry'][c][1] for c in group['channels']])
+        x = numpy.array(x)
+        y = numpy.array(y)
+        # Compute the distance between channels.
+        d = float('Inf')
+        for i in range(0, len(x)):
+            p_1 = numpy.array([x[i], y[i]])
+            for j in range(i + 1, len(x)):
+                p_2 = numpy.array([x[j], y[j]])
+                d = min(d, numpy.linalg.norm(p_2 - p_1))
+        # Compute the field of view of the probe.
+        fov = {
+            'x_min': numpy.amin(x),
+            'y_min': numpy.amin(y),
+            'x_max': numpy.amax(x),
+            'y_max': numpy.amax(y),
+            'd': d,
+            'w': numpy.amax(x) - numpy.amin(x),
+            'h': numpy.amax(y) - numpy.amin(y),
+        }
+
+        return fov
 
     def get_averaged_n_edges(self):
         n = 0
