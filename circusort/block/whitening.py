@@ -33,22 +33,22 @@ class Whitening(Block):
 
     def _guess_output_endpoints(self):
         self.output.configure(dtype='float32', shape=(self.nb_samples, self.nb_channels))
-        self.silences = numpy.zeros((self.nb_channels, 0), dtype=self.input.dtype)
+        self.silences = numpy.zeros((0, self.nb_channels), dtype=self.input.dtype)
 
     def _get_whitening_matrix(self):
-        Xcov = numpy.dot(self.silences, self.silences.T)/self.silences.shape[1]
+        Xcov = numpy.dot(self.silences.T, self.silences)/self.silences.shape[0]
         d,V  = eigh(Xcov)
-        D    = numpy.diag(1./numpy.sqrt(d+self.fudge))
+        D    = numpy.diag(1./numpy.sqrt(d + self.fudge))
         self.whitening_matrix = numpy.dot(numpy.dot(V,D), V.T).astype(numpy.float32)
 
     def _process(self):
         batch = self.input.receive()
         if self.is_active:
-            batch = numpy.dot(self.whitening_matrix, batch)
-            self.output.send(batch.flatten())
+            batch = numpy.dot(batch, self.whitening_matrix)
+            self.output.send(batch)
         else:
-            self.silences = numpy.hstack((self.silences, batch))
-            if self.silences.shape[1] > self.duration:
+            self.silences = numpy.vstack((self.silences, batch))
+            if self.silences.shape[0] > self.duration:
                 self._get_whitening_matrix()
                 self.log.info("{n} computes whitening matrix".format(n=self.name_and_counter))
                 self._set_active_mode()

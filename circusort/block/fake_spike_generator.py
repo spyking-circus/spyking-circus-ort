@@ -52,7 +52,7 @@ class Fake_spike_generator(Block):
             t_last = - self.refrac
             for scount, spike in enumerate(spikes):
                 if (spike - t_last) > self.refrac and (self.nb_samples - spike) > self._nb_steps:
-                    self.result[pos, spike:spike+self._nb_steps] += amp*self.waveform
+                    self.result[spike:spike+self._nb_steps, pos] += amp*self.waveform
 
         time.sleep(self.nb_samples/self.sampling_rate)
         self.output.send(self.result)

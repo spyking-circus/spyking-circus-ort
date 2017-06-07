@@ -67,11 +67,11 @@ class Density_clustering(Block):
 
     @property
     def nb_channels(self):
-        return self.inputs['data'].shape[0]
+        return self.inputs['data'].shape[1]
 
     @property
     def nb_samples(self):
-        return self.inputs['data'].shape[1]
+        return self.inputs['data'].shape[0]
 
     def _get_all_valid_peaks(self, peaks, shuffle=True):
         all_peaks = {}
@@ -110,17 +110,17 @@ class Density_clustering(Block):
         indices = self._get_extrema_indices(peak, peaks)
 
         if key == 'negative':
-            channel = numpy.argmin(batch[indices, peak])
+            channel = numpy.argmin(batch[peak, indices])
             is_neg  = True
         elif key == 'positive':
-            channel = numpy.argmax(batch[indices, peak])
+            channel = numpy.argmax(batch[peak, indices])
             is_neg  = False
         elif key == 'both':
-            if numpy.abs(numpy.max(batch[indices, peak])) > numpy.abs(numpy.min(batch[indices, peak])):
-                channel = numpy.argmax(batch[indices, peak])
+            if numpy.abs(numpy.max(batch[peak, indices])) > numpy.abs(numpy.min(batch[peak, indices])):
+                channel = numpy.argmax(batch[peak, indices])
                 is_neg  = False
             else:
-                channel = numpy.argmin(batch[indices, peak])
+                channel = numpy.argmin(batch[peak, indices])
                 is_neg = True
 
         return indices[channel], is_neg
@@ -129,7 +129,7 @@ class Density_clustering(Block):
         indices = self.probe.edges[channel]
         if self.alignment:    
             idx     = self.chan_positions[channel]
-            zdata   = batch[indices, peak - 2*self._width:peak + 2*self._width + 1]
+            zdata   = batch[peak - 2*self._width:peak + 2*self._width + 1, indices]
             ydata   = numpy.arange(len(indices))
 
             if len(ydata) == 1:
@@ -149,7 +149,7 @@ class Density_clustering(Block):
                 ddata    = numpy.linspace(rmin-self._width, rmin+self._width, self._spike_width_)
                 sub_mat  = f(ydata, ddata).astype(numpy.float32)
         else:
-            sub_mat = batch[indices, peak - self._width:peak + self._width + 1]
+            sub_mat = batch[peak - self._width:peak + self._width + 1, indices]
 
         return sub_mat
 

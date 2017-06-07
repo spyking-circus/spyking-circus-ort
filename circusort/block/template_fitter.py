@@ -2,7 +2,7 @@ from .block import Block
 import numpy
 import scipy.sparse
 from circusort.io.template import TemplateStore
-from circusort.io.template import OverlapStore
+#from circusort.io.template import OverlapStore
 from circusort.io.utils import load_pickle
 
 
@@ -41,11 +41,11 @@ class Template_fitter(Block):
 
     @property
     def nb_channels(self):
-        return self.inputs['data'].shape[0]
+        return self.inputs['data'].shape[1]
 
     @property
     def nb_samples(self):
-        return self.inputs['data'].shape[1]
+        return self.inputs['data'].shape[0]
 
     @property
     def nb_templates(self):

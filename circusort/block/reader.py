@@ -40,12 +40,12 @@ class Reader(Block):
         # Create input memory-map
         self.data = numpy.memmap(self.data_path, dtype=self.dtype, mode='r')
         self.batch_size = self.nb_channels * self.nb_samples
-        self.output.configure(dtype=self.dtype, shape=(self.nb_channels, self.nb_samples))
+        self.output.configure(dtype=self.dtype, shape=(self.nb_samples, self.nb_channels))
         return
 
     def _process(self):
         i_min = self.batch_size * self.counter
         i_max = self.batch_size * (self.counter + 1)
-        batch = self.data[i_min:i_max]
-        self.output.send(batch.flatten())
+        batch = self.data[i_min:i_max].reshape(self.nb_samples, self.nb_channels)
+        self.output.send(batch)
         return

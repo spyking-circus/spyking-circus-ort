@@ -22,11 +22,11 @@ class Pca(Block):
 
     @property
     def nb_channels(self):
-        return self.inputs['data'].shape[0]
+        return self.inputs['data'].shape[1]
 
     @property
     def nb_samples(self):
-        return self.inputs['data'].shape[1]
+        return self.inputs['data'].shape[0]
 
     def _initialize(self):
         self._spike_width_ = int(self.sampling_rate*self.spike_width*1e-3)
@@ -60,7 +60,7 @@ class Pca(Block):
 
     def _get_waveform(self, batch, channel, peak, key):
         if self.alignment:
-            ydata    = batch[channel, peak - 2*self._width:peak + 2*self._width + 1]
+            ydata    = batch[peak - 2*self._width:peak + 2*self._width + 1, channel]
             f        = scipy.interpolate.UnivariateSpline(self.xdata, ydata, s=0)
             if key == 'negative':
                 rmin = (numpy.argmin(f(self.cdata)) - len(self.cdata)/2.)/5.
@@ -70,7 +70,7 @@ class Pca(Block):
 
             result = f(ddata).astype(numpy.float32)
         else:
-            result = batch[channel, peak - self._width:peak + self._width + 1]
+            result = batch[peak - self._width:peak + self._width + 1, channel]
         return result
 
     def _infer_sign_peaks(self, peaks):
