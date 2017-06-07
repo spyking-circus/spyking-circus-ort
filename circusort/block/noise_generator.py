@@ -17,10 +17,10 @@ class Noise_generator(Block):
         self.add_output('data')
 
     def _initialize(self):
-        self.output.configure(dtype=self.dtype, shape=(self.nb_channels, self.nb_samples))
+        self.output.configure(dtype=self.dtype, shape=(self.nb_samples, self.nb_channels))
         return
 
     def _process(self):
-        batch = numpy.random.randn(self.nb_channels, self.nb_samples).astype(self.dtype)
+        batch = numpy.random.randn(self.nb_samples, self.nb_channels).astype(self.dtype)
         self.output.send(batch)
         return

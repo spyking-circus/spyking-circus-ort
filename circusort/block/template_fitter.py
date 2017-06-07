@@ -2,6 +2,7 @@ from .block import Block
 import numpy
 import scipy.sparse
 from circusort.io.template import TemplateStore
+from circusort.io.template import OverlapStore
 from circusort.io.utils import load_pickle
 
 
@@ -202,7 +203,9 @@ class Template_fitter(Block):
             if updater is not None:
 
                 if self.template_store is None:
-                    self.template_store = TemplateStore(updater['store_file'], 'r', self.two_components)
+                    self.template_store = TemplateStore(updater['templates_file'], 'r', self.two_components)
+                if self.overlap_store is None:
+                    self.overlap_store = TemplateStore(updater['overlaps_file'], 'r')
 
                 data            = self.template_store.get(updater['indices'])
                 self.norms      = numpy.concatenate((self.norms, data.pop('norms')))
@@ -213,8 +216,9 @@ class Template_fitter(Block):
                     self.norms2    = numpy.concatenate((self.norms2, data.pop('norms2')))
                     self.templates = scipy.sparse.vstack((self.templates, data.pop('templates2').T), 'csr')
                 
-                self.overlaps  = load_pickle(updater['overlaps'])
-                
+                #self.overlaps  = load_pickle(updater['overlaps'])
+                self.overlap_store.update_overlaps(updater['indices'])
+
             if self.nb_templates > 0:
                 self._fit_chunk(batch, peaks)
                 self.output.send(self.result)

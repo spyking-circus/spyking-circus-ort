@@ -21,18 +21,18 @@ class Whitening(Block):
 
     @property
     def nb_channels(self):
-        return self.inputs['data'].shape[0]
+        return self.inputs['data'].shape[1]
 
     @property
     def nb_samples(self):
-        return self.inputs['data'].shape[1]
+        return self.inputs['data'].shape[0]
 
     def _initialize(self):
         self.duration = self.chunks*self.sampling_rate
         return
 
     def _guess_output_endpoints(self):
-        self.output.configure(dtype='float32', shape=(self.nb_channels, self.nb_samples))
+        self.output.configure(dtype='float32', shape=(self.nb_samples, self.nb_channels))
         self.silences = numpy.zeros((self.nb_channels, 0), dtype=self.input.dtype)
 
     def _get_whitening_matrix(self):

@@ -16,11 +16,11 @@ class Chunk_dispatcher(Block):
         
     @property
     def nb_channels(self):
-        return self.input.shape[0]
+        return self.input.shape[1]
 
     @property
     def nb_samples(self):
-        return self.input.shape[1]
+        return self.input.shape[0]
 
     def _initialize(self):
         return
@@ -28,10 +28,10 @@ class Chunk_dispatcher(Block):
     def _guess_output_endpoints(self):
         self.shape = self.nb_samples // self.nb_groups
         for i in xrange(self.nb_groups):
-            self.get_output('data_%d' %i).configure(dtype=self.input.dtype, shape=(self.nb_channels, self.shape))
+            self.get_output('data_%d' %i).configure(dtype=self.input.dtype, shape=(self.shape, self.nb_channels))
 
     def _process(self):
         batch = self.input.receive()
         for i in xrange(self.nb_groups):
-            self.get_output('data_%d' %i).send(batch[:, i*self.shape:(i+1)*self.shape].flatten())
+            self.get_output('data_%d' %i).send(batch[i*self.shape:(i+1)*self.shape, :])
         return
