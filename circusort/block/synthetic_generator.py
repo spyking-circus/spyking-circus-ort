@@ -38,19 +38,32 @@ class Synthetic_generator(block.Block):
 
         # Retrieve the geometry of the probe.
         self.probe = io.Probe(self.probe_filename)
-        self.log.info("probe: {}".format(self.probe))
+        # TODO remove following line.
+        # self.log.info("probe: {}".format(self.probe))
         self.nb_channels = self.probe.nb_channels
-        self.log.info("nb_channels: {}".format(self.nb_channels))
+        # TODO remove following line.
+        # self.log.info("nb_channels: {}".format(self.nb_channels))
         self.fov = self.probe.field_of_view
+        # TODO remove following line.
         self.log.info("field_of_view: {}".format(self.fov))
 
         # Generate synthetic cells.
         self.cells = {}
         for k in range(0, self.nb_cells):
-            t = 'default' # cell type
-            x = np.random.uniform(self.fov['x_min'], self.fov['x_max']) # cell x-coordinate
-            y = np.random.uniform(self.fov['y_min'], self.fov['y_max']) # cell y-coordinate
-            self.cells[k] = Cell(t, x, y)
+            x_ref = np.random.uniform(self.fov['x_min'], self.fov['x_max']) # cell x-coordinate
+            y_ref = np.random.uniform(self.fov['y_min'], self.fov['y_max']) # cell y-coordinate
+            # TODO convert the three following local variables into parameters.
+            x = lambda t: x_ref # um
+            y = lambda t: y_ref # um
+            r = lambda t: 10.0 # Hz
+            self.cells[k] = Cell(x, y, r)
+        # TODO wrong code scope, should change with the chunk number.
+        # for c in range(0, self.nb_cells):
+        #     cell = self.cells[c]
+        #     r = 100.0 # um
+        #     channels, distances = self.probe.get_channels_around(cell.x(0), cell.y(0), r)
+        #     cell.channels = channels
+
 
         # Configure the data output of this block.
         self.output.configure(dtype=self.dtype, shape=(self.nb_channels, self.nb_samples))
@@ -62,37 +75,44 @@ class Synthetic_generator(block.Block):
         ## background threads in order to be able to stop the background thread.
         self.rpc_queue = Queue.Queue()
         ## Define the target function of the background thread.
-        def syn_gen_target(rpc_queue, queue, nb_channels, nb_samples, nb_cells, cells):
+        def syn_gen_target(rpc_queue, queue, nb_channels, probe, nb_samples, nb_cells, cells):
             '''Synthetic data generation (background thread)'''
             mu = 0.0 # uV # noise mean
-            sigma = 10.0 # uV # noise standard deviation
+            sigma = 4.0 # uV # noise standard deviation
             spike_trains_buffer_ante = {c: np.array([], dtype='int') for c in range(0, nb_cells)}
             spike_trains_buffer_curr = {c: np.array([], dtype='int') for c in range(0, nb_cells)}
             spike_trains_buffer_post = {c: np.array([], dtype='int') for c in range(0, nb_cells)}
             # Generate spikes for the third part of this buffer.
+            chunk_number = 0
             for c in range(0, nb_cells):
-                spike_trains_buffer_post[c] = cells[c].generate_spike_trains(nb_samples)
+                spike_trains_buffer_post[c] = cells[c].generate_spike_trains(chunk_number, nb_samples)
             while rpc_queue.empty(): # check if main thread requires a stop
                 if not queue.full(): # limit memory consumption
-                    # First, generate noise.
-                    shape = (nb_channels, nb_samples)
+                    # 1. Generate noise.
+                    shape = (nb_samples, nb_channels)
                     data = np.random.normal(mu, sigma, shape)
-                    # Second, update spike trains.
+                    # 2. Get spike trains.
                     spike_trains_buffer_ante = spike_trains_buffer_curr
                     spike_trains_buffer_curr = spike_trains_buffer_post
                     for c in range(0, nb_cells):
-                        spike_trains_buffer_post[c] = cells[c].generate_spike_trains(nb_samples)
-                    # Third, reconstruct signal from spike trains.
+                        spike_trains_buffer_post[c] = cells[c].generate_spike_trains(chunk_number + 1, nb_samples)
+                    # 3. Reconstruct signal from spike trains.
                     for c in range(0, nb_cells):
+                        # Get waveform.
+                        i, j, v = cells[c].get_waveform(chunk_number, probe)
+                        # Get spike train.
                         spike_train = spike_trains_buffer_curr[c]
                         for t in spike_train:
-                            data[:, t] = float(c) * 40.0
-                    # Finally, send data to main thread.
+                            b = np.logical_and(0 <= t + i, t + i < nb_samples)
+                            data[t + i[b], j[b]] = data[t + i[b], j[b]] + v[b]
+                    # Finally, send data to main thread and update chunk number.
+                    data = np.transpose(data)
                     queue.put(data)
+                    chunk_number += 1
             # TODO complete.
             return
         ## Define background thread for data generation.
-        args = (self.rpc_queue, self.queue, self.nb_channels, self.nb_samples, self.nb_cells, self.cells)
+        args = (self.rpc_queue, self.queue, self.nb_channels, self.probe, self.nb_samples, self.nb_cells, self.cells)
         self.syn_gen_thread = threading.Thread(target=syn_gen_target, args=args)
         self.syn_gen_thread.deamon = True
         ## Launch background thread for data generation.
@@ -122,13 +142,30 @@ class Synthetic_generator(block.Block):
 
 class Cell(object):
 
-    def __init__(self, t, x, y, sr=20000.0):
-        '''TODO add docstring.'''
-        self.t = t # cell type
-        self.x = x # cell x-coordinate
-        self.y = y # cell y-coordinate
+    def __init__(self, x, y, r, t='default', sr=20.0e+3, rp=20.0e-3):
+        '''TODO add docstring.
 
-        self.sampling_rate = sr
+        Parameters
+        ----------
+        x: function (int -> float)
+            Cell x-coordinate through time (i.e. chunk number).
+        y: function (int -> float)
+            Cell y-coordinate through time (i.e. chunk number).
+        r: function (int -> float)
+            Cell firing rate through time (i.e. chunk number).
+        t: string (default: 'default')
+            Cell type.
+        sr: float (default: 20.0e+3 Hz)
+            Sampling rate.
+        rp: float (default: 20.0e-3 s)
+            Refactory period.
+        '''
+        self.x = x # cell x-coordinate through time (i.e. chunk number)
+        self.y = y # cell y-coordinate through time (i.e. chunk number)
+        self.r = r # cell firing rate through time (i.e. chunk number)
+        self.t = t # cell type
+        self.sr = sr # sampling_rate
+        self.rp = rp # refactory period
 
         # Define the waveform associated to the cell.
         self.n_t_ante = 10
@@ -136,32 +173,70 @@ class Cell(object):
         self.n_t = self.n_t_ante + self.n_t_post
         t = np.linspace(-self.n_t_ante, self.n_t_post, num=self.n_t, endpoint=False)
         t = t + float(self.n_t_ante)
-        t = t / self.sampling_rate
+        t = t / self.sr
         self.waveform = t * np.exp(- 4000.0 * t)
 
         self.buffered_spike_times = np.array([], dtype='float')
 
-    def generate_spike_trains(self, nb_samples):
+    def generate_spike_trains(self, chunk_number, nb_samples):
         '''TODO add docstring.'''
 
-        # scale = 0.5
-        scale = 10.0
-        size = 1 + int(float(nb_samples) / self.sampling_rate / scale)
-        refactory_period = 20.0e-3 # s
+        scale = 1.0 / self.r(chunk_number)
+        size = 1 + int(float(nb_samples) / self.sr / scale)
+
         spike_times = np.array([])
 
         last_spike_time = 0.0
-        max_spike_time = float(nb_samples) / self.sampling_rate
+        max_spike_time = float(nb_samples) / self.sr
         while last_spike_time < max_spike_time:
             # We need to generate some new spike times.
             spike_intervals = np.random.exponential(scale=scale, size=size)
-            spike_intervals = spike_intervals[refactory_period < spike_intervals]
+            spike_intervals = spike_intervals[self.rp < spike_intervals]
             spike_times = np.concatenate([spike_times, last_spike_time + np.cumsum(spike_intervals)])
             if len(spike_times) > 0:
                 last_spike_time = spike_times[-1]
         self.buffered_spike_times = spike_times[max_spike_time <= spike_times]
+
         spike_times = spike_times[spike_times < max_spike_time]
-        spike_steps = spike_times * self.sampling_rate
+        spike_steps = spike_times * self.sr
         spike_steps = spike_steps.astype('int')
 
         return spike_steps
+
+    def get_waveform(self, chunk_number, probe):
+        '''TODO add docstring.'''
+
+        i_start = -20
+        i_stop = +60
+        steps = np.arange(i_start, i_stop + 1)
+        # TODO find a a good expresion for waveforms.
+        times = steps.astype('float') / self.sr
+        times = times - times[0]
+        u = np.sin(4.0 * np.pi * times / times[-1])
+        u = u * np.power(times * np.exp(- times / 1.5e-3), 10.0)
+        u = 40.0 * u / np.amax(u)
+
+        x = self.x(chunk_number)
+        y = self.y(chunk_number)
+        r = 100.0 # um
+        channels, distances = probe.get_channels_around(x, y, r)
+
+        i = np.tile(steps, channels.size)
+        j = np.repeat(channels, steps.size)
+        v = np.zeros((steps.size, channels.size))
+        for k in range(0, channels.size):
+            coef = 1.0 / (1.0 + (distances[k] / 45.0) ** 2.0) # coefficient of attenuation
+            v[:, k] = coef * u
+        v = np.transpose(v)
+        v = v.flatten()
+
+        return i, j, v
+
+
+
+class Channel(object):
+
+    def __init__(self, x, y):
+
+        self.x = x # channel x-coordinate
+        self.y = y # channel y-coordinate

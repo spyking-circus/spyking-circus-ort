@@ -144,3 +144,24 @@ class Probe(object):
         for key, value in self.edges.items():
             n += len(value)
         return n/float(len(self.edges.values()))
+
+    def get_channels_around(self, x, y, r):
+        '''TODO add docstring.'''
+
+        channels = []
+        distances = []
+
+        pos = numpy.array([x, y])
+        for key in self.channel_groups.keys():
+            channel_group = self.channel_groups[key]
+            for channel in channel_group['channels']:
+                pos_c = numpy.array(channel_group['geometry'][channel])
+                d = numpy.linalg.norm(pos_c - pos)
+                if d < r:
+                    # Channel position is near given position.
+                    channels += [channel]
+                    distances +=[d]
+        channels = numpy.array(channels, dtype='int')
+        distances = numpy.array(distances, dtype='float')
+
+        return channels, distances
