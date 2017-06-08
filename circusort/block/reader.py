@@ -12,6 +12,7 @@ class Reader(Block):
 
     params = {'data_path'     : '/tmp/input.dat', 
               'dtype'         : 'float32',
+              'repeat'        : False,
               'nb_channels'   : 10,
               'nb_samples'    : 1024, 
               'sampling_rate' : 20000}
@@ -31,8 +32,13 @@ class Reader(Block):
 
     def _process(self):
         self.data = numpy.memmap(self.data_path, dtype=self.dtype, mode='r', shape=self.shape)
+
         i_min = self.nb_samples * self.counter
         i_max = self.nb_samples * (self.counter + 1)
+
+        if self.repeat:
+            i_min = i_min % self.shape[0]
+            i_max = i_max % self.shape[0]
 
         if i_min < self.shape[0]:
           self.output.send(self.data[i_min:i_max, :])
