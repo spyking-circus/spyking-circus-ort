@@ -50,13 +50,15 @@ class Synthetic_generator(block.Block):
         # Generate synthetic cells.
         self.cells = {}
         for k in range(0, self.nb_cells):
-            x_ref = np.random.uniform(self.fov['x_min'], self.fov['x_max']) # cell x-coordinate
-            y_ref = np.random.uniform(self.fov['y_min'], self.fov['y_max']) # cell y-coordinate
+            x_ref = np.random.uniform(self.fov['x_min'], self.fov['x_max']) # um # cell x-coordinate
+            y_ref = np.random.uniform(self.fov['y_min'], self.fov['y_max']) # um # cell y-coordinate
+            z_ref = 20.0 # um # cell z-coordinate
             # TODO convert the three following local variables into parameters.
             x = lambda t: x_ref # um
             y = lambda t: y_ref # um
+            z = lambda t: z_ref # um
             r = lambda t: 10.0 # Hz
-            self.cells[k] = Cell(x, y, r)
+            self.cells[k] = Cell(x, y, z, r)
         # TODO wrong code scope, should change with the chunk number.
         # for c in range(0, self.nb_cells):
         #     cell = self.cells[c]
@@ -102,14 +104,15 @@ class Synthetic_generator(block.Block):
                         i, j, v = cells[c].get_waveform(chunk_number, probe)
                         # Get spike train.
                         spike_train = spike_trains_buffer_curr[c]
+                        # Add waveforms into the data.
                         for t in spike_train:
                             b = np.logical_and(0 <= t + i, t + i < nb_samples)
                             data[t + i[b], j[b]] = data[t + i[b], j[b]] + v[b]
+                            # TODO Manage edge effects.
                     # Finally, send data to main thread and update chunk number.
                     data = np.transpose(data)
                     queue.put(data)
                     chunk_number += 1
-            # TODO complete.
             return
         ## Define background thread for data generation.
         args = (self.rpc_queue, self.queue, self.nb_channels, self.probe, self.nb_samples, self.nb_cells, self.cells)
@@ -142,7 +145,7 @@ class Synthetic_generator(block.Block):
 
 class Cell(object):
 
-    def __init__(self, x, y, r, t='default', sr=20.0e+3, rp=20.0e-3):
+    def __init__(self, x, y, z, r, t='default', sr=20.0e+3, rp=20.0e-3):
         '''TODO add docstring.
 
         Parameters
@@ -151,6 +154,8 @@ class Cell(object):
             Cell x-coordinate through time (i.e. chunk number).
         y: function (int -> float)
             Cell y-coordinate through time (i.e. chunk number).
+        z: function (int -> float)
+            Cell z-coordinate through time (i.e. chunk number).
         r: function (int -> float)
             Cell firing rate through time (i.e. chunk number).
         t: string (default: 'default')
@@ -162,19 +167,11 @@ class Cell(object):
         '''
         self.x = x # cell x-coordinate through time (i.e. chunk number)
         self.y = y # cell y-coordinate through time (i.e. chunk number)
+        self.z = z # cell z-coordinate through time (i.e. chunk number)
         self.r = r # cell firing rate through time (i.e. chunk number)
         self.t = t # cell type
         self.sr = sr # sampling_rate
         self.rp = rp # refactory period
-
-        # Define the waveform associated to the cell.
-        self.n_t_ante = 10
-        self.n_t_post = 20
-        self.n_t = self.n_t_ante + self.n_t_post
-        t = np.linspace(-self.n_t_ante, self.n_t_post, num=self.n_t, endpoint=False)
-        t = t + float(self.n_t_ante)
-        t = t / self.sr
-        self.waveform = t * np.exp(- 4000.0 * t)
 
         self.buffered_spike_times = np.array([], dtype='float')
 
@@ -221,11 +218,15 @@ class Cell(object):
         r = 100.0 # um
         channels, distances = probe.get_channels_around(x, y, r)
 
+        z = self.z(chunk_number)
+        distances = np.sqrt(np.power(distances, 2.0) + z ** 2)
+
         i = np.tile(steps, channels.size)
         j = np.repeat(channels, steps.size)
         v = np.zeros((steps.size, channels.size))
+        half_distance = 45.0 # um
         for k in range(0, channels.size):
-            coef = 1.0 / (1.0 + (distances[k] / 45.0) ** 2.0) # coefficient of attenuation
+            coef = 1.0 / (1.0 + (distances[k] / half_distance) ** 2.0) # coefficient of attenuation
             v[:, k] = coef * u
         v = np.transpose(v)
         v = v.flatten()
