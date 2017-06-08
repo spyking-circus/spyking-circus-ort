@@ -19,23 +19,23 @@ class Channel_selector(Block):
         if len(self.channels) > 0:
             nb_channels = len(self.channels)
         else:
-            nb_channels = self.input.shape[0]
+            nb_channels = self.input.shape[1]
         return nb_channels
 
     @property
     def nb_samples(self):
-        return self.input.shape[1]
+        return self.input.shape[0]
 
     def _initialize(self):
         return
 
     def _guess_output_endpoints(self):
-        self.output.configure(dtype=self.input.dtype, shape=(self.nb_channels, self.nb_samples))
+        self.output.configure(dtype=self.input.dtype, shape=(self.nb_samples, self.nb_channels))
 
     def _process(self):
         batch = self.input.receive()
         if len(self.channels) > 0:
-            batch = batch[self.channels]
+            batch = batch[:, self.channels]
 
-        self.output.send(batch.flatten())
+        self.output.send(batch)
         return

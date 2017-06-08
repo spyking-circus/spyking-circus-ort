@@ -51,6 +51,7 @@ class Template_updater(Block):
             os.makedirs(self.data_path)
         self.log.info('{n} records templates into {k}'.format(k=self.data_path, n=self.name))        
         self.template_store = TemplateStore(os.path.join(self.data_path, 'template_store.h5'))
+        self.overlap_store  = OverlapStore(os.path.join(self.data_path, 'overlap_store.h5'))
         return
 
     @property
@@ -243,15 +244,9 @@ class Template_updater(Block):
                 
                 self.template_store.add(params)
 
-                #params = {'templates' : self.templates[:, nb_before:], 
-                #          'indices'   : new_templates}
-
-                #if self.two_components:
-                #    params['templates2'] = self.templates2
-
-                #self.overlap_store.add(params)
-
+                #self.overlap_store.add(new_templates, params)
                 self._update_overlaps(new_templates)
                 save_pickle(self.overlaps_file, self.overlaps)
-                self.output.send({'store_file' : self.template_store.file_name, 'indices' : new_templates, 'overlaps' : self.overlaps_file})
+
+                self.output.send({'templates_file' : self.template_store.file_name, 'indices' : new_templates, 'overlaps' : self.overlaps_file})
         return

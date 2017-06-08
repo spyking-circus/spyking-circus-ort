@@ -31,7 +31,7 @@ class Writer(Block):
     def _process(self):
         batch = self.input.receive()
         if self.input.structure == 'array':
-            self.file.write(batch.T.tostring())
+            self.file.write(batch.tostring())
         else:
             self.log.error('{n} can only write arrays'.format(n=self.name))
         return

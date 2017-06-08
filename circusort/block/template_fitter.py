@@ -2,6 +2,7 @@ from .block import Block
 import numpy
 import scipy.sparse
 from circusort.io.template import TemplateStore
+#from circusort.io.template import OverlapStore
 from circusort.io.utils import load_pickle
 
 
@@ -40,11 +41,11 @@ class Template_fitter(Block):
 
     @property
     def nb_channels(self):
-        return self.inputs['data'].shape[0]
+        return self.inputs['data'].shape[1]
 
     @property
     def nb_samples(self):
-        return self.inputs['data'].shape[1]
+        return self.inputs['data'].shape[0]
 
     @property
     def nb_templates(self):
@@ -90,7 +91,7 @@ class Template_fitter(Block):
 
         if n_peaks > 0:
 
-            batch     = batch.flatten()
+            batch     = batch.T.flatten()
             sub_batch = numpy.zeros((self.nb_channels*self._spike_width_, n_peaks), dtype=numpy.float32)
 
             for count, peak in enumerate(peaks):
@@ -193,7 +194,7 @@ class Template_fitter(Block):
                 self._set_active_mode()
 
             while peaks.pop('offset')/self.nb_samples < self.counter:
-                    peaks = self.inputs['peaks'].receive()
+                peaks = self.inputs['peaks'].receive()
 
             self.offset = self.counter * self.nb_samples
 
@@ -202,7 +203,9 @@ class Template_fitter(Block):
             if updater is not None:
 
                 if self.template_store is None:
-                    self.template_store = TemplateStore(updater['store_file'], 'r', self.two_components)
+                    self.template_store = TemplateStore(updater['templates_file'], 'r', self.two_components)
+                #if self.overlap_store is None:
+                #    self.overlap_store = TemplateStore(updater['overlaps_file'], 'r')
 
                 data            = self.template_store.get(updater['indices'])
                 self.norms      = numpy.concatenate((self.norms, data.pop('norms')))
@@ -214,7 +217,8 @@ class Template_fitter(Block):
                     self.templates = scipy.sparse.vstack((self.templates, data.pop('templates2').T), 'csr')
                 
                 self.overlaps  = load_pickle(updater['overlaps'])
-                
+                #self.overlap_store.update_overlaps(updater['indices'])
+
             if self.nb_templates > 0:
                 self._fit_chunk(batch, peaks)
                 self.output.send(self.result)

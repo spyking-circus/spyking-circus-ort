@@ -49,11 +49,11 @@ class Oscilloscope(Block):
 
     @property
     def nb_channels(self):
-        return self.inputs['data'].shape[0]
+        return self.inputs['data'].shape[1]
 
     @property
     def nb_samples(self):
-        return self.inputs['data'].shape[1]
+        return self.inputs['data'].shape[0]
 
     def _guess_output_endpoints(self):
         pass
@@ -75,17 +75,18 @@ class Oscilloscope(Block):
 
         if not getattr(self, 'data_available', False):
             return
+
         self.data_available = False
 
         if self.data_lines is None:
             self.data_lines = []
             for i in xrange(self.nb_channels):
                 offset = self.spacing*i
-                self.data_lines.append(pylab.plot(offset + self.batch[i, :], '0.5')[0])
+                self.data_lines.append(pylab.plot(offset + self.batch[:, i], '0.5')[0])
         else:
             for i, line in enumerate(self.data_lines):
                 offset = self.spacing*i
-                line.set_ydata(offset + self.batch[i, :])
+                line.set_ydata(offset + self.batch[:, i])
 
         if self.thresholds is not None:
             if self.threshold_lines is None:
@@ -125,6 +126,4 @@ class Oscilloscope(Block):
             
         pylab.gca().set_title('Buffer %d' %self.counter)
         pylab.draw()
-        # pylab.savefig(os.path.join(self.data_path, 'oscillo_%05d.png' %self.counter))
-
         return

@@ -22,20 +22,20 @@ class Buffer(Block):
 
     @property
     def nb_channels(self):
-        return self.input.shape[0]
+        return self.input.shape[1]
 
     @property
     def nb_samples(self):
-        return self.input.shape[1]
+        return self.input.shape[0]
 
     def _guess_output_endpoints(self):
-        shape       = (self.nb_channels, self.nb_samples + self._buffer_width_)
+        shape       = (self.nb_samples + self._buffer_width_, self.nb_channels)
         self.buffer = numpy.zeros(shape, dtype=self.input.dtype)
         self.output.configure(dtype=self.input.dtype, shape=shape)
 
     def _process(self):
         batch = self.input.receive()
-        self.buffer[:, self._buffer_width_:] = batch
+        self.buffer[self._buffer_width_:, :] = batch
         self.output.send(self.buffer)
-        self.buffer[:, :self._buffer_width_] = self.buffer[:, -self._buffer_width_:]
+        self.buffer[:self._buffer_width_, :] = self.buffer[-self._buffer_width_:, :]
         return

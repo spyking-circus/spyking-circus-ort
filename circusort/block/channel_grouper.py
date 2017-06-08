@@ -18,12 +18,12 @@ class Channel_grouper(Block):
     def nb_channels(self):
         shape = 0
         for i in xrange(self.nb_groups):
-            shape += self.get_input('data_%d' %i).shape[0]
+            shape += self.get_input('data_%d' %i).shape[1]
         return shape
 
     @property
     def nb_samples(self):
-        return self.get_input('data_0').shape[1]
+        return self.get_input('data_0').shape[0]
 
     @property
     def dtype(self):
@@ -35,8 +35,8 @@ class Channel_grouper(Block):
 
     def _guess_output_endpoints(self):
         try:
-            self.output.configure(dtype=self.dtype, shape=(self.nb_channels, self.nb_samples))
-            self.result = numpy.zeros((self.nb_channels, self.nb_samples), dtype=self.dtype)
+            self.output.configure(dtype=self.dtype, shape=(self.nb_samples, self.nb_channels))
+            self.result = numpy.zeros((self.nb_samples, self.nb_channels), dtype=self.dtype)
         except Exception:
             self.log.debug('Not all input connections have been established!')
 
@@ -45,7 +45,7 @@ class Channel_grouper(Block):
         
         for i in xrange(self.nb_groups):
             batch = self.get_input('data_%i' %i).receive()
-            self.result[i::self.nb_groups] = batch
+            self.result[:, i::self.nb_groups] = batch
 
-        self.output.send(self.result.flatten())
+        self.output.send(self.result)
         return

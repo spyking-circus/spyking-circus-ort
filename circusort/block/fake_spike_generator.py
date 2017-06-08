@@ -22,11 +22,11 @@ class Fake_spike_generator(Block):
         self.add_output('data')
 
     def _initialize(self):
-        self.output.configure(dtype=self.dtype, shape=(self.nb_channels, self.nb_samples))
+        self.output.configure(dtype=self.dtype, shape=(self.nb_samples, self.nb_channels))
         self.dt         = 1./self.sampling_rate
         self.decay_time = numpy.exp(-self.dt/float(self.time_constant))
         self.noise      = numpy.zeros(self.nb_channels)
-        self.result     = numpy.zeros((self.nb_channels, self.nb_samples), dtype=self.dtype)
+        self.result     = numpy.zeros((self.nb_samples, self.nb_channels), dtype=self.dtype)
         self.positions  = numpy.random.randint(0, self.nb_channels, self.nb_cells)
         self.amplitudes = 0.1*numpy.ones(self.nb_cells)
         self.refrac     = int(self.refractory * 1e-3 * self.sampling_rate)
@@ -41,7 +41,7 @@ class Fake_spike_generator(Block):
     def _process(self):
 
         for i in xrange(0, self.nb_samples-1):
-            self.result[:, i+1] = self.result[:, i]*self.decay_time + 2*numpy.random.randn(self.nb_channels)*self.dt
+            self.result[i+1, :] = self.result[i, :]*self.decay_time + 2*numpy.random.randn(self.nb_channels)*self.dt
 
         ## Add fake spikes
         for i in xrange(self.nb_cells):
@@ -52,10 +52,10 @@ class Fake_spike_generator(Block):
             t_last = - self.refrac
             for scount, spike in enumerate(spikes):
                 if (spike - t_last) > self.refrac and (self.nb_samples - spike) > self._nb_steps:
-                    self.result[pos, spike:spike+self._nb_steps] += amp*self.waveform
+                    self.result[spike:spike+self._nb_steps, pos] += amp*self.waveform
 
         time.sleep(self.nb_samples/self.sampling_rate)
         self.output.send(self.result)
-        self.result[:, 0] = self.result[:, -1]*self.decay_time + numpy.random.randn(self.nb_channels)*self.dt
+        self.result[0, :] = self.result[-1, :]*self.decay_time + numpy.random.randn(self.nb_channels)*self.dt
         
         return
