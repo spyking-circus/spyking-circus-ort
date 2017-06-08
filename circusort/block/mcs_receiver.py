@@ -17,7 +17,9 @@ class Mcs_receiver(Block):
         'dtype'        : 'uint16',
         'nb_channels'  : 261,
         'nb_samples'   : 2000,
-        'sampling_rate': 20000
+        'sampling_rate': 20000, 
+        'host'         : '127.0.0.1',
+        'port'         : 8888,
     }
 
 
@@ -55,12 +57,12 @@ class Mcs_receiver(Block):
                 queue.put(recv_string)
 
         # Prepare background thread for data acquisition.
-        args = (self.queue, self.size, self.transmitter_host, self.transmitter_port)
+        args = (self.queue, self.size, self.host, self.port)
         self.recv_thread = threading.Thread(target=recv_target, args=args)
         self.recv_thread.deamon = True
 
         # Launch background thread for data acquisition.
-        self.log.info("{n} launches background thread for data acquisition...".format(n=self.name))
+        self.log.info("{n} starts listening for data on {f}...".format(n=self.name, f="%s:%d" %(self.host, self.port)))
         self.recv_thread.start()
 
         return
