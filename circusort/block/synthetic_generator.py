@@ -83,6 +83,12 @@ class Synthetic_generator(block.Block):
                 hdf5_cell.create_dataset('z', (0,), dtype='float', maxshape=(2**32,))
                 hdf5_cell.create_dataset('r', (0,), dtype='float', maxshape=(2**32,))
                 hdf5_cell.create_dataset('spike_times', (0,), dtype='int', maxshape=(2**32,))
+                s, u = self.cells[c].get_waveform()
+                hdf5_cell_waveform = hdf5_cell.create_group('waveform')
+                hdf5_s = hdf5_cell_waveform.create_dataset('x', s.shape, dtype=s.dtype)
+                hdf5_s[...] = s
+                hdf5_u = hdf5_cell_waveform.create_dataset('y', u.shape, dtype=u.dtype)
+                hdf5_u[...] = u
             # Generate spikes for the third part of this buffer.
             chunk_number = 0
             for c in range(0, nb_cells):
@@ -100,7 +106,7 @@ class Synthetic_generator(block.Block):
                     # 3. Reconstruct signal from spike trains.
                     for c in range(0, nb_cells):
                         # Get waveform.
-                        i, j, v = cells[c].get_waveform(chunk_number, probe)
+                        i, j, v = cells[c].get_waveforms(chunk_number, probe)
                         # Get spike train.
                         spike_train = spike_trains_buffer_curr[c]
                         # Add waveforms into the data.
@@ -213,18 +219,28 @@ class Cell(object):
 
         return spike_steps
 
-    def get_waveform(self, chunk_number, probe):
+    def get_waveform(self):
         '''TODO add docstring.'''
+
+        tau = 1.5e-3 # s # characteristic time
+        amp = -40.0 # um # minimal voltage
 
         i_start = -20
         i_stop = +60
         steps = np.arange(i_start, i_stop + 1)
-        # TODO find a a good expresion for waveforms.
         times = steps.astype('float') / self.sr
         times = times - times[0]
         u = np.sin(4.0 * np.pi * times / times[-1])
-        u = u * np.power(times * np.exp(- times / 1.5e-3), 10.0)
-        u = 40.0 * u / np.amax(u)
+        u = u * np.power(times * np.exp(- times / tau), 10.0)
+        u = u * (amp / np.amin(u))
+
+        return steps, u
+
+
+    def get_waveforms(self, chunk_number, probe):
+        '''TODO add docstring.'''
+
+        steps, u = self.get_waveform()
 
         x = self.x(chunk_number)
         y = self.y(chunk_number)
