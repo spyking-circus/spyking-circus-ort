@@ -75,6 +75,7 @@ class Oscilloscope(Block):
 
         if not getattr(self, 'data_available', False):
             return
+            
         self.data_available = False
 
         if self.data_lines is None:

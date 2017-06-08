@@ -194,7 +194,7 @@ class Template_fitter(Block):
                 self._set_active_mode()
 
             while peaks.pop('offset')/self.nb_samples < self.counter:
-                    peaks = self.inputs['peaks'].receive()
+                peaks = self.inputs['peaks'].receive()
 
             self.offset = self.counter * self.nb_samples
 
