@@ -41,34 +41,22 @@ class Synthetic_generator(block.Block):
 
         # Retrieve the geometry of the probe.
         self.probe = io.Probe(self.probe_filename)
-        # TODO remove following line.
-        # self.log.info("probe: {}".format(self.probe))
         self.nb_channels = self.probe.nb_channels
-        # TODO remove following line.
-        # self.log.info("nb_channels: {}".format(self.nb_channels))
         self.fov = self.probe.field_of_view
-        # TODO remove following line.
-        self.log.info("field_of_view: {}".format(self.fov))
 
         # Generate synthetic cells.
         self.cells = {}
-        for k in range(0, self.nb_cells):
+        for c in range(0, self.nb_cells):
             x_ref = np.random.uniform(self.fov['x_min'], self.fov['x_max']) # um # cell x-coordinate
             y_ref = np.random.uniform(self.fov['y_min'], self.fov['y_max']) # um # cell y-coordinate
             z_ref = 20.0 # um # cell z-coordinate
+            r_ref = 5.0 # Hz # cell firing rate
             # TODO convert the three following local variables into parameters.
-            x = lambda t: x_ref # um
-            y = lambda t: y_ref # um
-            z = lambda t: z_ref # um
-            r = lambda t: 10.0 # Hz
-            self.cells[k] = Cell(x, y, z, r)
-        # TODO wrong code scope, should change with the chunk number.
-        # for c in range(0, self.nb_cells):
-        #     cell = self.cells[c]
-        #     r = 100.0 # um
-        #     channels, distances = self.probe.get_channels_around(cell.x(0), cell.y(0), r)
-        #     cell.channels = channels
-
+            x = (lambda x: lambda t: x)(x_ref)
+            y = (lambda y: lambda t: y)(y_ref)
+            z = (lambda z: lambda t: z)(z_ref)
+            r = (lambda r: lambda t: r)(r_ref)
+            self.cells[c] = Cell(x, y, z, r, t='{}'.format(c))
 
         # Configure the data output of this block.
         self.output.configure(dtype=self.dtype, shape=(self.nb_channels, self.nb_samples))
@@ -124,13 +112,13 @@ class Synthetic_generator(block.Block):
                     for c in range(0, nb_cells):
                         spike_times = spike_trains_buffer_curr[c] + chunk_number * nb_samples
                         utils.append_hdf5(hdf5_file['cell_{}/spike_times'.format(c)], spike_times)
-                        r = cells[k].r(chunk_number)
+                        r = cells[c].r(chunk_number)
                         utils.append_hdf5(hdf5_file['cell_{}/r'.format(c)], [r])
-                        x = cells[k].x(chunk_number)
+                        x = cells[c].x(chunk_number)
                         utils.append_hdf5(hdf5_file['cell_{}/x'.format(c)], [x])
-                        y = cells[k].y(chunk_number)
+                        y = cells[c].y(chunk_number)
                         utils.append_hdf5(hdf5_file['cell_{}/y'.format(c)], [y])
-                        z = cells[k].z(chunk_number)
+                        z = cells[c].z(chunk_number)
                         utils.append_hdf5(hdf5_file['cell_{}/z'.format(c)], [z])
                     # Finally, send data to main thread and update chunk number.
                     data = np.transpose(data)
@@ -189,6 +177,7 @@ class Cell(object):
         rp: float (default: 20.0e-3 s)
             Refactory period.
         '''
+
         self.x = x # cell x-coordinate through time (i.e. chunk number)
         self.y = y # cell y-coordinate through time (i.e. chunk number)
         self.z = z # cell z-coordinate through time (i.e. chunk number)
@@ -256,12 +245,3 @@ class Cell(object):
         v = v.flatten()
 
         return i, j, v
-
-
-
-class Channel(object):
-
-    def __init__(self, x, y):
-
-        self.x = x # channel x-coordinate
-        self.y = y # channel y-coordinate
