@@ -4,6 +4,7 @@ tests/*
 !tests/test_2op_1bl_1mg/
 !tests/test_2op_2bl_1mg.py
 !tests/test_2op_2bl_2mg.py
+!tests/test_syn_gen.py
 *settings.py
 
 # Byte-compiled / optimized / DLL files
