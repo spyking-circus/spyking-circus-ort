@@ -1,31 +1,9 @@
 from .block import Block
 import numpy
-import sys
 import scipy.sparse
-from circusort.io.utils import load_pickle, save_pickle
-
-def load_data(filename, two_components=False, format='csr'):
-    loader = numpy.load(filename + '.npz')
-    if two_components == False:
-        if format == 'csr':
-            template = scipy.sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']),
-                          shape=loader['shape'])
-        elif format == 'csc':
-            template = scipy.sparse.csc_matrix((loader['data'], loader['indices'], loader['indptr']),
-                          shape=loader['shape'])
-        return template, loader['norms'], loader['amplitudes']
-    else:
-        if format == 'csr':
-            template  = scipy.sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']),
-                          shape=loader['shape'])
-            template2 = scipy.sparse.csr_matrix((loader['data2'], loader['indices'], loader['indptr']),
-                          shape=loader['shape'])
-        elif format == 'csc':
-            template = scipy.sparse.csc_matrix((loader['data'], loader['indices'], loader['indptr']),
-                          shape=loader['shape'])
-            template2 = scipy.sparse.csc_matrix((loader['data2'], loader['indices'], loader['indptr']),
-                          shape=loader['shape'])
-        return template, loader['norms'], loader['amplitudes'], template2, loader['norms2']
+from circusort.io.template import TemplateStore
+#from circusort.io.template import OverlapStore
+from circusort.io.utils import load_pickle
 
 
 class Template_fitter(Block):
@@ -46,9 +24,14 @@ class Template_fitter(Block):
         self.add_output('spikes', 'dict')
 
     def _initialize(self):
-        self.space_explo   = 0.5
-        self.nb_chances    = 3
-        self._spike_width_ = int(self.sampling_rate*self.spike_width*1e-3)
+        self.space_explo    = 0.5
+        self.nb_chances     = 3
+        self._spike_width_  = int(self.sampling_rate*self.spike_width*1e-3)
+        self.template_store = None
+        self.norms          = numpy.zeros(0, dtype=numpy.float32)
+        self.amplitudes     = numpy.zeros((0, 2), dtype=numpy.float32)
+        if self.two_components:
+            self.norms2     = numpy.zeros(0, dtype=numpy.float32)
 
         if numpy.mod(self._spike_width_, 2) == 0:
             self._spike_width_ += 1
@@ -58,11 +41,11 @@ class Template_fitter(Block):
 
     @property
     def nb_channels(self):
-        return self.inputs['data'].shape[0]
+        return self.inputs['data'].shape[1]
 
     @property
     def nb_samples(self):
-        return self.inputs['data'].shape[1]
+        return self.inputs['data'].shape[0]
 
     @property
     def nb_templates(self):
@@ -72,10 +55,10 @@ class Template_fitter(Block):
             return self.templates.shape[0]
 
     def _guess_output_endpoints(self):
-        self._nb_elements  = self.nb_channels*self._spike_width_
-        self.templates     = scipy.sparse.csc_matrix((0, self._nb_elements), dtype=numpy.float32)
-        self.slice_indices = numpy.zeros(0, dtype=numpy.int32)
-        temp_window        = numpy.arange(-self._width, self._width + 1)
+        self._nb_elements   = self.nb_channels*self._spike_width_
+        self.templates      = scipy.sparse.csr_matrix((0, self._nb_elements), dtype=numpy.float32)
+        self.slice_indices  = numpy.zeros(0, dtype=numpy.int32)
+        temp_window         = numpy.arange(-self._width, self._width + 1)
         for idx in xrange(self.nb_channels):
             self.slice_indices = numpy.concatenate((self.slice_indices, self.nb_samples*idx + temp_window))
 
@@ -108,7 +91,7 @@ class Template_fitter(Block):
 
         if n_peaks > 0:
 
-            batch     = batch.flatten()
+            batch     = batch.T.flatten()
             sub_batch = numpy.zeros((self.nb_channels*self._spike_width_, n_peaks), dtype=numpy.float32)
 
             for count, peak in enumerate(peaks):
@@ -211,21 +194,31 @@ class Template_fitter(Block):
                 self._set_active_mode()
 
             while peaks.pop('offset')/self.nb_samples < self.counter:
-                    peaks = self.inputs['peaks'].receive()
+                peaks = self.inputs['peaks'].receive()
 
             self.offset = self.counter * self.nb_samples
 
             updater  = self.inputs['updater'].receive(blocking=False)
             
             if updater is not None:
-                if not self.two_components:
-                    self.templates, self.norms, self.amplitudes  = load_data(updater['templates'], format='csc')
-                    self.templates = self.templates.T
-                else:
-                    self.templates, self.norms, self.amplitudes, self.templates2, self.norms2  = load_data(updater['templates'], two_components=True, format='csc')
-                    self.templates  = scipy.sparse.vstack((self.templates.T, self.templates2.T))
-                self.overlaps  = load_pickle(updater['overlaps'])
+
+                if self.template_store is None:
+                    self.template_store = TemplateStore(updater['templates_file'], 'r', self.two_components)
+                #if self.overlap_store is None:
+                #    self.overlap_store = TemplateStore(updater['overlaps_file'], 'r')
+
+                data            = self.template_store.get(updater['indices'])
+                self.norms      = numpy.concatenate((self.norms, data.pop('norms')))
+                self.amplitudes = numpy.vstack((self.amplitudes, data.pop('amplitudes')))
+                self.templates  = scipy.sparse.vstack((self.templates, data.pop('templates').T), 'csr')
+
+                if self.two_components:
+                    self.norms2    = numpy.concatenate((self.norms2, data.pop('norms2')))
+                    self.templates = scipy.sparse.vstack((self.templates, data.pop('templates2').T), 'csr')
                 
+                self.overlaps  = load_pickle(updater['overlaps'])
+                #self.overlap_store.update_overlaps(updater['indices'])
+
             if self.nb_templates > 0:
                 self._fit_chunk(batch, peaks)
                 self.output.send(self.result)

@@ -126,6 +126,7 @@ class OnlineManager(object):
         self.nb_dimensions = sub_data.shape[1]
         amplitudes         = numpy.zeros((0, 2), dtype=numpy.float32)
         templates          = numpy.zeros((0, self.pca.shape[0]), dtype=numpy.float32)
+        indices            = numpy.zeros(0, dtype=numpy.int32)
         if two_components:
             templates2     = numpy.zeros((0, self.pca.shape[0]), dtype=numpy.float32)
     
@@ -137,6 +138,7 @@ class OnlineManager(object):
             template   = numpy.median(data[indices], 0)
             amplitudes = numpy.vstack((amplitudes, self._compute_amplitudes(data[indices], template)))
             templates  = numpy.vstack((templates, template))
+            indices    = numpy.concatenate((indices, [count]))
             if two_components:
                 templates2 = numpy.vstack((templates2, self._compute_template2(data[indices], template)))
 
@@ -150,9 +152,9 @@ class OnlineManager(object):
         self.log.debug('{n} is initialized with {k} templates'.format(n=self.name, k=len(self.clusters)))
 
         if two_components:
-            return {'dat' : templates, 'two' : templates2, 'amp' : amplitudes}
+            return {'dat' : templates, 'two' : templates2, 'amp' : amplitudes, 'ind' : indices}
         else:
-            return {'dat' : templates, 'amp' : amplitudes}
+            return {'dat' : templates, 'amp' : amplitudes, 'ind' : indices}
 
     @property
     def nb_sparse(self):
@@ -356,7 +358,7 @@ class OnlineManager(object):
         return template2.reshape(1, template2.size)
 
 
-    def cluster(self, get_new=True, get_merged=False, two_components=False):
+    def cluster(self, tracking=True, two_components=False):
 
         self.log.debug('{n} launches clustering'.format(n=self.name))
         centers       = self._get_centers('dense')
@@ -377,36 +379,40 @@ class OnlineManager(object):
 
         templates  = numpy.zeros((0, self.pca.shape[0]), dtype=numpy.float32)
         amplitudes = numpy.zeros((0, 2), dtype=numpy.float32)
-        if two_components:
+        indices    = numpy.zeros(0, dtype=numpy.int32)
 
+        if two_components:
             templates2 = numpy.zeros((0, self.pca.shape[0]), dtype=numpy.float32)
 
-        if get_new:
-            for key, value in changes['new'].items():
-                data       = centers_full[labels == key]
-                template   = numpy.median(data, 0)
-                templates  = numpy.vstack((templates, template))
-                amplitudes = numpy.vstack((amplitudes, self._compute_amplitudes(data, template)))
-                if two_components:
-                    template2  = self._compute_template2(data, template)
-                    templates2 = numpy.vstack((templates2, template2))
+        for key, value in changes['new'].items():
+            data       = centers_full[labels == key]
+            template   = numpy.median(data, 0)
+            templates  = numpy.vstack((templates, template))
+            amplitudes = numpy.vstack((amplitudes, self._compute_amplitudes(data, template)))
+            indices    = numpy.concatenate((indices, [value]))
+            if two_components:
+                template2  = self._compute_template2(data, template)
+                templates2 = numpy.vstack((templates2, template2))
 
-        if get_merged:
+        self.log.debug('{n} found {a} new templates: {s}'.format(n=self.name, a=len(changes['new']), s=changes['new']))
+
+        if tracking:
             for key, value in changes['merged'].items():
-                data       = centers_full[labels == key]
+                data       = centers_full[labels == value]
                 template   = numpy.median(data, 0)
                 templates  = numpy.vstack((templates, template))
                 amplitudes = numpy.vstack((amplitudes, self._compute_amplitudes(data, template)))
+                indices    = numpy.concatenate((indices, [key]))
                 if two_components:
                     template2  = self._compute_template2(data, template)
                     templates2 = numpy.vstack((templates2, template2))
 
-        self.log.debug('{n} found {a} new templates and {b} modified ones'.format(n=self.name, a=len(changes['new']), b=len(changes['merged'])))
+            self.log.debug('{n} modified {a} templates with tracking: {s}'.format(n=self.name, a=len(changes['merged']), s=changes['merged'].values()))
 
         if two_components:
-            return {'dat' : templates, 'two' : templates2, 'amp' : amplitudes}
+            return {'dat' : templates, 'two' : templates2, 'amp' : amplitudes, 'ind' : indices}
         else:
-            return {'dat' : templates, 'amp' : amplitudes}
+            return {'dat' : templates, 'amp' : amplitudes, 'ind' : indices}
 
 
             

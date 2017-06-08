@@ -30,7 +30,8 @@ class Density_clustering(Block):
               'sigma_rad'     : 3,
               'epsilon'       : 0.1,
               'frequency'     : 500,
-              'theta'         : -numpy.log(0.001)}
+              'theta'         : -numpy.log(0.001), 
+              'tracking'      : False}
 
     def __init__(self, **kwargs):
 
@@ -55,6 +56,10 @@ class Density_clustering(Block):
             self._spike_width_ += 1
         self._width = (self._spike_width_-1)//2
 
+        self.all_keys = ['dat', 'amp', 'ind']
+        if self.two_components:
+            self.all_keys += ['two']
+
         if self.alignment:
             self.cdata = numpy.linspace(-self._width, self._width, 5*self._spike_width_)
             self.xdata = numpy.arange(-2*self._width, 2*self._width + 1)
@@ -62,11 +67,11 @@ class Density_clustering(Block):
 
     @property
     def nb_channels(self):
-        return self.inputs['data'].shape[0]
+        return self.inputs['data'].shape[1]
 
     @property
     def nb_samples(self):
-        return self.inputs['data'].shape[1]
+        return self.inputs['data'].shape[0]
 
     def _get_all_valid_peaks(self, peaks, shuffle=True):
         all_peaks = {}
@@ -105,17 +110,17 @@ class Density_clustering(Block):
         indices = self._get_extrema_indices(peak, peaks)
 
         if key == 'negative':
-            channel = numpy.argmin(batch[indices, peak])
+            channel = numpy.argmin(batch[peak, indices])
             is_neg  = True
         elif key == 'positive':
-            channel = numpy.argmax(batch[indices, peak])
+            channel = numpy.argmax(batch[peak, indices])
             is_neg  = False
         elif key == 'both':
-            if numpy.abs(numpy.max(batch[indices, peak])) > numpy.abs(numpy.min(batch[indices, peak])):
-                channel = numpy.argmax(batch[indices, peak])
+            if numpy.abs(numpy.max(batch[peak, indices])) > numpy.abs(numpy.min(batch[peak, indices])):
+                channel = numpy.argmax(batch[peak, indices])
                 is_neg  = False
             else:
-                channel = numpy.argmin(batch[indices, peak])
+                channel = numpy.argmin(batch[peak, indices])
                 is_neg = True
 
         return indices[channel], is_neg
@@ -124,7 +129,7 @@ class Density_clustering(Block):
         indices = self.probe.edges[channel]
         if self.alignment:    
             idx     = self.chan_positions[channel]
-            zdata   = batch[indices, peak - 2*self._width:peak + 2*self._width + 1]
+            zdata   = batch[peak - 2*self._width:peak + 2*self._width + 1, indices]
             ydata   = numpy.arange(len(indices))
 
             if len(ydata) == 1:
@@ -136,15 +141,15 @@ class Density_clustering(Block):
                 ddata    = numpy.linspace(rmin - self._width, rmin + self._width, self._spike_width_)
                 sub_mat  = f(ddata).astype(numpy.float32).reshape(1, self._spike_width_)
             else:
-                f        = scipy.interpolate.RectBivariateSpline(ydata, self.xdata, zdata, s=0, kx=min(len(ydata)-1, 3))
+                f        = scipy.interpolate.RectBivariateSpline(self.xdata, ydata, zdata, s=0, ky=min(len(ydata)-1, 3))
                 if is_neg:
-                    rmin = (numpy.argmin(f(idx, self.cdata)[0, :]) - len(self.cdata)/2.)/5.
+                    rmin = (numpy.argmin(f(self.cdata, idx)[:, 0]) - len(self.cdata)/2.)/5.
                 else:
-                    rmin = (numpy.argmax(f(idx, self.cdata)[0, :]) - len(self.cdata)/2.)/5.
+                    rmin = (numpy.argmax(f(self.cdata, idx)[:, 0]) - len(self.cdata)/2.)/5.
                 ddata    = numpy.linspace(rmin-self._width, rmin+self._width, self._spike_width_)
-                sub_mat  = f(ydata, ddata).astype(numpy.float32)
+                sub_mat  = f(ddata, ydata).astype(numpy.float32)
         else:
-            sub_mat = batch[indices, peak - self._width:peak + self._width + 1]
+            sub_mat = batch[peak - self._width:peak + self._width + 1, indices]
 
         return sub_mat
 
@@ -160,10 +165,8 @@ class Density_clustering(Block):
         self.templates  = {}
         self.managers   = {}
 
-        self.templates['dat'] = {}
-        self.templates['amp'] = {}
-        if self.two_components:
-            self.templates['two'] = {}
+        for k in self.all_keys:
+            self.templates[k] = {}
 
         if not numpy.all(self.pcs[0] == 0):
             self.sign_peaks += ['negative']
@@ -174,10 +177,9 @@ class Density_clustering(Block):
         for key in self.sign_peaks:
             self.raw_data[key] = {}
             self.managers[key] = {}
-            self.templates['dat'][key] = {}
-            self.templates['amp'][key] = {}
-            if self.two_components:
-                self.templates['two'][key] = {}
+
+            for k in self.all_keys:
+                self.templates[k][key] = {}
 
             for channel in xrange(self.nb_channels):
 
@@ -201,15 +203,15 @@ class Density_clustering(Block):
         nb_elecs     = len(self.probe.edges[channel])
 
         t1 = templates.pop('dat')
-        #t1 = t1.reshape(nb_templates, nb_elecs, self._spike_width_)
-        t1 = t1.reshape(nb_templates, self._spike_width_, nb_elecs)
-        t1 = numpy.transpose(t1, axes=(0, 2, 1))
+        t1 = t1.reshape(nb_templates, nb_elecs, self._spike_width_)
+        #t1 = t1.reshape(nb_templates, self._spike_width_, nb_elecs)
+        #t1 = numpy.transpose(t1, axes=(0, 2, 1))
 
         if self.two_components:
             t2 = templates.pop('two')
-            #t2 = t2.reshape(nb_templates, nb_elecs, self._spike_width_)
-            t2 = t2.reshape(nb_templates, self._spike_width_, nb_elecs)
-            t2 = numpy.transpose(t2, axes=(0, 2, 1))
+            t2 = t2.reshape(nb_templates, nb_elecs, self._spike_width_)
+            #t2 = t2.reshape(nb_templates, self._spike_width_, nb_elecs)
+            #t2 = numpy.transpose(t2, axes=(0, 2, 1))
 
         for count in xrange(nb_templates):
             t1[count], shift  = self._center_template(t1[count], key)
@@ -220,7 +222,8 @@ class Density_clustering(Block):
         if self.two_components:
             self.templates['two'][key][channel] = t2
 
-        self.templates['amp'][key][channel] = templates.pop('amp')    
+        self.templates['amp'][key][channel] = templates.pop('amp')
+        self.templates['ind'][key][channel] = templates.pop('ind')
         self.to_reset += [(key, channel)]
 
     def _center_template(self, template, key, shift=None):
@@ -245,6 +248,7 @@ class Density_clustering(Block):
         self.raw_data[key][channel] = numpy.zeros((0, self._spike_width_ * len(self.probe.edges[channel])), dtype=numpy.float32)
         self.templates['dat'][key][channel] = numpy.zeros((0, len(self.probe.edges[channel]), self._spike_width_), dtype=numpy.float32)
         self.templates['amp'][key][channel] = numpy.zeros((0, 2), dtype=numpy.float32)
+        self.templates['ind'][key][channel] = numpy.zeros(0, dtype=numpy.int32)
         if self.two_components:
             self.templates['two'][key][channel] = numpy.zeros((0, len(self.probe.edges[channel]), self._spike_width_), dtype=numpy.float32)
 
@@ -301,7 +305,7 @@ class Density_clustering(Block):
                                 templates = self.managers[key][channel].initialize(self.counter, self.raw_data[key][channel], self.two_components)
                                 self._prepare_templates(templates, key, channel)
                             elif self.managers[key][channel].time_to_cluster(self.frequency):
-                                templates = self.managers[key][channel].cluster(two_components=self.two_components)
+                                templates = self.managers[key][channel].cluster(two_components=self.two_components, tracking=self.tracking)
                                 self._prepare_templates(templates, key, channel)
 
                     if len(self.to_reset) > 0:

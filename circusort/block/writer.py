@@ -31,10 +31,7 @@ class Writer(Block):
     def _process(self):
         batch = self.input.receive()
         if self.input.structure == 'array':
-            try:
-                self.file.write(batch.T.tostring())
-            except ValueError as e:
-                self.log.error("ValueError: {}".format(e.message))
+            self.file.write(batch.tostring())
         else:
             self.log.error('{n} can only write arrays'.format(n=self.name))
         return

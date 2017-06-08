@@ -32,11 +32,11 @@ class Peak_detector(Block):
 
     @property
     def nb_channels(self):
-        return self.inputs['data'].shape[0]
+        return self.inputs['data'].shape[1]
         
     @property
     def nb_samples(self):
-        return self.inputs['data'].shape[1]
+        return self.inputs['data'].shape[0]
 
     def _guess_output_endpoints(self):
         return
@@ -96,11 +96,11 @@ class Peak_detector(Block):
                 self.peaks[key] = {}
                 for i in xrange(self.nb_channels):
                     if key == 'negative':
-                        data = self._detect_peaks(batch[i],  thresholds[i], valley=True, mpd=self._width)
+                        data = self._detect_peaks(batch[:, i],  thresholds[i], valley=True, mpd=self._width)
                         if len(data) > 0:
                             self.peaks[key][i] = data
                     elif key == 'positive':
-                        data = self._detect_peaks(batch[i],  thresholds[i], valley=False, mpd=self._width)
+                        data = self._detect_peaks(batch[:, i],  thresholds[i], valley=False, mpd=self._width)
                         if len(data) > 0:
                             self.peaks[key][i] = data
 

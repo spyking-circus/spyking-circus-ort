@@ -27,11 +27,11 @@ class Filter(Block):
 
     @property
     def nb_channels(self):
-        return self.input.shape[0]
+        return self.input.shape[1]
 
     @property
     def nb_samples(self):
-        return self.input.shape[1]
+        return self.input.shape[0]
 
     def _guess_output_endpoints(self):
         self.output.configure(dtype=self.input.dtype, shape=self.input.shape)        
@@ -43,13 +43,13 @@ class Filter(Block):
     def _process(self):
         batch = self.input.receive()
         for i in xrange(self.nb_channels):
-            batch[i], self.z[i]  = signal.lfilter(self.b, self.a, batch[i], zi=self.z[i])
-            batch[i] -= numpy.median(batch[i]) 
+            batch[:, i], self.z[i]  = signal.lfilter(self.b, self.a, batch[:, i], zi=self.z[i])
+            batch[:, i] -= numpy.median(batch[:, i]) 
 
         if self.remove_median:
-            global_median = numpy.median(batch, 0)
+            global_median = numpy.median(batch, 1)
             for i in xrange(self.nb_channels):
-                batch[i] -= global_median
+                batch[:, i] -= global_median
         self.output.send(batch)
 
         return

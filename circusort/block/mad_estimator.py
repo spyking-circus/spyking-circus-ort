@@ -23,22 +23,22 @@ class Mad_estimator(Block):
 
     @property
     def nb_channels(self):
-        return self.input.shape[0]
+        return self.input.shape[1]
         
     @property
     def nb_samples(self):
-        return self.input.shape[1]
+        return self.input.shape[0]
 
     def _guess_output_endpoints(self):
-        self.mads         = numpy.zeros((self.nb_channels, 1), dtype=numpy.float32)
-        self.median_means = numpy.zeros((self.nb_channels, 1), dtype=numpy.float32)
+        self.mads         = numpy.zeros(self.nb_channels, dtype=numpy.float32)
+        self.median_means = numpy.zeros(self.nb_channels, dtype=numpy.float32)
         self.dt           = self.nb_samples/float(self.sampling_rate)
         self.decay_time   = numpy.exp(-self.dt/float(self.time_constant))
         self.outputs['mads'].configure(dtype='float32', shape=(self.nb_channels, 1))
         self.last_mads_mean = numpy.zeros(self.nb_channels, dtype=numpy.float32)
 
     def _check_if_active(self):
-        test = numpy.abs(numpy.mean(self.mads[:,0]/self.last_mads_mean) - 1)
+        test = numpy.abs(numpy.mean(self.mads/self.last_mads_mean) - 1)
         if (test < self.epsilon):
             self.log.info('{n} has converged'.format(n=self.name_and_counter))
             self._set_active_mode()
@@ -46,14 +46,14 @@ class Mad_estimator(Block):
     def _process(self):
         batch     = self.input.receive()
 
-        self.median_means[:,0] = self.median_means[:,0]*self.decay_time + numpy.median(batch, 1)*self.dt
-        self.mads[:,0] = self.mads[:,0]*self.decay_time + numpy.median(numpy.abs(batch) - self.median_means, 1)*self.dt
+        self.median_means = self.median_means*self.decay_time + numpy.median(batch, 0)*self.dt
+        self.mads         = self.mads*self.decay_time + numpy.median(numpy.abs(batch) - self.median_means, 0)*self.dt
 
         if not self.is_active:
             self._check_if_active()
 
         if self.is_active:
-            self.get_output('mads').send(self.threshold*self.mads.flatten())
+            self.get_output('mads').send(self.threshold*self.mads)
 
         self.last_mads_mean = self.mads
         return
