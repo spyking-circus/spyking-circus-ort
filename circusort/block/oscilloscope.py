@@ -75,7 +75,7 @@ class Oscilloscope(Block):
 
         if not getattr(self, 'data_available', False):
             return
-            
+
         self.data_available = False
 
         if self.data_lines is None:
@@ -126,6 +126,4 @@ class Oscilloscope(Block):
             
         pylab.gca().set_title('Buffer %d' %self.counter)
         pylab.draw()
-        # pylab.savefig(os.path.join(self.data_path, 'oscillo_%05d.png' %self.counter))
-
         return

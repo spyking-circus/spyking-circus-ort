@@ -141,11 +141,11 @@ class Density_clustering(Block):
                 ddata    = numpy.linspace(rmin - self._width, rmin + self._width, self._spike_width_)
                 sub_mat  = f(ddata).astype(numpy.float32).reshape(1, self._spike_width_)
             else:
-                f        = scipy.interpolate.RectBivariateSpline(self.xdata, ydata, zdata, s=0, kx=min(len(ydata)-1, 3))
+                f        = scipy.interpolate.RectBivariateSpline(self.xdata, ydata, zdata, s=0, ky=min(len(ydata)-1, 3))
                 if is_neg:
-                    rmin = (numpy.argmin(f(idx, self.cdata)[0, :]) - len(self.cdata)/2.)/5.
+                    rmin = (numpy.argmin(f(self.cdata, idx)[:, 0]) - len(self.cdata)/2.)/5.
                 else:
-                    rmin = (numpy.argmax(f(idx, self.cdata)[0, :]) - len(self.cdata)/2.)/5.
+                    rmin = (numpy.argmax(f(self.cdata, idx)[:, 0]) - len(self.cdata)/2.)/5.
                 ddata    = numpy.linspace(rmin-self._width, rmin+self._width, self._spike_width_)
                 sub_mat  = f(ddata, ydata).astype(numpy.float32)
         else:
@@ -203,15 +203,15 @@ class Density_clustering(Block):
         nb_elecs     = len(self.probe.edges[channel])
 
         t1 = templates.pop('dat')
-        #t1 = t1.reshape(nb_templates, nb_elecs, self._spike_width_)
-        t1 = t1.reshape(nb_templates, self._spike_width_, nb_elecs)
-        t1 = numpy.transpose(t1, axes=(0, 2, 1))
+        t1 = t1.reshape(nb_templates, nb_elecs, self._spike_width_)
+        #t1 = t1.reshape(nb_templates, self._spike_width_, nb_elecs)
+        #t1 = numpy.transpose(t1, axes=(0, 2, 1))
 
         if self.two_components:
             t2 = templates.pop('two')
-            #t2 = t2.reshape(nb_templates, nb_elecs, self._spike_width_)
-            t2 = t2.reshape(nb_templates, self._spike_width_, nb_elecs)
-            t2 = numpy.transpose(t2, axes=(0, 2, 1))
+            t2 = t2.reshape(nb_templates, nb_elecs, self._spike_width_)
+            #t2 = t2.reshape(nb_templates, self._spike_width_, nb_elecs)
+            #t2 = numpy.transpose(t2, axes=(0, 2, 1))
 
         for count in xrange(nb_templates):
             t1[count], shift  = self._center_template(t1[count], key)

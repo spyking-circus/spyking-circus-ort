@@ -91,7 +91,7 @@ class Template_fitter(Block):
 
         if n_peaks > 0:
 
-            batch     = batch.flatten()
+            batch     = batch.T.flatten()
             sub_batch = numpy.zeros((self.nb_channels*self._spike_width_, n_peaks), dtype=numpy.float32)
 
             for count, peak in enumerate(peaks):
@@ -204,8 +204,8 @@ class Template_fitter(Block):
 
                 if self.template_store is None:
                     self.template_store = TemplateStore(updater['templates_file'], 'r', self.two_components)
-                if self.overlap_store is None:
-                    self.overlap_store = TemplateStore(updater['overlaps_file'], 'r')
+                #if self.overlap_store is None:
+                #    self.overlap_store = TemplateStore(updater['overlaps_file'], 'r')
 
                 data            = self.template_store.get(updater['indices'])
                 self.norms      = numpy.concatenate((self.norms, data.pop('norms')))
@@ -216,8 +216,8 @@ class Template_fitter(Block):
                     self.norms2    = numpy.concatenate((self.norms2, data.pop('norms2')))
                     self.templates = scipy.sparse.vstack((self.templates, data.pop('templates2').T), 'csr')
                 
-                #self.overlaps  = load_pickle(updater['overlaps'])
-                self.overlap_store.update_overlaps(updater['indices'])
+                self.overlaps  = load_pickle(updater['overlaps'])
+                #self.overlap_store.update_overlaps(updater['indices'])
 
             if self.nb_templates > 0:
                 self._fit_chunk(batch, peaks)

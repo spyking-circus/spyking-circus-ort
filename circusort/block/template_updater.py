@@ -245,8 +245,8 @@ class Template_updater(Block):
                 self.template_store.add(params)
 
                 #self.overlap_store.add(new_templates, params)
-                #self._update_overlaps(new_templates)
-                #save_pickle(self.overlaps_file, self.overlaps)
+                self._update_overlaps(new_templates)
+                save_pickle(self.overlaps_file, self.overlaps)
 
-                self.output.send({'templates_file' : self.template_store.file_name, 'indices' : new_templates})
+                self.output.send({'templates_file' : self.template_store.file_name, 'indices' : new_templates, 'overlaps' : self.overlaps_file})
         return

@@ -23,14 +23,6 @@ class Reader(Block):
 
     def _initialize(self):
         '''TODO add docstring'''
-
-        # if not os.path.exists(self.data_path) or self.force:
-        #     # Generate input file
-        #     synthetic_grid(self.data_path,
-        #                    size=self.size,
-        #                    duration=self.duration,
-        #                    sampling_rate=self.sampling_rate)
-        # # Create input memory-map
         self.data  = numpy.memmap(self.data_path, dtype=self.dtype, mode='r')
         self.shape = (self.data.size/self.nb_channels, self.nb_channels)
         self.data  = None
