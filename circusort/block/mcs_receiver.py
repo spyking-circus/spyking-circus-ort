@@ -16,9 +16,8 @@ class Mcs_receiver(Block):
     params = {
         'dtype'        : 'uint16',
         'nb_channels'  : 261,
-        # 'nb_samples'   : 1024,
         'nb_samples'   : 2000,
-        # 'sampling_rate': 20000,
+        'sampling_rate': 20000
     }
 
 
@@ -31,10 +30,10 @@ class Mcs_receiver(Block):
     def _initialize(self):
         '''TODO add docstring.'''
 
-        self.output.configure(dtype=self.dtype, shape=(self.nb_channels, self.nb_samples))
+        self.output.configure(dtype=self.dtype, shape=(self.nb_samples, self.nb_channels))
 
         self.queue = Queue.Queue()
-        self.size = 261 * 2000 * 2 # i.e. nb_chan * nb_step * size(uint16)
+        self.size  = self.nb_channels * self.nb_samples * 2 # i.e. nb_chan * nb_step * size(uint16)
 
         def recv_target(queue, size, host, port):
             # Define the address of the input socket.
@@ -61,7 +60,7 @@ class Mcs_receiver(Block):
         self.recv_thread.deamon = True
 
         # Launch background thread for data acquisition.
-        self.log.info("Launch background thread for data acquisition...")
+        self.log.info("{n} launches background thread for data acquisition...".format(n=self.name))
         self.recv_thread.start()
 
         return
@@ -71,13 +70,9 @@ class Mcs_receiver(Block):
         '''TODO add docstring.'''
 
         recv_string = self.queue.get()
-
-        nb_recv_chan = 261
-        recv_dtype = 'uint16'
-        recv_shape = (-1, nb_recv_chan)
-        recv_data = np.fromstring(recv_string, dtype=recv_dtype)
-        recv_data = np.reshape(recv_data, recv_shape)
-        recv_data = np.transpose(recv_data)
+        recv_shape  = (-1, self.nb_channels)
+        recv_data   = np.fromstring(recv_string, dtype=self.dtype)
+        recv_data   = np.reshape(recv_data, recv_shape)
 
         self.output.send(recv_data)
 
