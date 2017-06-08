@@ -159,8 +159,6 @@ class Manager(object):
         self.log.info("{d} stops {s}".format(d=str(self), s=", ".join(self.list_blocks())))
         for block in self.blocks.itervalues():
             block.stop()
-        for block in self.blocks.itervalues():
-            block.join()
         return
 
     def __del__(self):

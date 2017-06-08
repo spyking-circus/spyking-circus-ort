@@ -87,42 +87,45 @@ class Template_fitter(Block):
 
     def _update_overlaps(self, sources):
 
-        #selection = list(set(range(self.overlaps.keys())).difference(indices))
         sources = numpy.array(sources)
 
         if self.two_components:
             sources = nupy.concatenate((sources, sources + self.nb_templates))
 
-        tmp_loc_c1 = self.templates[sources]
-        tmp_loc_c2 = self.templates
+        selection  = list(set(sources).difference(self.overlaps.keys()))
 
-        all_x      = numpy.zeros(0, dtype=numpy.int32)
-        all_y      = numpy.zeros(0, dtype=numpy.int32)
-        all_data   = numpy.zeros(0, dtype=numpy.float32)
-        
-        for idelay in self.all_delays:
-            srows    = numpy.where(self.all_cols % self._spike_width_ < idelay)[0]
-            tmp_1    = tmp_loc_c1[:, srows]
-            srows    = numpy.where(self.all_cols % self._spike_width_ >= (self._spike_width_ - idelay))[0]
-            tmp_2    = tmp_loc_c2[:, srows]
-            data     = tmp_1.dot(tmp_2.T).toarray()
+        if len(selection) > 0:
 
-            dx, dy   = data.nonzero()
-            data     = data[data.nonzero()].ravel()
-            
-            all_x    = numpy.concatenate((all_x, dx*self.nb_templates + dy))
-            all_y    = numpy.concatenate((all_y, (idelay - 1)*numpy.ones(len(dx), dtype=numpy.int32)))
-            all_data = numpy.concatenate((all_data, data))
+            tmp_loc_c1 = self.templates[selection]
+            tmp_loc_c2 = self.templates
 
-            if idelay < self._spike_width_:
-                all_x    = numpy.concatenate((all_x, dy*len(sources) + dx))
-                all_y    = numpy.concatenate((all_y, (2*self._spike_width_ - idelay - 1)*numpy.ones(len(dx), dtype=numpy.int32)))
+            all_x      = numpy.zeros(0, dtype=numpy.int32)
+            all_y      = numpy.zeros(0, dtype=numpy.int32)
+            all_data   = numpy.zeros(0, dtype=numpy.float32)
+
+            for idelay in self.all_delays:
+                scols    = numpy.where(self.all_cols % self._spike_width_ < idelay)[0]
+                tmp_1    = tmp_loc_c1[:, scols]
+                scols    = numpy.where(self.all_cols % self._spike_width_ >= (self._spike_width_ - idelay))[0]
+                tmp_2    = tmp_loc_c2[:, scols]
+                data     = tmp_1.dot(tmp_2.T).toarray()
+
+                dx, dy   = data.nonzero()
+                data     = data[data.nonzero()].ravel()
+
+                all_x    = numpy.concatenate((all_x, dx*self.templates.shape[0] + dy))
+                all_y    = numpy.concatenate((all_y, (idelay - 1)*numpy.ones(len(dx), dtype=numpy.int32)))
                 all_data = numpy.concatenate((all_data, data))
 
-        overlaps  = scipy.sparse.csr_matrix((all_data, (all_x, all_y)), shape=(self.nb_templates*len(sources), self._overlap_size))
+                if idelay < self._spike_width_:
+                    all_x    = numpy.concatenate((all_x, dy*len(selection) + dx))
+                    all_y    = numpy.concatenate((all_y, (2*self._spike_width_ - idelay - 1)*numpy.ones(len(dx), dtype=numpy.int32)))
+                    all_data = numpy.concatenate((all_data, data))
 
-        for count, c in enumerate(sources):
-            self.overlaps[c] = overlaps[count*self.nb_templates:(count+1)*self.nb_templates]
+            overlaps  = scipy.sparse.csr_matrix((all_data, (all_x, all_y)), shape=(self.templates.shape[0]*len(selection), self._overlap_size))
+
+            for count, c in enumerate(selection):
+                self.overlaps[c] = overlaps[count*self.templates.shape[0]:(count+1)*self.templates.shape[0]]
 
 
     def _fit_chunk(self, batch, peaks):
