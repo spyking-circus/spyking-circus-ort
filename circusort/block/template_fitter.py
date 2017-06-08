@@ -58,6 +58,9 @@ class Template_fitter(Block):
         self._nb_elements   = self.nb_channels*self._spike_width_
         self.templates      = scipy.sparse.csr_matrix((0, self._nb_elements), dtype=numpy.float32)
         self.slice_indices  = numpy.zeros(0, dtype=numpy.int32)
+        self.all_cols       = numpy.arange(self.nb_channels*self._spike_width_)
+        self.all_delays     = numpy.arange(1, self._spike_width_ + 1)
+        self._overlap_size  = 2*self._spike_width_ - 1
         temp_window         = numpy.arange(-self._width, self._width + 1)
         for idx in xrange(self.nb_channels):
             self.slice_indices = numpy.concatenate((self.slice_indices, self.nb_samples*idx + temp_window))
@@ -80,6 +83,49 @@ class Template_fitter(Block):
                        'amplitudes'  : numpy.zeros(0, dtype=numpy.float32),
                        'templates'   : numpy.zeros(0, dtype=numpy.int32),
                        'offset'      : self.offset}
+
+
+    def _update_overlaps(self, sources):
+
+        sources = numpy.array(sources)
+
+        if self.two_components:
+            sources = nupy.concatenate((sources, sources + self.nb_templates))
+
+        selection  = list(set(sources).difference(self.overlaps.keys()))
+
+        if len(selection) > 0:
+
+            tmp_loc_c1 = self.templates[selection]
+            tmp_loc_c2 = self.templates
+
+            all_x      = numpy.zeros(0, dtype=numpy.int32)
+            all_y      = numpy.zeros(0, dtype=numpy.int32)
+            all_data   = numpy.zeros(0, dtype=numpy.float32)
+
+            for idelay in self.all_delays:
+                scols    = numpy.where(self.all_cols % self._spike_width_ < idelay)[0]
+                tmp_1    = tmp_loc_c1[:, scols]
+                scols    = numpy.where(self.all_cols % self._spike_width_ >= (self._spike_width_ - idelay))[0]
+                tmp_2    = tmp_loc_c2[:, scols]
+                data     = tmp_1.dot(tmp_2.T).toarray()
+
+                dx, dy   = data.nonzero()
+                data     = data[data.nonzero()].ravel()
+
+                all_x    = numpy.concatenate((all_x, dx*self.templates.shape[0] + dy))
+                all_y    = numpy.concatenate((all_y, (idelay - 1)*numpy.ones(len(dx), dtype=numpy.int32)))
+                all_data = numpy.concatenate((all_data, data))
+
+                if idelay < self._spike_width_:
+                    all_x    = numpy.concatenate((all_x, dy*len(selection) + dx))
+                    all_y    = numpy.concatenate((all_y, (2*self._spike_width_ - idelay - 1)*numpy.ones(len(dx), dtype=numpy.int32)))
+                    all_data = numpy.concatenate((all_data, data))
+
+            overlaps  = scipy.sparse.csr_matrix((all_data, (all_x, all_y)), shape=(self.templates.shape[0]*len(selection), self._overlap_size))
+
+            for count, c in enumerate(selection):
+                self.overlaps[c] = overlaps[count*self.templates.shape[0]:(count+1)*self.templates.shape[0]]
 
 
     def _fit_chunk(self, batch, peaks):
@@ -154,6 +200,8 @@ class Template_fitter(Block):
                         tmp     -= ts.reshape((len(ts), 1))
                         condition = numpy.abs(tmp) <= 2*self._width
 
+                        self._update_overlaps(inds_temp[to_keep])
+
                         for count, keep in enumerate(to_keep):
                             
                             idx_b    = numpy.compress(condition[count, :], all_indices)
@@ -204,8 +252,6 @@ class Template_fitter(Block):
 
                 if self.template_store is None:
                     self.template_store = TemplateStore(updater['templates_file'], 'r', self.two_components)
-                #if self.overlap_store is None:
-                #    self.overlap_store = TemplateStore(updater['overlaps_file'], 'r')
 
                 data            = self.template_store.get(updater['indices'])
                 self.norms      = numpy.concatenate((self.norms, data.pop('norms')))
@@ -216,8 +262,7 @@ class Template_fitter(Block):
                     self.norms2    = numpy.concatenate((self.norms2, data.pop('norms2')))
                     self.templates = scipy.sparse.vstack((self.templates, data.pop('templates2').T), 'csr')
                 
-                self.overlaps  = load_pickle(updater['overlaps'])
-                #self.overlap_store.update_overlaps(updater['indices'])
+                self.overlaps      = {}
 
             if self.nb_templates > 0:
                 self._fit_chunk(batch, peaks)
