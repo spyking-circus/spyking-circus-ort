@@ -7,11 +7,12 @@ import logging
 host = '127.0.0.1' # to run the test locally
 data_path_1 = '/tmp/output_1.raw'
 data_path_2 = '/tmp/output_2.raw'
+hdf5_path = "/tmp/output.hdf5"
 
 director  = circusort.create_director(host=host)
 manager   = director.create_manager(host=host, log_level=logging.INFO)
 
-generator = manager.create_block('synthetic_generator')
+generator = manager.create_block('synthetic_generator', hdf5_path=hdf5_path)
 filter    = manager.create_block('filter', cut_off=100)
 writer_1  = manager.create_block('writer', data_path=data_path_1)
 writer_2  = manager.create_block('writer', data_path=data_path_2)

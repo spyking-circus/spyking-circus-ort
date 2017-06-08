@@ -1,3 +1,4 @@
+import h5py
 import numpy as np
 import Queue
 import scipy as sp
@@ -7,6 +8,7 @@ import time
 
 from circusort.block import block
 from circusort import io
+from circusort import utils
 
 
 
@@ -26,6 +28,7 @@ class Synthetic_generator(block.Block):
         'sampling_rate' : 20000.0,
         'nb_samples'    : 2000,
         'nb_cells'      : 10,
+        'hdf5_path'     : None,
     }
 
     def __init__(self, **kwargs):
@@ -77,13 +80,21 @@ class Synthetic_generator(block.Block):
         ## background threads in order to be able to stop the background thread.
         self.rpc_queue = Queue.Queue()
         ## Define the target function of the background thread.
-        def syn_gen_target(rpc_queue, queue, nb_channels, probe, nb_samples, nb_cells, cells):
+        def syn_gen_target(rpc_queue, queue, nb_channels, probe, nb_samples, nb_cells, cells, hdf5_path):
             '''Synthetic data generation (background thread)'''
             mu = 0.0 # uV # noise mean
             sigma = 4.0 # uV # noise standard deviation
             spike_trains_buffer_ante = {c: np.array([], dtype='int') for c in range(0, nb_cells)}
             spike_trains_buffer_curr = {c: np.array([], dtype='int') for c in range(0, nb_cells)}
             spike_trains_buffer_post = {c: np.array([], dtype='int') for c in range(0, nb_cells)}
+            hdf5_file = h5py.File(hdf5_path, 'w')
+            for c in range(0, nb_cells):
+                hdf5_cell = hdf5_file.create_group('cell_{}'.format(c))
+                hdf5_cell.create_dataset('x', (0,), dtype='float', maxshape=(2**32,))
+                hdf5_cell.create_dataset('y', (0,), dtype='float', maxshape=(2**32,))
+                hdf5_cell.create_dataset('z', (0,), dtype='float', maxshape=(2**32,))
+                hdf5_cell.create_dataset('r', (0,), dtype='float', maxshape=(2**32,))
+                hdf5_cell.create_dataset('spike_times', (0,), dtype='int', maxshape=(2**32,))
             # Generate spikes for the third part of this buffer.
             chunk_number = 0
             for c in range(0, nb_cells):
@@ -97,7 +108,7 @@ class Synthetic_generator(block.Block):
                     spike_trains_buffer_ante = spike_trains_buffer_curr
                     spike_trains_buffer_curr = spike_trains_buffer_post
                     for c in range(0, nb_cells):
-                        spike_trains_buffer_post[c] = cells[c].generate_spike_trains(chunk_number + 1, nb_samples)
+                        spike_trains_buffer_curr[c] = cells[c].generate_spike_trains(chunk_number + 1, nb_samples)
                     # 3. Reconstruct signal from spike trains.
                     for c in range(0, nb_cells):
                         # Get waveform.
@@ -109,13 +120,26 @@ class Synthetic_generator(block.Block):
                             b = np.logical_and(0 <= t + i, t + i < nb_samples)
                             data[t + i[b], j[b]] = data[t + i[b], j[b]] + v[b]
                             # TODO Manage edge effects.
+                    # 4. Save spike trains in HDF5 file.
+                    for c in range(0, nb_cells):
+                        spike_times = spike_trains_buffer_curr[c] + chunk_number * nb_samples
+                        utils.append_hdf5(hdf5_file['cell_{}/spike_times'.format(c)], spike_times)
+                        r = cells[k].r(chunk_number)
+                        utils.append_hdf5(hdf5_file['cell_{}/r'.format(c)], [r])
+                        x = cells[k].x(chunk_number)
+                        utils.append_hdf5(hdf5_file['cell_{}/x'.format(c)], [x])
+                        y = cells[k].y(chunk_number)
+                        utils.append_hdf5(hdf5_file['cell_{}/y'.format(c)], [y])
+                        z = cells[k].z(chunk_number)
+                        utils.append_hdf5(hdf5_file['cell_{}/z'.format(c)], [z])
                     # Finally, send data to main thread and update chunk number.
                     data = np.transpose(data)
                     queue.put(data)
                     chunk_number += 1
+            hdf5_file.close()
             return
         ## Define background thread for data generation.
-        args = (self.rpc_queue, self.queue, self.nb_channels, self.probe, self.nb_samples, self.nb_cells, self.cells)
+        args = (self.rpc_queue, self.queue, self.nb_channels, self.probe, self.nb_samples, self.nb_cells, self.cells, self.hdf5_path)
         self.syn_gen_thread = threading.Thread(target=syn_gen_target, args=args)
         self.syn_gen_thread.deamon = True
         ## Launch background thread for data generation.
