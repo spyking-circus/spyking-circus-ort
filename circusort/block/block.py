@@ -154,7 +154,7 @@ class Block(threading.Thread):
             self.log.info("{n} processed {m} buffers [{k} x real time]".format(n=self.name, m=self.counter - self.start_step, k=self.real_time_ratio))
         else:
             self.log.info("{n} processed {m} buffers".format(n=self.name, m=self.counter - self.start_step))
-            
+
 
     def _check_real_time_ratio(self):
         data = self.real_time_ratio
@@ -191,4 +191,3 @@ class Block(threading.Thread):
     def __str__(self):
         res = "Block object {n} with params {s}".format(n=self.name, s=self.params)
         return res
-
