@@ -141,13 +141,13 @@ class Density_clustering(Block):
                 ddata    = numpy.linspace(rmin - self._width, rmin + self._width, self._spike_width_)
                 sub_mat  = f(ddata).astype(numpy.float32).reshape(1, self._spike_width_)
             else:
-                f        = scipy.interpolate.RectBivariateSpline(ydata, self.xdata, zdata, s=0, kx=min(len(ydata)-1, 3))
+                f        = scipy.interpolate.RectBivariateSpline(self.xdata, ydata, zdata, s=0, kx=min(len(ydata)-1, 3))
                 if is_neg:
                     rmin = (numpy.argmin(f(idx, self.cdata)[0, :]) - len(self.cdata)/2.)/5.
                 else:
                     rmin = (numpy.argmax(f(idx, self.cdata)[0, :]) - len(self.cdata)/2.)/5.
                 ddata    = numpy.linspace(rmin-self._width, rmin+self._width, self._spike_width_)
-                sub_mat  = f(ydata, ddata).astype(numpy.float32)
+                sub_mat  = f(ddata, ydata).astype(numpy.float32)
         else:
             sub_mat = batch[peak - self._width:peak + self._width + 1, indices]
 

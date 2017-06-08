@@ -120,6 +120,6 @@ class Pca(Block):
                         self.has_pcs[key] = True
 
             if self.is_ready() and self.send_pcs:
-                self.outputs['pcs'].send(self.pcs.flatten())
+                self.outputs['pcs'].send(self.pcs)
                 self.send_pcs = False
         return
