@@ -95,6 +95,7 @@ class Synthetic_generator(block.Block):
                 hdf5_cell.create_dataset('y', (0,), dtype='float', maxshape=(2**32,))
                 hdf5_cell.create_dataset('z', (0,), dtype='float', maxshape=(2**32,))
                 hdf5_cell.create_dataset('r', (0,), dtype='float', maxshape=(2**32,))
+                hdf5_cell.create_dataset('e', (0,), dtype='int', maxshape=(2**32,))
                 hdf5_cell.create_dataset('spike_times', (0,), dtype='int', maxshape=(2**32,))
                 s, u = self.cells[c].get_waveform()
                 hdf5_cell_waveform = hdf5_cell.create_group('waveform')
@@ -139,6 +140,8 @@ class Synthetic_generator(block.Block):
                         utils.append_hdf5(hdf5_file['cell_{}/y'.format(c)], [y])
                         z = cells[c].z(chunk_number)
                         utils.append_hdf5(hdf5_file['cell_{}/z'.format(c)], [z])
+                        e = cells[c].e(chunk_number, probe)
+                        utils.append_hdf5(hdf5_file['cell_{}/e'.format(c)], [e])
                     # Finally, send data to main thread and update chunk number.
                     data = np.transpose(data)
                     queue.put(data)
@@ -264,6 +267,30 @@ class Cell(object):
 
         self.buffered_spike_times = np.array([], dtype='float')
 
+    def e(self, chunk_number, probe):
+        '''Nearest electrode for the given chunk.
+
+        Parameter
+        ---------
+        chunk_number: int
+            Number of the current chunk.
+
+        Return
+        ------
+        e: int
+            Number of the electrode/channel which is the nearest to this cell.
+        '''
+
+        x = self.x(chunk_number)
+        y = self.y(chunk_number)
+        r = 100.0 # um # TODO get rid of this local parameter.
+        c, d = probe.get_channels_around(x, y, r)
+
+        e = c[np.argmin(d)]
+        # NB: Only the first minimum is returned.
+
+        return e
+
     def generate_spike_trains(self, chunk_number, nb_samples):
         '''TODO add docstring.'''
 
@@ -306,7 +333,6 @@ class Cell(object):
 
         return steps, u
 
-
     def get_waveforms(self, chunk_number, probe):
         '''TODO add docstring.'''
 
@@ -314,7 +340,7 @@ class Cell(object):
 
         x = self.x(chunk_number)
         y = self.y(chunk_number)
-        r = 100.0 # um
+        r = 100.0 # um # TODO get rid of this local parameter.
         channels, distances = probe.get_channels_around(x, y, r)
 
         z = self.z(chunk_number)
