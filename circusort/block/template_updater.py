@@ -4,7 +4,6 @@ from circusort.io.probe import Probe
 import scipy.sparse
 from circusort.io.utils import save_pickle
 from circusort.io.template import TemplateStore
-from circusort.io.overlap import OverlapStore
 
 
 class Template_updater(Block):
@@ -45,13 +44,12 @@ class Template_updater(Block):
 
         if self.data_path is None:
             self.data_path = self._get_tmp_path()
-        
+
         self.data_path = os.path.abspath(os.path.expanduser(self.data_path))
         if not os.path.exists(self.data_path):
             os.makedirs(self.data_path)
-        self.log.info('{n} records templates into {k}'.format(k=self.data_path, n=self.name))        
+        self.log.info('{n} records templates into {k}'.format(k=self.data_path, n=self.name))
         self.template_store = TemplateStore(os.path.join(self.data_path, 'template_store.h5'))
-        self.overlap_store  = OverlapStore(os.path.join(self.data_path, 'overlap_store.h5'))
         return
 
     @property
@@ -77,7 +75,7 @@ class Template_updater(Block):
 
         for channel in xrange(self.nb_channels):
             indices = self.probe.edges[channel]
-            
+
             if len(indices) > self.max_nn_chan:
                 self.max_nn_chan = len(indices)
 
@@ -165,7 +163,7 @@ class Template_updater(Block):
                             self.global_id += 1
 
         self.log.debug('{n} rejected {s} duplicated templates'.format(n=self.name, s=self.nb_duplicates))
-            
+
         return new_templates
 
     def _process(self):
@@ -191,15 +189,15 @@ class Template_updater(Block):
 
             if len(new_templates) > 0:
 
-                params = {'templates'  : self.templates[:, nb_before:], 
-                          'norms'      : self.norms[nb_before:], 
-                          'amplitudes' : self.amplitudes[nb_before:], 
+                params = {'templates'  : self.templates[:, nb_before:],
+                          'norms'      : self.norms[nb_before:],
+                          'amplitudes' : self.amplitudes[nb_before:],
                           'channels'   : self.channels[nb_before:]}
 
                 if self.two_components:
                     params['templates2'] = self.templates2
                     params['norms2']     = self.norms2[nb_before:]
-                
+
                 self.template_store.add(params)
                 self.output.send({'templates_file' : self.template_store.file_name, 'indices' : new_templates})
         return
