@@ -96,7 +96,9 @@ class Pca(Block):
             
             if self.sign_peaks is None:
                 self._infer_sign_peaks(peaks)
-            self._set_active_mode()
+
+            if not self.is_active:
+                self._set_active_mode()
 
             if self.send_pcs:
 
