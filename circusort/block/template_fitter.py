@@ -87,7 +87,7 @@ class Template_fitter(Block):
 
     def _update_overlaps(self, sources):
 
-        sources = numpy.array(sources)
+        sources = numpy.array(sources, dtype=numpy.int32)
 
         if self.two_components:
             sources = numpy.concatenate((sources, sources + self.nb_templates))
