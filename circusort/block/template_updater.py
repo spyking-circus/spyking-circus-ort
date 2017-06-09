@@ -4,7 +4,6 @@ from circusort.io.probe import Probe
 import scipy.sparse
 from circusort.io.utils import save_pickle
 from circusort.io.template import TemplateStore
-from circusort.io.overlap import OverlapStore
 
 
 class Template_updater(Block):
@@ -51,7 +50,6 @@ class Template_updater(Block):
             os.makedirs(self.data_path)
         self.log.info('{n} records templates into {k}'.format(k=self.data_path, n=self.name))        
         self.template_store = TemplateStore(os.path.join(self.data_path, 'template_store.h5'))
-        self.overlap_store  = OverlapStore(os.path.join(self.data_path, 'overlap_store.h5'))
         return
 
     @property
