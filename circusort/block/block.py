@@ -39,6 +39,7 @@ class Block(threading.Thread):
         self.start_steps    = None
         self.check_interval = 100
         self.counter        = 0
+        self.mpl_display    = False
 
         self.context = zmq.Context()
         self.params.update(kwargs)

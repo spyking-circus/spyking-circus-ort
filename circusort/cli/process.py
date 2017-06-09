@@ -75,17 +75,17 @@ class Process(object):
 
         self.running = True
         while self.running:
-            socks = self.poller.poll(timeout=10)
+            socks = self.poller.poll(timeout=1)
             if len(socks):
                 message = self.receive()
                 self.process(message)
             else:
                 # print self.objs
                 for obj in self.objs.itervalues():
-                    if isinstance(obj, Block) and obj.name == 'Oscilloscope 1':
+                    if isinstance(obj, Block) and obj.mpl_display == True:
                         obj._plot()
                         import matplotlib.pyplot as plt
-                        plt.pause(0.09)
+                        plt.pause(0.01)
         return
 
     def unwrap_proxy(self, proxy):

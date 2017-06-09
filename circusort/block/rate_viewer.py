@@ -5,19 +5,18 @@ import pylab
 import os
 
 
-class Oscilloscope(Block):
+class Rate_viewer(Block):
     '''TODO add docstring'''
 
-    name = "Oscilloscope"
+    name = "Rate viewer"
 
-    params = {'spacing'   : 1}
+    params = {'probe'     : None, 
+              'sampling_rate' : 20000}
 
     def __init__(self, **kwargs):
 
         Block.__init__(self, **kwargs)
-        self.add_input('data')
         self.add_input('peaks')
-        self.add_input('mads')
         self.mpl_display = True
 
     def _initialize(self):
@@ -31,21 +30,11 @@ class Oscilloscope(Block):
         self.peak_points = None
         return
 
-    @property
-    def nb_channels(self):
-        return self.inputs['data'].shape[1]
-
-    @property
-    def nb_samples(self):
-        return self.inputs['data'].shape[0]
-
     def _guess_output_endpoints(self):
         pass
 
     def _process(self):
 
-        self.batch      = self.inputs['data'].receive()
-        self.thresholds = self.inputs['mads'].receive(blocking=False)
         self.peaks      = self.inputs['peaks'].receive(blocking=False)
         if self.peaks is not None:
             while self.peaks.pop('offset')/self.nb_samples < self.counter:
