@@ -15,7 +15,7 @@ nb_samples  = 1024
 
 noise    = manager.create_block('fake_spike_generator', nb_channels=nb_channels, nb_samples=nb_samples)
 filter   = manager.create_block('filter', cut_off=100)
-oscillo  = manager.create_block('oscilloscope', data_path='oscillo', spacing=0.1)
+oscillo  = manager.create_block('oscilloscope', spacing=0.1)
 mad_estimator = manager.create_block('mad_estimator', threshold=6, epsilon=0.2)
 peak_detector = manager.create_block('peak_detector', sign_peaks='both')
 
@@ -30,8 +30,3 @@ manager.start()
 director.sleep(duration=10.0)
 
 director.stop()
-
-delay = 100
-
-# import os
-# os.system('convert -delay %d oscillo/oscillo_*.png oscilloscope.mov' %delay)

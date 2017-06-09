@@ -99,6 +99,13 @@ class Probe(object):
     def nb_channels(self):
         return len(self.nodes)
 
+    @property
+    def positions(self):
+        positions = numpy.zeros((2, 0), dtype=numpy.float32)
+        for key in self.channel_groups.keys():
+            positions = numpy.hstack((positions, numpy.array(self.channel_groups[key]['geometry'].values()).T))
+        return positions
+
     def get_averaged_n_edges(self):
         n = 0
         for key, value in self.edges.items():

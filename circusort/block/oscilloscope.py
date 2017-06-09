@@ -46,10 +46,16 @@ class Oscilloscope(Block):
 
         self.batch      = self.inputs['data'].receive()
         self.thresholds = self.inputs['mads'].receive(blocking=False)
-        self.peaks      = self.inputs['peaks'].receive(blocking=False)
-        if self.peaks is not None:
-            while self.peaks.pop('offset')/self.nb_samples < self.counter:
-                self.peaks = self.inputs['peaks'].receive()
+        peaks           = self.inputs['peaks'].receive(blocking=False)
+        if peaks is not None:
+
+            if not self.is_active:
+                self._set_active_mode()
+
+            while peaks.pop('offset')/self.nb_samples < self.counter:
+                peaks = self.inputs['peaks'].receive()
+
+            self.peaks = peaks
 
         self.data_available = True
 
@@ -90,9 +96,6 @@ class Oscilloscope(Block):
                     upper_line.set_ydata([offset + self.thresholds[i], offset + self.thresholds[i]])
 
         if self.peaks is not None:
-            
-            if not self.is_active:
-                self._set_active_mode()
 
             data, channel = zip(*[(self.peaks[key][channel], channel) for key in self.peaks for channel in self.peaks[key]])
             lengths = [len(d) for d in data]
