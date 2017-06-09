@@ -112,7 +112,7 @@ class TemplateStore(object):
             result['templates']  = scipy.sparse.csc_matrix((self.h5_file['data'][:, 0], self.h5_file['indices'][:, 0], self.h5_file['indptr'][:, 0]),
                         shape=self.h5_file['shape'][:])
             if self.two_components:
-                result['norms2']     = self.h5_file['norms2'][:]
+                result['norms2']     = self.h5_file['norms2'][:, 0]
                 result['templates2'] = scipy.sparse.csc_matrix((self.h5_file['data'][:, 0], self.h5_file['indices'][:, 0], self.h5_file['indptr'][:, 0]),
                         shape=self.h5_file['shape'][:])
         else:
@@ -132,7 +132,7 @@ class TemplateStore(object):
                 result['templates']  = scipy.sparse.hstack((result['templates'], temp), 'csc')
  
             if self.two_components:
-                result['norms2']     = self.h5_file['norms2'][indices]
+                result['norms2']     = self.h5_file['norms2'][indices, 0]
                 result['templates2'] = scipy.sparse.csc_matrix((myshape, 0), dtype=numpy.float32)
 
                 for item in indices:

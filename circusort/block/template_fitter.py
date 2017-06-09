@@ -90,7 +90,7 @@ class Template_fitter(Block):
         sources = numpy.array(sources)
 
         if self.two_components:
-            sources = nupy.concatenate((sources, sources + self.nb_templates))
+            sources = numpy.concatenate((sources, sources + self.nb_templates))
 
         selection  = list(set(sources).difference(self.overlaps.keys()))
 
@@ -254,6 +254,7 @@ class Template_fitter(Block):
                     self.template_store = TemplateStore(updater['templates_file'], 'r', self.two_components)
 
                 data            = self.template_store.get(updater['indices'])
+
                 self.norms      = numpy.concatenate((self.norms, data.pop('norms')))
                 self.amplitudes = numpy.vstack((self.amplitudes, data.pop('amplitudes')))
                 self.templates  = scipy.sparse.vstack((self.templates, data.pop('templates').T), 'csr')
