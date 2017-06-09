@@ -8,20 +8,21 @@ import numpy
 host = '127.0.0.1' # to run the test locally
 data_path_1 = '/tmp/output_1.raw'
 data_path_2 = '/tmp/output_2.raw'
-hdf5_path = "/tmp/output.hdf5"
+hdf5_path = '/tmp/output.hdf5'
+plot_path = '/tmp/output.svg'
 
 director  = circusort.create_director(host=host)
 manager   = director.create_manager(host=host, log_level=logging.INFO)
 
 nb_cells = 10
-cell_obj = """
+cell_obj = '''
 ans = {
     # 'x': (lambda x: (lambda t: x))(xref),
     # 'y': (lambda y: (lambda t: y))(yref),
     # 'z': (lambda z: (lambda t: z))(zref),
     'r': (lambda r, a, d: (lambda t: r + a * np.sin(2.0 * np.pi * float(t) / d)))(rref, a, d),
 }
-"""
+'''
 cells_args = [
     {
         'object': cell_obj,
@@ -68,10 +69,11 @@ x2 = np.memmap(data_path_2, dtype='float', mode='r')
 x2 = np.reshape(x2, (x2.size / nb_channels, nb_channels))
 
 
+sr = 20.0e+3 # Hz # sampling_rate
 iref = 4 * 2000
 imin = iref + 0
-imax = iref + 2 * 20000
-x = np.arange(imin, imax)
+imax = iref + 2 * int(sr)
+x = np.arange(imin, imax).astype('float') / sr
 shape = (imax - imin, nb_channels)
 y1 = np.zeros(shape)
 y2 = np.zeros(shape)
@@ -92,4 +94,6 @@ for channel in range(0, nb_channels):
 p1 = mpl.patches.Patch(color='C0', label='raw')
 p2 = mpl.patches.Patch(color='C1', label='filtered')
 plt.legend(handles=[p1, p2])
-plt.show()
+plt.xlabel('time (s)')
+plt.ylabel('channel')
+plt.savefig(plot_path)
