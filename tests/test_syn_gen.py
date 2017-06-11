@@ -9,7 +9,7 @@ host = '127.0.0.1' # to run the test locally
 data_path_1 = '/tmp/output_1.raw'
 data_path_2 = '/tmp/output_2.raw'
 hdf5_path = '/tmp/output.hdf5'
-plot_path = '/tmp/output.svg'
+plot_path = '/tmp/output.pdf'
 
 director  = circusort.create_director(host=host)
 manager   = director.create_manager(host=host, log_level=logging.INFO)
@@ -72,7 +72,7 @@ x2 = np.reshape(x2, (x2.size / nb_channels, nb_channels))
 sr = 20.0e+3 # Hz # sampling_rate
 iref = 4 * 2000
 imin = iref + 0
-imax = iref + 2 * int(sr)
+imax = iref + 1 * int(sr)
 x = np.arange(imin, imax).astype('float') / sr
 shape = (imax - imin, nb_channels)
 y1 = np.zeros(shape)
@@ -89,11 +89,12 @@ for channel in range(0, nb_channels):
         z1 = z1 / (ymax - ymin) / 2.0
         z2 = z2 / (ymax - ymin) / 2.0
     offset = float(channel)
-    plt.plot(x, z1 + offset + 0.5, color='C0')
-    plt.plot(x, z2 + offset + 0.0, color='C1')
-p1 = mpl.patches.Patch(color='C0', label='raw')
-p2 = mpl.patches.Patch(color='C1', label='filtered')
+    plt.plot(x, z1 + offset + 0.5, color='r')
+    plt.plot(x, z2 + offset + 0.0, color='k')
+p1 = mpl.patches.Patch(color='r', label='raw')
+p2 = mpl.patches.Patch(color='k', label='filtered')
 plt.legend(handles=[p1, p2])
 plt.xlabel('time (s)')
 plt.ylabel('channel')
 plt.savefig(plot_path)
+plt.show()

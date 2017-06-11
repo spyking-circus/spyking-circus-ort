@@ -153,7 +153,7 @@ class Synthetic_generator(block.Block):
         self.syn_gen_thread = threading.Thread(target=syn_gen_target, args=args)
         self.syn_gen_thread.deamon = True
         ## Launch background thread for data generation.
-        self.log.info("Launch background thread for data generation...")
+        self.log.info("{n} launches background thread for data generation".format(n=self.name))
         self.syn_gen_thread.start()
 
         return
