@@ -72,7 +72,7 @@ class Synthetic_generator(block.Block):
             self.cells[c] = Cell(**cell_args)
 
         # Configure the data output of this block.
-        self.output.configure(dtype=self.dtype, shape=(self.nb_channels, self.nb_samples))
+        self.output.configure(dtype=self.dtype, shape=(self.nb_samples, self.nb_channels))
 
         # Define and launch the background thread for data generation.
         ## First queue is used as a buffer for synthetic data.
@@ -143,7 +143,7 @@ class Synthetic_generator(block.Block):
                         e = cells[c].e(chunk_number, probe)
                         utils.append_hdf5(hdf5_file['cell_{}/e'.format(c)], [e])
                     # Finally, send data to main thread and update chunk number.
-                    data = np.transpose(data)
+                    #data = np.transpose(data)
                     queue.put(data)
                     chunk_number += 1
             hdf5_file.close()
