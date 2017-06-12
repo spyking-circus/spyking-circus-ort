@@ -32,7 +32,7 @@ class Synthetic_generator(block.Block):
         'hdf5_path'     : None,
     }
 
-    def __init__(self, cells_args=None, **kwargs):
+    def __init__(self, cells_args=None, cells_params=None, **kwargs):
 
         block.Block.__init__(self, **kwargs)
         self.cells_args = cells_args
@@ -43,6 +43,10 @@ class Synthetic_generator(block.Block):
             self.log.info('{n} reads the probe layout'.format(n=self.name))
         if self.cells_args is not None:
             self.nb_cells = len(self.cells_args)
+        if cells_params is None:
+            self.cells_params = {}
+        else:
+            self.cells_params = cells_params
         self.add_output('data')
 
     def _get_tmp_path(self):
@@ -65,21 +69,14 @@ class Synthetic_generator(block.Block):
             y_ref = np.random.uniform(self.fov['y_min'], self.fov['y_max']) # um # cell y-coordinate
             z_ref = 20.0 # um # cell z-coordinate
             r_ref = 5.0 # Hz # cell firing rate
-            # TODO remove the following lines.
-            # cell_args = {
-            #     'x': {'source': 'x_ref', 'globals': {'x_ref': x_ref}}
-            #     'y': {'source': 'y_ref', 'globals': {'y_ref': y_ref}}
-            #     'z': {'source': 'z_ref', 'globals': {'z_ref': z_ref}}
-            #     'r': {'source': 'r_ref', 'globals': {'r_ref': r_ref}}
-            # }
             cell_args = {
-                'x': (lambda x: lambda t: x)(x_ref),
-                'y': (lambda y: lambda t: y)(y_ref),
-                'z': (lambda z: lambda t: z)(z_ref),
-                'r': (lambda r: lambda t: r)(r_ref),
+                'x': eval("lambda t: %s" % x_ref),
+                'y': eval("lambda t: %s" % y_ref),
+                'z': eval("lambda t: %s" % z_ref),
+                'r': eval("lambda t: %s" % r_ref),
             }
             if self.cells_args is not None:
-                cell_args.update(self.exec_kwargs(self.cells_args[c]))
+                cell_args.update(self.exec_kwargs(self.cells_args[c], self.cells_params))
             self.cells[c] = Cell(**cell_args)
 
         # Configure the data output of this block.
@@ -187,7 +184,7 @@ class Synthetic_generator(block.Block):
 
         return
 
-    def exec_kwargs(self, input_kwargs):
+    def exec_kwargs(self, input_kwargs, input_params):
         '''Convert input keyword arguments into output keyword arguments.
 
         Parameter
@@ -202,35 +199,38 @@ class Synthetic_generator(block.Block):
         '''
 
         # Define object (i.e. string or code object).
-        obj_key = 'object'
-        assert obj_key in input_kwargs
-        assert isinstance(input_kwargs[obj_key], (str, unicode)), "current type is {}".format(type(input_kwargs[obj_key]))
-        obj = input_kwargs[obj_key]
+        # obj_key = 'object'
+        # assert obj_key in input_kwargs
+        # assert isinstance(input_kwargs[obj_key], (str, unicode)), "current type is {}".format(type(input_kwargs[obj_key]))
+        # obj = input_kwargs[obj_key]
 
-        # Define global dictionary.
-        glb_key = 'globals'
-        if glb_key in input_kwargs:
-            glb = input_kwargs[glb_key]
-        else:
-            glb = {}
+        # # Define global dictionary.
+        # glb_key = 'globals'
+        # if glb_key in input_kwargs:
+        #     glb = input_kwargs[glb_key]
+        # else:
+        #     glb = {}
         # Add numpy to global namespace.
-        glb['np'] = np
-        glb['numpy'] = np
+        input_params['np'] = np
+        input_params['numpy'] = np
 
-        # Define local dictionary.
-        loc_key = 'locals'
-        if loc_key in input_kwargs:
-            loc = input_kwargs[loc_key]
-        else:
-            loc = {}
+        # # Define local dictionary.
+        # loc_key = 'locals'
+        # if loc_key in input_kwargs:
+        #     loc = input_kwargs[loc_key]
+        # else:
+        #     loc = {}
 
-        # Execute dynamically the Python code.
-        exec(obj, glb, loc)
+        # # Execute dynamically the Python code.
+        # exec(obj, glb, loc)
 
-        # Retrieve its result.
-        output_kwargs = loc['ans']
+        # # Retrieve its result.
+        # output_kwargs = loc['ans']
 
-        return output_kwargs
+        for key in input_kwargs.keys():
+            input_kwargs[key] = eval("lambda t: %s" % input_kwargs[key], input_params)
+
+        return input_kwargs
 
     def __del__(self):
 

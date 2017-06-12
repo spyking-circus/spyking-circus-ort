@@ -8,38 +8,31 @@ import numpy
 host = '127.0.0.1' # to run the test locally
 data_path_1 = '/tmp/output_1.raw'
 data_path_2 = '/tmp/output_2.raw'
-hdf5_path = '/tmp/output.hdf5'
+hdf5_path = '/tmp/output.h5'
 plot_path = '/tmp/output.pdf'
 
 director  = circusort.create_director(host=host)
 manager   = director.create_manager(host=host, log_level=logging.INFO)
 
 nb_cells = 10
-cell_obj = '''
-ans = {
-    # 'x': (lambda x: (lambda t: x))(xref),
-    # 'y': (lambda y: (lambda t: y))(yref),
-    # 'z': (lambda z: (lambda t: z))(zref),
-    'r': (lambda r, a, d: (lambda t: r + a * np.sin(2.0 * np.pi * float(t) / d)))(rref, a, d),
+cell_obj = {
+    'x': 'xref',
+    'y': 'yref',
+    'z': 'zref',
+    'r': 'rref + a * np.sin(2.0 * np.pi * float(t) / d)'
 }
-'''
-cells_args = [
-    {
-        'object': cell_obj,
-        'globals': {},
-        'locals': {
-            'xref': +0.0, # reference x-coordinate
-            'yref': +0.0, # reference y-coordinate
-            'zref': +20.0, # reference z-coordinate
-            'rref': +10.0, # reference firing rate (i.e. mean firing rate)
-            'a': +8.0, # sinusoidal amplitude for firing rate modification
-            'd': +10.0, # number of chunk per period
-        },
-    }
-    for i in range(0, nb_cells)
-]
 
-generator = manager.create_block('synthetic_generator', cells_args=cells_args, hdf5_path=hdf5_path, probe='mea_16.prb')
+cells_params = {'xref' : 0.0, # reference x-coordinate
+                'yref' : 0.0, # reference y-coordinate
+                'zref' : 20.0, # reference z-coordinate
+                'rref' : 10.0, # reference firing rate (i.e. mean firing rate)
+                'a'    : 8.0, # sinusoidal amplitude for firing rate modification
+                'd'    : 10.0, # number of chunk per period
+}
+
+cells_args = [cell_obj for i in xrange(nb_cells)]
+
+generator = manager.create_block('synthetic_generator', cells_args=cells_args, cells_params=cells_params, hdf5_path=hdf5_path, probe='mea_16.prb')
 filter    = manager.create_block('filter', cut_off=100)
 writer_1  = manager.create_block('writer', data_path=data_path_1)
 writer_2  = manager.create_block('writer', data_path=data_path_2)
@@ -89,10 +82,10 @@ for channel in range(0, nb_channels):
         z1 = z1 / (ymax - ymin) / 2.0
         z2 = z2 / (ymax - ymin) / 2.0
     offset = float(channel)
-    plt.plot(x, z1 + offset + 0.5, color='C0')
-    plt.plot(x, z2 + offset + 0.0, color='C1')
-p1 = mpl.patches.Patch(color='C0', label='raw')
-p2 = mpl.patches.Patch(color='C1', label='filtered')
+    plt.plot(x, z1 + offset + 0.5, color='r')
+    plt.plot(x, z2 + offset + 0.0, color='k')
+p1 = mpl.patches.Patch(color='r', label='raw')
+p2 = mpl.patches.Patch(color='k', label='filtered')
 plt.legend(handles=[p1, p2])
 plt.xlabel('time (s)')
 plt.ylabel('channel')

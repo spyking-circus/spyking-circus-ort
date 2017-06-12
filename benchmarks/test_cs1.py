@@ -23,44 +23,24 @@ two_components = False
 nb_channels    = 4
 
 nb_cells = 10
-cell_obj = '''
-ans = {
-    'r': (lambda r, a, d: (lambda t: (t > 500) * (r + a * np.sin(2.0 * np.pi * float(t) / d))))(r_ref, a, d),
-}
-'''
-cells_args = [
-    {
-        'object': cell_obj,
-        'globals': {},
-        'locals': {
-            'r_ref': 10.0, # reference firing rate (i.e. mean firing rate)
-            'a': 8.0, # sinusoidal amplitude for firing rate modification
-            'd': 10.0, # number of chunk per period
-        },
-    }
-    for i in range(0, nb_cells)
-]
+cell_obj_1 = {'r': '(t < tc) * (r_ref + a * np.sin(2.0 * np.pi * float(t) / d))'}
+cell_obj_2 = {'r': '(t >= tc) * (r_ref + a * np.sin(2.0 * np.pi * float(t) / d))'}
 
-cell_obj = '''
-ans = {
-    'r': (lambda r, a, d: (lambda t: (t < 500) * (r + a * np.sin(2.0 * np.pi * float(t) / d))))(r_ref, a, d),
-}
-'''
+cells_params = {'r_ref': 10.0, # reference firing rate (i.e. mean firing rate)
+                'tc'   : 500, 
+                'a'    : 8.0, # sinusoidal amplitude for firing rate modification
+                'd'    : 10.0, # number of chunk per period
+            }
 
-for i in xrange(nb_cells):
-    cells_args += [
-        {
-            'object': cell_obj,
-            'globals': {},
-            'locals': {
-                'r_ref': 10.0, # reference firing rate (i.e. mean firing rate)
-                'a': 8.0, # sinusoidal amplitude for firing rate modification
-                'd': 10.0, # number of chunk per period
-            },
-        }
-    ]
+cells_args = []
 
-generator     = manager.create_block('synthetic_generator', cells_args=cells_args, hdf5_path=hdf5_path, probe=probe_file)
+for i in xrange(2*nb_cells):
+    if i < nb_cells:
+        cells_args += [cell_obj_1]
+    else:
+        cells_args += [cell_obj_2]
+
+generator     = manager.create_block('synthetic_generator', cells_args=cells_args, cells_params=cells_params, hdf5_path=hdf5_path, probe=probe_file)
 filter        = manager.create_block('filter', cut_off=100)
 whitening     = manager.create_block('whitening')
 mad_estimator = manager.create_block('mad_estimator')
