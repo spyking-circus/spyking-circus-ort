@@ -1,0 +1,13 @@
+total_nb_channels = 4
+radius            = 100
+channel_groups    = {1 : {}}
+
+
+channel_groups[1]["channels"] = range(0, 4)
+channel_groups[1]["graph"]    = []
+channel_groups[1]["geometry"] = {
+ 0: [-25.0, -25.0],
+ 1: [-25.0, 25.0],
+ 2: [25.0, -25.0],
+ 3: [25.0, 25.0],
+}

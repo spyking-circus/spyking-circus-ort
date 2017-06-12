@@ -12,7 +12,7 @@ import numpy
 host = '127.0.0.1' # to run the test locally
 data_path  = '/tmp/output.raw'
 hdf5_path  = '/tmp/output.hdf5'
-probe_file = 'mea_16.prb'
+probe_file = 'mea_4.prb'
 
 
 director  = circusort.create_director(host=host)
@@ -20,12 +20,12 @@ manager   = director.create_manager(host=host)
 
 sampling_rate  = 20000
 two_components = False
-nb_channels    = 16
+nb_channels    = 4
 
 nb_cells = 10
 cell_obj = '''
 ans = {
-    'r': (lambda r, a, d: (lambda t: (t > 50) * (r + a * np.sin(2.0 * np.pi * float(t) / d))))(r_ref, a, d),
+    'r': (lambda r, a, d: (lambda t: (t > 500) * (r + a * np.sin(2.0 * np.pi * float(t) / d))))(r_ref, a, d),
 }
 '''
 cells_args = [
@@ -43,7 +43,7 @@ cells_args = [
 
 cell_obj = '''
 ans = {
-    'r': (lambda r, a, d: (lambda t: (t < 50) * (r + a * np.sin(2.0 * np.pi * float(t) / d))))(r_ref, a, d),
+    'r': (lambda r, a, d: (lambda t: (t < 500) * (r + a * np.sin(2.0 * np.pi * float(t) / d))))(r_ref, a, d),
 }
 '''
 
@@ -60,13 +60,13 @@ for i in xrange(nb_cells):
         }
     ]
 
-generator     = manager.create_block('synthetic_generator', cells_args=cells_args, hdf5_path=hdf5_path, nb_cells=nb_cells*2, probe=probe_file)
-filter        = manager.create_block('filter', cut_off=300)
+generator     = manager.create_block('synthetic_generator', cells_args=cells_args, hdf5_path=hdf5_path, probe=probe_file)
+filter        = manager.create_block('filter', cut_off=100)
 whitening     = manager.create_block('whitening')
 mad_estimator = manager.create_block('mad_estimator')
 peak_detector = manager.create_block('peak_detector', threshold=6)
-pca           = manager.create_block('pca', nb_waveforms=5000)
-cluster       = manager.create_block('density_clustering', probe=probe_file, nb_waveforms=500, log_level=logging.DEBUG, two_components=two_components)
+pca           = manager.create_block('pca', nb_waveforms=100)
+cluster       = manager.create_block('density_clustering', probe=probe_file, nb_waveforms=100, log_level=logging.DEBUG, two_components=two_components)
 updater       = manager.create_block('template_updater', probe=probe_file, data_path='templates', nb_channels=nb_channels, log_level=logging.DEBUG)
 fitter        = manager.create_block('template_fitter', log_level=logging.INFO, two_components=two_components)
 writer        = manager.create_block('writer', data_path='/tmp/output.dat')
