@@ -5,6 +5,8 @@ import scipy as sp
 import scipy.signal
 import threading
 import time
+import tempfile
+import os
 
 from circusort.block import block
 from circusort import io
@@ -24,7 +26,6 @@ class Synthetic_generator(block.Block):
     params = {
         'dtype'         : 'float',
         'probe_filename': '~/spyking-circus/probes/mea_16.prb',
-        # 'nb_channels'   : 16, # TODO remove this parameter (redundancy).
         'sampling_rate' : 20000.0,
         'nb_samples'    : 2000,
         'nb_cells'      : 10,
@@ -38,6 +39,12 @@ class Synthetic_generator(block.Block):
         if self.cells_args is not None:
             self.nb_cells = len(self.cells_args)
         self.add_output('data')
+
+    def _get_tmp_path(self):
+        tmp_file  = tempfile.NamedTemporaryFile()
+        data_path = os.path.join(tempfile.gettempdir(), os.path.basename(tmp_file.name))
+        tmp_file.close()
+        return data_path
 
     def _initialize(self):
         '''TODO add docstring.'''
@@ -73,6 +80,14 @@ class Synthetic_generator(block.Block):
 
         # Configure the data output of this block.
         self.output.configure(dtype=self.dtype, shape=(self.nb_samples, self.nb_channels))
+
+        if self.hdf5_path is None:
+            self.hdf5_path = self._get_tmp_path()
+
+        self.hdf5_path = os.path.abspath(os.path.expanduser(self.hdf5_path))
+        if not os.path.exists(self.hdf5_path):
+            os.makedirs(self.hdf5_path)
+        self.log.info('{n} records synthetic data into {k}'.format(k=self.hdf5_path, n=self.name))
 
         # Define and launch the background thread for data generation.
         ## First queue is used as a buffer for synthetic data.
