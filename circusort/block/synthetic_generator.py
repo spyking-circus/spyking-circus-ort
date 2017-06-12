@@ -24,10 +24,10 @@ class Synthetic_generator(block.Block):
     name = "Synthetic Generator"
 
     params = {
-        'dtype'         : 'float',
-        'probe_filename': '~/spyking-circus/probes/mea_16.prb',
+        'dtype'         : 'float32',
+        'probe'         : None,
         'sampling_rate' : 20000.0,
-        'nb_samples'    : 2000,
+        'nb_samples'    : 1024,
         'nb_cells'      : 10,
         'hdf5_path'     : None,
     }
@@ -36,6 +36,11 @@ class Synthetic_generator(block.Block):
 
         block.Block.__init__(self, **kwargs)
         self.cells_args = cells_args
+        if self.probe == None:
+            self.log.error('{n}: the probe file must be specified!'.format(n=self.name))
+        else:
+            self.probe = io.Probe(self.probe, logger=self.log)
+            self.log.info('{n} reads the probe layout'.format(n=self.name))
         if self.cells_args is not None:
             self.nb_cells = len(self.cells_args)
         self.add_output('data')
@@ -50,7 +55,6 @@ class Synthetic_generator(block.Block):
         '''TODO add docstring.'''
 
         # Retrieve the geometry of the probe.
-        self.probe = io.Probe(self.probe_filename)
         self.nb_channels = self.probe.nb_channels
         self.fov = self.probe.field_of_view
 
@@ -85,7 +89,7 @@ class Synthetic_generator(block.Block):
             self.hdf5_path = self._get_tmp_path()
 
         self.hdf5_path = os.path.abspath(os.path.expanduser(self.hdf5_path))
-        self.log.info('{n} records synthetic data into {k}'.format(k=self.hdf5_path, n=self.name))
+        self.log.info('{n} records synthetic data from {d} cells into {k}'.format(k=self.hdf5_path, n=self.name, d=self.nb_cells))
 
         # Define and launch the background thread for data generation.
         ## First queue is used as a buffer for synthetic data.
@@ -104,10 +108,10 @@ class Synthetic_generator(block.Block):
             hdf5_file = h5py.File(hdf5_path, 'w')
             for c in range(0, nb_cells):
                 hdf5_cell = hdf5_file.create_group('cell_{}'.format(c))
-                hdf5_cell.create_dataset('x', (0,), dtype='float', maxshape=(2**32,))
-                hdf5_cell.create_dataset('y', (0,), dtype='float', maxshape=(2**32,))
-                hdf5_cell.create_dataset('z', (0,), dtype='float', maxshape=(2**32,))
-                hdf5_cell.create_dataset('r', (0,), dtype='float', maxshape=(2**32,))
+                hdf5_cell.create_dataset('x', (0,), dtype='float32', maxshape=(2**32,))
+                hdf5_cell.create_dataset('y', (0,), dtype='float32', maxshape=(2**32,))
+                hdf5_cell.create_dataset('z', (0,), dtype='float32', maxshape=(2**32,))
+                hdf5_cell.create_dataset('r', (0,), dtype='float32', maxshape=(2**32,))
                 hdf5_cell.create_dataset('e', (0,), dtype='int', maxshape=(2**32,))
                 hdf5_cell.create_dataset('spike_times', (0,), dtype='int', maxshape=(2**32,))
                 s, u = self.cells[c].get_waveform()
@@ -124,7 +128,7 @@ class Synthetic_generator(block.Block):
                 if not queue.full(): # limit memory consumption
                     # 1. Generate noise.
                     shape = (nb_samples, nb_channels)
-                    data = np.random.normal(mu, sigma, shape)
+                    data = np.random.normal(mu, sigma, shape).astype(self.dtype)
                     # 2. Get spike trains.
                     spike_trains_buffer_ante = spike_trains_buffer_curr
                     spike_trains_buffer_curr = spike_trains_buffer_post
@@ -278,7 +282,7 @@ class Cell(object):
         self.sr = sr # sampling_rate
         self.rp = rp # refactory period
 
-        self.buffered_spike_times = np.array([], dtype='float')
+        self.buffered_spike_times = np.array([], dtype='float32')
 
     def e(self, chunk_number, probe):
         '''Nearest electrode for the given chunk.
@@ -338,7 +342,7 @@ class Cell(object):
         i_start = -20
         i_stop = +60
         steps = np.arange(i_start, i_stop + 1)
-        times = steps.astype('float') / self.sr
+        times = steps.astype('float32') / self.sr
         times = times - times[0]
         u = np.sin(4.0 * np.pi * times / times[-1])
         u = u * np.power(times * np.exp(- times / tau), 10.0)

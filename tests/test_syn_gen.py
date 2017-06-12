@@ -39,7 +39,7 @@ cells_args = [
     for i in range(0, nb_cells)
 ]
 
-generator = manager.create_block('synthetic_generator', cells_args=cells_args, hdf5_path=hdf5_path)
+generator = manager.create_block('synthetic_generator', cells_args=cells_args, hdf5_path=hdf5_path, probe='mea_16.prb')
 filter    = manager.create_block('filter', cut_off=100)
 writer_1  = manager.create_block('writer', data_path=data_path_1)
 writer_2  = manager.create_block('writer', data_path=data_path_2)
@@ -63,9 +63,9 @@ import numpy as np
 
 nb_channels = 16
 
-x1 = np.memmap(data_path_1, dtype='float', mode='r')
+x1 = np.memmap(data_path_1, dtype='float32', mode='r')
 x1 = np.reshape(x1, (x1.size / nb_channels, nb_channels))
-x2 = np.memmap(data_path_2, dtype='float', mode='r')
+x2 = np.memmap(data_path_2, dtype='float32', mode='r')
 x2 = np.reshape(x2, (x2.size / nb_channels, nb_channels))
 
 
@@ -73,13 +73,13 @@ sr = 20.0e+3 # Hz # sampling_rate
 iref = 4 * 2000
 imin = iref + 0
 imax = iref + 1 * int(sr)
-x = np.arange(imin, imax).astype('float') / sr
+x = np.arange(imin, imax).astype('float32') / sr
 shape = (imax - imin, nb_channels)
 y1 = np.zeros(shape)
 y2 = np.zeros(shape)
 for channel in range(0, nb_channels):
-    y1[:, channel] = x1[imin:imax, channel].astype('float')
-    y2[:, channel] = x2[imin:imax, channel].astype('float')
+    y1[:, channel] = x1[imin:imax, channel].astype('float32')
+    y2[:, channel] = x2[imin:imax, channel].astype('float32')
 ymin = min([np.amin(y) for y in [y1, y2]])
 ymax = max([np.amax(y) for y in [y1, y2]])
 for channel in range(0, nb_channels):
@@ -89,12 +89,12 @@ for channel in range(0, nb_channels):
         z1 = z1 / (ymax - ymin) / 2.0
         z2 = z2 / (ymax - ymin) / 2.0
     offset = float(channel)
-    plt.plot(x, z1 + offset + 0.5, color='r')
-    plt.plot(x, z2 + offset + 0.0, color='k')
-p1 = mpl.patches.Patch(color='r', label='raw')
-p2 = mpl.patches.Patch(color='k', label='filtered')
+    plt.plot(x, z1 + offset + 0.5, color='C0')
+    plt.plot(x, z2 + offset + 0.0, color='C1')
+p1 = mpl.patches.Patch(color='C0', label='raw')
+p2 = mpl.patches.Patch(color='C1', label='filtered')
 plt.legend(handles=[p1, p2])
 plt.xlabel('time (s)')
 plt.ylabel('channel')
-plt.savefig(plot_path)
 plt.show()
+plt.savefig(plot_path)
