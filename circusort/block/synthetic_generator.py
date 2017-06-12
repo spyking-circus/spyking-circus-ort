@@ -85,8 +85,6 @@ class Synthetic_generator(block.Block):
             self.hdf5_path = self._get_tmp_path()
 
         self.hdf5_path = os.path.abspath(os.path.expanduser(self.hdf5_path))
-        if not os.path.exists(self.hdf5_path):
-            os.makedirs(self.hdf5_path)
         self.log.info('{n} records synthetic data into {k}'.format(k=self.hdf5_path, n=self.name))
 
         # Define and launch the background thread for data generation.
