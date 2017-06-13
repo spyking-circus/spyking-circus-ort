@@ -1,13 +1,16 @@
 import numpy
 import time
 import os
+import pylab
 import matplotlib
 from circusort import io
 from circusort.io.template import TemplateStore
+from circusort.io.synthetic import SyntheticStore
+import matplotlib.colors as colors
 
 class Analyzer(object):
 
-    def __init__(self, spk_writer_params, probe, template_store, synthetic_file=None, filtered_data=None):
+    def __init__(self, spk_writer_params, probe, template_store, synthetic_store=None, filtered_data=None):
 
         self.probe    = io.Probe(probe)
 
@@ -23,55 +26,92 @@ class Analyzer(object):
 
         self.template_store = TemplateStore(os.path.join(os.path.abspath(template_store), 'template_store.h5'), 'r')
 
-        if synthetic_file is not None:
-            self.synthetic_file = synthetic_file
+        if synthetic_store is not None:
+            self.synthetic_store = SyntheticStore(os.path.abspath(synthetic_store), 'r')
+            self.set_cmap('jet')
+
+
+    def set_cmap(self, cmap):
+        self._cmap      = pylab.get_cmap(cmap)
+        self._cNorm     = colors.Normalize(vmin=0, vmax=self.nb_cells)
+        self._scalarMap = pylab.cm.ScalarMappable(norm=self._cNorm, cmap=self._cmap)
 
     @property
     def nb_channels(self):
         return self.probe.nb_channels
 
-    def 
+    @property
+    def nb_cells(self):
+        return self.synthetic_store.nb_cells
 
-    # def view_time_slice(self, t_min=None, t_max=None):
+    def show_positions(self, indices=None, time=None):
+        if time is None:
+            time = 0
+        res = self.synthetic_store.get(indices=indices, variables=['x', 'y', 'z'])
+        pylab.figure()
+
+        all_x = []
+        all_y = []
+        all_z = []
+        all_c = []
+
+        for key in res.keys():
+            all_x += [res[key]['x'][time]]
+            all_y += [res[key]['y'][time]]
+            all_z += [res[key]['z'][time]]
+            all_c += [self._scalarMap.to_rgba(int(key))]
+        
+        pylab.scatter(self.probe.positions[0, :], self.probe.positions[1, :], c='k')
+        pylab.scatter(all_x, all_y, c=all_c)
+        pylab.show()
+
+    def show_rates(self, indices=None, spacing=1):
+        res = self.synthetic_store.get(indices=indices, variables='r')
+        pylab.figure()
+        for key in res.keys():
+            colorVal = self._scalarMap.to_rgba(int(key))
+            pylab.plot(res[key]['r'] + int(key)*spacing, color=colorVal)
+        pylab.xlabel('Time [chunks]')
+        pylab.yticks([], [])
+        pylab.show()
 
 
-    #     nb_buffers = 10
-    #     nb_samples = 1024
+    def view_time_slice(self, t_min=None, t_max=None):
 
-    #     t_max    = spikes.max() + nb_samples
+        nb_buffers = 10
+        nb_samples = 1024
 
-    #     t_min    = t_max - nb_buffers * nb_samples
+        t_max    = spikes.max() + nb_samples
 
-    #     N_t       = updater._spike_width_
+        t_min    = t_max - nb_buffers * nb_samples
+
+        N_t       = updater._spike_width_
 
         
 
-    #     data          = template_store.get()
-    #     all_templates = data.pop('templates').T
-    #     norms         = data.pop('norms')
+        data          = template_store.get()
+        all_templates = data.pop('templates').T
+        norms         = data.pop('norms')
 
-    #     curve = numpy.zeros((nb_channels, t_max-t_min), dtype=numpy.float32)
+        curve = numpy.zeros((nb_channels, t_max-t_min), dtype=numpy.float32)
 
-    #     idx    = numpy.where(spikes > t_min)[0]
+        idx    = numpy.where(spikes > t_min)[0]
 
-    #     for spike, temp_id, amp in zip(spikes[idx], temp_ids[idx], amps[idx]):
-    #         if spike > t_min + N_t/2:
-    #             spike -= t_min
-    #             tmp1   = all_templates[temp_id].toarray().reshape(nb_channels, N_t)
-    #             curve[:, spike-N_t/2:spike+N_t/2+1] += amp*tmp1*norms[temp_id]
+        for spike, temp_id, amp in zip(spikes[idx], temp_ids[idx], amps[idx]):
+            if spike > t_min + N_t/2:
+                spike -= t_min
+                tmp1   = all_templates[temp_id].toarray().reshape(nb_channels, N_t)
+                curve[:, spike-N_t/2:spike+N_t/2+1] += amp*tmp1*norms[temp_id]
             
-    #     neg_peaks = numpy.fromfile('/tmp/peaks.dat', dtype=numpy.int32)
-    #     neg_peaks = neg_peaks.reshape(neg_peaks.size/2, 2)
+        neg_peaks = numpy.fromfile('/tmp/peaks.dat', dtype=numpy.int32)
+        neg_peaks = neg_peaks.reshape(neg_peaks.size/2, 2)
 
-    #     spacing  = 10
-    #     pylab.figure()
-    #     for i in xrange(nb_channels):
-    #         pylab.plot(numpy.arange(t_min, t_max), raw_data[t_min:t_max, i] + i*spacing, '0.5')
-    #         pylab.plot(numpy.arange(t_min, t_max), curve[i, :] + i*spacing, 'r')
-    #         idx = numpy.where((neg_peaks[:,1] < t_max) & (neg_peaks[:,1] >= t_min) & (neg_peaks[:,0] == i))
-    #         sub_peaks = neg_peaks[idx]
-    #         pylab.scatter(sub_peaks[:, 1], spacing*sub_peaks[:, 0], c='k')
-
-
-
-    #     pylab.show()
+        spacing  = 10
+        pylab.figure()
+        for i in xrange(nb_channels):
+            pylab.plot(numpy.arange(t_min, t_max), raw_data[t_min:t_max, i] + i*spacing, '0.5')
+            pylab.plot(numpy.arange(t_min, t_max), curve[i, :] + i*spacing, 'r')
+            idx = numpy.where((neg_peaks[:,1] < t_max) & (neg_peaks[:,1] >= t_min) & (neg_peaks[:,0] == i))
+            sub_peaks = neg_peaks[idx]
+            pylab.scatter(sub_peaks[:, 1], spacing*sub_peaks[:, 0], c='k')
+        pylab.show()

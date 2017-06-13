@@ -97,20 +97,19 @@ class TemplateStore(object):
 
             result['templates'] = scipy.sparse.csc_matrix((myshape, 0), dtype=numpy.float32)
 
-            for item in indices:
-                myslice = numpy.arange(indptr[item], indptr[item+1])
-                n_data  = len(myslice)
-                temp    = scipy.sparse.csc_matrix((self.h5_file['data'][myslice], (self.h5_file['indices'][myslice], numpy.zeros(n_data))), shape=(myshape, 1))    
-                result['templates']  = scipy.sparse.hstack((result['templates'], temp), 'csc')
- 
             if self.two_components:
                 result['norms2']     = self.h5_file['norms2'][indices]
                 result['templates2'] = scipy.sparse.csc_matrix((myshape, 0), dtype=numpy.float32)
 
-                for item in indices:
-                    myslice = numpy.arange(indptr[item], indptr[item+1])
-                    n_data  = len(myslice)
-                    temp    = scipy.sparse.csc_matrix((self.h5_file['data2'][myslice], (self.h5_file['indices'][myslice], numpy.zeros(n_data))), shape=(myshape, 1))    
+            for item in indices:
+                mask    = numpy.zeros(len(self.h5_file['data']), dtype=numpy.bool)
+                mask[indptr[item]:indptr[item+1]] = 1
+                n_data  = indptr[item+1] - indptr[item]
+                temp    = scipy.sparse.csc_matrix((self.h5_file['data'][mask], (self.h5_file['indices'][mask], numpy.zeros(n_data))), shape=(myshape, 1))    
+                result['templates']  = scipy.sparse.hstack((result['templates'], temp), 'csc')
+ 
+                if self.two_components:
+                    temp    = scipy.sparse.csc_matrix((self.h5_file['data2'][mask], (self.h5_file['indices'][mask], numpy.zeros(n_data))), shape=(myshape, 1))    
                     result['templates2'] = scipy.sparse.hstack((result['templates2'], temp), 'csc')
 
         self.h5_file.close()

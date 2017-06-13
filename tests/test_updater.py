@@ -5,7 +5,7 @@ import circusort
 import logging
 import scipy
 import cPickle
-from circusort.io.utils import generate_fake_probe, load_pickle
+from circusort.io.utils import generate_fake_probe
 from circusort.io.template import TemplateStore
 
 
@@ -50,7 +50,6 @@ import numpy, pylab
 N_t       = updater._spike_width_
 
 template_store = TemplateStore('templates/template_store.h5', 'r')
-overlaps = load_pickle('templates/overlaps')
 
 data          = template_store.get()
 all_templates = data.pop('templates').T
