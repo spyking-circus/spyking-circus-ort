@@ -10,8 +10,10 @@ import numpy
 
 
 host = '127.0.0.1' # to run the test locally
-data_path  = '/tmp/output.raw'
-hdf5_path  = '/tmp/output.hdf5'
+data_path  = '/tmp/output.dat'
+hdf5_path  = '/tmp/synthetic.h5'
+peak_path  = '/tmp/peaks.dat'
+temp_path  = '/tmp/templates'
 probe_file = 'mea_4.prb'
 
 
@@ -47,11 +49,11 @@ mad_estimator = manager.create_block('mad_estimator')
 peak_detector = manager.create_block('peak_detector', threshold=5)
 pca           = manager.create_block('pca', nb_waveforms=100)
 cluster       = manager.create_block('density_clustering', probe=probe_file, nb_waveforms=100, log_level=logging.DEBUG, two_components=two_components)
-updater       = manager.create_block('template_updater', probe=probe_file, data_path='templates', nb_channels=nb_channels, log_level=logging.DEBUG)
+updater       = manager.create_block('template_updater', probe=probe_file, data_path=temp_path, nb_channels=nb_channels, log_level=logging.DEBUG)
 fitter        = manager.create_block('template_fitter', log_level=logging.INFO, two_components=two_components)
-writer        = manager.create_block('writer', data_path='/tmp/output.dat')
+writer        = manager.create_block('writer', data_path=data_path)
 writer_2      = manager.create_block('spike_writer')
-writer_3      = manager.create_block('peak_writer', neg_peaks='/tmp/peaks.dat')
+writer_3      = manager.create_block('peak_writer', neg_peaks=peak_path)
 
 
 director.initialize()

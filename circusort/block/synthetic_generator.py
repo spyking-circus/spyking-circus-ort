@@ -11,6 +11,7 @@ import os
 from circusort.block import block
 from circusort import io
 from circusort import utils
+from circusort.io.synthetic import SyntheticStore
 
 
 
@@ -102,21 +103,20 @@ class Synthetic_generator(block.Block):
             spike_trains_buffer_ante = {c: np.array([], dtype='int') for c in range(0, nb_cells)}
             spike_trains_buffer_curr = {c: np.array([], dtype='int') for c in range(0, nb_cells)}
             spike_trains_buffer_post = {c: np.array([], dtype='int') for c in range(0, nb_cells)}
-            hdf5_file = h5py.File(hdf5_path, 'w')
+
+            self.synthetic_store = SyntheticStore(hdf5_path, 'w')
+
             for c in range(0, nb_cells):
-                hdf5_cell = hdf5_file.create_group('cell_{}'.format(c))
-                hdf5_cell.create_dataset('x', (0,), dtype='float32', maxshape=(2**32,))
-                hdf5_cell.create_dataset('y', (0,), dtype='float32', maxshape=(2**32,))
-                hdf5_cell.create_dataset('z', (0,), dtype='float32', maxshape=(2**32,))
-                hdf5_cell.create_dataset('r', (0,), dtype='float32', maxshape=(2**32,))
-                hdf5_cell.create_dataset('e', (0,), dtype='int', maxshape=(2**32,))
-                hdf5_cell.create_dataset('spike_times', (0,), dtype='int', maxshape=(2**32,))
+
                 s, u = self.cells[c].get_waveform()
-                hdf5_cell_waveform = hdf5_cell.create_group('waveform')
-                hdf5_s = hdf5_cell_waveform.create_dataset('x', s.shape, dtype=s.dtype)
-                hdf5_s[...] = s
-                hdf5_u = hdf5_cell_waveform.create_dataset('y', u.shape, dtype=u.dtype)
-                hdf5_u[...] = u
+
+                params = {'cell_id'    : c, 
+                          'waveform/x' : s,
+                          'waveform/y' : u
+                          }
+
+                self.synthetic_store.add(params)
+
             # Generate spikes for the third part of this buffer.
             chunk_number = 0
             for c in range(0, nb_cells):
@@ -145,22 +145,22 @@ class Synthetic_generator(block.Block):
                     # 4. Save spike trains in HDF5 file.
                     for c in range(0, nb_cells):
                         spike_times = spike_trains_buffer_curr[c] + chunk_number * nb_samples
-                        utils.append_hdf5(hdf5_file['cell_{}/spike_times'.format(c)], spike_times)
-                        r = cells[c].r(chunk_number)
-                        utils.append_hdf5(hdf5_file['cell_{}/r'.format(c)], [r])
-                        x = cells[c].x(chunk_number)
-                        utils.append_hdf5(hdf5_file['cell_{}/x'.format(c)], [x])
-                        y = cells[c].y(chunk_number)
-                        utils.append_hdf5(hdf5_file['cell_{}/y'.format(c)], [y])
-                        z = cells[c].z(chunk_number)
-                        utils.append_hdf5(hdf5_file['cell_{}/z'.format(c)], [z])
-                        e = cells[c].e(chunk_number, probe)
-                        utils.append_hdf5(hdf5_file['cell_{}/e'.format(c)], [e])
+
+                        params = {'cell_id' : c, 
+                                  'x'       : [cells[c].x(chunk_number)],
+                                  'y'       : [cells[c].y(chunk_number)],
+                                  'z'       : [cells[c].z(chunk_number)],
+                                  'e'       : [cells[c].e(chunk_number, probe)],
+                                  'r'       : [cells[c].r(chunk_number)], 
+                                  'spike_times' : spike_times}
+
+                        self.synthetic_store.add(params)
+
                     # Finally, send data to main thread and update chunk number.
                     #data = np.transpose(data)
                     queue.put(data)
                     chunk_number += 1
-            hdf5_file.close()
+            self.synthetic_store.close()
             return
         ## Define background thread for data generation.
         args = (self.rpc_queue, self.queue, self.nb_channels, self.probe, self.nb_samples, self.nb_cells, self.cells, self.hdf5_path)

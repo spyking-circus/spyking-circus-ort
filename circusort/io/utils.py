@@ -87,4 +87,27 @@ def load_pickle(filename):
     res  = cPickle.load(file)
     file.close()
     return res
+
+def append_hdf5(dataset, data):
+    '''Append 1D-array to a HDF5 dataset.
+
+    Parameters
+    ----------
+    dataset: ?
+        HDF5 dataset.
+    data: numpy.ndarray
+        1D-array.
+    '''
+
+    old_size = len(dataset)
+    new_size = old_size + len(data)
+    if len(dataset.shape) == 1:
+        new_shape = (new_size,)
+    else:
+        new_shape = (new_size, dataset.shape[1])
+    dataset.resize(new_shape)
+    dataset[old_size:new_size] = data
+
+    return
+
     
