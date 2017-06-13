@@ -9,7 +9,7 @@ class Mad_estimator(Block):
 
     params = {'time_constant' : 10.,
               'epsilon'       : 0.01,
-              'threshold'     : 6,
+              'threshold'     : 5,
               'sampling_rate' : 20000.}
 
     def __init__(self, **kwargs):
@@ -32,8 +32,9 @@ class Mad_estimator(Block):
     def _guess_output_endpoints(self):
         self.mads         = numpy.zeros(self.nb_channels, dtype=numpy.float32)
         self.median_means = numpy.zeros(self.nb_channels, dtype=numpy.float32)
-        self.dt           = self.nb_samples/float(self.sampling_rate)
-        self.decay_time   = numpy.exp(-self.dt/float(self.time_constant))
+        self.dt           = float(self.nb_samples)/self.sampling_rate
+        self.factor       = self.dt/float(self.time_constant)
+        self.decay_time   = numpy.exp(-self.factor)
         self.outputs['mads'].configure(dtype='float32', shape=(self.nb_channels, 1))
         self.last_mads_mean = numpy.zeros(self.nb_channels, dtype=numpy.float32)
 
@@ -44,10 +45,9 @@ class Mad_estimator(Block):
             self._set_active_mode()
 
     def _process(self):
-        batch     = self.input.receive()
-
-        self.median_means = self.median_means*self.decay_time + numpy.median(batch, 0)*self.dt
-        self.mads         = self.mads*self.decay_time + numpy.median(numpy.abs(batch) - self.median_means, 0)*self.dt
+        batch             = self.input.receive()
+        self.median_means = self.median_means*self.decay_time + numpy.median(batch, 0)*self.factor
+        self.mads         = self.mads*self.decay_time + numpy.median(numpy.abs(batch) - self.median_means, 0)*self.factor
 
         if not self.is_active:
             self._check_if_active()
