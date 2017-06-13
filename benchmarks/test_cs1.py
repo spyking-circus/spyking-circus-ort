@@ -44,7 +44,7 @@ generator     = manager.create_block('synthetic_generator', cells_args=cells_arg
 filter        = manager.create_block('filter', cut_off=100)
 whitening     = manager.create_block('whitening')
 mad_estimator = manager.create_block('mad_estimator')
-peak_detector = manager.create_block('peak_detector', threshold=6)
+peak_detector = manager.create_block('peak_detector', threshold=5)
 pca           = manager.create_block('pca', nb_waveforms=100)
 cluster       = manager.create_block('density_clustering', probe=probe_file, nb_waveforms=100, log_level=logging.DEBUG, two_components=two_components)
 updater       = manager.create_block('template_updater', probe=probe_file, data_path='templates', nb_channels=nb_channels, log_level=logging.DEBUG)
@@ -52,25 +52,19 @@ fitter        = manager.create_block('template_fitter', log_level=logging.INFO, 
 writer        = manager.create_block('writer', data_path='/tmp/output.dat')
 writer_2      = manager.create_block('spike_writer')
 writer_3      = manager.create_block('peak_writer', neg_peaks='/tmp/peaks.dat')
-oscillo       = manager.create_block('oscilloscope', spacing=10)
+
 
 director.initialize()
 
 director.connect(generator.output, filter.input)
 director.connect(filter.output, whitening.input)
-director.connect(whitening.output, [mad_estimator.input, peak_detector.get_input('data'), cluster.get_input('data'), pca.get_input('data'), fitter.get_input('data'), writer.input, oscillo.get_input('data')])
-director.connect(mad_estimator.output, [oscillo.get_input('mads'), peak_detector.get_input('mads'), cluster.get_input('mads')])
-director.connect(peak_detector.get_output('peaks'), [oscillo.get_input('peaks'), pca.get_input('peaks'), cluster.get_input('peaks'), fitter.get_input('peaks'), writer_3.input])
+director.connect(whitening.output, [mad_estimator.input, peak_detector.get_input('data'), cluster.get_input('data'), pca.get_input('data'), fitter.get_input('data'), writer.input])
+director.connect(mad_estimator.output, [peak_detector.get_input('mads'), cluster.get_input('mads')])
+director.connect(peak_detector.get_output('peaks'), [pca.get_input('peaks'), cluster.get_input('peaks'), fitter.get_input('peaks'), writer_3.input])
 director.connect(pca.get_output('pcs'), cluster.get_input('pcs'))
 director.connect(cluster.get_output('templates'), updater.get_input('templates'))
 director.connect(updater.get_output('updater'), fitter.get_input('updater'))
 director.connect(fitter.output, writer_2.input)
-
-# director.connect(generator.output, filter.input)
-# director.connect(filter.output, whitening.input)
-# director.connect(whitening.output, [mad_estimator.input, peak_detector.get_input('data'), oscillo.get_input('data')])
-# director.connect(mad_estimator.output, [oscillo.get_input('mads'), peak_detector.get_input('mads')])
-# director.connect(peak_detector.get_output('peaks'), [oscillo.get_input('peaks')])
 
 director.start()
 director.sleep(duration=60.0)

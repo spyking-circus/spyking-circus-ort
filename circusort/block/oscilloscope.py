@@ -95,16 +95,16 @@ class Oscilloscope(Block):
                     lower_line.set_ydata([offset - self.thresholds[i], offset - self.thresholds[i]])
                     upper_line.set_ydata([offset + self.thresholds[i], offset + self.thresholds[i]])
 
-        if self.peaks is not None:
+        # if self.peaks is not None:
 
-            data, channel = zip(*[(self.peaks[key][channel], channel) for key in self.peaks for channel in self.peaks[key]])
-            lengths = [len(d) for d in data]
-            channel = numpy.repeat(numpy.int_(channel), lengths)
-            data = numpy.hstack(data)
-            if self.peak_points is None:
-                self.peak_points, = pylab.plot(data, self.spacing*channel, 'r.')
-            else:
-                self.peak_points.set_data(data, self.spacing*channel)
+        #     data, channel = zip(*[(self.peaks[key][channel], channel) for key in self.peaks for channel in self.peaks[key]])
+        #     lengths = [len(d) for d in data]
+        #     channel = numpy.repeat(numpy.int_(channel), lengths)
+        #     data = numpy.hstack(data)
+        #     if self.peak_points is None:
+        #         self.peak_points, = pylab.plot(data, self.spacing*channel, 'r.')
+        #     else:
+        #         self.peak_points.set_data(data, self.spacing*channel)
 
 
         if self.data_lines is None:
