@@ -49,7 +49,7 @@ class Template_updater(Block):
         if not os.path.exists(self.data_path):
             os.makedirs(self.data_path)
         self.log.info('{n} records templates into {k}'.format(k=self.data_path, n=self.name))
-        self.template_store = TemplateStore(os.path.join(self.data_path, 'template_store.h5'))
+        self.template_store = TemplateStore(os.path.join(self.data_path, 'template_store.h5'), N_t=self._spike_width_)
         return
 
     @property

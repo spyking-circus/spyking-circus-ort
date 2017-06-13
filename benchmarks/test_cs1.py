@@ -71,3 +71,7 @@ director.connect(fitter.output, writer_2.input)
 director.start()
 director.sleep(duration=60.0)
 director.stop()
+
+# from circusort.benchmarks.utils.analyzer import Analyzer
+
+# r = Analyzer(writer_2.recorded_data, probe_file, temp_path, synthetic_store=hdf5_path, filtered_data=data_path)

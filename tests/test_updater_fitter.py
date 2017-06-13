@@ -64,9 +64,8 @@ t_max    = spikes.max() + nb_samples
 
 t_min    = t_max - nb_buffers * nb_samples
 
-N_t       = updater._spike_width_
-
 template_store = TemplateStore('templates/template_store.h5', 'r')
+N_t            = template_store.width
 
 data          = template_store.get()
 all_templates = data.pop('templates').T

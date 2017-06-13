@@ -76,42 +76,32 @@ class Analyzer(object):
         pylab.show()
 
 
-    def view_time_slice(self, t_min=None, t_max=None):
+    def view_time_slice(self, t_min=None, t_max=None, spacing=10):
 
         nb_buffers = 10
         nb_samples = 1024
 
-        t_max    = spikes.max() + nb_samples
+        if t_max is None:
+            t_max = self.spikes.max() + nb_samples
 
-        t_min    = t_max - nb_buffers * nb_samples
+        if t_min is None:
+            t_min = t_max - nb_buffers * nb_samples
 
-        N_t       = updater._spike_width_
-
-        
-
-        data          = template_store.get()
+        N_t           = self.template_store.width
+        data          = self.template_store.get()
         all_templates = data.pop('templates').T
         norms         = data.pop('norms')
+        curve         = numpy.zeros((self.nb_channels, t_max-t_min), dtype=numpy.float32)
+        idx           = numpy.where(self.spikes > t_min)[0]
 
-        curve = numpy.zeros((nb_channels, t_max-t_min), dtype=numpy.float32)
-
-        idx    = numpy.where(spikes > t_min)[0]
-
-        for spike, temp_id, amp in zip(spikes[idx], temp_ids[idx], amps[idx]):
+        for spike, temp_id, amp in zip(self.spikes[idx], self.temp_ids[idx], self.amps[idx]):
             if spike > t_min + N_t/2:
                 spike -= t_min
-                tmp1   = all_templates[temp_id].toarray().reshape(nb_channels, N_t)
+                tmp1   = all_templates[temp_id].toarray().reshape(self.nb_channels, N_t)
                 curve[:, spike-N_t/2:spike+N_t/2+1] += amp*tmp1*norms[temp_id]
             
-        neg_peaks = numpy.fromfile('/tmp/peaks.dat', dtype=numpy.int32)
-        neg_peaks = neg_peaks.reshape(neg_peaks.size/2, 2)
-
-        spacing  = 10
         pylab.figure()
-        for i in xrange(nb_channels):
-            pylab.plot(numpy.arange(t_min, t_max), raw_data[t_min:t_max, i] + i*spacing, '0.5')
+        for i in xrange(self.nb_channels):
+            pylab.plot(numpy.arange(t_min, t_max), self.filtered_data[t_min:t_max, i] + i*spacing, '0.5')
             pylab.plot(numpy.arange(t_min, t_max), curve[i, :] + i*spacing, 'r')
-            idx = numpy.where((neg_peaks[:,1] < t_max) & (neg_peaks[:,1] >= t_min) & (neg_peaks[:,0] == i))
-            sub_peaks = neg_peaks[idx]
-            pylab.scatter(sub_peaks[:, 1], spacing*sub_peaks[:, 0], c='k')
         pylab.show()

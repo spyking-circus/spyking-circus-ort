@@ -6,12 +6,20 @@ from circusort.io.utils import append_hdf5
 
 class TemplateStore(object):
 
-    def __init__(self, file_name, mode='w', two_components=False):
+    def __init__(self, file_name, mode='w', two_components=False, N_t=None):
 
         self.file_name      = os.path.abspath(file_name)
         self.initialized    = False
         self.mode           = mode
         self.two_components = two_components
+        self._spike_width   = N_t
+
+    @property
+    def width(self):
+        self.h5_file = h5py.File(self.file_name, 'r')
+        res = self.h5_file['N_t'][0]
+        self.h5_file.close() 
+        return res
 
     def add(self, data):
 
@@ -38,6 +46,10 @@ class TemplateStore(object):
             self.h5_file.create_dataset('indptr', data=templates.indptr, chunks=True, maxshape=(None, ))
             self.h5_file.create_dataset('indices', data=templates.indices, chunks=True, maxshape=(None, ))
             self.h5_file.create_dataset('shape', data=templates.shape, chunks=True)
+
+            if self._spike_width is not None:
+                self.h5_file.create_dataset('N_t', data=numpy.array([self._spike_width]))
+
             self.initialized = True
             self.h5_file.close()
 
