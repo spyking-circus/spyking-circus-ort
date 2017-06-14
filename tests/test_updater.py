@@ -71,5 +71,4 @@ for l in labels:
         #pylab.clim(-5, 5)
         count += 1
 
-print data['times']
 pylab.show()

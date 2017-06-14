@@ -149,7 +149,7 @@ class TemplateStore(object):
                     if load_t2:
                         temp    = scipy.sparse.csc_matrix((self.h5_file['data2'][mask], (self.h5_file['indices'][mask], numpy.zeros(n_data))), shape=(myshape, 1))    
                         result['templates2'] = scipy.sparse.hstack((result['templates2'], temp), 'csc')
-
+                        
         self.h5_file.close()
 
         return result

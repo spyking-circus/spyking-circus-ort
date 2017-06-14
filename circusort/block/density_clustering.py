@@ -314,6 +314,7 @@ class Density_clustering(Block):
                                 self._prepare_templates(templates, key, channel)
 
                     if len(self.to_reset) > 0:
+                        self.templates['offset'] = self.counter*self.nb_samples
                         self.outputs['templates'].send(self.templates)
                         for key, channel in self.to_reset:
                             self._reset_data_structures(key, channel)

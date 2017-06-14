@@ -30,7 +30,7 @@ class Template_fitter(Block):
         self.template_store = None
         self.norms          = numpy.zeros(0, dtype=numpy.float32)
         self.amplitudes     = numpy.zeros((0, 2), dtype=numpy.float32)
-        self.variables      = ['norms, templates, amplitudes']                 
+        self.variables      = ['norms', 'templates', 'amplitudes']                 
 
         if self.two_components:
             self.norms2     = numpy.zeros(0, dtype=numpy.float32)

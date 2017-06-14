@@ -186,6 +186,7 @@ class Template_updater(Block):
 
             nb_before     = self.nb_templates
             new_templates = self._construct_templates(data)
+            offset        = data.pop('offset')
 
             if len(new_templates) > 0:
 
@@ -193,7 +194,7 @@ class Template_updater(Block):
                           'norms'      : self.norms[nb_before:],
                           'amplitudes' : self.amplitudes[nb_before:],
                           'channels'   : self.channels[nb_before:], 
-                          'times'      : [self.counter] * len(new_templates)}
+                          'times'      : [offset] * len(new_templates)}
 
                 if self.two_components:
                     params['templates2'] = self.templates2
