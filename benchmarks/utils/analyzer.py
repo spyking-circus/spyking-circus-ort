@@ -128,8 +128,6 @@ class Analyzer(object):
         if not numpy.iterable(indices):
             indices = [indices]
 
-        print indices
-
         data      = self.template_store.get(indices, ['templates', 'norms'])
         width     = self.template_store.width
         templates = data.pop('templates').T
@@ -187,3 +185,34 @@ class Analyzer(object):
                 pylab.plot(numpy.arange(t_min, t_max), self.filtered_data[t_min:t_max, i] + i*spacing, '0.5')
             pylab.plot(numpy.arange(t_min, t_max), curve[i, :] + i*spacing, 'r')
         pylab.show()
+
+    def compare_rates(self, bin_size=200):
+
+        res   = self.synthetic_store.get(variables=['spike_times'])
+        t_max = 0
+        for key in res.keys():
+            tmp = res[key]['spike_times'].max()
+            if tmp > t_max:
+                t_max = tmp
+
+        t_max = max(t_max, self.spikes.max()) 
+        rates = numpy.zeros((2, int(t_max/bin_size)+1))
+
+        for spike in self.spikes:
+            rates[0, int(spike/bin_size)] += 1
+
+        for key in res.keys():
+            for spike in res[key]['spike_times']:
+                rates[1, int(spike/bin_size)] += 1
+
+        t_appearences = self.template_store.get(variables='times')['times']
+        t_appearences = numpy.ceil(t_appearences/bin_size)
+
+        pylab.figure()
+        pylab.plot(rates[0])
+        pylab.plot(rates[1])
+        ymin, ymax = pylab.ylim()
+        for t in t_appearences:
+            pylab.plot([t, t], [ymin, ymax], 'k--')
+        pylab.show()
+        return rates
