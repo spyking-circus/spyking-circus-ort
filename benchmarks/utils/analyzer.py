@@ -29,7 +29,8 @@ class Analyzer(object):
         if synthetic_store is not None:
             self.synthetic_store = SyntheticStore(os.path.abspath(synthetic_store), 'r')
             self.set_cmap('jet')
-
+        else:
+            self.synthetic_store = None
 
     def set_cmap(self, cmap):
         self._cmap      = pylab.get_cmap(cmap)
@@ -42,7 +43,10 @@ class Analyzer(object):
 
     @property
     def nb_cells(self):
-        return self.synthetic_store.nb_cells
+        if self.synthetic_store is not None:
+            return self.synthetic_store.nb_cells
+        else:
+            return 0
 
     def show_positions(self, indices=None, time=None):
         if time is None:
@@ -75,7 +79,6 @@ class Analyzer(object):
         pylab.yticks([], [])
         pylab.show()
 
-
     def view_time_slice(self, t_min=None, t_max=None, spacing=10):
 
         nb_buffers = 10
@@ -102,6 +105,7 @@ class Analyzer(object):
             
         pylab.figure()
         for i in xrange(self.nb_channels):
-            pylab.plot(numpy.arange(t_min, t_max), self.filtered_data[t_min:t_max, i] + i*spacing, '0.5')
+            if self.filtered_data is not None:
+                pylab.plot(numpy.arange(t_min, t_max), self.filtered_data[t_min:t_max, i] + i*spacing, '0.5')
             pylab.plot(numpy.arange(t_min, t_max), curve[i, :] + i*spacing, 'r')
         pylab.show()

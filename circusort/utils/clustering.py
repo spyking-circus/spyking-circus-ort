@@ -67,7 +67,7 @@ class MacroCluster(object):
 
 class OnlineManager(object):
 
-    def __init__(self, decay=0.35, mu=2, sigma_rad=3, epsilon=0.1, theta=-numpy.log(0.001), dispersion=(5, 5), n_min=None, noise_thr=0.8, logger=None, name=None):
+    def __init__(self, decay=0.35, mu=2, sigma_rad=3, epsilon=0.1, theta=-numpy.log(0.001), dispersion=(5, 5), n_min=None, noise_thr=0.8, pca=None, logger=None, name=None):
 
         if name is None:
             self.name = "OnlineManager"
@@ -82,12 +82,13 @@ class OnlineManager(object):
         self.dispersion       = dispersion
         self.noise_thr        = noise_thr
         self.n_min            = n_min
-
+        self.glob_pca         = pca
+        
         self.is_ready         = False
         self.abs_n_min        = 20
         self.nb_updates       = 0
         self.sub_dim          = 5
-        self.pca              = None
+        self.loc_pca          = None
         self.tracking         = {}
         if logger is None:
             self.log = logging.getLogger(__name__)
@@ -108,16 +109,24 @@ class OnlineManager(object):
 
     def initialize(self, time, data, two_components=False):
 
-        if len(data.shape) == 3:
-            a, b, c  = data.shape
-            data     = data.reshape(a, b*c)
+        if self.glob_pca is not None:
+            sub_data = numpy.dot(data, self.glob_pca)
+        else:
+            sub_data = data
+
+        a, b, c  = sub_data.shape
+        sub_data = sub_data.reshape(a, b*c)
+
+        a, b, c     = data.shape
+        self._width = b*c
+        data        = data.reshape(a, self._width)
 
         self.log.debug("{n} computes local PCA".format(n=self.name))
-        pca      = PCAEstimator(self.sub_dim, copy=False)
-        res_pca  = pca.fit_transform(data.T).astype(numpy.float32)
-        self.pca = res_pca
+        pca          = PCAEstimator(self.sub_dim, copy=False)
+        res_pca      = pca.fit_transform(sub_data.T).astype(numpy.float32)
+        self.loc_pca = res_pca
 
-        sub_data           = numpy.dot(data, self.pca)
+        sub_data           = numpy.dot(sub_data, self.loc_pca)
         rhos, dist, _      = rho_estimation(sub_data)
         rhos               = -rhos + rhos.max()
         n_min              = numpy.maximum(self.abs_n_min, int(self.n_min*len(data)))
@@ -125,10 +134,10 @@ class OnlineManager(object):
         mask               = labels > -1
         self.nb_dimensions = sub_data.shape[1]
         amplitudes         = numpy.zeros((0, 2), dtype=numpy.float32)
-        templates          = numpy.zeros((0, self.pca.shape[0]), dtype=numpy.float32)
+        templates          = numpy.zeros((0, self._width), dtype=numpy.float32)
         indices            = numpy.zeros(0, dtype=numpy.int32)
         if two_components:
-            templates2     = numpy.zeros((0, self.pca.shape[0]), dtype=numpy.float32)
+            templates2     = numpy.zeros((0, self._width), dtype=numpy.float32)
     
         for count, i in enumerate(numpy.unique(labels[mask])):
 
@@ -204,7 +213,7 @@ class OnlineManager(object):
         return centers
 
     def _get_centers_full(self, cluster_type='dense'):
-        centers = numpy.zeros((0, self.pca.shape[0]), dtype=numpy.float32)
+        centers = numpy.zeros((0, self._width), dtype=numpy.float32)
         for cluster in self._get_clusters(cluster_type):
             centers = numpy.vstack((centers, [cluster.center_full]))
         return centers
@@ -275,8 +284,19 @@ class OnlineManager(object):
         
         if data is not None:
         
-            if self.pca is not None:
-                pca_data = numpy.dot(data, self.pca)
+            if self.glob_pca is not None:
+                red_data = numpy.dot(data, self.glob_pca)
+                data     = data.reshape(1, self._width)
+                red_data = red_data.reshape(1, self.loc_pca.shape[0])
+            
+                if self.loc_pca is not None:
+                    pca_data = numpy.dot(red_data, self.loc_pca)
+                else:
+                    pca_data = red_data
+            else:
+                data = data.reshape(1, self._width)
+                if self.loc_pca is not None:
+                    pca_data = numpy.dot(data, self.loc_pca)
 
             if self._merged_into(pca_data, data, 'dense'):
                 #self.log.debug("{n} merges the data at time {t} into a dense cluster".format(n=self.name, t=self.time))
@@ -377,12 +397,12 @@ class OnlineManager(object):
 
         changes = self._perform_tracking(new_tracking_data)
 
-        templates  = numpy.zeros((0, self.pca.shape[0]), dtype=numpy.float32)
+        templates  = numpy.zeros((0, self._width), dtype=numpy.float32)
         amplitudes = numpy.zeros((0, 2), dtype=numpy.float32)
         indices    = numpy.zeros(0, dtype=numpy.int32)
 
         if two_components:
-            templates2 = numpy.zeros((0, self.pca.shape[0]), dtype=numpy.float32)
+            templates2 = numpy.zeros((0, self._width), dtype=numpy.float32)
 
         for key, value in changes['new'].items():
             data       = centers_full[labels == key]

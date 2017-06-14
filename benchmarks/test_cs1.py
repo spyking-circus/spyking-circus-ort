@@ -48,13 +48,12 @@ whitening     = manager.create_block('whitening')
 mad_estimator = manager.create_block('mad_estimator')
 peak_detector = manager.create_block('peak_detector', threshold=5)
 pca           = manager.create_block('pca', nb_waveforms=100)
-cluster       = manager.create_block('density_clustering', probe=probe_file, nb_waveforms=100, log_level=logging.DEBUG, two_components=two_components)
-updater       = manager.create_block('template_updater', probe=probe_file, data_path=temp_path, nb_channels=nb_channels, log_level=logging.DEBUG)
+cluster       = manager.create_block('density_clustering', probe=probe_file, nb_waveforms=100, two_components=two_components)
+updater       = manager.create_block('template_updater', probe=probe_file, data_path=temp_path, nb_channels=nb_channels)
 fitter        = manager.create_block('template_fitter', log_level=logging.INFO, two_components=two_components)
 writer        = manager.create_block('writer', data_path=data_path)
 writer_2      = manager.create_block('spike_writer')
 writer_3      = manager.create_block('peak_writer', neg_peaks=peak_path)
-
 
 director.initialize()
 
@@ -72,6 +71,8 @@ director.start()
 director.sleep(duration=60.0)
 director.stop()
 
-# from circusort.benchmarks.utils.analyzer import Analyzer
+start_time = cluster.start_step
 
-# r = Analyzer(writer_2.recorded_data, probe_file, temp_path, synthetic_store=hdf5_path, filtered_data=data_path)
+from utils.analyzer import Analyzer
+
+r = Analyzer(writer_2.recorded_data, probe_file, temp_path, synthetic_store=hdf5_path, filtered_data=data_path)

@@ -194,6 +194,11 @@ class Density_clustering(Block):
                           'name'       : 'OnlineManger for {p} peak on channel {c}'.format(p=key, c=channel),
                           'logger'     : self.log}
 
+                if key == 'negative':
+                    params['pca'] = self.pcs[0]
+                elif key == 'positive':
+                    params['pca'] = self.pcs[1]
+
                 self.managers[key][channel] = OnlineManager(**params)
                 self._reset_data_structures(key, channel)
 
@@ -245,7 +250,7 @@ class Density_clustering(Block):
         return aligned_template, shift
 
     def _reset_data_structures(self, key, channel):
-        self.raw_data[key][channel] = numpy.zeros((0, self._spike_width_ * len(self.probe.edges[channel])), dtype=numpy.float32)
+        self.raw_data[key][channel] = numpy.zeros((0, len(self.probe.edges[channel]), self._spike_width_), dtype=numpy.float32)
         self.templates['dat'][key][channel] = numpy.zeros((0, len(self.probe.edges[channel]), self._spike_width_), dtype=numpy.float32)
         self.templates['amp'][key][channel] = numpy.zeros((0, 2), dtype=numpy.float32)
         self.templates['ind'][key][channel] = numpy.zeros(0, dtype=numpy.int32)
@@ -286,7 +291,7 @@ class Density_clustering(Block):
                             all_peaks[key]  = self._remove_nn_peaks(peak, all_peaks[key])
                             channel, is_neg = self._get_best_channel(batch, key, peak, peaks)
                             waveforms       = self._get_snippet(batch, channel, peak, is_neg).T
-                            waveforms       = waveforms.reshape(1, waveforms.shape[0]*waveforms.shape[1])
+                            waveforms       = waveforms.reshape(1, waveforms.shape[0], waveforms.shape[1])
                             if is_neg:
                                 key = 'negative'
                             else:
