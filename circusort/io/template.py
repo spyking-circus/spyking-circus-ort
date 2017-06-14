@@ -98,6 +98,8 @@ class TemplateStore(object):
 
         if variables is None:
             variables = self.variables
+        elif not isinstance(variables, list):
+            variables = [variables]
 
         self.h5_file = h5py.File(self.file_name, 'r')
 
@@ -115,6 +117,9 @@ class TemplateStore(object):
                 result['templates2'] = scipy.sparse.csc_matrix((self.h5_file['data'][:], self.h5_file['indices'][:], self.h5_file['indptr'][:]),
                         shape=self.h5_file['shape'][:])
         else:
+
+            if not numpy.iterable(indices):
+                indices = [indices]
 
             for var in ['norms', 'channels', 'times', 'norms2']:
                 if var in variables:
@@ -149,7 +154,7 @@ class TemplateStore(object):
                     if load_t2:
                         temp    = scipy.sparse.csc_matrix((self.h5_file['data2'][mask], (self.h5_file['indices'][mask], numpy.zeros(n_data))), shape=(myshape, 1))    
                         result['templates2'] = scipy.sparse.hstack((result['templates2'], temp), 'csc')
-                        
+
         self.h5_file.close()
 
         return result

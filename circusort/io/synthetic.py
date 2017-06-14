@@ -6,7 +6,7 @@ from circusort.io.utils import append_hdf5
 
 class SyntheticStore(object):
 
-    fields = ['x', 'y', 'z', 'r', 'e', 'spike_times', 'waveform/x', 'waveform/y']
+    variables = ['x', 'y', 'z', 'r', 'e', 'spike_times', 'waveform/x', 'waveform/y']
 
     def __init__(self, file_name, mode='w'):
 
@@ -55,9 +55,13 @@ class SyntheticStore(object):
 
         if indices is None:
             indices = self.h5_file.keys()
+        elif not numpy.iterable(indices):
+            indices = [indices]
 
         if variables is None:
-            variables = self.fields
+            variables = self.variables
+        elif not isinstance(variables, list):
+            variables = [variables]
 
         for cell_id in indices:
             result[cell_id] = {}

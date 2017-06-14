@@ -3,9 +3,11 @@ import time
 import os
 import pylab
 import matplotlib
+import scipy
 from circusort import io
 from circusort.io.template import TemplateStore
 from circusort.io.synthetic import SyntheticStore
+from circusort.block.synthetic_generator import Cell
 import matplotlib.colors as colors
 
 class Analyzer(object):
@@ -80,6 +82,79 @@ class Analyzer(object):
             pylab.plot(res[key]['r'] + int(key)*spacing, color=colorVal)
         pylab.xlabel('Time [chunks]')
         pylab.yticks([], [])
+        pylab.show()
+
+    def _get_synthetic_template(self, i, time=None, nn=100, hf_dist=45, a_dist=1.0):
+        if time is None:
+            time = 0
+        res  = self.synthetic_store.get(indices=[i], variables=['x', 'y', 'z'])
+        cell = Cell(lambda t: res[i]['x'][time], lambda t: res[i]['y'][time], lambda t: res[i]['z'][time], nn=nn, hf_dist=hf_dist, a_dist=a_dist)
+        a, b, c = cell.get_waveforms(time, self.probe)
+        template = scipy.sparse.csc_matrix((c, (b, a+20)), shape=(self.nb_channels, 81))
+        return template
+
+    def view_synthetic_templates(self, indices, time=None, nn=100, hf_dist=45, a_dist=1.0):
+
+        if not numpy.iterable(indices):
+            indices = [indices]
+
+        scaling = None
+        pylab.figure()
+
+        for i in indices:
+
+            template   = self._get_synthetic_template(i, time, nn, hf_dist, a_dist)
+            template   = template.toarray()
+            width      = template.shape[1]
+            xmin, xmax = self.probe.field_of_view['x_min'], self.probe.field_of_view['x_max']
+            ymin, ymax = self.probe.field_of_view['y_min'], self.probe.field_of_view['y_max']
+            if scaling is None:
+                scaling= 10*numpy.max(numpy.abs(template))
+            colorVal   = self._scalarMap.to_rgba(i)
+            
+            for count, i in enumerate(xrange(self.nb_channels)):
+                x, y     = self.probe.positions[:, i]
+                xpadding = ((x - xmin)/(float(xmax - xmin) + 1))*(2*width)
+                ypadding = ((y - ymin)/(float(ymax - ymin) + 1))*scaling
+                pylab.plot(xpadding + numpy.arange(width), ypadding + template[i, :], color=colorVal)
+        
+        pylab.tight_layout()
+        pylab.setp(pylab.gca(), xticks=[], yticks=[])
+        pylab.xlim(xmin, 3*width)
+        pylab.show()
+
+    def view_circus_templates(self, indices):
+
+        if not numpy.iterable(indices):
+            indices = [indices]
+
+        print indices
+
+        data      = self.template_store.get(indices, ['templates', 'norms'])
+        width     = self.template_store.width
+        templates = data.pop('templates').T
+        norms     = data.pop('norms')
+        scaling   = None
+        pylab.figure()
+
+        for count, i in enumerate(indices):
+
+            template   = templates[count].toarray().reshape(self.nb_channels, width) * norms[count]
+            xmin, xmax = self.probe.field_of_view['x_min'], self.probe.field_of_view['x_max']
+            ymin, ymax = self.probe.field_of_view['y_min'], self.probe.field_of_view['y_max']
+            if scaling is None:
+                scaling= 10*numpy.max(numpy.abs(template))
+            colorVal   = self._scalarMap.to_rgba(i)
+            
+            for count, i in enumerate(xrange(self.nb_channels)):
+                x, y     = self.probe.positions[:, i]
+                xpadding = ((x - xmin)/(float(xmax - xmin) + 1))*(2*width)
+                ypadding = ((y - ymin)/(float(ymax - ymin) + 1))*scaling
+                pylab.plot(xpadding + numpy.arange(width), ypadding + template[i, :], color='k')
+        
+        pylab.tight_layout()
+        pylab.setp(pylab.gca(), xticks=[], yticks=[])
+        pylab.xlim(xmin, 3*width)
         pylab.show()
 
     def view_time_slice(self, t_min=None, t_max=None, spacing=10):
