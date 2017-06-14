@@ -30,8 +30,11 @@ class Template_fitter(Block):
         self.template_store = None
         self.norms          = numpy.zeros(0, dtype=numpy.float32)
         self.amplitudes     = numpy.zeros((0, 2), dtype=numpy.float32)
+        self.variables      = ['norms, templates, amplitudes']                 
+
         if self.two_components:
             self.norms2     = numpy.zeros(0, dtype=numpy.float32)
+            self.variables += ['norms2', 'templates2']
 
         if numpy.mod(self._spike_width_, 2) == 0:
             self._spike_width_ += 1
@@ -253,7 +256,7 @@ class Template_fitter(Block):
                 if self.template_store is None:
                     self.template_store = TemplateStore(updater['templates_file'], 'r', self.two_components)
 
-                data            = self.template_store.get(updater['indices'])
+                data            = self.template_store.get(updater['indices'], variables=self.variables)
 
                 self.norms      = numpy.concatenate((self.norms, data.pop('norms')))
                 self.amplitudes = numpy.vstack((self.amplitudes, data.pop('amplitudes')))

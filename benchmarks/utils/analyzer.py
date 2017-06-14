@@ -47,6 +47,9 @@ class Analyzer(object):
             return self.synthetic_store.nb_cells
         else:
             return 0
+    @property
+    def nb_templates(self):
+        return self.template_store.nb_templates
 
     def show_positions(self, indices=None, time=None):
         if time is None:

@@ -64,11 +64,12 @@ for l in labels:
     nb_lines = int(len(idx)/nb_cols) + 1 
     count =  1
     for i in idx:
-        data = all_templates[i].toarray().reshape(nb_channels, N_t)*norms[i]
+        template = all_templates[i].toarray().reshape(nb_channels, N_t)*norms[i]
         pylab.subplot(nb_lines, nb_cols, count)
-        pylab.imshow(data, aspect='auto')
+        pylab.imshow(template, aspect='auto')
         pylab.colorbar()
         #pylab.clim(-5, 5)
         count += 1
 
+print data['times']
 pylab.show()

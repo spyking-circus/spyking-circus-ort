@@ -192,7 +192,8 @@ class Template_updater(Block):
                 params = {'templates'  : self.templates[:, nb_before:],
                           'norms'      : self.norms[nb_before:],
                           'amplitudes' : self.amplitudes[nb_before:],
-                          'channels'   : self.channels[nb_before:]}
+                          'channels'   : self.channels[nb_before:], 
+                          'times'      : [self.counter] * len(new_templates)}
 
                 if self.two_components:
                     params['templates2'] = self.templates2

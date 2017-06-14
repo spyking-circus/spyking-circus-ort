@@ -68,7 +68,7 @@ class Synthetic_generator(block.Block):
         for c in range(0, self.nb_cells):
             x_ref = np.random.uniform(self.fov['x_min'], self.fov['x_max']) # um # cell x-coordinate
             y_ref = np.random.uniform(self.fov['y_min'], self.fov['y_max']) # um # cell y-coordinate
-            z_ref = 20.0 # um # cell z-coordinate
+            z_ref = 0.0 # um # cell z-coordinate
             r_ref = 5.0 # Hz # cell firing rate
             cell_args = {
                 'x': eval("lambda t: %s" % x_ref),
@@ -76,7 +76,9 @@ class Synthetic_generator(block.Block):
                 'z': eval("lambda t: %s" % z_ref),
                 'r': eval("lambda t: %s" % r_ref),
             }
+            
             if self.cells_args is not None:
+                self.log.debug('{n} creates a cell with params {p}'.format(n=self.name, p=self.cells_args[c]))
                 cell_args.update(self.exec_kwargs(self.cells_args[c], self.cells_params))
             self.cells[c] = Cell(**cell_args)
 
@@ -228,8 +230,8 @@ class Synthetic_generator(block.Block):
         # output_kwargs = loc['ans']
 
         for key in input_kwargs.keys():
-            input_kwargs[key] = eval("lambda t: %s" % input_kwargs[key], input_params)
-
+            if type(input_kwargs[key]) == unicode:
+                input_kwargs[key] = eval("lambda t: %s" % input_kwargs[key], input_params)
         return input_kwargs
 
     def __del__(self):
@@ -241,7 +243,18 @@ class Synthetic_generator(block.Block):
 
 class Cell(object):
 
-    def __init__(self, x=None, y=None, z=None, r=None, t='default', sr=20.0e+3, rp=20.0e-3):
+    variables = {'x'       : None,
+                 'y'       : None,
+                 'z'       : None,
+                 'r'       : None,
+                 't'       : 'default',
+                 'sr'      : 20000, 
+                 'rp'      : 5e-3,
+                 'nn'      : 100, 
+                 'hf_dist' : 50, 
+                 'a_dist'  : 1}
+
+    def __init__(self, x=None, y=None, z=None, r=None, t='default', sr=20.0e+3, rp=20.0e-3, nn=100, hf_dist = 45.0, a_dist=1.0):
         '''TODO add docstring.
 
         Parameters
@@ -278,9 +291,13 @@ class Cell(object):
             self.r = lambda t: 5.0 # Hz
         else:
             self.r = r
-        self.t = t # cell type
+        self.t  = t # cell type
         self.sr = sr # sampling_rate
+        
         self.rp = rp # refactory period
+        self.nn = nn
+        self.hf_dist = hf_dist
+        self.a_dist = a_dist
 
         self.buffered_spike_times = np.array([], dtype='float32')
 
@@ -300,8 +317,8 @@ class Cell(object):
 
         x = self.x(chunk_number)
         y = self.y(chunk_number)
-        r = 100.0 # um # TODO get rid of this local parameter.
-        c, d = probe.get_channels_around(x, y, r)
+        
+        c, d = probe.get_channels_around(x, y, self.nn)
 
         e = c[np.argmin(d)]
         # NB: Only the first minimum is returned.
@@ -357,8 +374,7 @@ class Cell(object):
 
         x = self.x(chunk_number)
         y = self.y(chunk_number)
-        r = 100.0 # um # TODO get rid of this local parameter.
-        channels, distances = probe.get_channels_around(x, y, r)
+        channels, distances = probe.get_channels_around(x, y, self.nn)
 
         z = self.z(chunk_number)
         distances = np.sqrt(np.power(distances, 2.0) + z ** 2)
@@ -366,9 +382,8 @@ class Cell(object):
         i = np.tile(steps, channels.size)
         j = np.repeat(channels, steps.size)
         v = np.zeros((steps.size, channels.size))
-        half_distance = 45.0 # um
         for k in range(0, channels.size):
-            coef = 1.0 / (1.0 + (distances[k] / half_distance) ** 2.0) # coefficient of attenuation
+            coef = self.a_dist / (1.0 + (distances[k] / self.hf_dist) ** 2.0) # coefficient of attenuation
             v[:, k] = coef * u
         v = np.transpose(v)
         v = v.flatten()
