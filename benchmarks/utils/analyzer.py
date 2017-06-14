@@ -53,7 +53,7 @@ class Analyzer(object):
     def nb_templates(self):
         return self.template_store.nb_templates
 
-    def show_positions(self, indices=None, time=None):
+    def view_positions(self, indices=None, time=None):
         if time is None:
             time = 0
         res = self.synthetic_store.get(indices=indices, variables=['x', 'y', 'z'])
@@ -74,7 +74,7 @@ class Analyzer(object):
         pylab.scatter(all_x, all_y, c=all_c)
         pylab.show()
 
-    def show_rates(self, indices=None, spacing=1):
+    def view_rates(self, indices=None, spacing=1):
         res = self.synthetic_store.get(indices=indices, variables='r')
         pylab.figure()
         for key in res.keys():
@@ -174,11 +174,13 @@ class Analyzer(object):
         idx           = numpy.where(self.spikes > t_min)[0]
 
         for spike, temp_id, amp in zip(self.spikes[idx], self.temp_ids[idx], self.amps[idx]):
-            if spike > t_min + N_t/2:
+            try:
                 spike -= t_min
                 tmp1   = all_templates[temp_id].toarray().reshape(self.nb_channels, N_t)
                 curve[:, spike-N_t/2:spike+N_t/2+1] += amp*tmp1*norms[temp_id]
-            
+            except Exception:
+                pass
+
         pylab.figure()
         for i in xrange(self.nb_channels):
             if self.filtered_data is not None:

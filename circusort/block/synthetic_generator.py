@@ -328,7 +328,11 @@ class Cell(object):
     def generate_spike_trains(self, chunk_number, nb_samples):
         '''TODO add docstring.'''
 
-        scale = 1.0 / self.r(chunk_number)
+        if self.r(chunk_number) > 0.0:
+            scale = 1.0 / self.r(chunk_number)
+        else:
+            scale = np.inf
+
         size = 1 + int(float(nb_samples) / self.sr / scale)
 
         spike_times = np.array([])

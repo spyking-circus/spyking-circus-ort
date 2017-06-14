@@ -21,14 +21,14 @@ director  = circusort.create_director(host=host)
 manager   = director.create_manager(host=host)
 
 sampling_rate  = 20000
-two_components = False
+two_components = True
 nb_channels    = 4
 
 nb_cells   = 10
-cell_obj_1 = {'r': '(t < tc) * (r_ref + a * np.sin(2.0 * np.pi * float(t) / d))'}
-cell_obj_2 = {'r': '(t >= tc) * (r_ref + a * np.sin(2.0 * np.pi * float(t) / d))'}
+cell_obj_1 = {'r': '(t < tc) * (r_ref)'}
+cell_obj_2 = {'r': '(t >= tc) * (2*r_ref)'}
 
-cells_params = {'r_ref': 10.0, # reference firing rate (i.e. mean firing rate)
+cells_params = {'r_ref': 20.0, # reference firing rate (i.e. mean firing rate)
                 'tc'   : 1000, 
                 'a'    : 8.0, # sinusoidal amplitude for firing rate modification
                 'd'    : 10.0, # number of chunk per period
@@ -47,8 +47,8 @@ filter        = manager.create_block('filter', cut_off=100)
 whitening     = manager.create_block('whitening')
 mad_estimator = manager.create_block('mad_estimator')
 peak_detector = manager.create_block('peak_detector', threshold=5)
-pca           = manager.create_block('pca', nb_waveforms=500)
-cluster       = manager.create_block('density_clustering', probe=probe_file, nb_waveforms=100, two_components=two_components)
+pca           = manager.create_block('pca', nb_waveforms=1000)
+cluster       = manager.create_block('density_clustering', probe=probe_file, nb_waveforms=200, two_components=two_components)
 updater       = manager.create_block('template_updater', probe=probe_file, data_path=temp_path, nb_channels=nb_channels)
 fitter        = manager.create_block('template_fitter', log_level=logging.INFO, two_components=two_components)
 writer        = manager.create_block('writer', data_path=data_path)
@@ -72,6 +72,7 @@ director.sleep(duration=60.0)
 director.stop()
 
 start_time = cluster.start_step
+stop_time  = fitter.counter
 
 #from utils.analyzer import Analyzer
 #r = Analyzer(writer_2.recorded_data, probe_file, temp_path, synthetic_store=hdf5_path, filtered_data=data_path)
