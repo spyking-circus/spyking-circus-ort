@@ -32,6 +32,8 @@ updater       = manager2.create_block('template_updater', probe=probe_file, data
 dispatcher    = manager.create_block('chunk_dispatcher', nb_groups=nb_fitters)
 fitters       = [manager2.create_block('template_fitter', log_level=logging.INFO, two_components=two_components) for i in xrange(nb_fitters)]
 
+peak_dispatch = manager.create_block('peak_dispatcher', nb_groups=nb_fitters)
+
 writer        = manager.create_block('writer', data_path='/tmp/output.dat')
 writer_2      = manager2.create_block('spike_writer')
 writer_3      = manager2.create_block('peak_writer', neg_peaks='/tmp/peaks.dat')
@@ -47,10 +49,10 @@ for i in xrange(nb_fitters):
     director.connect(dispatcher.get_output('data_%d' %i), fitters[i].get_input('data'))
 
 director.connect(mad_estimator.output, [peak_detector.get_input('mads'), cluster.get_input('mads')])
-director.connect(peak_detector.get_output('peaks'), [pca.get_input('peaks'), cluster.get_input('peaks'), writer_3.input])
+director.connect(peak_detector.get_output('peaks'), [pca.get_input('peaks'), cluster.get_input('peaks'), writer_3.input, peak_dispatch.input])
 
 for i in xrange(nb_fitters):
-    director.connect(peak_detector.get_output('peaks'), fitters[i].get_input('peaks'))
+    director.connect(peak_dispatch.get_output('peaks_%d' %i), fitters[i].get_input('peaks'))
 
 director.connect(pca.get_output('pcs'), cluster.get_input('pcs'))
 director.connect(cluster.get_output('templates'), updater.get_input('templates'))
