@@ -319,26 +319,32 @@ class OnlineManager(object):
 
     def _perform_tracking(self, new_tracking_data):
 
-        all_centers = numpy.array([i[0] for i in self.tracking.values()], dtype=numpy.float32)
-        all_sigmas  = [i[1] for i in self.tracking.values()]
-        all_indices = self.tracking.keys()
-
         changes = {'new' : {}, 'merged' : {}}
 
-        for key, value in new_tracking_data.items():
-            center, sigma = value
-            new_dist      = scipy.spatial.distance.cdist(numpy.array([center]), all_centers, 'euclidean')
-            dist_min      = numpy.min(new_dist)
-            dist_idx      = numpy.argmin(new_dist)
+        if len(self.tracking) > 0:
+            all_centers = numpy.array([i[0] for i in self.tracking.values()], dtype=numpy.float32)
+            all_sigmas  = [i[1] for i in self.tracking.values()]
+            all_indices = self.tracking.keys()
 
-            if dist_min < self.radius*max(sigma, all_sigmas[dist_idx]):
-                #self.log.debug("{n} establishes a match between target {t} and source {s}".format(n=self.name, t=key, s=all_indices[dist_idx]))
-                changes['merged'][key] = all_indices[dist_idx] 
-                self.tracking[key]     = center, sigma
-            else:
+            for key, value in new_tracking_data.items():
+                center, sigma = value
+                new_dist      = scipy.spatial.distance.cdist(numpy.array([center]), all_centers, 'euclidean')
+                dist_min      = numpy.min(new_dist)
+                dist_idx      = numpy.argmin(new_dist)
+
+                if dist_min < self.radius*max(sigma, all_sigmas[dist_idx]):
+                    #self.log.debug("{n} establishes a match between target {t} and source {s}".format(n=self.name, t=key, s=all_indices[dist_idx]))
+                    changes['merged'][key] = all_indices[dist_idx]
+                    self.tracking[key]     = center, sigma
+                else:
+                    idx = self._get_tracking_id()
+                    self.tracking[idx] = center, sigma
+                    #self.log.debug("{n} can not found a match for target {t} assigned to {s}".format(n=self.name, t=key, s=idx))
+                    changes['new'][key] = idx
+        else:
+            self.tracking = new_tracking_data
+            for key, value in new_tracking_data.items():
                 idx = self._get_tracking_id()
-                self.tracking[idx] = center, sigma
-                #self.log.debug("{n} can not found a match for target {t} assigned to {s}".format(n=self.name, t=key, s=idx))
                 changes['new'][key] = idx
 
         return changes
