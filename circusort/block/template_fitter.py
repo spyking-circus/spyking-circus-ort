@@ -241,12 +241,13 @@ class Template_fitter(Block):
 
         if peaks is not None:
 
+            while not self._sync_buffer(peaks, self.nb_samples):
+                peaks = self.inputs['peaks'].receive()
+
             if not self.is_active:
                 self._set_active_mode()
 
-            while peaks.pop('offset')/self.nb_samples < self.counter:
-                peaks = self.inputs['peaks'].receive()
-
+            offset      = peaks.pop('offset')
             self.offset = self.counter * self.nb_samples
 
             updater  = self.inputs['updater'].receive(blocking=False)

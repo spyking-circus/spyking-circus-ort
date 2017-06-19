@@ -68,7 +68,7 @@ director.connect(updater.get_output('updater'), fitter.get_input('updater'))
 director.connect(fitter.output, writer_2.input)
 
 director.start()
-director.sleep(duration=60.0)
+director.sleep(duration=100.0)
 director.stop()
 
 start_time = cluster.start_step

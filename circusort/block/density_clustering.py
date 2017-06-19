@@ -271,51 +271,52 @@ class Density_clustering(Block):
                 self.log.info("{n} receives the PCA matrices".format(n=self.name_and_counter))
                 self.receive_pcs = False
                 self._init_data_structures()
-                self._set_active_mode()
 
             if (peaks is not None) and (self.thresholds is not None):
 
                 self.to_reset = []
 
-                while peaks.pop('offset')/self.nb_samples < self.counter:
+                while not self._sync_buffer(peaks, self.nb_samples):
                     peaks = self.inputs['peaks'].receive()
 
-                if peaks is not None:
+                if not self.is_active:
+                    self._set_active_mode()
 
-                    all_peaks = self._get_all_valid_peaks(peaks)
+                offset    = peaks.pop('offset')
+                all_peaks = self._get_all_valid_peaks(peaks)
 
-                    for key in self.sign_peaks:
+                for key in self.sign_peaks:
 
-                        while len(all_peaks[key]) > 0:
-                            peak            = all_peaks[key][0]
-                            all_peaks[key]  = self._remove_nn_peaks(peak, all_peaks[key])
-                            channel, is_neg = self._get_best_channel(batch, key, peak, peaks)
-                            waveforms       = self._get_snippet(batch, channel, peak, is_neg).T
-                            waveforms       = waveforms.reshape(1, waveforms.shape[0], waveforms.shape[1])
-                            if is_neg:
-                                key = 'negative'
-                            else:
-                                key = 'positive'
+                    while len(all_peaks[key]) > 0:
+                        peak            = all_peaks[key][0]
+                        all_peaks[key]  = self._remove_nn_peaks(peak, all_peaks[key])
+                        channel, is_neg = self._get_best_channel(batch, key, peak, peaks)
+                        waveforms       = self._get_snippet(batch, channel, peak, is_neg).T
+                        waveforms       = waveforms.reshape(1, waveforms.shape[0], waveforms.shape[1])
+                        if is_neg:
+                            key = 'negative'
+                        else:
+                            key = 'positive'
 
-                            if not self.managers[key][channel].is_ready:
-                                self.raw_data[key][channel] = numpy.vstack((self.raw_data[key][channel], waveforms))
-                            else:
-                                self.managers[key][channel].update(self.counter, waveforms)
+                        if not self.managers[key][channel].is_ready:
+                            self.raw_data[key][channel] = numpy.vstack((self.raw_data[key][channel], waveforms))
+                        else:
+                            self.managers[key][channel].update(self.counter, waveforms)
                            
-                        for channel in xrange(self.nb_channels):
-                            
-                            self.managers[key][channel].set_physical_threshold(self.thresholds[channel])
+                    for channel in xrange(self.nb_channels):
+                           
+                        self.managers[key][channel].set_physical_threshold(self.thresholds[channel])
 
-                            if len(self.raw_data[key][channel]) >= self.nb_waveforms and not self.managers[key][channel].is_ready:
-                                templates = self.managers[key][channel].initialize(self.counter, self.raw_data[key][channel], self.two_components)
-                                self._prepare_templates(templates, key, channel)
-                            elif self.managers[key][channel].time_to_cluster(self.frequency):
-                                templates = self.managers[key][channel].cluster(two_components=self.two_components, tracking=self.tracking)
-                                self._prepare_templates(templates, key, channel)
+                        if len(self.raw_data[key][channel]) >= self.nb_waveforms and not self.managers[key][channel].is_ready:
+                            templates = self.managers[key][channel].initialize(self.counter, self.raw_data[key][channel], self.two_components)
+                            self._prepare_templates(templates, key, channel)
+                        elif self.managers[key][channel].time_to_cluster(self.frequency):
+                            templates = self.managers[key][channel].cluster(two_components=self.two_components, tracking=self.tracking)
+                            self._prepare_templates(templates, key, channel)
 
-                    if len(self.to_reset) > 0:
-                        self.templates['offset'] = self.counter*self.nb_samples
-                        self.outputs['templates'].send(self.templates)
-                        for key, channel in self.to_reset:
-                            self._reset_data_structures(key, channel)
+                if len(self.to_reset) > 0:
+                    self.templates['offset'] = self.counter*self.nb_samples
+                    self.outputs['templates'].send(self.templates)
+                    for key, channel in self.to_reset:
+                        self._reset_data_structures(key, channel)
         return

@@ -125,6 +125,12 @@ class Block(threading.Thread):
             return self._guess_output_endpoints(**kwargs)
 
 
+    def _sync_buffer(self, dict, nb_samples):
+        offset = dict['offset']
+        if offset < self.counter * nb_samples:
+            return False
+        return True
+
     def run(self):
         if not self.ready:
             self.initialize()

@@ -91,9 +91,11 @@ class Pca(Block):
         
         if peaks is not None:
 
-            while peaks.pop('offset')/self.nb_samples < self.counter:
+            while not self._sync_buffer(peaks, self.nb_samples):
                 peaks = self.inputs['peaks'].receive()
             
+            offset = peaks.pop('offset')
+
             if self.sign_peaks is None:
                 self._infer_sign_peaks(peaks)
 
