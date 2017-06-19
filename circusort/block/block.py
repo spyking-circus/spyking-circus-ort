@@ -165,7 +165,7 @@ class Block(threading.Thread):
 
     def _check_real_time_ratio(self):
         data = self.real_time_ratio
-        if data is not None and data <= 1:
+        if data is not None and data <= 1 and self.is_active:
             self.log.warning("{n} is lagging, running at {k} x real time".format(n=self.name_and_counter, k=data))
 
     def list_parameters(self):

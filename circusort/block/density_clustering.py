@@ -15,7 +15,8 @@ class Density_clustering(Block):
     params = {'alignment'     : True,
               'sampling_rate' : 20000.,
               'spike_width'   : 5,
-              'nb_waveforms'  : 10000, 
+              'nb_waveforms'  : 10000,
+              'channels'      : None,
               'probe'         : None,
               'radius'        : None,
               'm_ratio'       : 0.01,
@@ -46,6 +47,7 @@ class Density_clustering(Block):
         self.add_input('peaks')
         self.add_input('mads')
         self.add_output('templates', 'dict')
+
 
     def _initialize(self):
 
@@ -78,7 +80,8 @@ class Density_clustering(Block):
         for key in peaks.keys():
             all_peaks[key] = set([])
             for channel in peaks[key].keys():
-                 all_peaks[key] = all_peaks[key].union(peaks[key][channel])
+                if int(channel) in self.channels:
+                    all_peaks[key] = all_peaks[key].union(peaks[key][channel])
 
             all_peaks[key] = numpy.array(list(all_peaks[key]), dtype=numpy.int32)
             mask           = self._is_valid(all_peaks[key])
@@ -154,11 +157,16 @@ class Density_clustering(Block):
         return sub_mat
 
     def _guess_output_endpoints(self):
+
+        if self.channels is None:
+            self.channels = numpy.arange(self.nb_channels)
+
         if self.inputs['data'].dtype is not None:
-            self.decay_time = self.decay_factor #1 - numpy.exp(-1000*(self.nb_samples/self.sampling_rate)/float(self.decay_factor))
+            self.decay_time = self.decay_factor
             self.chan_positions = numpy.zeros(self.nb_channels, dtype=numpy.int32)
             for channel in xrange(self.nb_channels):
                 self.chan_positions[channel] = numpy.where(self.probe.edges[channel] == channel)[0]
+
 
     def _init_data_structures(self):
         self.raw_data   = {}
@@ -181,7 +189,7 @@ class Density_clustering(Block):
             for k in self.all_keys:
                 self.templates[k][key] = {}
 
-            for channel in xrange(self.nb_channels):
+            for channel in self.channels:
 
                 params = {'dispersion' : self.dispersion,
                           'mu'         : self.mu,
@@ -289,7 +297,7 @@ class Density_clustering(Block):
 
                     while len(all_peaks[key]) > 0:
                         peak            = all_peaks[key][0]
-                        all_peaks[key]  = self._remove_nn_peaks(peak, all_peaks[key])
+                        #all_peaks[key]  = self._remove_nn_peaks(peak, all_peaks[key])
                         channel, is_neg = self._get_best_channel(batch, key, peak, peaks)
                         waveforms       = self._get_snippet(batch, channel, peak, is_neg).T
                         waveforms       = waveforms.reshape(1, waveforms.shape[0], waveforms.shape[1])

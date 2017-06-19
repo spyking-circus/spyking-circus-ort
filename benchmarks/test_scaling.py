@@ -4,56 +4,51 @@
 import circusort
 import logging
 import numpy
+from circusort.io.utils import generate_fake_probe
 
 ## In this example, we have 20 fixed neurons. 10 are active during the first 30s of the experiment, and then 10 new ones
 ## are appearing after 30s. The goal here is to study how the clsutering can handle such an discountinuous change
 
 
-host = '127.0.0.1' # to run the test locally
+master     = '192.168.0.254' # to run the test locally
+
+slaves     = ['192.168.0.1', '192.168.0.2', '192.168.0.3']
+
 data_path  = '/tmp/output.dat'
-hdf5_path  = '/tmp/synthetic.h5'
 peak_path  = '/tmp/peaks.dat'
 thres_path = '/tmp/thresholds.dat'
 temp_path  = '/tmp/templates'
-probe_file = 'mea_4.prb'
 
+director  = circusort.create_director(host=master)
+manager   = {}
 
-director  = circusort.create_director(host=host)
-manager   = director.create_manager(host=host)
+for computer in slaves + master:
+    manager[computer] = director.create_manager(host=computer)
 
 sampling_rate  = 20000
 two_components = True
 nb_channels    = 4
 
-nb_cells   = 10
-cell_obj_1 = {'r': 'r_ref'}
-cell_obj_2 = {'r': 'r_ref'}
 
-cells_params = {'r_ref': 10.0, # reference firing rate (i.e. mean firing rate)
-                'tc'   : 2000,
-            }
+probe_file    = generate_fake_probe(nb_channels, radius=2, prb_file='test.prb')
 
-cells_args = []
+generator     = manager[master].create_block('fake_spike_generator', probe=probe_file)
+filter        = manager[master].create_block('filter', cut_off=100)
+whitening     = manager[master].create_block('whitening')
+mad_estimator = manager[master].create_block('mad_estimator')
+peak_detector = manager[master].create_block('peak_detector', threshold=5)
+pca           = manager[master].create_block('pca', nb_waveforms=500)
 
-for i in xrange(2*nb_cells):
-    if i < nb_cells:
-        cells_args += [cell_obj_1]
-    else:
-        cells_args += [cell_obj_2]
+cluster       = manager[slaves[0]].create_block('density_clustering', probe=probe_file, nb_waveforms=100, two_components=two_components)
+cluster       = manager[slaves[1]].create_block('density_clustering', probe=probe_file, nb_waveforms=100, two_components=two_components)
 
-generator     = manager.create_block('synthetic_generator', cells_args=cells_args, cells_params=cells_params, hdf5_path=hdf5_path, probe=probe_file)
-filter        = manager.create_block('filter', cut_off=100)
-whitening     = manager.create_block('whitening')
-mad_estimator = manager.create_block('mad_estimator')
-peak_detector = manager.create_block('peak_detector', threshold=5)
-pca           = manager.create_block('pca', nb_waveforms=500)
-cluster       = manager.create_block('density_clustering', probe=probe_file, nb_waveforms=100, two_components=two_components)
-updater       = manager.create_block('template_updater', probe=probe_file, data_path=temp_path, nb_channels=nb_channels)
-fitter        = manager.create_block('template_fitter', log_level=logging.INFO, two_components=two_components)
-writer        = manager.create_block('writer', data_path=data_path)
-writer_2      = manager.create_block('spike_writer')
-writer_3      = manager.create_block('peak_writer', neg_peaks=peak_path)
-writer_4      = manager.create_block('writer', data_path=thres_path)
+updater       = manager[slaves[-1]].create_block('template_updater', probe=probe_file, data_path=temp_path, nb_channels=nb_channels)
+fitter        = manager[slaves[-1]].create_block('template_fitter', log_level=logging.INFO, two_components=two_components)
+
+writer        = manager[master].create_block('writer', data_path=data_path)
+writer_2      = manager[master].create_block('spike_writer')
+writer_3      = manager[master].create_block('peak_writer', neg_peaks=peak_path)
+writer_4      = manager[master].create_block('writer', data_path=thres_path)
 
 director.initialize()
 

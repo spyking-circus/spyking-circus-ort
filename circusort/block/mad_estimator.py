@@ -7,8 +7,8 @@ class Mad_estimator(Block):
 
     name = "MAD Estimator"
 
-    params = {'time_constant' : 10.,
-              'epsilon'       : 0.01,
+    params = {'time_constant' : 1.,
+              'epsilon'       : 1e-5,
               'threshold'     : 5,
               'sampling_rate' : 20000.}
 
@@ -39,7 +39,7 @@ class Mad_estimator(Block):
         self.last_mads_mean = numpy.zeros(self.nb_channels, dtype=numpy.float32)
 
     def _check_if_active(self):
-        test = numpy.abs(numpy.mean(self.mads/self.last_mads_mean) - 1)
+        test = numpy.mean(numpy.abs(self.mads/self.last_mads_mean) - 1)
         if (test < self.epsilon):
             self.log.info('{n} has converged'.format(n=self.name_and_counter))
             self._set_active_mode()

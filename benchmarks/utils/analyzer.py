@@ -12,7 +12,7 @@ import matplotlib.colors as colors
 
 class Analyzer(object):
 
-    def __init__(self, spk_writer_params, probe, template_store, synthetic_store=None, filtered_data=None):
+    def __init__(self, spk_writer_params, probe, template_store, synthetic_store=None, filtered_data=None, threshold_data=None, start_time=0, stop_time=None):
 
         self.probe    = io.Probe(probe)
 
@@ -27,17 +27,38 @@ class Analyzer(object):
             self.filtered_data = None
 
         self.template_store = TemplateStore(os.path.join(os.path.abspath(template_store), 'template_store.h5'), 'r')
+        self.set_cmap_circus('jet')
 
         if synthetic_store is not None:
             self.synthetic_store = SyntheticStore(os.path.abspath(synthetic_store), 'r')
-            self.set_cmap('jet')
+            self.set_cmap_synthetic('jet')
         else:
             self.synthetic_store = None
 
-    def set_cmap(self, cmap):
+        if threshold_data is not None:
+            self.threshold_data = numpy.fromfile(threshold_data, dtype=numpy.float32)
+            self.threshold_data = self.threshold_data.reshape(self.threshold_data.size/self.nb_channels, self.nb_channels)
+        else:
+            self.threshold_data = None
+
+        self.start_time = start_time
+        if stop_time is None:
+            if self.filtered_data is not None:
+                self.stop_time = self.filtered_data.shape[0]
+            else:
+                self.stop_time = None
+        else:
+            self.stop_time = stop_time
+
+    def set_cmap_synthetic(self, cmap):
         self._cmap      = pylab.get_cmap(cmap)
         self._cNorm     = colors.Normalize(vmin=0, vmax=self.nb_cells)
-        self._scalarMap = pylab.cm.ScalarMappable(norm=self._cNorm, cmap=self._cmap)
+        self._scalarMap_synthetic = pylab.cm.ScalarMappable(norm=self._cNorm, cmap=self._cmap)
+
+    def set_cmap_circus(self, cmap):
+        self._cmap      = pylab.get_cmap(cmap)
+        self._cNorm     = colors.Normalize(vmin=0, vmax=self.nb_templates)
+        self._scalarMap_circus = pylab.cm.ScalarMappable(norm=self._cNorm, cmap=self._cmap)
 
     @property
     def nb_channels(self):
@@ -78,7 +99,7 @@ class Analyzer(object):
         res = self.synthetic_store.get(indices=indices, variables='r')
         pylab.figure()
         for key in res.keys():
-            colorVal = self._scalarMap.to_rgba(int(key))
+            colorVal = self._scalarMap_synthetic.to_rgba(int(key))
             pylab.plot(res[key]['r'] + int(key)*spacing, color=colorVal)
         pylab.xlabel('Time [chunks]')
         pylab.yticks([], [])
@@ -93,7 +114,10 @@ class Analyzer(object):
         template = scipy.sparse.csc_matrix((c, (b, a+20)), shape=(self.nb_channels, 81))
         return template
 
-    def view_synthetic_templates(self, indices, time=None, nn=100, hf_dist=45, a_dist=1.0):
+    def view_synthetic_templates(self, indices=None, time=None, nn=100, hf_dist=45, a_dist=1.0):
+
+        if indices is None:
+            indices = range(self.nb_cells)
 
         if not numpy.iterable(indices):
             indices = [indices]
@@ -110,7 +134,7 @@ class Analyzer(object):
             ymin, ymax = self.probe.field_of_view['y_min'], self.probe.field_of_view['y_max']
             if scaling is None:
                 scaling= 10*numpy.max(numpy.abs(template))
-            colorVal   = self._scalarMap.to_rgba(i)
+            colorVal   = self._scalarMap_synthetic.to_rgba(i)
             
             for count, i in enumerate(xrange(self.nb_channels)):
                 x, y     = self.probe.positions[:, i]
@@ -123,7 +147,10 @@ class Analyzer(object):
         pylab.xlim(xmin, 3*width)
         pylab.show()
 
-    def view_circus_templates(self, indices):
+    def view_circus_templates(self, indices=None):
+
+        if indices is None:
+            indices = range(self.nb_templates)
 
         if not numpy.iterable(indices):
             indices = [indices]
@@ -142,13 +169,13 @@ class Analyzer(object):
             ymin, ymax = self.probe.field_of_view['y_min'], self.probe.field_of_view['y_max']
             if scaling is None:
                 scaling= 10*numpy.max(numpy.abs(template))
-            colorVal   = self._scalarMap.to_rgba(i)
+            colorVal   = self._scalarMap_circus.to_rgba(i)
             
             for count, i in enumerate(xrange(self.nb_channels)):
                 x, y     = self.probe.positions[:, i]
                 xpadding = ((x - xmin)/(float(xmax - xmin) + 1))*(2*width)
                 ypadding = ((y - ymin)/(float(ymax - ymin) + 1))*scaling
-                pylab.plot(xpadding + numpy.arange(width), ypadding + template[i, :], color='k')
+                pylab.plot(xpadding + numpy.arange(width), ypadding + template[i, :], color=colorVal)
         
         pylab.tight_layout()
         pylab.setp(pylab.gca(), xticks=[], yticks=[])
@@ -188,6 +215,18 @@ class Analyzer(object):
             pylab.plot(numpy.arange(t_min, t_max), curve[i, :] + i*spacing, 'r')
         pylab.show()
 
+
+    def view_thresholds(self, indices=None):
+        pylab.figure()
+        if indices is None:
+            indices = range(self.nb_channels)
+
+        for i in indices:
+            pylab.plot(self.threshold_data[:, i], '0.5')
+
+        pylab.plot(numpy.mean(self.threshold_data, 1), 'r')
+        pylab.show()
+
     def compare_rates(self, bin_size=200):
 
         res   = self.synthetic_store.get(variables=['spike_times'])
@@ -218,3 +257,6 @@ class Analyzer(object):
             pylab.plot([t, t], [ymin, ymax], 'k--')
         pylab.show()
         return rates
+
+    def get_best_matches(self, indices):
+        pass
