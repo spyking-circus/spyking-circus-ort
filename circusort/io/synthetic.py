@@ -42,9 +42,12 @@ class SyntheticStore(object):
 
     @property
     def nb_cells(self):
-        self.h5_file = h5py.File(self.file_name, 'r')
-        res = len(self.h5_file.keys())
-        self.h5_file.close()
+        if self.is_created:
+            self.h5_file = h5py.File(self.file_name, 'r')
+            res = len(self.h5_file.keys())
+            self.h5_file.close()
+        else:
+            res = 0
         return res
 
     def get(self, indices=None, variables=None):
@@ -67,7 +70,7 @@ class SyntheticStore(object):
             result[cell_id] = {}
             for key in variables:
                 result[cell_id][key] = self.h5_file['{c}/{d}'.format(c=cell_id, d=key)][:]
-        
+
         self.h5_file.close()
 
         return result

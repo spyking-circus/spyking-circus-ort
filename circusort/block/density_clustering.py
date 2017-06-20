@@ -24,14 +24,14 @@ class Density_clustering(Block):
               'n_min'         : 0.002,
               'dispersion'    : [5, 5],
               'sub_dim'       : 5,
-              'extraction'    : 'median-raw', 
-              'two_components': False, 
+              'extraction'    : 'median-raw',
+              'two_components': False,
               'decay_factor'  : 0.35,
               'mu'            : 2,
               'sigma_rad'     : 3,
               'epsilon'       : 0.1,
               'frequency'     : 500,
-              'theta'         : -numpy.log(0.001), 
+              'theta'         : -numpy.log(0.001),
               'tracking'      : False}
 
     def __init__(self, **kwargs):
@@ -130,7 +130,7 @@ class Density_clustering(Block):
 
     def _get_snippet(self, batch, channel, peak, is_neg):
         indices = self.probe.edges[channel]
-        if self.alignment:    
+        if self.alignment:
             idx     = self.chan_positions[channel]
             zdata   = batch[peak - 2*self._width:peak + 2*self._width + 1, indices]
             ydata   = numpy.arange(len(indices))
@@ -164,6 +164,10 @@ class Density_clustering(Block):
         if self.inputs['data'].dtype is not None:
             self.decay_time = self.decay_factor
             self.chan_positions = numpy.zeros(self.nb_channels, dtype=numpy.int32)
+            # Here:
+            #  self.nb_channels = 10
+            #  probe.edges.keys = [0, 1, 2, 3]
+            # I have to find where is the problem...
             for channel in xrange(self.nb_channels):
                 self.chan_positions[channel] = numpy.where(self.probe.edges[channel] == channel)[0]
 
@@ -247,7 +251,7 @@ class Density_clustering(Block):
                 tmpidx = divmod(template.argmax(), template.shape[1])
 
             shift = self._width - tmpidx[1]
-    
+
         aligned_template = numpy.zeros(template.shape, dtype=numpy.float32)
         if shift > 0:
             aligned_template[:, shift:] = template[:, :-shift]
@@ -289,7 +293,7 @@ class Density_clustering(Block):
 
                 if not self.is_active:
                     self._set_active_mode()
-                    
+
                 offset    = peaks.pop('offset')
                 all_peaks = self._get_all_valid_peaks(peaks)
 
@@ -310,9 +314,9 @@ class Density_clustering(Block):
                             self.raw_data[key][channel] = numpy.vstack((self.raw_data[key][channel], waveforms))
                         else:
                             self.managers[key][channel].update(self.counter, waveforms)
-                           
+
                     for channel in xrange(self.nb_channels):
-                           
+
                         self.managers[key][channel].set_physical_threshold(self.thresholds[channel])
 
                         if len(self.raw_data[key][channel]) >= self.nb_waveforms and not self.managers[key][channel].is_ready:
