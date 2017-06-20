@@ -1,18 +1,29 @@
 # Test to measure the computational efficiency of two operations in one block
 # associated to one manager.
 
+import argparse
 import circusort
 import logging
 import numpy
+import sys
 from circusort.io.utils import generate_fake_probe
 
 ## In this example, we have 20 fixed neurons. 10 are active during the first 30s of the experiment, and then 10 new ones
-## are appearing after 30s. The goal here is to study how the clsutering can handle such an discountinuous change
+## are appearing after 30s. The goal here is to study how the clustering can handle such an discountinuous change
 
 
-master     = '192.168.0.254' # to run the test locally
+# Parse command line arguments.
+parser = argparse.ArgumentParser()
+parser.add_argument('--mode', nargs=1, default='local', choices=['local', 'remote'], help="distribute computation or not")
+args = parser.parse_args()
 
-slaves     = ['192.168.0.1', '192.168.0.2', '192.168.0.3']
+
+if args.mode == 'local':
+    master = '127.0.0.1'
+    slaves = ['127.0.0.1', '127.0.0.1', '127.0.0.1']
+elif args.mode == 'remote':
+    master = '192.168.0.254'
+    slaves = ['192.168.0.1', '192.168.0.2', '192.168.0.3']
 
 data_path  = '/tmp/output.dat'
 peak_path  = '/tmp/peaks.dat'
@@ -22,7 +33,7 @@ temp_path  = '/tmp/templates'
 director  = circusort.create_director(host=master)
 manager   = {}
 
-for computer in slaves + master:
+for computer in slaves + [master]:
     manager[computer] = director.create_manager(host=computer)
 
 sampling_rate  = 20000
