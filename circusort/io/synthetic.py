@@ -42,12 +42,9 @@ class SyntheticStore(object):
 
     @property
     def nb_cells(self):
-        if self.is_created:
-            self.h5_file = h5py.File(self.file_name, 'r')
-            res = len(self.h5_file.keys())
-            self.h5_file.close()
-        else:
-            res = 0
+        self.h5_file = h5py.File(self.file_name, 'r')
+        res = len(self.h5_file.keys())
+        self.h5_file.close()
         return res
 
     def get(self, indices=None, variables=None):
