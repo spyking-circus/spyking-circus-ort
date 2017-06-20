@@ -25,7 +25,6 @@ elif args.mode == 'remote':
     master = '192.168.0.254'
     slaves = ['192.168.0.1', '192.168.0.2', '192.168.0.3']
 
-hdf5_path  = '/tmp/test_scaling.h5'
 data_path  = '/tmp/output.dat'
 peak_path  = '/tmp/peaks.dat'
 thres_path = '/tmp/thresholds.dat'
@@ -83,4 +82,4 @@ start_time = mad_estimator.start_step
 stop_time  = fitter.counter
 
 from utils.analyzer import Analyzer
-r = Analyzer(writer_2.recorded_data, probe_file, temp_path, synthetic_store=hdf5_path, filtered_data=data_path, threshold_data=thres_path, start_time=start_time, stop_time=stop_time)
+r = Analyzer(writer_2.recorded_data, probe_file, temp_path, filtered_data=data_path, threshold_data=thres_path, start_time=start_time, stop_time=stop_time)
