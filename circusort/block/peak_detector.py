@@ -29,10 +29,10 @@ class Peak_detector(Block):
         if numpy.mod(self._spike_width_, 2) == 0:
             self._spike_width_ += 1
         self._width = self._spike_width_/2
-        is self.safety_time == 'auto':
+        if self.safety_time == 'auto':
             self.safety_time = self._width
         else:
-            self.safety_time = int(self.sampling_rate*self.safety_time*1e-3)
+            self.safety_time = max(1, int(self.sampling_rate*self.safety_time*1e-3))
         return
 
     @property
