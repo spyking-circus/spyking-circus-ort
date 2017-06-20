@@ -289,7 +289,7 @@ class Density_clustering(Block):
 
                 if not self.is_active:
                     self._set_active_mode()
-
+                    
                 offset    = peaks.pop('offset')
                 all_peaks = self._get_all_valid_peaks(peaks)
 
@@ -297,7 +297,7 @@ class Density_clustering(Block):
 
                     while len(all_peaks[key]) > 0:
                         peak            = all_peaks[key][0]
-                        #all_peaks[key]  = self._remove_nn_peaks(peak, all_peaks[key])
+                        all_peaks[key]  = self._remove_nn_peaks(peak, all_peaks[key])
                         channel, is_neg = self._get_best_channel(batch, key, peak, peaks)
                         waveforms       = self._get_snippet(batch, channel, peak, is_neg).T
                         waveforms       = waveforms.reshape(1, waveforms.shape[0], waveforms.shape[1])
