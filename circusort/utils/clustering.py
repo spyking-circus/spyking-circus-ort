@@ -128,7 +128,8 @@ class OnlineManager(object):
 
         sub_data           = numpy.dot(sub_data, self.loc_pca)
         rhos, dist, _      = rho_estimation(sub_data)
-        rhos               = -rhos + rhos.max()
+        if len(rhos) > 0:
+            rhos           = -rhos + rhos.max()
         n_min              = numpy.maximum(self.abs_n_min, int(self.n_min*len(data)))
         labels, c          = density_based_clustering(rhos, dist, n_min=n_min)
         mask               = labels > -1
@@ -390,7 +391,8 @@ class OnlineManager(object):
         centers       = self._get_centers('dense')
         centers_full  = self._get_centers_full('dense')
         rhos, dist, _ = rho_estimation(centers)
-        rhos          = -rhos + rhos.max()
+        if len(rhos) > 0:
+            rhos      = -rhos + rhos.max()
         labels, c     = density_based_clustering(rhos, dist, n_min=None)
         self.nb_updates   = 0
 

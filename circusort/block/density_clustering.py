@@ -30,7 +30,6 @@ class Density_clustering(Block):
               'mu'            : 2,
               'sigma_rad'     : 3,
               'epsilon'       : 0.1,
-              'frequency'     : 500,
               'theta'         : -numpy.log(0.001), 
               'tracking'      : False}
 
@@ -80,8 +79,7 @@ class Density_clustering(Block):
         for key in peaks.keys():
             all_peaks[key] = set([])
             for channel in peaks[key].keys():
-                if int(channel) in self.channels:
-                    all_peaks[key] = all_peaks[key].union(peaks[key][channel])
+                all_peaks[key] = all_peaks[key].union(peaks[key][channel])
 
             all_peaks[key] = numpy.array(list(all_peaks[key]), dtype=numpy.int32)
             mask           = self._is_valid(all_peaks[key])
@@ -289,7 +287,7 @@ class Density_clustering(Block):
 
                 if not self.is_active:
                     self._set_active_mode()
-                    
+
                 offset    = peaks.pop('offset')
                 all_peaks = self._get_all_valid_peaks(peaks)
 
@@ -299,26 +297,28 @@ class Density_clustering(Block):
                         peak            = all_peaks[key][0]
                         all_peaks[key]  = self._remove_nn_peaks(peak, all_peaks[key])
                         channel, is_neg = self._get_best_channel(batch, key, peak, peaks)
-                        waveforms       = self._get_snippet(batch, channel, peak, is_neg).T
-                        waveforms       = waveforms.reshape(1, waveforms.shape[0], waveforms.shape[1])
-                        if is_neg:
-                            key = 'negative'
-                        else:
-                            key = 'positive'
 
-                        if not self.managers[key][channel].is_ready:
-                            self.raw_data[key][channel] = numpy.vstack((self.raw_data[key][channel], waveforms))
-                        else:
-                            self.managers[key][channel].update(self.counter, waveforms)
+                        if channel in self.channels:
+                            waveforms   = self._get_snippet(batch, channel, peak, is_neg).T
+                            waveforms   = waveforms.reshape(1, waveforms.shape[0], waveforms.shape[1])
+                            if is_neg:
+                                key = 'negative'
+                            else:
+                                key = 'positive'
+
+                            if not self.managers[key][channel].is_ready:
+                                self.raw_data[key][channel] = numpy.vstack((self.raw_data[key][channel], waveforms))
+                            else:
+                                self.managers[key][channel].update(self.counter, waveforms)
                            
-                    for channel in xrange(self.nb_channels):
+                    for channel in self.channels:
                            
                         self.managers[key][channel].set_physical_threshold(self.thresholds[channel])
 
                         if len(self.raw_data[key][channel]) >= self.nb_waveforms and not self.managers[key][channel].is_ready:
                             templates = self.managers[key][channel].initialize(self.counter, self.raw_data[key][channel], self.two_components)
                             self._prepare_templates(templates, key, channel)
-                        elif self.managers[key][channel].time_to_cluster(self.frequency):
+                        elif self.managers[key][channel].time_to_cluster(self.nb_waveforms):
                             templates = self.managers[key][channel].cluster(two_components=self.two_components, tracking=self.tracking)
                             self._prepare_templates(templates, key, channel)
 

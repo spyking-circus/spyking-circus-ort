@@ -89,7 +89,7 @@ class Analyzer(object):
             all_x += [res[key]['x'][time]]
             all_y += [res[key]['y'][time]]
             all_z += [res[key]['z'][time]]
-            all_c += [self._scalarMap.to_rgba(int(key))]
+            all_c += [self._scalarMap_synthetic.to_rgba(int(key))]
         
         pylab.scatter(self.probe.positions[0, :], self.probe.positions[1, :], c='k')
         pylab.scatter(all_x, all_y, c=all_c)

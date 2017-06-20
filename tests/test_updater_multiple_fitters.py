@@ -43,7 +43,6 @@ director.initialize()
 director.connect(noise.output, filter.input)
 director.connect(filter.output, whitening.input)
 director.connect(whitening.output, [mad_estimator.input, peak_detector.get_input('data'), cluster.get_input('data'), pca.get_input('data'), writer.input])
-
 director.connect(whitening.output, dispatcher.input)
 for i in xrange(nb_fitters):
     director.connect(dispatcher.get_output('data_%d' %i), fitters[i].get_input('data'))
