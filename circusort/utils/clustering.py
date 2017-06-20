@@ -130,8 +130,12 @@ class OnlineManager(object):
         rhos, dist, _      = rho_estimation(sub_data)
         if len(rhos) > 0:
             rhos           = -rhos + rhos.max()
-        n_min              = numpy.maximum(self.abs_n_min, int(self.n_min*len(data)))
-        labels, c          = density_based_clustering(rhos, dist, n_min=n_min)
+            n_min          = numpy.maximum(self.abs_n_min, int(self.n_min*len(data)))
+            labels, c      = density_based_clustering(rhos, dist, n_min=n_min)
+        else:
+            labels, c      = numpy.array([]), numpy.array([])
+
+        
         mask               = labels > -1
         self.nb_dimensions = sub_data.shape[1]
         amplitudes         = numpy.zeros((0, 2), dtype=numpy.float32)
@@ -393,7 +397,10 @@ class OnlineManager(object):
         rhos, dist, _ = rho_estimation(centers)
         if len(rhos) > 0:
             rhos      = -rhos + rhos.max()
-        labels, c     = density_based_clustering(rhos, dist, n_min=None)
+            labels, c = density_based_clustering(rhos, dist, n_min=None)
+        else:
+            labels, c = numpy.array([]), numpy.array([])
+
         self.nb_updates   = 0
 
         new_tracking_data = {}
