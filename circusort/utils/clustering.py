@@ -134,7 +134,6 @@ class OnlineManager(object):
             labels, c      = density_based_clustering(rhos, dist, n_min=n_min)
         else:
             labels, c      = numpy.array([]), numpy.array([])
-
         
         mask               = labels > -1
         self.nb_dimensions = sub_data.shape[1]
