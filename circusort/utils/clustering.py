@@ -257,7 +257,10 @@ class OnlineManager(object):
                 if cluster.sigma > 0:
                     sigma += cluster.sigma
                     count += 1
-            return sigma/count
+            if count >  0:
+                return sigma/count
+            else:
+                return numpy.inf
         else:
             return numpy.inf
         
