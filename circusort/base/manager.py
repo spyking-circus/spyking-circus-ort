@@ -74,7 +74,7 @@ class Manager(object):
                 input_endpoint.configure(**description)
                 input_endpoint.block.connect(input_endpoint.name)
                 input_endpoint.block.guess_output_endpoints()
-                self.log.debug("Connection established from {a}[{s}] to {b}[{t}]".format(s=(output_endpoint.name, output_endpoint.structure),
+                self.log.debug("{p} connection established from {a}[{s}] to {b}[{t}]".format(p=protocol, s=(output_endpoint.name, output_endpoint.structure),
                                                                                                     t=(input_endpoint.name, input_endpoint.structure),
                                                                                                     a=output_endpoint.block.name,
                                                                                                     b=input_endpoint.block.name))

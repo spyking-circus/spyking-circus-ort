@@ -84,6 +84,13 @@ class Director(object):
         if not type(output_endpoints) == list:
             output_endpoints = [output_endpoints]
 
+        is_local = True
+        for input_endpoint in input_endpoints:
+            for output_endpoint in output_endpoints:
+                if input_endpoint.block.parent != output_endpoint.block.parent:
+                    is_local = False
+                    break
+
         for input_endpoint in input_endpoints:
             for output_endpoint in output_endpoints:
 
@@ -91,7 +98,10 @@ class Director(object):
 
                 if input_endpoint.block.parent == output_endpoint.block.parent:
                     if protocol is None:
-                        local_protocol = 'ipc'
+                        if is_local:
+                            local_protocol = 'ipc'
+                        else:
+                            local_protocol = 'tcp'
                     else:
                         local_protocol = protocol
                     self.get_manager(input_endpoint.block.parent).connect(output_endpoint, input_endpoint, local_protocol, show_log=False)
@@ -107,7 +117,7 @@ class Director(object):
                     input_endpoint.configure(**description)
                     input_endpoint.block.connect(input_endpoint.name)
                     input_endpoint.block.guess_output_endpoints()
-                    self.log.debug("Connection established from {a}[{s}] to {b}[{t}]".format(s=(output_endpoint.name, output_endpoint.structure), 
+                    self.log.debug("{p} connection established from {a}[{s}] to {b}[{t}]".format(p=local_protocol, s=(output_endpoint.name, output_endpoint.structure), 
                                                                                                     t=(input_endpoint.name, input_endpoint.structure), 
                                                                                                     a=output_endpoint.block.name,
                                                                                                     b=input_endpoint.block.name))
