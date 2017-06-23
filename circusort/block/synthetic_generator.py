@@ -121,8 +121,14 @@ class Synthetic_generator(block.Block):
 
             # Generate spikes for the third part of this buffer.
             chunk_number = 0
+            to_write     = {}
+            frequency    = 100
+
             for c in range(0, nb_cells):
                 spike_trains_buffer_post[c] = cells[c].generate_spike_trains(chunk_number, nb_samples)
+                to_write[c] = {'cell_id' : c, 'x' : [], 'y' : [], 'z' : [], 'e' : [], 'r' : [], 'spike_times' : []}
+
+
             while rpc_queue.empty(): # check if main thread requires a stop
                 if not queue.full(): # limit memory consumption
                     # 1. Generate noise.
@@ -133,8 +139,9 @@ class Synthetic_generator(block.Block):
                     spike_trains_buffer_curr = spike_trains_buffer_post
                     for c in range(0, nb_cells):
                         spike_trains_buffer_curr[c] = cells[c].generate_spike_trains(chunk_number + 1, nb_samples)
-                    # 3. Reconstruct signal from spike trains.
-                    for c in range(0, nb_cells):
+
+                        # 3. Reconstruct signal from spike trains.
+
                         # Get waveform.
                         i, j, v = cells[c].get_waveforms(chunk_number, probe)
                         # Get spike train.
@@ -144,19 +151,21 @@ class Synthetic_generator(block.Block):
                             b = np.logical_and(0 <= t + i, t + i < nb_samples)
                             data[t + i[b], j[b]] = data[t + i[b], j[b]] + v[b]
                             # TODO Manage edge effects.
-                    # 4. Save spike trains in HDF5 file.
-                    for c in range(0, nb_cells):
+
+                        # 4. Save spike trains in HDF5 file.
+
                         spike_times = spike_trains_buffer_curr[c] + chunk_number * nb_samples
 
-                        params = {'cell_id' : c, 
-                                  'x'       : [cells[c].x(chunk_number)],
-                                  'y'       : [cells[c].y(chunk_number)],
-                                  'z'       : [cells[c].z(chunk_number)],
-                                  'e'       : [cells[c].e(chunk_number, probe)],
-                                  'r'       : [cells[c].r(chunk_number)], 
-                                  'spike_times' : spike_times}
+                        to_write[c]['x'] += [cells[c].x(chunk_number)]
+                        to_write[c]['y'] += [cells[c].y(chunk_number)]
+                        to_write[c]['z'] += [cells[c].y(chunk_number)]
+                        to_write[c]['e'] += [cells[c].e(chunk_number, probe)]
+                        to_write[c]['r'] += [cells[c].r(chunk_number)]
+                        to_write[c]['spike_times'] += spike_times.tolist()
 
-                        self.synthetic_store.add(params)
+                        if chunk_number % frequency == 0:
+                            self.synthetic_store.add(to_write[c])
+                            to_write[c] = {'cell_id' : c, 'x' : [], 'y' : [], 'z' : [], 'e' : [], 'r' : [], 'spike_times' : []}
 
                     # Finally, send data to main thread and update chunk number.
                     #data = np.transpose(data)
