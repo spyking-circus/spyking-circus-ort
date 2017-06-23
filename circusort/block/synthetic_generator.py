@@ -171,6 +171,11 @@ class Synthetic_generator(block.Block):
                     #data = np.transpose(data)
                     queue.put(data)
                     chunk_number += 1
+
+            #We write the remaining data for the cells
+            for c in range(0, nb_cells):
+                self.synthetic_store.add(to_write[c])
+
             self.synthetic_store.close()
             return
         ## Define background thread for data generation.
