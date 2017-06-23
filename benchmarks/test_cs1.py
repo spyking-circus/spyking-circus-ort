@@ -15,7 +15,7 @@ hdf5_path  = '/tmp/synthetic.h5'
 peak_path  = '/tmp/peaks.dat'
 thres_path = '/tmp/thresholds.dat'
 temp_path  = '/tmp/templates'
-probe_file = 'mea_4.prb'
+probe_file = 'mea_16.prb'
 
 for file in [data_path, hdf5_path, peak_path, thres_path]:
     if os.path.exists(file):
@@ -27,10 +27,10 @@ manager   = director.create_manager(host=host)
 sampling_rate  = 20000
 two_components = True
 nb_samples     = 1024
-nb_channels    = 4
+nb_channels    = 16
 sim_time       = 200
 
-nb_cells   = 5
+nb_cells   = 10
 cell_obj_1 = {'r': 'r_ref*(t < tc)'}
 cell_obj_2 = {'r': '2*r_ref*(t >= tc)'}
 

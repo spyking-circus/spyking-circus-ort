@@ -266,12 +266,16 @@ class OnlineManager(object):
         
 
     def _prune(self):
-        #self.log.debug("{n} cleans clusters...".format(n=self.name))
 
+        count = 0
         for cluster in self.dense_clusters:
             if cluster.density < self.D_threshold:
                 cluster.set_label('sparse')
+                count += 1
 
+        self.log.debug("{n} turns {m} dense clusters into sparse...".format(n=self.name, m=count))
+
+        count = 0
         for cluster in self.sparse_clusters:
 
             T_0     = cluster.creation_time
@@ -285,6 +289,9 @@ class OnlineManager(object):
                     #self.log.debug("{n} removes sparse cluster {l}".format(n=self.name, l=cluster.id))
 
                     self.clusters.pop(cluster.id)
+                    count += 1
+
+        self.log.debug("{n} prunes {m} sparse clusters...".format(n=self.name, m=count))
 
     def update(self, time, data=None):
         
@@ -397,7 +404,7 @@ class OnlineManager(object):
 
     def cluster(self, tracking=True, two_components=False):
 
-        self.log.debug('{n} launches clustering'.format(n=self.name))
+        self.log.debug('{n} launches clustering with {s} sparse and {t} dense clusters'.format(n=self.name, s=self.nb_sparse, t=self.nb_dense))
         centers       = self._get_centers('dense')
         centers_full  = self._get_centers_full('dense')
         rhos, dist, _ = rho_estimation(centers)
