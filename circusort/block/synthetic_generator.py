@@ -11,6 +11,7 @@ import os
 from circusort.block import block
 from circusort import io
 from circusort import utils
+from circusort.io import get_tmp_dirname
 from circusort.io.synthetic import SyntheticStore
 
 
@@ -20,7 +21,18 @@ from circusort.io.synthetic import SyntheticStore
 # background thread (in a infinite loop) from the main thread?
 
 class Synthetic_generator(block.Block):
-    '''TODO add docstring'''
+    '''Generate a synthetics MEA recording.
+
+    Parameters
+    ----------
+    cells_args: list
+        List of dictionaries used as input arguments for the creation of the
+        synthetic cells.
+    cells_params: dict
+        Dictionnary of global input arguments for all these synthetic cells.
+    ...:
+
+    '''
 
     name = "Synthetic Generator"
 
@@ -35,33 +47,36 @@ class Synthetic_generator(block.Block):
 
     def __init__(self, cells_args=None, cells_params=None, **kwargs):
 
+        # Preinitialize object with the base class.
         block.Block.__init__(self, **kwargs)
+        # Save class parameters.
         self.cells_args = cells_args
-        if self.probe == None:
+        self.cells_params = {} if cells_params is None else cells_params
+        # Calculate the number of cells.
+        if isinstance(self.cells_args, list):
+            self.nb_cells = len(self.cells_args)
+        # Open the probe file.
+        if self.probe is None:
             self.log.error('{n}: the probe file must be specified!'.format(n=self.name))
         else:
             self.probe = io.Probe(self.probe, logger=self.log)
             self.log.info('{n} reads the probe layout'.format(n=self.name))
-        if self.cells_args is not None:
-            self.nb_cells = len(self.cells_args)
-        if cells_params is None:
-            self.cells_params = {}
-        else:
-            self.cells_params = cells_params
+        ## Retrieve the geometry of the probe.
+        self.nb_channels = self.probe.nb_channels
+        self.fov = self.probe.field_of_view
+        # Add data output.
         self.add_output('data')
 
-    def _get_tmp_path(self):
-        tmp_file  = tempfile.NamedTemporaryFile()
-        data_path = os.path.join(tempfile.gettempdir(), os.path.basename(tmp_file.name))
-        tmp_file.close()
-        return data_path
+    def _resolve_hdf5_path(self):
+
+        tmp_dirname = get_tmp_dirname()
+        tmp_filename = "synthetic.hdf5"
+        tmp_path = os.path.join(tmp_dirname, tmp_filename)
+
+        return tmp_path
 
     def _initialize(self):
         '''TODO add docstring.'''
-
-        # Retrieve the geometry of the probe.
-        self.nb_channels = self.probe.nb_channels
-        self.fov = self.probe.field_of_view
 
         # Generate synthetic cells.
         self.cells = {}
@@ -76,7 +91,7 @@ class Synthetic_generator(block.Block):
                 'z': eval("lambda t: %s" % z_ref),
                 'r': eval("lambda t: %s" % r_ref),
             }
-            
+
             if self.cells_args is not None:
                 self.log.debug('{n} creates a cell with params {p}'.format(n=self.name, p=self.cells_args[c]))
                 cell_args.update(self.exec_kwargs(self.cells_args[c], self.cells_params))
@@ -86,7 +101,7 @@ class Synthetic_generator(block.Block):
         self.output.configure(dtype=self.dtype, shape=(self.nb_samples, self.nb_channels))
 
         if self.hdf5_path is None:
-            self.hdf5_path = self._get_tmp_path()
+            self.hdf5_path = self._resolve_hdf5_path()
 
         self.hdf5_path = os.path.abspath(os.path.expanduser(self.hdf5_path))
         self.log.info('{n} records synthetic data from {d} cells into {k}'.format(k=self.hdf5_path, n=self.name, d=self.nb_cells))
@@ -112,7 +127,7 @@ class Synthetic_generator(block.Block):
 
                 s, u = self.cells[c].get_waveform()
 
-                params = {'cell_id'    : c, 
+                params = {'cell_id'    : c,
                           'waveform/x' : s,
                           'waveform/y' : u
                           }
@@ -135,26 +150,40 @@ class Synthetic_generator(block.Block):
                     shape = (nb_samples, nb_channels)
                     data = np.random.normal(mu, sigma, shape).astype(self.dtype)
                     # 2. Get spike trains.
-                    spike_trains_buffer_ante = spike_trains_buffer_curr
-                    spike_trains_buffer_curr = spike_trains_buffer_post
+                    spike_trains_buffer_ante = spike_trains_buffer_curr.copy()
+                    spike_trains_buffer_curr = spike_trains_buffer_post.copy()
                     for c in range(0, nb_cells):
-                        spike_trains_buffer_curr[c] = cells[c].generate_spike_trains(chunk_number + 1, nb_samples)
+                        spike_trains_buffer_post[c] = cells[c].generate_spike_trains(chunk_number + 1, nb_samples)
 
                         # 3. Reconstruct signal from spike trains.
 
                         # Get waveform.
                         i, j, v = cells[c].get_waveforms(chunk_number, probe)
-                        # Get spike train.
+                        # Get current spike train.
                         spike_train = spike_trains_buffer_curr[c]
                         # Add waveforms into the data.
                         for t in spike_train:
                             b = np.logical_and(0 <= t + i, t + i < nb_samples)
                             data[t + i[b], j[b]] = data[t + i[b], j[b]] + v[b]
-                            # TODO Manage edge effects.
+                        # Get previous spike train.
+                        spike_train = spike_trains_buffer_ante[c] - nb_samples
+                        # Add waveforms into the data.
+                        for t in spike_train:
+                            b = np.logical_and(0 <= t + i, t + i < nb_samples)
+                            data[t + i[b], j[b]] = data[t + i[b], j[b]] + v[b]
+                        # Get post spike train.
+                        spike_train = spike_trains_buffer_post[c] + nb_samples
+                        # Add waveforms into the data.
+                        for t in spike_train:
+                            b = np.logical_and(0 <= t + i, t + i < nb_samples)
+                            data[t + i[b], j[b]] = data[t + i[b], j[b]] + v[b]
 
                         # 4. Save spike trains in HDF5 file.
 
                         spike_times = spike_trains_buffer_curr[c] + chunk_number * nb_samples
+                        # # TODO remove following lines.
+                        # if len(spike_times) > 0 and chunk_number < 50:
+                        #     print("{} + {} x {} = {}".format(spike_train, chunk_number, nb_samples, spike_times))
 
                         to_write[c]['x'] += [cells[c].x(chunk_number)]
                         to_write[c]['y'] += [cells[c].y(chunk_number)]
@@ -262,10 +291,10 @@ class Cell(object):
                  'z'       : None,
                  'r'       : None,
                  't'       : 'default',
-                 'sr'      : 20000, 
+                 'sr'      : 20000,
                  'rp'      : 5e-3,
-                 'nn'      : 100, 
-                 'hf_dist' : 50, 
+                 'nn'      : 100,
+                 'hf_dist' : 50,
                  'a_dist'  : 1}
 
     def __init__(self, x=None, y=None, z=None, r=None, t='default', sr=20.0e+3, rp=20.0e-3, nn=100, hf_dist = 45.0, a_dist=1.0):
@@ -307,7 +336,7 @@ class Cell(object):
             self.r = r
         self.t  = t # cell type
         self.sr = sr # sampling_rate
-        
+
         self.rp = rp # refactory period
         self.nn = nn
         self.hf_dist = hf_dist
@@ -331,7 +360,7 @@ class Cell(object):
 
         x = self.x(chunk_number)
         y = self.y(chunk_number)
-        
+
         c, d = probe.get_channels_around(x, y, self.nn)
 
         e = c[np.argmin(d)]
@@ -349,9 +378,12 @@ class Cell(object):
 
         size = 1 + int(float(nb_samples) / self.sr / scale)
 
-        spike_times = np.array([])
-
-        last_spike_time = 0.0
+        if self.buffered_spike_times.size == 0:
+            spike_times = np.array([])
+            last_spike_time = 0.0
+        else:
+            spike_times = self.buffered_spike_times
+            last_spike_time = spike_times[-1]
         max_spike_time = float(nb_samples) / self.sr
         while last_spike_time < max_spike_time:
             # We need to generate some new spike times.
@@ -360,7 +392,7 @@ class Cell(object):
             spike_times = np.concatenate([spike_times, last_spike_time + np.cumsum(spike_intervals)])
             if len(spike_times) > 0:
                 last_spike_time = spike_times[-1]
-        self.buffered_spike_times = spike_times[max_spike_time <= spike_times]
+        self.buffered_spike_times = spike_times[max_spike_time <= spike_times] - max_spike_time
 
         spike_times = spike_times[spike_times < max_spike_time]
         spike_steps = spike_times * self.sr

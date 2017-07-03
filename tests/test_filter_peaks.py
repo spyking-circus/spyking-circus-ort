@@ -79,5 +79,3 @@ pylab.plot(numpy.arange(t_start, t_stop), res, 'k--')
 pylab.plot(numpy.arange(t_start, t_stop), -res, 'k--')
 
 pylab.show()
-
-

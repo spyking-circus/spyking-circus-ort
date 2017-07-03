@@ -5,18 +5,37 @@ import numpy
 
 
 
+def resolve_probe_path(path):
+    '''Resolve probe path'''
+
+    path = os.path.expanduser(path)
+
+    if os.path.exists(path):
+        path = os.path.abspath(path)
+    else:
+        path = os.path.join("~", ".spyking-circus-ort", "probes", path)
+        path = os.path.expanduser(path)
+
+    return path
+
 
 class Probe(object):
+    '''
+    Open probe file.
+
+    TODO: complete.
+    '''
 
     def __init__(self, filename, radius=None, logger=None):
-        probe       = {}
-        self.path   = os.path.abspath(os.path.expanduser(filename))
 
+        # Define logger.
         if logger is None:
             self.logger = logging.getLogger(__name__)
         else:
             self.logger = logger
 
+        # Resolve input filename.
+        self.path = resolve_probe_path(filename)
         if not os.path.exists(self.path):
             self.logger.error("The probe file %s does not exist" %self.path)
             sys.exit(1)
@@ -24,6 +43,7 @@ class Probe(object):
         self._edges = None
         self._nodes = None
 
+        probe = {}
         try:
             with open(self.path, 'r') as f:
                 probetext = f.read()

@@ -31,8 +31,8 @@ thres_path = '/tmp/thresholds.dat'
 temp_path  = '/tmp/templates'
 
 director  = circusort.create_director(host=master)
-manager   = {}
 
+manager   = {}
 for computer in slaves + [master]:
     manager[computer] = director.create_manager(host=computer)
 

@@ -38,7 +38,7 @@ class Peak_detector(Block):
     @property
     def nb_channels(self):
         return self.inputs['data'].shape[1]
-        
+
     @property
     def nb_samples(self):
         return self.inputs['data'].shape[0]
@@ -92,10 +92,16 @@ class Peak_detector(Block):
         batch      = self.get_input('data').receive()
         thresholds = self.get_input('mads').receive(blocking=False)
 
+        # TODO remove following line.
+        if thresholds is None:
+            print(">>>(Peak_detector._process) self.counter={}".format(self.counter))
+
         if thresholds is not None:
 
             if not self.is_active:
                 self._set_active_mode()
+                # TODO: remove the following line.
+                print(">>>(Peak_detector._process) self.counter={}, self.start_step={}".format(self.counter, self.start_step))
 
             for key in self.key_peaks:
                 self.peaks[key] = {}
