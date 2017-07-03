@@ -78,36 +78,40 @@ print("Chunk of interest: {} [{},{}]".format(i, i*nb_samples, (i+1)*nb_samples))
 # print("Chunk of interest: {} [{},{}]".format(i, i*nb_samples, (i+1)*nb_samples))
 
 
-print("Start MADs: {}".format(mad_estimator.start_step))
+start_mad = mad_estimator.start_step
+print("Start MADs: {}".format(start_mad))
 print("Start peak detector: {}".format(peak_detector.start_step))
 print("Start peak fitter: {}".format(peak_fitter.start_step))
 
 
 plt.figure(figsize=(12, 9))
 
-i_min = 0 * nb_samples
-i_max = 200 * nb_samples
+j_min = 0 * nb_samples
+j_max = 300 * nb_samples
 
-spike_times = spike_times[np.logical_and(i_min <= spike_times, spike_times <= i_max)]
-peak_times = peak_times[np.logical_and(i_min <= peak_times, peak_times <= i_max)]
+spike_times_bis = spike_times[np.logical_and(j_min <= spike_times, spike_times <= j_max)]
+peak_times_bis = peak_times[np.logical_and(j_min <= peak_times, peak_times <= j_max)]
 
-bins = np.arange(i_min, i_max, nb_samples)
+bins = np.arange(j_min, j_max, nb_samples)
+
 ax = plt.subplot(2, 1, 1)
-plt.hist(spike_times, bins)
+plt.hist(spike_times_bis, bins)
+plt.ylim(0, 4)
 plt.title("number of spikes detected per buffer")
 plt.xlabel("buffer index")
 plt.ylabel("number of spikes")
 
 ax = plt.subplot(2, 1, 2)
-plt.hist(peak_times, bins)
+plt.hist(peak_times_bis, bins)
+plt.ylim(0, 4)
 plt.title("number of peaks detected per buffer")
 plt.xlabel("buffer index")
 plt.ylabel("number of peaks")
 
-plt.show()
 
-import sys
-sys.exit(0)
+# import sys
+# sys.exit(0)
+
 
 plt.figure(figsize=(12, 9))
 
@@ -151,9 +155,9 @@ for channel_id in range(0, probe.nb_channels):
     thresh = np.zeros(0, dtype=np.float32)
     for k in range(k_min, k_max):
         if k < start_mad:
-            thresh = numpy.concatenate((thresh, np.zeros(nb_samples)))
+            thresh = np.concatenate((thresh, np.zeros(nb_samples)))
         else:
-            thresh = numpy.concatenate((thresh, mads[k - start_mad, channel_id] * np.ones(nb_samples)))
+            thresh = np.concatenate((thresh, mads[k - start_mad, channel_id] * np.ones(nb_samples)))
     thresh *= 6.0 * y_scale
     y_offset = channel_id
     plt.plot(np.arange(i_min, i_max), +thresh + y_offset, c='gray', ls='--')
