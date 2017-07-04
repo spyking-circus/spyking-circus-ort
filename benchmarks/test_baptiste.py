@@ -1,5 +1,5 @@
 import os
-
+import logging
 import circusort
 
 
@@ -19,31 +19,37 @@ cells_args = [{'r': 'r_ref'}]
 cells_params = {'r_ref': 100.0} # Hz
 
 hdf5_path = None
-probe_path = "mea_16_copy.prb"
+# probe_path = "mea_16_copy.prb"
+probe_path = "mea_4_copy.prb"
 tmp_dirname = circusort.io.get_tmp_dirname()
 generator_path = os.path.join(tmp_dirname, "generator.dat")
+filter_path = os.path.join(tmp_dirname, "filter.dat")
+whitening_path = os.path.join(tmp_dirname, "whitening.dat")
 peak_detector_path = os.path.join(tmp_dirname, "peak_detector.dat")
 peak_fitter_path = os.path.join(tmp_dirname, "peak_fitter.dat")
 mad_estimator_path = os.path.join(tmp_dirname, "mad_estimator.dat")
 
-generator = manager.create_block('synthetic_generator', cells_args=cells_args, cells_params=cells_params, hdf5_path=hdf5_path, probe=probe_path)
+generator = manager.create_block('synthetic_generator', cells_args=cells_args, cells_params=cells_params, hdf5_path=hdf5_path, probe=probe_path, log_level=logging.DEBUG)
 filter = manager.create_block('filter', cut_off=100)
-whitening = manager.create_block('whitening')
-mad_estimator = manager.create_block('mad_estimator')
-peak_detector = manager.create_block('peak_detector', threshold=5)
+# whitening = manager.create_block('whitening')
+mad_estimator = manager.create_block('mad_estimator', log_level=logging.DEBUG)
+peak_detector = manager.create_block('peak_detector', threshold=5, log_level=logging.DEBUG)
 peak_fitter = manager.create_block('peak_detector', threshold=5, safety_time=0)
 writer = manager.create_block('writer', data_path=generator_path)
 writer_2 = manager.create_block('peak_writer', neg_peaks=peak_detector_path)
 writer_3 = manager.create_block('peak_writer', neg_peaks=peak_fitter_path)
 writer_4 = manager.create_block('writer', data_path=mad_estimator_path)
+writer_5 = manager.create_block('writer', data_path=filter_path)
+# writer_6 = manager.create_block('writer', data_path=whitening_path)
 
 
 director.initialize()
 
 
 director.connect(generator.output, [filter.input, writer.input])
-director.connect(filter.output, whitening.input)
-director.connect(whitening.output, [mad_estimator.input, peak_detector.get_input('data'), peak_fitter.get_input('data')])
+# director.connect(filter.output, [whitening.input, writer_5.input])
+# director.connect(whitening.output, [mad_estimator.input, peak_detector.get_input('data'), peak_fitter.get_input('data'), writer_6.input])
+director.connect(filter.output, [mad_estimator.input, peak_detector.get_input('data'), peak_fitter.get_input('data'), writer_5.input])
 director.connect(mad_estimator.output, [peak_detector.get_input('mads'), peak_fitter.get_input('mads'), writer_4.input])
 director.connect(peak_detector.get_output('peaks'), [writer_2.input])
 director.connect(peak_fitter.get_output('peaks'), [writer_3.input])
@@ -54,4 +60,4 @@ director.sleep(duration=10.0)
 director.stop()
 
 
-whitening.start_step #
+director.destroy()

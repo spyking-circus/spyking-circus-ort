@@ -1,4 +1,5 @@
 from .block import Block
+import matplotlib.pyplot as plt
 import numpy
 
 
@@ -92,16 +93,16 @@ class Peak_detector(Block):
         batch      = self.get_input('data').receive()
         thresholds = self.get_input('mads').receive(blocking=False)
 
-        # TODO remove following line.
-        if thresholds is None:
-            print(">>>(Peak_detector._process) self.counter={}".format(self.counter))
+        # # TODO remove following line.
+        # if thresholds is None:
+        #     print(">>>(Peak_detector._process) self.counter={}".format(self.counter))
 
         if thresholds is not None:
 
             if not self.is_active:
                 self._set_active_mode()
-                # TODO: remove the following line.
-                print(">>>(Peak_detector._process) self.counter={}, self.start_step={}".format(self.counter, self.start_step))
+                # # TODO: remove the following line.
+                # print(">>>(Peak_detector._process) self.counter={}, self.start_step={}".format(self.counter, self.start_step))
 
             for key in self.key_peaks:
                 self.peaks[key] = {}

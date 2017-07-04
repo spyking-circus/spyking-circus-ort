@@ -1,4 +1,5 @@
 import h5py
+# import multiprocessing
 import numpy as np
 import Queue
 import scipy as sp
@@ -121,18 +122,18 @@ class Synthetic_generator(block.Block):
             spike_trains_buffer_curr = {c: np.array([], dtype='int') for c in range(0, nb_cells)}
             spike_trains_buffer_post = {c: np.array([], dtype='int') for c in range(0, nb_cells)}
 
-            self.synthetic_store = SyntheticStore(hdf5_path, 'w')
+            synthetic_store = SyntheticStore(hdf5_path, 'w')
 
             for c in range(0, nb_cells):
 
-                s, u = self.cells[c].get_waveform()
+                s, u = cells[c].get_waveform()
 
                 params = {'cell_id'    : c,
                           'waveform/x' : s,
                           'waveform/y' : u
                           }
 
-                self.synthetic_store.add(params)
+                synthetic_store.add(params)
 
             # Generate spikes for the third part of this buffer.
             chunk_number = 0
@@ -148,7 +149,7 @@ class Synthetic_generator(block.Block):
                 if not queue.full(): # limit memory consumption
                     # 1. Generate noise.
                     shape = (nb_samples, nb_channels)
-                    data = np.random.normal(mu, sigma, shape).astype(self.dtype)
+                    data = np.random.normal(mu, sigma, shape).astype('float32')
                     # 2. Get spike trains.
                     spike_trains_buffer_ante = spike_trains_buffer_curr.copy()
                     spike_trains_buffer_curr = spike_trains_buffer_post.copy()
@@ -193,7 +194,7 @@ class Synthetic_generator(block.Block):
                         to_write[c]['spike_times'] += spike_times.tolist()
 
                         if chunk_number % frequency == 0:
-                            self.synthetic_store.add(to_write[c])
+                            synthetic_store.add(to_write[c])
                             to_write[c] = {'cell_id' : c, 'x' : [], 'y' : [], 'z' : [], 'e' : [], 'r' : [], 'spike_times' : []}
 
                     # Finally, send data to main thread and update chunk number.
@@ -201,11 +202,14 @@ class Synthetic_generator(block.Block):
                     queue.put(data)
                     chunk_number += 1
 
+                # TODO test if the following line is necessary.
+                time.sleep(0.001)
+
             #We write the remaining data for the cells
             for c in range(0, nb_cells):
-                self.synthetic_store.add(to_write[c])
+                synthetic_store.add(to_write[c])
 
-            self.synthetic_store.close()
+            synthetic_store.close()
             return
         ## Define background thread for data generation.
         args = (self.rpc_queue, self.queue, self.nb_channels, self.probe, self.nb_samples, self.nb_cells, self.cells, self.hdf5_path)
@@ -215,14 +219,25 @@ class Synthetic_generator(block.Block):
         self.log.info("{n} launches background thread for data generation".format(n=self.name))
         self.syn_gen_thread.start()
 
+        # ## Define background process for data generation.
+        # args = (self.rpc_queue, self.queue, self.nb_channels, self.probe, self.nb_samples, self.nb_cells, self.cells, self.hdf5_path)
+        # self.syn_gen_proc = multiprocessing.Process(target=syn_gen_target, args=args)
+        # ## Launch background process for data generation.
+        # self.log.info("{n} launches background process for data generation".format(n=self.name))
+        # self.syn_gen_proc.start()
+
         return
 
     def _process(self):
         '''TODO add docstring.'''
 
         # Get data from background thread.
+        # # TODO remove following line.
+        # self.log.debug("get data from queue")
         data = self.queue.get()
         # Simulate duration between two data acquisitions.
+        # # TODO remove following line.
+        # self.log.debug("sleep duration: {}".format(self.nb_samples * self.sampling_rate))
         time.sleep(self.nb_samples / int(self.sampling_rate))
         # Send data.
         self.output.send(data)

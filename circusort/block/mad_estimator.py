@@ -43,8 +43,8 @@ class Mad_estimator(Block):
         if (test < self.epsilon):
             self.log.info('{n} has converged'.format(n=self.name_and_counter))
             self._set_active_mode()
-            # TODO remove follwing line.
-            print(">>>(Mad_estimator._check_if_active) self.counter={}, self.start_step= {}".format(self.counter, self.start_step))
+            # # TODO remove follwing line.
+            # print(">>>(Mad_estimator._check_if_active) self.counter={}, self.start_step= {}".format(self.counter, self.start_step))
 
     def _process(self):
         batch             = self.input.receive()
@@ -56,9 +56,9 @@ class Mad_estimator(Block):
 
         if self.is_active:
             self.get_output('mads').send(self.threshold*self.mads)
-            # TODO remove following line.
-            if self.counter < 200:
-                print(">>>(Mad_estimator._process) self.counter={}, self.threshold={}, self.mads={}".format(self.counter, self.threshold, self.mads))
+            # # TODO remove following line.
+            # if self.counter < 200:
+            #     print(">>>(Mad_estimator._process) self.counter={}, self.threshold={}, self.mads={}".format(self.counter, self.threshold, self.mads))
 
         self.last_mads_mean = self.mads
         return
