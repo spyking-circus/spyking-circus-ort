@@ -4,15 +4,37 @@ from numpy.linalg import eigh
 
 
 class Whitening(Block):
-    '''TODO add docstring'''
+    '''Decorrelation of the voltage traces of the recording channels
+
+    Parameters
+    ----------
+    sampling_rate: int (default 20000)
+        Sampling rate (in Hz) used to record the signal.
+    tau: float (default 10.0)
+        Initial period of time (in s) used to estimate the covariance matrix of
+        the voltage values of the recording channels.
+    fudge: float (default 1e-18)
+        Fudge parameter to avoid division by zero during the estimation of the
+        covariance matrix.
+
+    See Also
+    --------
+    Block
+
+    Notes
+    -----
+    This block discards the first batches of data until the necessary period of
+    time to estimate the covariance matrix has passed.
+
+    '''
 
     name   = "Whitening"
 
-    params = {'spike_width'   : 5,
-              'radius'        : 'auto', 
-              'fudge'         : 1e-18, 
-              'sampling_rate' : 20000,
-              'chunks'        : 10}
+    params = {
+        'sampling_rate': 20000, # Hz
+        'tau': 10.0, # s
+        'fudge': 1e-18,
+    }
 
     def __init__(self, **kwargs):
         Block.__init__(self, **kwargs)
@@ -28,7 +50,7 @@ class Whitening(Block):
         return self.inputs['data'].shape[0]
 
     def _initialize(self):
-        self.duration = self.chunks*self.sampling_rate
+        self.duration = int(self.tau * self.sampling_rate)
         return
 
     def _guess_output_endpoints(self):
@@ -42,14 +64,18 @@ class Whitening(Block):
         self.whitening_matrix = numpy.dot(numpy.dot(V,D), V.T).astype(numpy.float32)
 
     def _process(self):
+
         batch = self.input.receive()
-        if self.is_active:
-            batch = numpy.dot(batch, self.whitening_matrix)
-            self.output.send(batch)
-        else:
+
+        if not self.is_active:
             self.silences = numpy.vstack((self.silences, batch))
             if self.silences.shape[0] > self.duration:
                 self._get_whitening_matrix()
                 self.log.info("{n} computes whitening matrix".format(n=self.name_and_counter))
                 self._set_active_mode()
+
+        if self.is_active:
+            batch = numpy.dot(batch, self.whitening_matrix)
+            self.output.send(batch)
+
         return
