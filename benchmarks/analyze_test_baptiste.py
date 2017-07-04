@@ -22,7 +22,6 @@ cell_id = cell_ids[0]
 cell = synthetic_store[cell_id]
 spike_elecs = cell[u'e'][:]
 spike_times = cell[u'spike_times'][:]
-print("Spike times: {}".format(spike_times[100:200]))
 
 synthetic_store.close()
 
@@ -72,28 +71,28 @@ nb_buffers = trace_data.shape[0] / nb_samples
 # i = spike_times[k] / nb_samples
 # i_min = max(0, i - 4) * nb_samples
 # i_max = min(nb_buffers, i + 5) * nb_samples
-# print("Chunk of interest: {} [{},{}]".format(i, i*nb_samples, (i+1)*nb_samples))
+# print("Chunk of interest: {} [{}:{}]".format(i, i*nb_samples, (i+1)*nb_samples))
 
 # # b. Select buffer with the rightmost spike time.
 # k = np.argmax(spike_times % nb_samples)
 # i = spike_times[k] / nb_samples
 # i_min = max(0, i - 4) * nb_samples
 # i_max = min(nb_buffers, i + 5) * nb_samples
-# print("Chunk of interest: {} [{},{}]".format(i, i*nb_samples, (i+1)*nb_samples))
+# print("Chunk of interest: {} [{}:{}]".format(i, i*nb_samples, (i+1)*nb_samples))
 
 # c. Select buffer with the first peak time.
 # assert peak_detector.start_step == peak_fitter.start_step, "peak_detector.start_step == {} != peak_fitter.start_step == {}".format(peak_detector.start_step, peak_fitter.start_step)
 i = whitening.start_step + peak_detector.start_step
 i_min = max(0, i - 9) * nb_samples
 i_max = min(nb_buffers, i + 10) * nb_samples
-print("Chunk of interest: {} [{},{}]".format(i, i*nb_samples, (i+1)*nb_samples))
+print("Chunk of interest: {} [{}:{}]".format(i, i*nb_samples, (i+1)*nb_samples))
 
 # # d. Select buffer where the MAD start.
 # start_mad = mad_estimator.start_step
 # i = start_mad
 # i_min = max(0, i - 4) * nb_samples
 # i_max = min(nb_buffers, i + 5) * nb_samples
-# print("Chunk of interest: {} [{},{}]".format(i, i*nb_samples, (i+1)*nb_samples))
+# print("Chunk of interest: {} [{}:{}]".format(i, i*nb_samples, (i+1)*nb_samples))
 
 
 start_filtering = filter.start_step
