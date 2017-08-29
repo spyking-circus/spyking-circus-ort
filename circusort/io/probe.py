@@ -173,7 +173,18 @@ class Probe(object):
         return n/float(len(self.edges.values()))
 
     def get_channels_around(self, x, y, r):
-        '''TODO add docstring.'''
+        """Get channel identifiers around a given point in space
+
+        Parameters
+        ----------
+        x: float
+            x-coordinate.
+        y: float
+            y-coordinate
+        r: float
+            Radius in um.
+
+        """
 
         channels = []
         distances = []

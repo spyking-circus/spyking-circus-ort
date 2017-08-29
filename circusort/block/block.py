@@ -9,11 +9,11 @@ from circusort.base import utils
 
 
 class Block(threading.Thread):
-    '''TODO add docstring'''
+    """TODO add docstring"""
 
-    name    = "Block"
-    params  = {}
-    inputs  = {}
+    name = "Block"
+    params = {}
+    inputs = {}
     outputs = {}
 
     def __init__(self, name=None, log_address=None, log_level=logging.INFO, **kwargs):
@@ -31,15 +31,15 @@ class Block(threading.Thread):
 
         self.log = utils.get_log(self.log_address, name=__name__, log_level=self.log_level)
 
-        self.running  = False
-        self.ready    = False
-        self.t_start  = None
+        self.running = False
+        self.ready = False
+        self.t_start = None
         self.nb_steps = None
-        self.is_active      = False
-        self.start_steps    = None
+        self.is_active = False
+        self.start_steps = None
         self.check_interval = 100
-        self.counter        = 0
-        self.mpl_display    = False
+        self.counter = 0
+        self.mpl_display = False
 
         self.context = zmq.Context()
         self.params.update(kwargs)
@@ -78,7 +78,8 @@ class Block(threading.Thread):
         elif len(self.inputs) == 0:
             self.log.error('{n} has no Inputs'.format(n=self.name))
         else:
-            self.log.error('{n} has multiple Inputs:{i}, you must be more explicit'.format(n=self.name, i=self.inputs.keys()))
+            self.log.error('{n} has multiple Inputs:{i}, you must be more explicit'.format(n=self.name,
+                                                                                           i=self.inputs.keys()))
 
     @property
     def output(self):
@@ -87,7 +88,8 @@ class Block(threading.Thread):
         elif len(self.outputs) == 0:
             self.log.error('{n} has no Outputs'.format(n=self.name))
         else:
-            self.log.error('{n} has multiple Outputs:{o}, you must be more explicit'.format(n=self.name, o=self.outputs.keys()))
+            self.log.error('{n} has multiple Outputs:{o}, you must be more explicit'.format(n=self.name,
+                                                                                            o=self.outputs.keys()))
 
     @property
     def nb_inputs(self):
@@ -109,7 +111,6 @@ class Block(threading.Thread):
         self.get_input(key).socket.connect(self.get_input(key).addr)
         self.get_input(key).socket.setsockopt(zmq.SUBSCRIBE, "")
 
-
     def configure(self, **kwargs):
         for key, value in kwargs.items():
             self.params[key] = kwargs[key]
@@ -123,7 +124,6 @@ class Block(threading.Thread):
         if self.nb_inputs > 0 and self.nb_outputs > 0:
             self.log.debug("{n} guesses output connections".format(n=self.name))
             return self._guess_output_endpoints(**kwargs)
-
 
     def _sync_buffer(self, dict, nb_samples):
         offset = dict['offset']
@@ -153,15 +153,15 @@ class Block(threading.Thread):
                 if numpy.mod(self.counter, self.check_interval) == 0:
                     self._check_real_time_ratio()
 
-
     def stop(self):
         self.running = False
         self.log.debug("{n} is stopped".format(n=self.name))
         if self.real_time_ratio is not None:
-            self.log.info("{n} processed {m} buffers [{k} x real time]".format(n=self.name, m=self.counter - self.start_step, k=self.real_time_ratio))
+            self.log.info("{n} processed {m} buffers [{k} x real time]".format(n=self.name,
+                                                                               m=self.counter - self.start_step,
+                                                                               k=self.real_time_ratio))
         else:
             self.log.info("{n} processed {m} buffers".format(n=self.name, m=self.counter - self.start_step))
-
 
     def _check_real_time_ratio(self):
         data = self.real_time_ratio
@@ -187,7 +187,7 @@ class Block(threading.Thread):
         return "{n}[{k} steps]".format(n=self.name, k=self.counter)
 
     def _set_start_step(self):
-        self.t_start    = time.time()
+        self.t_start = time.time()
         self.start_step = self.counter
 
     def _set_active_mode(self):

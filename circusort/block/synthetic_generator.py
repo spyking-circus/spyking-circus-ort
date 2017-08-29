@@ -1,20 +1,19 @@
-import h5py
+# import h5py
 # import multiprocessing
 import numpy as np
 import Queue
-import scipy as sp
-import scipy.signal
+# import scipy as sp
+# import scipy.signal
 import threading
 import time
-import tempfile
+# import tempfile
 import os
 
 from circusort.block import block
 from circusort import io
-from circusort import utils
+# from circusort import utils
 from circusort.io import get_tmp_dirname
 from circusort.io.synthetic import SyntheticStore
-
 
 
 # TODO find if the communication mechanism between the main and background
@@ -22,7 +21,7 @@ from circusort.io.synthetic import SyntheticStore
 # background thread (in a infinite loop) from the main thread?
 
 class Synthetic_generator(block.Block):
-    '''Generate a synthetics MEA recording.
+    """Generate a synthetics MEA recording.
 
     Parameters
     ----------
@@ -30,20 +29,28 @@ class Synthetic_generator(block.Block):
         List of dictionaries used as input arguments for the creation of the
         synthetic cells.
     cells_params: dict
-        Dictionnary of global input arguments for all these synthetic cells.
-    ...:
+        Dictionary of global input arguments for all these synthetic cells.
+    hdf5_path: string
+        HDF5 path.
+    probe: string
+        Probe path.
+    log_level: integer
+        Level for the associated logger.
 
-    '''
+    """
+    # TODO complete docstring.
+
+    # TODO understand the expected format for cells_args and cells_params.
 
     name = "Synthetic Generator"
 
     params = {
-        'dtype'         : 'float32',
-        'probe'         : None,
-        'sampling_rate' : 20000.0,
-        'nb_samples'    : 1024,
-        'nb_cells'      : 10,
-        'hdf5_path'     : None,
+        'dtype': 'float32',
+        'probe': None,
+        'sampling_rate': 20000.0,
+        'nb_samples': 1024,
+        'nb_cells': 10,
+        'hdf5_path': None,
     }
 
     def __init__(self, cells_args=None, cells_params=None, **kwargs):
@@ -62,13 +69,14 @@ class Synthetic_generator(block.Block):
         else:
             self.probe = io.Probe(self.probe, logger=self.log)
             self.log.info('{n} reads the probe layout'.format(n=self.name))
-        ## Retrieve the geometry of the probe.
+        # # Retrieve the geometry of the probe.
         self.nb_channels = self.probe.nb_channels
         self.fov = self.probe.field_of_view
         # Add data output.
         self.add_output('data')
 
-    def _resolve_hdf5_path(self):
+    @staticmethod
+    def _resolve_hdf5_path():
 
         tmp_dirname = get_tmp_dirname()
         tmp_filename = "synthetic.hdf5"
@@ -77,15 +85,15 @@ class Synthetic_generator(block.Block):
         return tmp_path
 
     def _initialize(self):
-        '''TODO add docstring.'''
+        """TODO add docstring."""
 
         # Generate synthetic cells.
         self.cells = {}
         for c in range(0, self.nb_cells):
-            x_ref = np.random.uniform(self.fov['x_min'], self.fov['x_max']) # um # cell x-coordinate
-            y_ref = np.random.uniform(self.fov['y_min'], self.fov['y_max']) # um # cell y-coordinate
-            z_ref = 0.0 # um # cell z-coordinate
-            r_ref = 5.0 # Hz # cell firing rate
+            x_ref = np.random.uniform(self.fov['x_min'], self.fov['x_max'])  # um # cell x-coordinate
+            y_ref = np.random.uniform(self.fov['y_min'], self.fov['y_max'])  # um # cell y-coordinate
+            z_ref = 0.0  # um  # cell z-coordinate
+            r_ref = 5.0  # Hz  # cell firing rate
             cell_args = {
                 'x': eval("lambda t: %s" % x_ref),
                 'y': eval("lambda t: %s" % y_ref),
@@ -95,7 +103,12 @@ class Synthetic_generator(block.Block):
 
             if self.cells_args is not None:
                 self.log.debug('{n} creates a cell with params {p}'.format(n=self.name, p=self.cells_args[c]))
-                cell_args.update(self.exec_kwargs(self.cells_args[c], self.cells_params))
+                curr_cell_args = self.cells_args[c]
+                lambda_keys = ('x', 'y', 'z', 'r')
+                lambda_cell_args = dict((k, curr_cell_args[k]) for k in curr_cell_args if k in lambda_keys)
+                non_lambda_cell_args = dict((k, curr_cell_args[k]) for k in curr_cell_args if k not in lambda_keys)
+                cell_args.update(self.exec_kwargs(lambda_cell_args, self.cells_params))
+                cell_args.update(non_lambda_cell_args)
             self.cells[c] = Cell(**cell_args)
 
         # Configure the data output of this block.
@@ -105,75 +118,86 @@ class Synthetic_generator(block.Block):
             self.hdf5_path = self._resolve_hdf5_path()
 
         self.hdf5_path = os.path.abspath(os.path.expanduser(self.hdf5_path))
-        self.log.info('{n} records synthetic data from {d} cells into {k}'.format(k=self.hdf5_path, n=self.name, d=self.nb_cells))
+        self.log.info('{n} records synthetic data from {d} cells into {k}'.format(k=self.hdf5_path, n=self.name,
+                                                                                  d=self.nb_cells))
 
         # Define and launch the background thread for data generation.
-        ## First queue is used as a buffer for synthetic data.
+        # # First queue is used as a buffer for synthetic data.
         self.queue = Queue.Queue(maxsize=600)
-        ## Second queue is a communication mechanism between the main and
-        ## background threads in order to be able to stop the background thread.
+        # # Second queue is a communication mechanism between the main and
+        # # background threads in order to be able to stop the background thread.
         self.rpc_queue = Queue.Queue()
-        ## Define the target function of the background thread.
+
+        # # Define the target function of the background thread.
         def syn_gen_target(rpc_queue, queue, nb_channels, probe, nb_samples, nb_cells, cells, hdf5_path):
-            '''Synthetic data generation (background thread)'''
-            mu = 0.0 # uV # noise mean
-            sigma = 4.0 # uV # noise standard deviation
-            spike_trains_buffer_ante = {c: np.array([], dtype='int') for c in range(0, nb_cells)}
-            spike_trains_buffer_curr = {c: np.array([], dtype='int') for c in range(0, nb_cells)}
-            spike_trains_buffer_post = {c: np.array([], dtype='int') for c in range(0, nb_cells)}
+            """Synthetic data generation (background thread)"""
+            mu = 0.0  # uV  # noise mean
+            sigma = 4.0  # uV  # noise standard deviation
+            spike_trains_buffer_ante = {cell_id: np.array([], dtype='int') for cell_id in range(0, nb_cells)}
+            spike_trains_buffer_curr = {cell_id: np.array([], dtype='int') for cell_id in range(0, nb_cells)}
+            spike_trains_buffer_post = {cell_id: np.array([], dtype='int') for cell_id in range(0, nb_cells)}
 
             synthetic_store = SyntheticStore(hdf5_path, 'w')
 
-            for c in range(0, nb_cells):
+            for cell_id in range(0, nb_cells):
 
-                s, u = cells[c].get_waveform()
+                s, u = cells[cell_id].get_waveform()
 
-                params = {'cell_id'    : c,
-                          'waveform/x' : s,
-                          'waveform/y' : u
-                          }
+                params = {
+                    'cell_id': cell_id,
+                    'waveform/x': s,
+                    'waveform/y': u,
+                }
 
                 synthetic_store.add(params)
 
             # Generate spikes for the third part of this buffer.
             chunk_number = 0
-            to_write     = {}
-            frequency    = 100
+            to_write = {}
+            frequency = 100
 
-            for c in range(0, nb_cells):
-                spike_trains_buffer_post[c] = cells[c].generate_spike_trains(chunk_number, nb_samples)
-                to_write[c] = {'cell_id' : c, 'x' : [], 'y' : [], 'z' : [], 'e' : [], 'r' : [], 'spike_times' : []}
+            for cell_id in range(0, nb_cells):
+                spike_trains_buffer_post[cell_id] = cells[cell_id].generate_spike_trains(chunk_number, nb_samples)
+                to_write[cell_id] = {
+                    'cell_id': cell_id,
+                    'x': [],
+                    'y': [],
+                    'z': [],
+                    'e': [],
+                    'r': [],
+                    'spike_times': [],
+                }
 
-
-            while rpc_queue.empty(): # check if main thread requires a stop
-                if not queue.full(): # limit memory consumption
+            while rpc_queue.empty():  # check if main thread requires a stop
+                if not queue.full():  # limit memory consumption
                     # 1. Generate noise.
                     shape = (nb_samples, nb_channels)
                     data = np.random.normal(mu, sigma, shape).astype('float32')
                     # 2. Get spike trains.
                     spike_trains_buffer_ante = spike_trains_buffer_curr.copy()
                     spike_trains_buffer_curr = spike_trains_buffer_post.copy()
-                    for c in range(0, nb_cells):
-                        spike_trains_buffer_post[c] = cells[c].generate_spike_trains(chunk_number + 1, nb_samples)
+                    for cell_id in range(0, nb_cells):
+                        spike_trains_buffer_post[cell_id] =\
+                            cells[cell_id].generate_spike_trains(chunk_number + 1, nb_samples)
 
                         # 3. Reconstruct signal from spike trains.
 
                         # Get waveform.
-                        i, j, v = cells[c].get_waveforms(chunk_number, probe)
+                        i, j, v = cells[cell_id].get_waveforms(chunk_number, probe)
                         # Get current spike train.
-                        spike_train = spike_trains_buffer_curr[c]
+                        spike_train = spike_trains_buffer_curr[cell_id]
                         # Add waveforms into the data.
                         for t in spike_train:
                             b = np.logical_and(0 <= t + i, t + i < nb_samples)
                             data[t + i[b], j[b]] = data[t + i[b], j[b]] + v[b]
                         # Get previous spike train.
-                        spike_train = spike_trains_buffer_ante[c] - nb_samples
+                        spike_train = spike_trains_buffer_ante[cell_id] - nb_samples
                         # Add waveforms into the data.
                         for t in spike_train:
                             b = np.logical_and(0 <= t + i, t + i < nb_samples)
                             data[t + i[b], j[b]] = data[t + i[b], j[b]] + v[b]
                         # Get post spike train.
-                        spike_train = spike_trains_buffer_post[c] + nb_samples
+                        spike_train = spike_trains_buffer_post[cell_id] + nb_samples
                         # Add waveforms into the data.
                         for t in spike_train:
                             b = np.logical_and(0 <= t + i, t + i < nb_samples)
@@ -181,46 +205,59 @@ class Synthetic_generator(block.Block):
 
                         # 4. Save spike trains in HDF5 file.
 
-                        spike_times = spike_trains_buffer_curr[c] + chunk_number * nb_samples
+                        spike_times = spike_trains_buffer_curr[cell_id] + chunk_number * nb_samples
                         # # TODO remove following lines.
                         # if len(spike_times) > 0 and chunk_number < 50:
                         #     print("{} + {} x {} = {}".format(spike_train, chunk_number, nb_samples, spike_times))
 
-                        to_write[c]['x'] += [cells[c].x(chunk_number)]
-                        to_write[c]['y'] += [cells[c].y(chunk_number)]
-                        to_write[c]['z'] += [cells[c].y(chunk_number)]
-                        to_write[c]['e'] += [cells[c].e(chunk_number, probe)]
-                        to_write[c]['r'] += [cells[c].r(chunk_number)]
-                        to_write[c]['spike_times'] += spike_times.tolist()
+                        to_write[cell_id]['x'] += [cells[cell_id].x(chunk_number)]
+                        to_write[cell_id]['y'] += [cells[cell_id].y(chunk_number)]
+                        to_write[cell_id]['z'] += [cells[cell_id].y(chunk_number)]
+                        to_write[cell_id]['e'] += [cells[cell_id].e(chunk_number, probe)]
+                        to_write[cell_id]['r'] += [cells[cell_id].r(chunk_number)]
+                        to_write[cell_id]['spike_times'] += spike_times.tolist()
 
                         if chunk_number % frequency == 0:
-                            synthetic_store.add(to_write[c])
-                            to_write[c] = {'cell_id' : c, 'x' : [], 'y' : [], 'z' : [], 'e' : [], 'r' : [], 'spike_times' : []}
+                            synthetic_store.add(to_write[cell_id])
+                            to_write[cell_id] = {
+                                'cell_id': cell_id,
+                                'x': [],
+                                'y': [],
+                                'z': [],
+                                'e': [],
+                                'r': [],
+                                'spike_times': [],
+                            }
 
                     # Finally, send data to main thread and update chunk number.
-                    #data = np.transpose(data)
+                    # data = np.transpose(data)
                     queue.put(data)
                     chunk_number += 1
 
                 # TODO test if the following line is necessary.
                 time.sleep(0.001)
 
-            #We write the remaining data for the cells
-            for c in range(0, nb_cells):
-                synthetic_store.add(to_write[c])
+            # We write the remaining data for the cells.
+            for cell_id in range(0, nb_cells):
+                synthetic_store.add(to_write[cell_id])
 
             synthetic_store.close()
+
             return
-        ## Define background thread for data generation.
-        args = (self.rpc_queue, self.queue, self.nb_channels, self.probe, self.nb_samples, self.nb_cells, self.cells, self.hdf5_path)
+
+        # # Define background thread for data generation.
+        args = (self.rpc_queue, self.queue, self.nb_channels, self.probe,
+                self.nb_samples, self.nb_cells, self.cells, self.hdf5_path)
         self.syn_gen_thread = threading.Thread(target=syn_gen_target, args=args)
         self.syn_gen_thread.deamon = True
-        ## Launch background thread for data generation.
+        # # Launch background thread for data generation.
         self.log.info("{n} launches background thread for data generation".format(n=self.name))
         self.syn_gen_thread.start()
 
+        # TODO clean/remove following lines.
         # ## Define background process for data generation.
-        # args = (self.rpc_queue, self.queue, self.nb_channels, self.probe, self.nb_samples, self.nb_cells, self.cells, self.hdf5_path)
+        # args = (self.rpc_queue, self.queue, self.nb_channels, self.probe,
+        #         self.nb_samples, self.nb_cells, self.cells, self.hdf5_path)
         # self.syn_gen_proc = multiprocessing.Process(target=syn_gen_target, args=args)
         # ## Launch background process for data generation.
         # self.log.info("{n} launches background process for data generation".format(n=self.name))
@@ -229,7 +266,7 @@ class Synthetic_generator(block.Block):
         return
 
     def _process(self):
-        '''TODO add docstring.'''
+        """TODO add docstring."""
 
         # Get data from background thread.
         # # TODO remove following line.
@@ -244,24 +281,27 @@ class Synthetic_generator(block.Block):
 
         return
 
-    def exec_kwargs(self, input_kwargs, input_params):
-        '''Convert input keyword arguments into output keyword arguments.
+    @staticmethod
+    def exec_kwargs(input_kwargs, input_params):
+        """Convert input keyword arguments into output keyword arguments.
 
         Parameter
         ---------
         input_kwargs: dict
-            Dictionnary with the following keys: 'object', 'globals' and 'locals'.
+            Dictionary with the following keys: 'object', 'globals' and 'locals'.
 
         Return
         ------
         output_kwargs: dict
-            Dictionnary with the following keys: 'x', 'y', 'z' and 'r'.
-        '''
+            Dictionary with the following keys: 'x', 'y', 'z' and 'r'.
+
+        """
 
         # Define object (i.e. string or code object).
         # obj_key = 'object'
         # assert obj_key in input_kwargs
-        # assert isinstance(input_kwargs[obj_key], (str, unicode)), "current type is {}".format(type(input_kwargs[obj_key]))
+        # assert isinstance(input_kwargs[obj_key], (str, unicode)),
+        #                   "current type is {}".format(type(input_kwargs[obj_key]))
         # obj = input_kwargs[obj_key]
 
         # # Define global dictionary.
@@ -290,6 +330,7 @@ class Synthetic_generator(block.Block):
         for key in input_kwargs.keys():
             if type(input_kwargs[key]) == unicode:
                 input_kwargs[key] = eval("lambda t: %s" % input_kwargs[key], input_params)
+
         return input_kwargs
 
     def __del__(self):
@@ -298,61 +339,74 @@ class Synthetic_generator(block.Block):
         self.rpc_queue.put("stop")
 
 
-
 class Cell(object):
+    """Cell object
 
-    variables = {'x'       : None,
-                 'y'       : None,
-                 'z'       : None,
-                 'r'       : None,
-                 't'       : 'default',
-                 'sr'      : 20000,
-                 'rp'      : 5e-3,
-                 'nn'      : 100,
-                 'hf_dist' : 50,
-                 'a_dist'  : 1}
+    Parameters
+    ----------
+    x: None | dict, optional
+        Cell x-coordinate through time (i.e. chunk number). The default value is None.
+    y: None | dict, optional
+        Cell y-coordinate through time (i.e. chunk number). The default value is None.
+    z: None | dict, optional
+        Cell z-coordinate through time (i.e. chunk number). The default value is None.
+    r: None | dict, optional
+        Cell firing rate through time (i.e. chunk number). The default value is None.
+    s: float, optional
+        Temporal shift of the first spike. The default value is 0.0.
+    t: string, optional
+        Cell type. The default value is 'default'.
+    sr: float, optional
+        Sampling rate [Hz]. The default value is 20.0e+3.
+    rp: float, optional
+        Refractory period [s]. The default value is 20.0e-3.
+    nn: float, optional
+        Radius used to identify the neighboring channels. The default value is 100.0.
+    hf_dist: float, optional
+        First parameter for the attenuation of the spike waveforms. The default value is 45.0.
+    a_dist: float, optional
+        Second parameter for the attenuation of the spike waveforms. The default value is 1.0.
 
-    def __init__(self, x=None, y=None, z=None, r=None, t='default', sr=20.0e+3, rp=20.0e-3, nn=100, hf_dist = 45.0, a_dist=1.0):
-        '''TODO add docstring.
+    """
 
-        Parameters
-        ----------
-        x: None | dict (default: None)
-            Cell x-coordinate through time (i.e. chunk number).
-        y: None | dict (default: None)
-            Cell y-coordinate through time (i.e. chunk number).
-        z: None | dict (default None)
-            Cell z-coordinate through time (i.e. chunk number).
-        r: None | dict (default None)
-            Cell firing rate through time (i.e. chunk number).
-        t: string (default: 'default')
-            Cell type.
-        sr: float (default: 20.0e+3 Hz)
-            Sampling rate.
-        rp: float (default: 20.0e-3 s)
-            Refactory period.
-        '''
+    variables = {
+        'x': None,
+        'y': None,
+        'z': None,
+        'r': None,
+        's': 0.0,
+        't': 'default',
+        'sr': 20000,
+        'rp': 5e-3,
+        'nn': 100,
+        'hf_dist': 50,
+        'a_dist': 1,
+    }
+
+    def __init__(self, x=None, y=None, z=None, r=None, s=0.0, t='default', sr=20.0e+3,
+                 rp=20.0e-3, nn=100.0, hf_dist=45.0, a_dist=1.0):
 
         if x is None:
-            self.x = lambda t: 0.0
+            self.x = lambda _: 0.0
         else:
             self.x = x
         if y is None:
-            self.y = lambda t: 0.0
+            self.y = lambda _: 0.0
         else:
             self.y = y
         if z is None:
-            self.z = lambda t: 20.0 # um
+            self.z = lambda _: 20.0  # um
         else:
             self.z = z
         if r is None:
-            self.r = lambda t: 5.0 # Hz
+            self.r = lambda _: 5.0  # Hz
         else:
             self.r = r
-        self.t  = t # cell type
-        self.sr = sr # sampling_rate
+        self.s = s  # temporal shift of the first spike
+        self.t = t  # cell type
+        self.sr = sr  # sampling_rate
 
-        self.rp = rp # refactory period
+        self.rp = rp  # refractory period
         self.nn = nn
         self.hf_dist = hf_dist
         self.a_dist = a_dist
@@ -360,7 +414,7 @@ class Cell(object):
         self.buffered_spike_times = np.array([], dtype='float32')
 
     def e(self, chunk_number, probe):
-        '''Nearest electrode for the given chunk.
+        """Nearest electrode for the given chunk
 
         Parameter
         ---------
@@ -371,7 +425,8 @@ class Cell(object):
         ------
         e: int
             Number of the electrode/channel which is the nearest to this cell.
-        '''
+
+        """
 
         x = self.x(chunk_number)
         y = self.y(chunk_number)
@@ -384,42 +439,85 @@ class Cell(object):
         return e
 
     def generate_spike_trains(self, chunk_number, nb_samples):
-        '''TODO add docstring.'''
+        """Generate spike trains
 
-        if self.r(chunk_number) > 0.0:
-            scale = 1.0 / self.r(chunk_number)
-        else:
-            scale = np.inf
+        Parameters
+        ----------
+        chunk_number: integer
+            Identifier of the current chunk.
+        nb_samples
+            Number of samples per buffer.
 
-        size = 1 + int(float(nb_samples) / self.sr / scale)
+        """
 
-        if self.buffered_spike_times.size == 0:
-            spike_times = np.array([])
-            last_spike_time = 0.0
-        else:
-            spike_times = self.buffered_spike_times
-            last_spike_time = spike_times[-1]
-        max_spike_time = float(nb_samples) / self.sr
-        while last_spike_time < max_spike_time:
-            # We need to generate some new spike times.
-            spike_intervals = np.random.exponential(scale=scale, size=size)
-            spike_intervals = spike_intervals[self.rp < spike_intervals]
-            spike_times = np.concatenate([spike_times, last_spike_time + np.cumsum(spike_intervals)])
-            if len(spike_times) > 0:
+        if self.t == 'default':
+
+            if self.r(chunk_number) > 0.0:
+                scale = 1.0 / self.r(chunk_number)
+            else:
+                scale = np.inf
+
+            size = 1 + int(float(nb_samples) / self.sr / scale)
+
+            if self.buffered_spike_times.size == 0:
+                spike_times = np.array([])
+                last_spike_time = 0.0
+            else:
+                spike_times = self.buffered_spike_times
                 last_spike_time = spike_times[-1]
-        self.buffered_spike_times = spike_times[max_spike_time <= spike_times] - max_spike_time
+            max_spike_time = float(nb_samples) / self.sr
+            while last_spike_time < max_spike_time:
+                # We need to generate some new spike times.
+                spike_intervals = np.random.exponential(scale=scale, size=size)
+                spike_intervals = spike_intervals[self.rp < spike_intervals]
+                spike_times = np.concatenate([spike_times, last_spike_time + np.cumsum(spike_intervals)])
+                if len(spike_times) > 0:
+                    last_spike_time = spike_times[-1]
+            self.buffered_spike_times = spike_times[max_spike_time <= spike_times] - max_spike_time
 
-        spike_times = spike_times[spike_times < max_spike_time]
-        spike_steps = spike_times * self.sr
-        spike_steps = spike_steps.astype('int')
+            spike_times = spike_times[spike_times < max_spike_time]
+            spike_steps = spike_times * self.sr
+            spike_steps = spike_steps.astype('int')
+
+        elif self.t == 'periodic':
+
+            if self.r(chunk_number) > 0.0:
+                scale = 1.0 / self.r(chunk_number)
+                if self.buffered_spike_times.size == 0:
+                    spike_times = np.array([])
+                    last_spike_time = self.s - float(chunk_number * nb_samples) * self.sr
+                else:
+                    spike_times = self.buffered_spike_times
+                    last_spike_time = spike_times[-1]
+                max_spike_time = float(nb_samples) / self.sr
+                while last_spike_time < max_spike_time:
+                    # We need to generate some new spike times.
+                    nb_spikes = int(np.floor((max_spike_time - last_spike_time) / scale) + 1)
+                    spike_intervals = np.array(nb_spikes * [scale])
+                    # TODO add a warning when the firing period is less or equal than the refractory period.
+                    spike_times = np.concatenate([spike_times, last_spike_time + np.cumsum(spike_intervals)])
+                    if len(spike_times) > 0:
+                        last_spike_time = spike_times[-1]
+                self.buffered_spike_times = spike_times[max_spike_time <= spike_times] - max_spike_time
+
+                spike_times = spike_times[spike_times < max_spike_time]
+                spike_steps = spike_times * self.sr
+                spike_steps = spike_steps.astype('int')
+
+            else:
+                spike_steps = np.array([], dtype='int')
+
+        else:
+
+            raise NotImplementedError("unknown cell type '{}'".format(self.t))
 
         return spike_steps
 
     def get_waveform(self):
-        '''TODO add docstring.'''
+        """Get spike waveform"""
 
-        tau = 1.5e-3 # s # characteristic time
-        amp = -40.0 # um # minimal voltage
+        tau = 1.5e-3  # s  # characteristic time
+        amp = -40.0  # um  # minimal voltage
 
         i_start = -20
         i_stop = +60
@@ -433,7 +531,16 @@ class Cell(object):
         return steps, u
 
     def get_waveforms(self, chunk_number, probe):
-        '''TODO add docstring.'''
+        """Get spike waveforms
+
+        Parameters
+        ----------
+        chunk_number: integer
+            Number of the current chunk.
+        probe: circusort.io.Probe
+            Description of the probe.
+
+        """
 
         steps, u = self.get_waveform()
 
@@ -448,7 +555,7 @@ class Cell(object):
         j = np.repeat(channels, steps.size)
         v = np.zeros((steps.size, channels.size))
         for k in range(0, channels.size):
-            coef = self.a_dist / (1.0 + (distances[k] / self.hf_dist) ** 2.0) # coefficient of attenuation
+            coef = self.a_dist / (1.0 + (distances[k] / self.hf_dist) ** 2.0)  # coefficient of attenuation
             v[:, k] = coef * u
         v = np.transpose(v)
         v = v.flatten()

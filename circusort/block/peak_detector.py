@@ -1,17 +1,20 @@
-from .block import Block
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import numpy
+
+from .block import Block
 
 
 class Peak_detector(Block):
-    '''TODO add docstring'''
+    """TODO add docstring"""
 
     name = "Peak detector"
 
-    params = {'sign_peaks'    : 'negative',
-              'spike_width'   : 5,
-              'sampling_rate' : 20000.,
-              'safety_time'   : 'auto'}
+    params = {
+        'sign_peaks': 'negative',
+        'spike_width': 5,
+        'sampling_rate': 20000.,
+        'safety_time': 'auto',
+    }
 
     def __init__(self, **kwargs):
 
@@ -21,7 +24,8 @@ class Peak_detector(Block):
         self.add_input('data')
 
     def _initialize(self):
-        self.peaks = {'offset' : 0}
+
+        self.peaks = {'offset': 0}
         if self.sign_peaks == 'both':
             self.key_peaks = ['negative', 'positive']
         else:
@@ -33,7 +37,14 @@ class Peak_detector(Block):
         if self.safety_time == 'auto':
             self.safety_time = self._width
         else:
-            self.safety_time = max(1, int(self.sampling_rate*self.safety_time*1e-3))
+            self.safety_time = max(1, int(self.sampling_rate * self.safety_time * 1e-3))
+
+        # Internal variables for peak detection.
+        self.X = None
+        self.e = None
+        self.p = None
+        self.mph = None
+
         return
 
     @property
@@ -47,75 +58,125 @@ class Peak_detector(Block):
     def _guess_output_endpoints(self):
         return
 
-    def _detect_peaks(self, x, mph=None, mpd=1, threshold=0, edge='rising', kpsh=False, valley=False):
+    def _detect_peaks(self, i, mpd=1, threshold=0.0, edge='rising', kpsh=False, valley=False):
+        """Detect peaks
+
+        Parameters
+        ----------
+        i: integer
+            Channel identifier.
+        mpd: integer, optional
+            Minimum peak distance. The default value is 1.
+        threshold: float, optional
+            Minimum threshold between the peak and its two neighboring values. The default value is 0.0.
+        edge: None | 'rising' | 'falling' | 'both', optional
+            Type of edges to detect during the peak detection. the default value is 'rising'.
+        kpsh: boolean
+            Option to keep peaks with same height. The default value is False.
+        valley: boolean
+            Option to detect valleys instead of peaks. The default value is False.
+
+        """
 
         if valley:
-            x = -x
-        # find indices of all peaks
-        dx = x[1:] - x[:-1]
-        ine, ire, ife = numpy.array([[], [], []], dtype=numpy.int32)
+            x = -self.X[:, i]
+        else:
+            x = +self.X[:, i]
+
+        # Find indices of all edges.
+        dx = x[self.nb_samples-1:] - x[self.nb_samples-2:-1]
+        ne = numpy.zeros(self.nb_samples, dtype=numpy.bool)
+        re = numpy.zeros(self.nb_samples, dtype=numpy.bool)
+        fe = numpy.zeros(self.nb_samples, dtype=numpy.bool)
         if not edge:
-            ine = numpy.where((numpy.hstack((dx, 0)) < 0) & (numpy.hstack((0, dx)) > 0))[0]
+            ne = (dx[+1:] < 0.0) & (dx[:-1] > 0.0)
         else:
             if edge.lower() in ['rising', 'both']:
-                ire = numpy.where((numpy.hstack((dx, 0)) <= 0) & (numpy.hstack((0, dx)) > 0))[0]
-            if edge.lower() in ['falling', 'both']:
-                ife = numpy.where((numpy.hstack((dx, 0)) < 0) & (numpy.hstack((0, dx)) >= 0))[0]
-        ind = numpy.unique(numpy.hstack((ine, ire, ife)))
-        # first and last values of x cannot be peaks
-        if ind.size and ind[0] == 0:
-            ind = ind[1:]
-        if ind.size and ind[-1] == x.size-1:
-            ind = ind[:-1]
-        # remove peaks < minimum peak height
-        if ind.size and mph is not None:
-            ind = ind[x[ind] >= mph]
-        # remove peaks - neighbors < threshold
-        if ind.size and threshold > 0:
-            dx = numpy.min(numpy.vstack([x[ind]-x[ind-1], x[ind]-x[ind+1]]), axis=0)
-            ind = numpy.delete(ind, numpy.where(dx < threshold)[0])
-        # detect small peaks closer than minimum peak distance
-        if ind.size and mpd > 1:
-            ind = ind[numpy.argsort(x[ind])][::-1]  # sort ind by peak height
-            idel = numpy.zeros(ind.size, dtype=numpy.bool)
-            for i in range(ind.size):
-                if not idel[i]:
-                    # keep peaks with the same height if kpsh is True
-                    idel = idel | (ind >= ind[i] - mpd) & (ind <= ind[i] + mpd) \
-                        & (x[ind[i]] > x[ind] if kpsh else True)
-                    idel[i] = 0  # Keep current peak
-            # remove the small peaks and sort back the indices by their occurrence
-            ind = numpy.sort(ind[~idel])
+                re = (dx[+1:] <= 0.0) & (dx[:-1] > 0.0)
+            if edge.lower() in ['rising', 'both']:
+                fe = (dx[+1:] < 0.0) & (dx[:-1] >= 0.0)
+        e = numpy.logical_or(ne, numpy.logical_or(re, fe))
+        self.e[self.nb_samples-1:2*self.nb_samples-1, i] = e
+        ind = numpy.where(e)[0] + (self.nb_samples - 1)
+        # Remove edges < minimum peak height.
+        if self.mph is not None:
+            self.e[ind, i] = (x[ind] >= self.mph[i])
+            ind = ind[self.e[ind, i]]
+        # Remove peak - neighbors < threshold
+        if threshold > 0:
+            dx = numpy.min(numpy.vstack((x[ind] - x[ind-1], x[ind] - x[ind+1])))
+            self.e[ind, i] = (dx < threshold)
+            # TODO remove the following line.
+            # ind = ind[self.e[ind, i]]
+        # Detect small edges closer than minimum peak distance.
+        e = self.e[self.nb_samples-mpd-1:2*self.nb_samples-mpd-1, i]
+        ind = numpy.add(numpy.where(e)[0], self.nb_samples - mpd - 1)
+        self.p[ind, i] = True
+        # TODO uncomment the following block of code.
+        # if mpd > 1:
+        #     ind = ind[numpy.argsort(ind)][::-1]
+        #     for i in range(0, ind.size):
+        #         if self.p[ind[i]]:
+        #             # Keep peaks with the same height if 'kpsh' is True.
+        #             self.p[ind[(ind >= ind[i] - mpd) & (ind <= ind[i] + mpd) & (x[ind[i]] > x[ind] if kpsh else True)]] = False
+        #             # Keep current peak.
+        #             self.p[ind[i]] = True
+        #         else:
+        #             pass
+
+        # Return detected peaks from the previous chunk of data.
+        ind = numpy.where(self.p[0:self.nb_samples, i])[0]
 
         return ind
 
     def _process(self):
-        batch      = self.get_input('data').receive()
-        thresholds = self.get_input('mads').receive(blocking=False)
+        """Process data streams"""
 
-        # # TODO remove following line.
-        # if thresholds is None:
-        #     print(">>>(Peak_detector._process) self.counter={}".format(self.counter))
+        # Update internal variables for peak detection.
+        if self.counter == 0:
+            self.X = numpy.zeros((2 * self.nb_samples, self.nb_channels), dtype=numpy.float)
+            self.X[self.nb_samples:, :] = self.get_input('data').receive()
+            self.X[:self.nb_samples, :] =\
+                numpy.repeat(self.X[self.nb_samples, :], self.nb_samples).reshape((self.nb_samples, self.nb_channels))
+            self.e = numpy.zeros((2 * self.nb_samples, self.nb_channels), dtype=numpy.bool)
+            self.e[:self.nb_samples, :] = self.e[self.nb_samples:, :]
+            self.e[self.nb_samples:, :] = numpy.zeros((self.nb_samples, self.nb_channels), dtype=numpy.bool)
+            self.p = numpy.zeros((2 * self.nb_samples, self.nb_channels), dtype=numpy.bool)
+            self.p[:self.nb_samples, :] = self.p[self.nb_samples:, :]
+            self.p[self.nb_samples:, :] = numpy.zeros((self.nb_samples, self.nb_channels), dtype=numpy.bool)
+            self.mph = numpy.zeros((self.nb_channels,), dtype=numpy.float)
+            self.mph = self.get_input('mads').receive(blocking=False)
+        else:
+            self.X[:self.nb_samples, :] = self.X[self.nb_samples:, :]
+            self.X[self.nb_samples:, :] = self.get_input('data').receive()
+            self.e[:self.nb_samples, :] = self.e[self.nb_samples:, :]
+            self.e[self.nb_samples:, :] = numpy.zeros((self.nb_samples, self.nb_channels), dtype=numpy.bool)
+            self.p[:self.nb_samples, :] = self.p[self.nb_samples:, :]
+            self.p[self.nb_samples:, :] = numpy.zeros((self.nb_samples, self.nb_channels), dtype=numpy.bool)
+            self.mph = self.get_input('mads').receive(blocking=False)
 
-        if thresholds is not None:
+        # If median absolute deviations are defined...
+        if self.mph is not None:
 
             if not self.is_active:
                 self._set_active_mode()
-                # # TODO: remove the following line.
-                # print(">>>(Peak_detector._process) self.counter={}, self.start_step={}".format(self.counter, self.start_step))
 
             for key in self.key_peaks:
                 self.peaks[key] = {}
-                for i in xrange(self.nb_channels):
+                for i in range(0, self.nb_channels):
                     if key == 'negative':
-                        data = self._detect_peaks(batch[:, i],  thresholds[i], valley=True, mpd=self.safety_time)
+                        data = self._detect_peaks(i, valley=True, mpd=self.safety_time)
                         if len(data) > 0:
                             self.peaks[key][i] = data
                     elif key == 'positive':
-                        data = self._detect_peaks(batch[:, i],  thresholds[i], valley=False, mpd=self.safety_time)
+                        data = self._detect_peaks(i, valley=False, mpd=self.safety_time)
                         if len(data) > 0:
                             self.peaks[key][i] = data
+            # TODO check the following correction.
+            # self.peaks['offset'] = self.counter * self.nb_samples
+            self.peaks['offset'] = (self.counter - 1) * self.nb_samples
 
-            self.peaks['offset'] = self.counter*self.nb_samples
+            # Send detected peaks.
             self.outputs['peaks'].send(self.peaks)
+
         return

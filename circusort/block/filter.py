@@ -2,6 +2,7 @@ from .block import Block
 import numpy
 from scipy import signal
 
+
 class Filter(Block):
     '''Filtering of the voltage traces of the recording channels
 

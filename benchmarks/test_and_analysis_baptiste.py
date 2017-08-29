@@ -1,13 +1,85 @@
 import h5py
+import logging
 # import matplotlib as mpl
+import matplotlib.lines as mlines
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 
 import circusort
 
 
-nb_samples = 1024  # number of samples per buffer
+# Test
 
+host = '127.0.0.1'
+
+director = circusort.create_director(host=host)
+manager = director.create_manager(host=host)
+
+sampling_rate = 20.0e+3  # Hz
+# two_components = True
+nb_samples = 1024  # number of samples per buffer
+# nb_channels = 16
+simulation_duration = 10.0  # s
+
+cells_args = [
+    {
+        'r': 'r_ref',
+        's': 0.99 * float(nb_samples) / sampling_rate,
+        't': 'periodic',
+    }
+]
+cells_params = {
+    # 'r_ref': 100.0,  # Hz
+    'r_ref': sampling_rate / float(nb_samples),  # Hz
+}
+hdf5_path = None
+# probe_path = "mea_16_copy.prb"
+probe_path = "mea_4_copy.prb"
+tmp_dirname = circusort.io.get_tmp_dirname()
+generator_path = os.path.join(tmp_dirname, "generator.dat")
+filter_path = os.path.join(tmp_dirname, "filter.dat")
+whitening_path = os.path.join(tmp_dirname, "whitening.dat")
+peak_detector_path = os.path.join(tmp_dirname, "peak_detector.dat")
+peak_fitter_path = os.path.join(tmp_dirname, "peak_fitter.dat")
+mad_estimator_path = os.path.join(tmp_dirname, "mad_estimator.dat")
+
+generator = manager.create_block('synthetic_generator', cells_args=cells_args, cells_params=cells_params,
+                                 hdf5_path=hdf5_path, probe=probe_path, log_level=logging.DEBUG)
+filter_1 = manager.create_block('filter', cut_off=100, log_level=logging.DEBUG)
+whitening = manager.create_block('whitening', log_level=logging.DEBUG)
+mad_estimator = manager.create_block('mad_estimator', log_level=logging.DEBUG)
+peak_detector = manager.create_block('peak_detector', threshold=5, log_level=logging.DEBUG)
+peak_fitter = manager.create_block('peak_detector', threshold=5, safety_time=0)
+writer = manager.create_block('writer', data_path=generator_path)
+writer_2 = manager.create_block('peak_writer', neg_peaks=peak_detector_path)
+writer_3 = manager.create_block('peak_writer', neg_peaks=peak_fitter_path)
+writer_4 = manager.create_block('writer', data_path=mad_estimator_path)
+writer_5 = manager.create_block('writer', data_path=filter_path)
+writer_6 = manager.create_block('writer', data_path=whitening_path)
+
+
+director.initialize()
+
+
+director.connect(generator.output, [filter_1.input, writer.input])
+director.connect(filter_1.output, [whitening.input, writer_5.input])
+director.connect(whitening.output, [mad_estimator.input, peak_detector.get_input('data'),
+                                    peak_fitter.get_input('data'), writer_6.input])
+director.connect(mad_estimator.output, [peak_detector.get_input('mads'), peak_fitter.get_input('mads'), writer_4.input])
+director.connect(peak_detector.get_output('peaks'), [writer_2.input])
+director.connect(peak_fitter.get_output('peaks'), [writer_3.input])
+
+
+director.start()
+director.sleep(duration=10.0)
+director.stop()
+
+
+director.destroy()
+
+
+# Analysis
 
 # 1. We want to load the spike times for each synthetic cell.
 
@@ -31,6 +103,7 @@ print("Spike electrode: {}".format(spike_elec))
 
 # 2. We want to load the detected peak times.
 peak_data = np.fromfile(peak_detector_path, dtype=np.int32)
+# peak_data = np.fromfile(peak_fitter_path, dtype=np.int32)
 peak_elecs = peak_data[0:None:+2]
 peak_times = peak_data[1:None:+2]
 
@@ -39,7 +112,7 @@ peak_elecs = peak_elecs[b]
 peak_times = peak_times[b]
 
 time_offset = whitening.start_step * nb_samples
-peak_times = peak_times + time_offset
+peak_times = np.array([peak_time + time_offset for peak_time in peak_times])
 
 
 # 3. We want to load the raw signal.
@@ -96,12 +169,9 @@ print("Chunk of interest: {} [{}:{}]".format(i, i*nb_samples, (i+1)*nb_samples))
 # print("Chunk of interest: {} [{}:{}]".format(i, i*nb_samples, (i+1)*nb_samples))
 
 
-start_filtering = filter_1.start_step
-start_whitening = whitening.start_step
-start_mad = mad_estimator.start_step
-print("Start filtering: {}".format(start_filtering))
-print("Start whitening: {}".format(start_whitening))
-print("Start MADs: {}".format(start_mad))
+print("Start filtering: {}".format(filter_1.start_step))
+print("Start whitening: {}".format(whitening.start_step))
+print("Start MADs: {}".format(mad_estimator.start_step))
 print("Start peak detector: {}".format(peak_detector.start_step))
 print("Start peak fitter: {}".format(peak_fitter.start_step))
 
@@ -129,8 +199,8 @@ peak_times_bis = peak_times[np.logical_and(i_min <= peak_times, peak_times < i_m
 for x in peak_times_bis:
     x_min = x - 20 - 0.5
     x_max = x + 60 + 0.5
-    plt.axvspan(x_min, x_max, facecolor='C1', alpha=0.25)
-    plt.axvline(x, color='C1', linestyle='--')
+    plt.axvspan(x_min, x_max, facecolor='C2', alpha=0.25)
+    plt.axvline(x, color='C2', linestyle='--')
 
 # Plot raw voltage trace for each channel.
 x = np.arange(i_min - 0.5, i_max + 0.5)
@@ -170,14 +240,19 @@ k_max = (i_max - whitening.start_step * nb_samples) / nb_samples
 for channel_id in range(0, probe.nb_channels):
     thresh = np.zeros(0, dtype=np.float32)
     for k in range(k_min, k_max):
-        if k < start_mad:
+        if k < mad_estimator.start_step:
             thresh = np.concatenate((thresh, np.zeros(nb_samples)))
         else:
-            thresh = np.concatenate((thresh, mads[k - start_mad, channel_id] * np.ones(nb_samples)))
+            thresh = np.concatenate((thresh, mads[k - mad_estimator.start_step, channel_id] * np.ones(nb_samples)))
     thresh *= y_scale
     y_offset = channel_id
     plt.plot(np.arange(i_min, i_max), +thresh + y_offset, c='gray', ls='--')
     plt.plot(np.arange(i_min, i_max), -thresh + y_offset, c='gray', ls='--')
+
+raw_line = mlines.Line2D([], [], color='C0', label="raw")
+filtered_line = mlines.Line2D([], [], color='C1', label="filtered")
+whitened_line = mlines.Line2D([], [], color='C2', label="whitened")
+plt.legend(handles=[raw_line, filtered_line, whitened_line], loc=0)
 
 plt.xlabel("time (bin)")
 plt.ylabel("channel")

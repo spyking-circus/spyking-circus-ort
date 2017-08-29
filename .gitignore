@@ -1,11 +1,24 @@
 # Test file
 tests/*
-!tests/README.md
-!tests/test_2op_1bl_1mg/
-!tests/test_2op_2bl_1mg.py
-!tests/test_2op_2bl_2mg.py
+!tests/test_clustering.py
+!tests/test_filter.py
+!tests/test_filter_peaks.py
+!tests/test_managers.py
+!tests/test_multiplexing.py
+!tests/test_online_clustering.py
+!tests/test_oscilloscope.py
+!tests/test_parallel_channels.py
+!tests/test_parallel_chunks.py
+!tests/test_reader.py
+!tests/test_updater.py
+!tests/test_updater_fitter.py
+!tests/test_updater_fitter_full.py
+!tests/test_updater_multiple_clustering.py
+!tests/test_updater_multiple_fitters.py
 !tests/test_syn_gen.py
-*settings.py
+
+# PyCharm project files
+.idea
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
