@@ -5,6 +5,7 @@ tests/*
 !tests/test_filter_peaks.py
 !tests/test_managers.py
 !tests/test_multiplexing.py
+!tests/test_mua_viewer.py
 !tests/test_online_clustering.py
 !tests/test_oscilloscope.py
 !tests/test_parallel_channels.py
