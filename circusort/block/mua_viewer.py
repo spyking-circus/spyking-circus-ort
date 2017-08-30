@@ -6,15 +6,26 @@ from circusort.io.probe import Probe
 
 
 class Mua_viewer(Block):
-    """Multi-unit activity viewer"""
-    # TODO complete docstring.
+    """Multi-unit activity viewer
+
+    probe: string
+        Name of the probe.
+    sampling_rate: float, optional
+        Sampling rate [Hz]. The default value is 20.0e+3
+    nb_samples: integer, optional
+        Number of samples for each chunk of data. The default value is 1024.
+    time_window: float, optional
+        Size of the time window used to define the multi-unit activity [ms]. The default value is 50.0.
+
+    See also circusort.block.Block.
+
+    """
 
     name = "MUA viewer"
 
-    # TODO remove useless/unused parameters.
     params = {
         'probe': None,
-        'sampling_rate': 20000.0,  # Hz
+        'sampling_rate': 20.0e+3,  # Hz
         'nb_samples': 1024,
         'time_window': 50.0,  # ms
         'c_max': 5.0,
@@ -24,8 +35,8 @@ class Mua_viewer(Block):
 
         Block.__init__(self, **kwargs)
 
-        # TODO correct the following lines.
         if self.probe is None:
+            # TODO improve the following line.
             raise NotImplementedError()
         else:
             self.probe = Probe(self.probe, radius=None, logger=self.log)
@@ -41,8 +52,6 @@ class Mua_viewer(Block):
         self.data_available = False
         self.peaks = None
         self.peak_points = None
-
-        # TODO complete.
 
         return
 
@@ -87,9 +96,6 @@ class Mua_viewer(Block):
             else:
                 channel = np.array([], dtype=np.int)
                 data = np.array([], dtype=np.int)
-            # TODO remove the following two lines.
-            print("data: {}".format(data))
-            print("channel: {}".format(channel))
             if self.peak_points is None:
                 self.peak_points = plt.scatter(data, channel, color='C0')
             else:
