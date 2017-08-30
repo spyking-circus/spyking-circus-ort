@@ -25,7 +25,11 @@ class Peak_detector(Block):
 
     def _initialize(self):
 
-        self.peaks = {'offset': 0}
+        self.peaks = {
+            'offset': 0,
+            'negative': {},
+            'positive': {},
+        }
         if self.sign_peaks == 'both':
             self.key_peaks = ['negative', 'positive']
         else:
@@ -97,35 +101,47 @@ class Peak_detector(Block):
                 fe = (dx[+1:] < 0.0) & (dx[:-1] >= 0.0)
         e = numpy.logical_or(ne, numpy.logical_or(re, fe))
         self.e[self.nb_samples-1:2*self.nb_samples-1, i] = e
-        ind = numpy.where(e)[0] + (self.nb_samples - 1)
+        ind = numpy.add(numpy.where(e)[0], self.nb_samples - 1)
         # Remove edges < minimum peak height.
         if self.mph is not None:
             self.e[ind, i] = (x[ind] >= self.mph[i])
             ind = ind[self.e[ind, i]]
         # Remove peak - neighbors < threshold
-        if threshold > 0:
+        if threshold > 0.0:
             dx = numpy.min(numpy.vstack((x[ind] - x[ind-1], x[ind] - x[ind+1])))
             self.e[ind, i] = (dx < threshold)
             # TODO remove the following line.
             # ind = ind[self.e[ind, i]]
         # Detect small edges closer than minimum peak distance.
-        e = self.e[self.nb_samples-mpd-1:2*self.nb_samples-mpd-1, i]
-        ind = numpy.add(numpy.where(e)[0], self.nb_samples - mpd - 1)
-        self.p[ind, i] = True
-        # TODO uncomment the following block of code.
-        # if mpd > 1:
-        #     ind = ind[numpy.argsort(ind)][::-1]
-        #     for i in range(0, ind.size):
-        #         if self.p[ind[i]]:
-        #             # Keep peaks with the same height if 'kpsh' is True.
-        #             self.p[ind[(ind >= ind[i] - mpd) & (ind <= ind[i] + mpd) & (x[ind[i]] > x[ind] if kpsh else True)]] = False
-        #             # Keep current peak.
-        #             self.p[ind[i]] = True
-        #         else:
-        #             pass
+        # TODO remove the three following lines.
+        # e = self.e[self.nb_samples-mpd-1:2*self.nb_samples-mpd-1, i]
+        # ind = numpy.add(numpy.where(e)[0], self.nb_samples - mpd - 1)
+        # self.p[ind, i] = True
+        p = self.e[self.nb_samples-2*mpd-1:2*self.nb_samples-1, i]
+        ind = numpy.where(p)[0]
+        ind_ = numpy.add(ind, self.nb_samples - 2 * mpd - 1)
+        if mpd > 1:
+            ind = ind[numpy.argsort(x[ind_])][::-1]
+            for j in range(0, ind.size):
+                if p[ind[j]]:
+                    # Keep peaks with the same height if 'kpsh' is True.
+                    i_del = (ind >= ind[j] - mpd) & (ind <= ind[j] + mpd) & (x[ind_[j]] > x[ind_] if kpsh else True)
+                    p[ind[i_del]] = False
+                    # Keep current peak.
+                    p[ind[j]] = True
+                else:
+                    pass
+        self.p[self.nb_samples-mpd-1:2*self.nb_samples-mpd-1, i] = p[+mpd:-mpd]
 
         # Return detected peaks from the previous chunk of data.
-        ind = numpy.where(self.p[0:self.nb_samples, i])[0]
+        if self.counter <= self.start_step + 1:
+            # TODO correct the following block code (doesn't work).
+            # We need to discard the beginning of the first chunk (i.e. where we can't define any peak).
+            p = self.p[mpd+1:self.nb_samples, i]
+            ind = numpy.add(numpy.where(p)[0], mpd + 1)
+        else:
+            p = self.p[0:self.nb_samples, i]
+            ind = numpy.add(numpy.where(p)[0], 0)
 
         return ind
 
@@ -178,5 +194,10 @@ class Peak_detector(Block):
 
             # Send detected peaks.
             self.outputs['peaks'].send(self.peaks)
+
+        else:
+
+            if self.is_active:
+                raise Exception("Peak detector is active but receive no MADs (counter={})".format(self.counter))
 
         return

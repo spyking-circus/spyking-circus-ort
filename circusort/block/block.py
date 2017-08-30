@@ -36,7 +36,7 @@ class Block(threading.Thread):
         self.t_start = None
         self.nb_steps = None
         self.is_active = False
-        self.start_steps = None
+        self.start_step = None
         self.check_interval = 100
         self.counter = 0
         self.mpl_display = False
