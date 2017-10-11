@@ -7,6 +7,9 @@ tests/*
 !tests/test_syn_gen.py
 *settings.py
 
+# PyCharm files
+.idea/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
