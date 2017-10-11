@@ -11,10 +11,11 @@ class Listener(Block):
     name = "Stream listener"
 
     params = {
-        'host': '127.0.0.1',
-        'port': 4006,
-        'dtype': 'uint16',
-        'nb_chan': 261,
+        'acq_host': '127.0.0.1',
+        'acq_port': 40006,
+        'acq_dtype': 'uint16',
+        'acq_nb_samp': 2000,
+        'acq_nb_chan': 261,
     }
 
     def __init__(self, **kwargs):
@@ -23,48 +24,56 @@ class Listener(Block):
         self.add_output('data')
 
     def _initialize(self):
+        # Configure the data output of this block.
+        self.output.configure(dtype=self.acq_dtype, shape=(self.acq_nb_samp, self.acq_nb_chan))
         # Define the address of the input socket.
-        self.address = (self.host, self.port)
+        address = (self.acq_host, self.acq_port)
         # Bind the input socket.
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.acq_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.log.debug("Socket created.")
         # Connect to the server.
-        self.socket.connect(self.address)
-        self.log.debug("Connection accepted to {}:{}.".format(self.host, self.port))
-        # Initialize counter for receptions.
+        # TODO remove following line.
+        self.log.debug("{}".format(address))
+        self.acq_socket.connect(address)
+        self.log.debug("Connection accepted to {}:{}.".format(self.acq_host, self.acq_port))
+        # Initialize counter for buffer receptions.
         self.step_nb = 0
+        # Initialize buffer size.
+        self.buf_size = self.acq_nb_chan * self.acq_nb_samp * 2
         return
 
     def _process(self):
         try:
             # Receive UDP packets.
-            recv_string = self.socket.recv(self.buf_size, socket.MSG_WAITALL)
+            recv_string = self.acq_socket.recv(self.buf_size, socket.MSG_WAITALL)
             # Log reception.
             log_format = "{} len(recv_string): {}"
             log_string = log_format.format(self.step_nb, len(recv_string))
             self.log.debug(log_string)
             # Change data format.
-            batch = self.read_live_udp_packet(recv_string, self.recv_dtype, self.nb_recv_chan)
+            batch = self.read_live_udp_packet(recv_string, self.acq_dtype, self.acq_nb_chan)
             # Log data format.
             log_format = "{} batch.shape: {}"
             log_string = log_format.format(self.step_nb, batch.shape)
             self.log.debug(log_string)
             # Send output.
             self.output.send(batch)
-        finally:
+            # Increment counter for buffer receptions.
+            self.step_nb += 1
+        except:
             raise NotImplementedError()
         return
 
     @staticmethod
-    def read_live_udp_packet(recv_string, recv_dtype, nb_recv_chan):
+    def read_live_udp_packet(acq_string, acq_dtype, acq_nb_chan):
         """"""
         # TODO add docstring.
-        recv_shape = (-1, nb_recv_chan)
-        recv_data = np.fromstring(recv_string, dtype=recv_dtype)
-        recv_data = np.reshape(recv_data, recv_shape)
-        return recv_data
+        acq_shape = (-1, acq_nb_chan)
+        acq_data = np.fromstring(acq_string, dtype=acq_dtype)
+        acq_data = np.reshape(acq_data, acq_shape)
+        return acq_data
 
     def __del__(self):
         # Close the input socket.
-        self.socket.close()
+        self.acq_socket.close()
         return
