@@ -40,7 +40,7 @@ sleep_duration = 100.0  # s
 director = circusort.create_director(host=master)
 
 manager = {}
-for machine in slaves:
+for machine in [master] + slaves:
     manager[machine] = director.create_manager(host=machine)
 
 listener = manager[slaves[0]].create_block('listener', acq_host=acq_host, acq_port=acq_port,
