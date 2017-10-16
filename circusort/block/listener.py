@@ -42,37 +42,28 @@ class Listener(Block):
         return
 
     def _process(self):
+
         try:
             # Receive UDP packets.
             recv_string = self.acq_socket.recv(self.buf_size, socket.MSG_WAITALL)
-            # TODO uncomment the 4 following lines.
-            # # Log reception.
-            # log_format = "{} len(recv_string): {}"
-            # log_string = log_format.format(self.step_nb, len(recv_string))
-            # self.log.debug(log_string)
             # Change data format.
             batch = self.read_live_udp_packet(recv_string, self.acq_dtype, self.acq_nb_chan, self.dtype)
-            # TODO uncomment the 4 following lines.
-            # # Log data format.
-            # log_format = "{} batch.shape: {}"
-            # log_string = log_format.format(self.step_nb, batch.shape)
-            # self.log.debug(log_string)
             # Send output.
             self.output.send(batch)
             # Increment counter for buffer receptions.
             self.step_nb += 1
         except:
             raise NotImplementedError()
+
         return
 
     @staticmethod
     def read_live_udp_packet(acq_string, acq_dtype, acq_nb_chan, dtype):
-        """"""
-        # TODO add docstring.
+        """Read live UDP packet"""
+        # TODO complete docstring.
         acq_shape = (-1, acq_nb_chan)
         acq_data = np.fromstring(acq_string, dtype=acq_dtype)
         acq_data = np.reshape(acq_data, acq_shape)
-        # TODO check following line.
         acq_data = acq_data.astype(dtype)
         return acq_data
 

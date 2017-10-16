@@ -3,14 +3,17 @@ import numpy
 
 
 class Mad_estimator(Block):
-    '''TODO add docstring'''
+    """MAD estimator block"""
+    # TODO complete docstring.
 
     name = "MAD Estimator"
 
-    params = {'time_constant' : 1.,
-              'epsilon'       : 1e-5,
-              'threshold'     : 5,
-              'sampling_rate' : 20000.}
+    params = {
+        'time_constant': 1.0,
+        'epsilon': 1e-5,
+        'threshold': 5,
+        'sampling_rate': 20000.0,
+    }
 
     def __init__(self, **kwargs):
 
@@ -37,6 +40,7 @@ class Mad_estimator(Block):
         self.decay_time   = numpy.exp(-self.factor)
         self.outputs['mads'].configure(dtype='float32', shape=(self.nb_channels, 1))
         self.last_mads_mean = numpy.zeros(self.nb_channels, dtype=numpy.float32)
+        return
 
     def _check_if_active(self):
         # Compute test value.
@@ -44,20 +48,17 @@ class Mad_estimator(Block):
         test = self.mads / self.last_mads_mean
         test[numpy.isnan(test)] = 0.0
         test = numpy.median(numpy.abs(test - 1.0))
-        # # TODO remove the following line.
-        # self.log.debug("me test: {}".format(test))
         if (test < self.epsilon):
             self.log.info('{n} has converged'.format(n=self.name_and_counter))
             self._set_active_mode()
+        return
 
     def _process(self):
-        # # TODO remove the following line.
-        # self.log.debug("m >>>>>>>>>>")
-        batch             = self.input.receive()
-        # # TODO remove the following line.
-        # self.log.debug("m ==========")
+
+        batch = self.input.receive()
+
         self.median_means = self.median_means*self.decay_time + numpy.median(batch, 0)*self.factor
-        self.mads         = self.mads*self.decay_time + numpy.median(numpy.abs(batch) - self.median_means, 0)*self.factor
+        self.mads = self.mads*self.decay_time + numpy.median(numpy.abs(batch) - self.median_means, 0)*self.factor
 
         if not self.is_active:
             self._check_if_active()
@@ -66,6 +67,5 @@ class Mad_estimator(Block):
             self.get_output('mads').send(self.threshold*self.mads)
 
         self.last_mads_mean = self.mads
-        # # TODO remove the following line.
-        # self.log.debug("m<<<<<<<<<<")
+
         return

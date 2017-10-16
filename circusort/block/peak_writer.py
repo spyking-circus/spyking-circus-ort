@@ -4,12 +4,15 @@ import os
 import numpy
 
 class Peak_writer(Block):
-    '''TODO add docstring'''
+    """Peak writer block"""
+    # TODO complete docstring.
 
     name   = "Peak writer"
 
-    params = {'pos_peaks' : None, 
-              'neg_peaks' : None}
+    params = {
+        'pos_peaks': None,
+        'neg_peaks': None,
+    }
 
     def __init__(self, **kwargs):
 
@@ -28,13 +31,9 @@ class Peak_writer(Block):
         return
 
     def _process(self):
-        # # TODO remove the 3 following lines.
-        # self.log.debug("pw >>>>>>>>>>")
-        # self.log.debug("pw input address: {}".format(self.input.addr))
-        # self.log.debug("pw input structure: {}".format(self.input.structure))
+
         batch = self.input.receive()
-        # # TODO remove the following line.
-        # self.log.debug("pw ==========")
+
         if self.input.structure == 'array':
             self.log.error('{n} can only write peak dictionaries'.format(n=self.name))
         elif self.input.structure == 'dict':
@@ -59,8 +58,7 @@ class Peak_writer(Block):
                     to_write += [(int(channel), value + offset) for value in batch[key][channel]]
                 to_write = numpy.array(to_write).astype(numpy.int32)
                 self.peaks_file[key].write(to_write)
-        # # TODO remove the following line.
-        # self.log.debug("pw <<<<<<<<<<")
+
         return
 
     def __del__(self):

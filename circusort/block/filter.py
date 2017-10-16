@@ -2,14 +2,18 @@ from .block import Block
 import numpy
 from scipy import signal
 
+
 class Filter(Block):
-    '''TODO add docstring'''
+    """Filter block"""
+    # TODO complete docstring.
 
     name = "Filter"
 
-    params = {'cut_off'       : 500,
-              'sampling_rate' : 20000,
-              'remove_median' : False}
+    params = {
+        'cut_off': 500,
+        'sampling_rate': 20000,
+        'remove_median': False,
+    }
 
     def __init__(self, **kwargs):
 
@@ -19,7 +23,7 @@ class Filter(Block):
 
     def _initialize(self):
         cut_off = numpy.array([self.cut_off, 0.95*(self.sampling_rate/2.)])
-        b, a   = signal.butter(3, cut_off/(self.sampling_rate/2.), 'pass')
+        b, a = signal.butter(3, cut_off/(self.sampling_rate/2.), 'pass')
         self.b = b
         self.a = a
         self.z = {}
@@ -41,37 +45,20 @@ class Filter(Block):
             self.z[i] = numpy.zeros(m, dtype=numpy.float32)
 
     def _process(self):
-        # # TODO remove the following line.
-        # self.log.debug("f>>>>>>>>>>")
-        # # TODO remove the following 7 lines.
-        # self.log.debug("f >>>>>>>>>>")
-        # self.log.debug("f input addr: {}".format(self.input.addr))
-        # self.log.debug("f input structure: {}".format(self.input.structure))
-        # if self.input.structure == 'array':
-        #     self.log.debug("f input dtype: {}".format(self.input.dtype))
-        #     self.log.debug("f input shape: {}".format(self.input.shape))
-        # self.log.debug("f output addr: {}".format(self.output.addr))
-        batch = self.input.receive()
-        # # TODO remove the following line.
-        # self.log.debug("f ==========")
-        try:
-            # # TODO remove the following 2 lines.
-            # if batch.dtype != numpy.float32:
-            #     batch = batch.astype(numpy.float32)
-            for i in xrange(self.nb_channels):
-                batch[:, i], self.z[i]  = signal.lfilter(self.b, self.a, batch[:, i], zi=self.z[i])
-                batch[:, i] -= numpy.median(batch[:, i])
 
+        try:
+            # Receive input data.
+            batch = self.input.receive()
+            # Process data.
+            for i in xrange(self.nb_channels):
+                batch[:, i], self.z[i] = signal.lfilter(self.b, self.a, batch[:, i], zi=self.z[i])
+                batch[:, i] -= numpy.median(batch[:, i])
             if self.remove_median:
                 global_median = numpy.median(batch, 1)
                 for i in xrange(self.nb_channels):
                     batch[:, i] -= global_median
+            # Send output data.
             self.output.send(batch)
-            # # TODO remove the following 2 lines.
-            # self.log.debug("batch.shape: {}".format(batch.shape))
-            # self.log.debug("batch.dtype: {}".format(batch.dtype))
-            # # TODO remove the following line.
-            # self.log.debug("f <<<<<<<<<<")
         except Exception as exception:
             self.log.debug("{} raised {}".format(self.name, exception))
 

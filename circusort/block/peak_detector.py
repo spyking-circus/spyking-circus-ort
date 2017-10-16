@@ -3,14 +3,17 @@ import numpy
 
 
 class Peak_detector(Block):
-    '''TODO add docstring'''
+    """Peak detector block"""
+    # TODO complete docstring.
 
     name = "Peak detector"
 
-    params = {'sign_peaks'    : 'negative',
-              'spike_width'   : 5,
-              'sampling_rate' : 20000.,
-              'safety_time'   : 'auto'}
+    params = {
+        'sign_peaks': 'negative',
+        'spike_width': 5,
+        'sampling_rate': 20000.,
+        'safety_time': 'auto',
+    }
 
     def __init__(self, **kwargs):
 
@@ -89,15 +92,9 @@ class Peak_detector(Block):
         return ind
 
     def _process(self):
-        # # TODO remove the 3 following lines.
-        # self.log.debug("pd >>>>>>>>>>")
-        # self.log.debug("pd output address: {}".format(self.output.addr))
-        # self.log.debug("pd output structure: {}".format(self.output.structure))
-        batch      = self.get_input('data').receive()
+
+        batch = self.get_input('data').receive()
         thresholds = self.get_input('mads').receive(blocking=False)
-        # # TODO remove the following 2 lines.
-        # self.log.debug("pd thresholds is None: {}".format(thresholds is None))
-        # self.log.debug("pd ==========")
 
         if thresholds is not None:
 
@@ -116,10 +113,7 @@ class Peak_detector(Block):
                         if len(data) > 0:
                             self.peaks[key][i] = data
 
-            # # TODO remove the following line.
-            # self.log.debug("pd len(peaks['negative']): {}".format(len(self.peaks['negative'])))
             self.peaks['offset'] = self.counter*self.nb_samples
             self.outputs['peaks'].send(self.peaks)
-        # # TODO remove the following line.
-        # self.log.debug("pd <<<<<<<<<<")
+
         return
