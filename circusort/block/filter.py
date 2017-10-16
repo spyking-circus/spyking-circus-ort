@@ -41,15 +41,38 @@ class Filter(Block):
             self.z[i] = numpy.zeros(m, dtype=numpy.float32)
 
     def _process(self):
+        # # TODO remove the following line.
+        # self.log.debug("f>>>>>>>>>>")
+        # # TODO remove the following 7 lines.
+        # self.log.debug("f >>>>>>>>>>")
+        # self.log.debug("f input addr: {}".format(self.input.addr))
+        # self.log.debug("f input structure: {}".format(self.input.structure))
+        # if self.input.structure == 'array':
+        #     self.log.debug("f input dtype: {}".format(self.input.dtype))
+        #     self.log.debug("f input shape: {}".format(self.input.shape))
+        # self.log.debug("f output addr: {}".format(self.output.addr))
         batch = self.input.receive()
-        for i in xrange(self.nb_channels):
-            batch[:, i], self.z[i]  = signal.lfilter(self.b, self.a, batch[:, i], zi=self.z[i])
-            batch[:, i] -= numpy.median(batch[:, i]) 
-
-        if self.remove_median:
-            global_median = numpy.median(batch, 1)
+        # # TODO remove the following line.
+        # self.log.debug("f ==========")
+        try:
+            # # TODO remove the following 2 lines.
+            # if batch.dtype != numpy.float32:
+            #     batch = batch.astype(numpy.float32)
             for i in xrange(self.nb_channels):
-                batch[:, i] -= global_median
-        self.output.send(batch)
+                batch[:, i], self.z[i]  = signal.lfilter(self.b, self.a, batch[:, i], zi=self.z[i])
+                batch[:, i] -= numpy.median(batch[:, i])
+
+            if self.remove_median:
+                global_median = numpy.median(batch, 1)
+                for i in xrange(self.nb_channels):
+                    batch[:, i] -= global_median
+            self.output.send(batch)
+            # # TODO remove the following 2 lines.
+            # self.log.debug("batch.shape: {}".format(batch.shape))
+            # self.log.debug("batch.dtype: {}".format(batch.dtype))
+            # # TODO remove the following line.
+            # self.log.debug("f <<<<<<<<<<")
+        except Exception as exception:
+            self.log.debug("{} raised {}".format(self.name, exception))
 
         return

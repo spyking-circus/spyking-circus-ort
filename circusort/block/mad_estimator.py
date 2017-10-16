@@ -39,13 +39,23 @@ class Mad_estimator(Block):
         self.last_mads_mean = numpy.zeros(self.nb_channels, dtype=numpy.float32)
 
     def _check_if_active(self):
-        test = numpy.mean(numpy.abs(self.mads/self.last_mads_mean) - 1)
+        # Compute test value.
+        # TODO check the statistics behind this test value.
+        test = self.mads / self.last_mads_mean
+        test[numpy.isnan(test)] = 0.0
+        test = numpy.median(numpy.abs(test - 1.0))
+        # # TODO remove the following line.
+        # self.log.debug("me test: {}".format(test))
         if (test < self.epsilon):
             self.log.info('{n} has converged'.format(n=self.name_and_counter))
             self._set_active_mode()
 
     def _process(self):
+        # # TODO remove the following line.
+        # self.log.debug("m >>>>>>>>>>")
         batch             = self.input.receive()
+        # # TODO remove the following line.
+        # self.log.debug("m ==========")
         self.median_means = self.median_means*self.decay_time + numpy.median(batch, 0)*self.factor
         self.mads         = self.mads*self.decay_time + numpy.median(numpy.abs(batch) - self.median_means, 0)*self.factor
 
@@ -56,4 +66,6 @@ class Mad_estimator(Block):
             self.get_output('mads').send(self.threshold*self.mads)
 
         self.last_mads_mean = self.mads
+        # # TODO remove the following line.
+        # self.log.debug("m<<<<<<<<<<")
         return

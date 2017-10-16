@@ -42,7 +42,17 @@ class Whitening(Block):
         self.whitening_matrix = numpy.dot(numpy.dot(V,D), V.T).astype(numpy.float32)
 
     def _process(self):
+        # # TODO remove the following 7 lines.
+        # self.log.debug("w >>>>>>>>>>")
+        # self.log.debug("w input addr: {}".format(self.input.addr))
+        # self.log.debug("w input structure: {}".format(self.input.structure))
+        # if self.input.structure == 'array':
+        #     self.log.debug("w input dtype: {}".format(self.input.dtype))
+        #     self.log.debug("w input shape: {}".format(self.input.shape))
+        # self.log.debug("w output addr: {}".format(self.output.addr))
         batch = self.input.receive()
+        # # TODO remove the following line.
+        # self.log.debug("w =========")
         if self.is_active:
             batch = numpy.dot(batch, self.whitening_matrix)
             self.output.send(batch)
@@ -52,4 +62,6 @@ class Whitening(Block):
                 self._get_whitening_matrix()
                 self.log.info("{n} computes whitening matrix".format(n=self.name_and_counter))
                 self._set_active_mode()
+        # # TODO remove the following line.
+        # self.log.debug("w <<<<<<<<<")
         return

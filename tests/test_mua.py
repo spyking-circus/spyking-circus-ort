@@ -28,11 +28,13 @@ acq_nb_chan = 261
 
 cut_off = 100.0  # Hz  # cutoff frequency used during filtering
 
+epsilon = 1.0e-2
+
 threshold = 5  # threshold used during peak detection
 
-data_path = '/tmp/peak_data.raw'  # path used to save all the detected peaks
+peaks_path = '/tmp/peaks.raw'  # path used to save all the detected peaks
 
-sleep_duration = 100.0  # s
+sleep_duration = 30.0  # s
 
 
 # Set Circus network.
@@ -43,25 +45,28 @@ manager = {}
 for machine in [master] + slaves:
     manager[machine] = director.create_manager(host=machine)
 
-listener = manager[slaves[0]].create_block('listener', acq_host=acq_host, acq_port=acq_port,
-                                           acq_dtype=acq_dtype, acq_nb_samp=acq_nb_samp,
-                                           acq_nb_chan=acq_nb_chan, log_level=log_level)
+listener = manager[master].create_block('listener', acq_host=acq_host, acq_port=acq_port,
+                                        acq_dtype=acq_dtype, acq_nb_samp=acq_nb_samp,
+                                        acq_nb_chan=acq_nb_chan, log_level=log_level)
 filtering = manager[slaves[1]].create_block('filter', cut_off=cut_off, log_level=log_level)
-whitening = manager[slaves[2]].create_block('whitening', log_level=log_level)
-mad_estimator = manager[slaves[3]].create_block('mad_estimator', log_level=log_level)
+# whitening = manager[slaves[2]].create_block('whitening', log_level=log_level)
+mad_estimator = manager[slaves[3]].create_block('mad_estimator', epsilon=epsilon,
+                                                log_level=log_level)
 peak_detector = manager[slaves[4]].create_block('peak_detector', threshold=threshold,
                                                 log_level=log_level)
-writer = manager[master].create_block('writer', data_path=data_path, log_level=log_level)
+peak_writer = manager[master].create_block('peak_writer', neg_peaks=peaks_path,
+                                           log_level=log_level)
 
 
 director.initialize()
 
 
 director.connect(listener.output, filtering.input)
-director.connect(filtering.output, whitening.input)
-director.connect(whitening.output, [mad_estimator.input, peak_detector.get_input('data')])
+# director.connect(filtering.output, whitening.input)
+# director.connect(whitening.output, [mad_estimator.input, peak_detector.get_input('data')])
+director.connect(filtering.output, [mad_estimator.input, peak_detector.get_input('data')])
 director.connect(mad_estimator.output, peak_detector.get_input('mads'))
-director.connect(peak_detector.get_output('peaks'), writer.input)
+director.connect(peak_detector.get_output('peaks'), peak_writer.input)
 
 
 # Start acquisition
