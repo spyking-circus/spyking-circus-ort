@@ -10,7 +10,7 @@ class Mad_estimator(Block):
 
     params = {
         'time_constant': 1.0,
-        'epsilon': 1e-5,
+        'epsilon': 5.0e-3,
         'threshold': 5,
         'sampling_rate': 20000.0,
     }
