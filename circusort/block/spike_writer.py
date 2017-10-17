@@ -3,52 +3,82 @@ import tempfile
 import os
 import numpy
 
+
 class Spike_writer(Block):
-    '''TODO add docstring'''
+    """Spike writer block.
 
-    name   = "Spike writer"
+    Attributes:
+        spike_times: string
+            Path to the location where spike times will be saved.
+        amplitudes: string
+            Path to the location where spike amplitudes will be saved.
+        templates: string
+            Path to the location where spike templates will be saved.
+        directory: string
+            Path to the location where spike attributes will be saved.
 
-    params = {'spike_times' : None, 
-              'amplitudes'  : None,
-              'templates'   : None}
+    """
+    # TODO complete docstring.
+
+    name = "Spike writer"
+
+    params = {
+        'spike_times': None,
+        'amplitudes': None,
+        'templates': None,
+        'directory': None,
+    }
 
     def __init__(self, **kwargs):
 
         Block.__init__(self, **kwargs)
         self.add_input('spikes')
 
-    def _get_temp_file(self):
-        tmp_file  = tempfile.NamedTemporaryFile()
-        data_path = os.path.join(tempfile.gettempdir(), os.path.basename(tmp_file.name)) + ".dat"
-        tmp_file.close()
+    def _get_temp_file(self, basename=None):
+
+        if self.directory is None:
+            tmp_dir = tempfile.gettempdir()
+        else:
+            tmp_dir = self.directory
+        if basename is None:
+            tmp_file = tempfile.NamedTemporaryFile()
+            tmp_basename = os.path.basename(tmp_file.name)
+            tmp_file.close()
+        else:
+            tmp_basename = basename
+        tmp_filename = tmp_basename + ".raw"
+        data_path = os.path.join(tmp_dir, tmp_filename)
+
         return data_path
 
     def _initialize(self):
         self.recorded_data = {}
-        self.data_file     = {}
+        self.data_file = {}
         return
 
     def _process(self):
+
         batch = self.input.receive()
+
         if self.input.structure == 'array':
-            self.log.error('{n} can only write spike dictionnaries'.format(n=self.name))
+            self.log.error('{n} can only write spike dictionaries'.format(n=self.name))
         elif self.input.structure == 'dict':
             offset = batch.pop('offset')
             for key in batch:
-                if not self.recorded_data.has_key(key):
+                if key not in self.recorded_data:
                     if key == 'spike_times':
                         if self.spike_times is None:
-                            self.recorded_data[key] = self._get_temp_file()
+                            self.recorded_data[key] = self._get_temp_file(basename='spike_times')
                         else:
                             self.recorded_data[key] = self.spike_times
                     elif key == 'amplitudes':
                         if self.amplitudes is None:
-                            self.recorded_data[key] = self._get_temp_file()
+                            self.recorded_data[key] = self._get_temp_file(basename='spike_amplitudes')
                         else:
                             self.recorded_data[key] = self.amplitudes
                     elif key == 'templates':
                         if self.templates is None:
-                            self.recorded_data[key] = self._get_temp_file()
+                            self.recorded_data[key] = self._get_temp_file(basename='spike_templates')
                         else:
                             self.recorded_data[key] = self.templates
 
@@ -62,9 +92,18 @@ class Spike_writer(Block):
                     to_write = numpy.array(batch[key]).astype(numpy.int32)
                 elif key in ['amplitudes']:
                     to_write = numpy.array(batch[key]).astype(numpy.float32)
+                else:
+                    raise KeyError(key)
+                # TODO remove the following line.
+                self.log.debug("{n} write in {k} file".format(n=self.name, k=key))
                 self.data_file[key].write(to_write)
+        else:
+            self.log.error("{n} can't write {s}".format(n=self.name, s=self.input.structure))
+
         return
 
     def __del__(self):
-        for file in self.data_file.values(): 
+
+        for file in self.data_file.values():
+            file.flush()
             file.close()
