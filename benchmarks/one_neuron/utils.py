@@ -64,14 +64,15 @@ class Results(object):
         for k, template_id in enumerate(inferred_spike_trains):
             x = [t for t in inferred_spike_trains[template_id]]
             y = [float(k) for _ in x]
-            plt.scatter(x, y, c='b')
+            plt.scatter(x, y, c='b', marker='|')
         # Plot generated spike train.
         x = [t for t in generated_spike_train]
         y = [float(len(inferred_spike_trains)) for _ in x]
-        plt.scatter(x, y, c='r')
+        plt.scatter(x, y, c='r', marker='|')
         plt.xlabel("time (arb. unit)")
         plt.ylabel("spike train")
         plt.title("Spike trains comparison")
+        plt.tight_layout()
         plt.show()
 
         return

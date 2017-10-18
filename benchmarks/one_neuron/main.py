@@ -1,6 +1,6 @@
 # TODO add short description.
 
-import logging
+from logging import DEBUG, INFO
 import os
 
 import circusort
@@ -8,8 +8,6 @@ import utils
 
 
 # Parameters
-
-log_level = logging.DEBUG
 
 host = '127.0.0.1'  # i.e. run the test locally
 
@@ -36,36 +34,36 @@ generator = manager.create_block('synthetic_generator',
                                  cells_params=cells_params,
                                  hdf5_path=hdf5_path,
                                  probe=probe_path,
-                                 log_level=log_level)
+                                 log_level=DEBUG)
 filtering = manager.create_block('filter',
                                  cut_off=100.0,
-                                 log_level=log_level)
+                                 log_level=DEBUG)
 whitening = manager.create_block('whitening',
-                                 log_level=log_level)
+                                 log_level=DEBUG)
 mad_estimator = manager.create_block('mad_estimator',
-                                     log_level=log_level)
+                                     log_level=DEBUG)
 peak_detector = manager.create_block('peak_detector',
                                      threshold=5.0,
-                                     log_level=log_level)
+                                     log_level=DEBUG)
 pca = manager.create_block('pca',
                            nb_waveforms=1000,
-                           log_level=log_level)
+                           log_level=DEBUG)
 cluster = manager.create_block('density_clustering',
                                probe=probe_path,
                                nb_waveforms=500,
                                two_components=True,
-                               log_level=log_level)
+                               log_level=DEBUG)
 updater = manager.create_block('template_updater',
                                probe=probe_path,
                                data_path=temp_path,
                                nb_channels=16,
-                               log_level=log_level)
+                               log_level=INFO)
 fitter = manager.create_block('template_fitter',
                               two_components=True,
-                              log_level=log_level)
+                              log_level=INFO)
 spike_writer = manager.create_block('spike_writer',
                                     directory=tmp_dir,
-                                    log_level=log_level)
+                                    log_level=INFO)
 
 
 # Initialize the elements of the Circus network.
@@ -96,8 +94,9 @@ director.connect(fitter.output, spike_writer.input)
 # Launch the Circus network.
 
 director.start()
-director.sleep(duration=100.0)
+director.sleep(duration=30.0)
 director.stop()
+director.join()
 
 
 # Analyze the results.
