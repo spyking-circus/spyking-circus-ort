@@ -46,20 +46,17 @@ class Filter(Block):
 
     def _process(self):
 
-        try:
-            # Receive input data.
-            batch = self.input.receive()
-            # Process data.
+        # Receive input data.
+        batch = self.input.receive()
+        # Process data.
+        for i in xrange(self.nb_channels):
+            batch[:, i], self.z[i] = signal.lfilter(self.b, self.a, batch[:, i], zi=self.z[i])
+            batch[:, i] -= numpy.median(batch[:, i])
+        if self.remove_median:
+            global_median = numpy.median(batch, 1)
             for i in xrange(self.nb_channels):
-                batch[:, i], self.z[i] = signal.lfilter(self.b, self.a, batch[:, i], zi=self.z[i])
-                batch[:, i] -= numpy.median(batch[:, i])
-            if self.remove_median:
-                global_median = numpy.median(batch, 1)
-                for i in xrange(self.nb_channels):
-                    batch[:, i] -= global_median
-            # Send output data.
-            self.output.send(batch)
-        except Exception as exception:
-            self.log.debug("{} raised {}".format(self.name, exception))
+                batch[:, i] -= global_median
+        # Send output data.
+        self.output.send(batch)
 
         return

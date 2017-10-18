@@ -97,6 +97,7 @@ class Spike_writer(Block):
                 # TODO remove the following line.
                 self.log.debug("{n} write in {k} file".format(n=self.name, k=key))
                 self.data_file[key].write(to_write)
+                self.data_file[key].flush()
         else:
             self.log.error("{n} can't write {s}".format(n=self.name, s=self.input.structure))
 
@@ -105,5 +106,4 @@ class Spike_writer(Block):
     def __del__(self):
 
         for file in self.data_file.values():
-            file.flush()
             file.close()

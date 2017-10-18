@@ -1,8 +1,8 @@
-import h5py
+# import h5py
 import numpy as np
 import Queue
-import scipy as sp
-import scipy.signal
+# import scipy as sp
+# import scipy.signal
 import threading
 import time
 import tempfile
@@ -10,34 +10,35 @@ import os
 
 from circusort.block import block
 from circusort import io
-from circusort import utils
+# from circusort import utils
 from circusort.io.synthetic import SyntheticStore
-
 
 
 # TODO find if the communication mechanism between the main and background
 # threads is necessary, i.e. is there another canonical way to stop the
 # background thread (in a infinite loop) from the main thread?
 
+
 class Synthetic_generator(block.Block):
-    '''TODO add docstring'''
+    """Synthetic generator"""
+    # TODO complete docstring.
 
     name = "Synthetic Generator"
 
     params = {
-        'dtype'         : 'float32',
-        'probe'         : None,
-        'sampling_rate' : 20000.0,
-        'nb_samples'    : 1024,
-        'nb_cells'      : 10,
-        'hdf5_path'     : None,
+        'dtype': 'float32',
+        'probe': None,
+        'sampling_rate': 20000.0,
+        'nb_samples': 1024,
+        'nb_cells': 10,
+        'hdf5_path': None,
     }
 
     def __init__(self, cells_args=None, cells_params=None, **kwargs):
 
         block.Block.__init__(self, **kwargs)
         self.cells_args = cells_args
-        if self.probe == None:
+        if self.probe is None:
             self.log.error('{n}: the probe file must be specified!'.format(n=self.name))
         else:
             self.probe = io.Probe(self.probe, logger=self.log)
@@ -51,13 +52,12 @@ class Synthetic_generator(block.Block):
         self.add_output('data')
 
     def _get_tmp_path(self):
-        tmp_file  = tempfile.NamedTemporaryFile()
+        tmp_file = tempfile.NamedTemporaryFile()
         data_path = os.path.join(tempfile.gettempdir(), os.path.basename(tmp_file.name))
         tmp_file.close()
         return data_path
 
     def _initialize(self):
-        '''TODO add docstring.'''
 
         # Retrieve the geometry of the probe.
         self.nb_channels = self.probe.nb_channels
@@ -66,10 +66,10 @@ class Synthetic_generator(block.Block):
         # Generate synthetic cells.
         self.cells = {}
         for c in range(0, self.nb_cells):
-            x_ref = np.random.uniform(self.fov['x_min'], self.fov['x_max']) # um # cell x-coordinate
-            y_ref = np.random.uniform(self.fov['y_min'], self.fov['y_max']) # um # cell y-coordinate
-            z_ref = 0.0 # um # cell z-coordinate
-            r_ref = 5.0 # Hz # cell firing rate
+            x_ref = np.random.uniform(self.fov['x_min'], self.fov['x_max'])  # um  # cell x-coordinate
+            y_ref = np.random.uniform(self.fov['y_min'], self.fov['y_max'])  # um  # cell y-coordinate
+            z_ref = 0.0  # um  # cell z-coordinate
+            r_ref = 5.0  # Hz  # cell firing rate
             cell_args = {
                 'x': eval("lambda t: %s" % x_ref),
                 'y': eval("lambda t: %s" % y_ref),
@@ -89,19 +89,21 @@ class Synthetic_generator(block.Block):
             self.hdf5_path = self._get_tmp_path()
 
         self.hdf5_path = os.path.abspath(os.path.expanduser(self.hdf5_path))
-        self.log.info('{n} records synthetic data from {d} cells into {k}'.format(k=self.hdf5_path, n=self.name, d=self.nb_cells))
+        info_msg = "{n} records synthetic data from {d} cells into {k}"
+        self.log.info(info_msg.format(k=self.hdf5_path, n=self.name, d=self.nb_cells))
 
         # Define and launch the background thread for data generation.
-        ## First queue is used as a buffer for synthetic data.
+        # # First queue is used as a buffer for synthetic data.
         self.queue = Queue.Queue(maxsize=600)
-        ## Second queue is a communication mechanism between the main and
-        ## background threads in order to be able to stop the background thread.
+        # # Second queue is a communication mechanism between the main and
+        # # background threads in order to be able to stop the background thread.
         self.rpc_queue = Queue.Queue()
-        ## Define the target function of the background thread.
+
         def syn_gen_target(rpc_queue, queue, nb_channels, probe, nb_samples, nb_cells, cells, hdf5_path):
-            '''Synthetic data generation (background thread)'''
-            mu = 0.0 # uV # noise mean
-            sigma = 4.0 # uV # noise standard deviation
+            """Synthetic data generation (background thread)"""
+
+            mu = 0.0  # uV  # noise mean
+            sigma = 4.0  # uV  # noise standard deviation
             spike_trains_buffer_ante = {c: np.array([], dtype='int') for c in range(0, nb_cells)}
             spike_trains_buffer_curr = {c: np.array([], dtype='int') for c in range(0, nb_cells)}
             spike_trains_buffer_post = {c: np.array([], dtype='int') for c in range(0, nb_cells)}
@@ -112,25 +114,33 @@ class Synthetic_generator(block.Block):
 
                 s, u = self.cells[c].get_waveform()
 
-                params = {'cell_id'    : c, 
-                          'waveform/x' : s,
-                          'waveform/y' : u
-                          }
+                params = {
+                    'cell_id': c,
+                    'waveform/x': s,
+                    'waveform/y': u
+                }
 
                 self.synthetic_store.add(params)
 
             # Generate spikes for the third part of this buffer.
             chunk_number = 0
-            to_write     = {}
-            frequency    = 100
+            to_write = {}
+            frequency = 100
 
             for c in range(0, nb_cells):
                 spike_trains_buffer_post[c] = cells[c].generate_spike_trains(chunk_number, nb_samples)
-                to_write[c] = {'cell_id' : c, 'x' : [], 'y' : [], 'z' : [], 'e' : [], 'r' : [], 'spike_times' : []}
+                to_write[c] = {
+                    'cell_id': c,
+                    'x': [],
+                    'y': [],
+                    'z': [],
+                    'e': [],
+                    'r': [],
+                    'spike_times': [],
+                }
 
-
-            while rpc_queue.empty(): # check if main thread requires a stop
-                if not queue.full(): # limit memory consumption
+            while rpc_queue.empty():  # check if main thread requires a stop
+                if not queue.full():  # limit memory consumption
                     # 1. Generate noise.
                     shape = (nb_samples, nb_channels)
                     data = np.random.normal(mu, sigma, shape).astype(self.dtype)
@@ -165,31 +175,38 @@ class Synthetic_generator(block.Block):
 
                         if chunk_number % frequency == 0:
                             self.synthetic_store.add(to_write[c])
-                            to_write[c] = {'cell_id' : c, 'x' : [], 'y' : [], 'z' : [], 'e' : [], 'r' : [], 'spike_times' : []}
+                            to_write[c] = {
+                                'cell_id': c,
+                                'x': [],
+                                'y': [],
+                                'z': [],
+                                'e': [],
+                                'r': [],
+                                'spike_times': [],
+                            }
 
                     # Finally, send data to main thread and update chunk number.
-                    #data = np.transpose(data)
+                    # data = np.transpose(data)
                     queue.put(data)
                     chunk_number += 1
 
-            #We write the remaining data for the cells
+            # We write the remaining data for the cells
             for c in range(0, nb_cells):
                 self.synthetic_store.add(to_write[c])
 
             self.synthetic_store.close()
             return
-        ## Define background thread for data generation.
+        # # Define background thread for data generation.
         args = (self.rpc_queue, self.queue, self.nb_channels, self.probe, self.nb_samples, self.nb_cells, self.cells, self.hdf5_path)
         self.syn_gen_thread = threading.Thread(target=syn_gen_target, args=args)
         self.syn_gen_thread.deamon = True
-        ## Launch background thread for data generation.
+        # # Launch background thread for data generation.
         self.log.info("{n} launches background thread for data generation".format(n=self.name))
         self.syn_gen_thread.start()
 
         return
 
     def _process(self):
-        '''TODO add docstring.'''
 
         # Get data from background thread.
         data = self.queue.get()
@@ -201,7 +218,7 @@ class Synthetic_generator(block.Block):
         return
 
     def exec_kwargs(self, input_kwargs, input_params):
-        '''Convert input keyword arguments into output keyword arguments.
+        """Convert input keyword arguments into output keyword arguments.
 
         Parameter
         ---------
@@ -212,7 +229,7 @@ class Synthetic_generator(block.Block):
         ------
         output_kwargs: dict
             Dictionnary with the following keys: 'x', 'y', 'z' and 'r'.
-        '''
+        """
 
         # Define object (i.e. string or code object).
         # obj_key = 'object'
@@ -254,22 +271,24 @@ class Synthetic_generator(block.Block):
         self.rpc_queue.put("stop")
 
 
-
 class Cell(object):
 
-    variables = {'x'       : None,
-                 'y'       : None,
-                 'z'       : None,
-                 'r'       : None,
-                 't'       : 'default',
-                 'sr'      : 20000, 
-                 'rp'      : 5e-3,
-                 'nn'      : 100, 
-                 'hf_dist' : 50, 
-                 'a_dist'  : 1}
+    variables = {
+        'x': None,
+        'y': None,
+        'z': None,
+        'r': None,
+        't': 'default',
+        'sr': 20000,
+        'rp': 5e-3,
+        'nn': 100,
+        'hf_dist': 50,
+        'a_dist': 1
+    }
 
-    def __init__(self, x=None, y=None, z=None, r=None, t='default', sr=20.0e+3, rp=20.0e-3, nn=100, hf_dist = 45.0, a_dist=1.0):
-        '''TODO add docstring.
+    def __init__(self, x=None, y=None, z=None, r=None, t='default',
+                 sr=20.0e+3, rp=20.0e-3, nn=100, hf_dist=45.0, a_dist=1.0):
+        """TODO add docstring.
 
         Parameters
         ----------
@@ -287,7 +306,7 @@ class Cell(object):
             Sampling rate.
         rp: float (default: 20.0e-3 s)
             Refactory period.
-        '''
+        """
 
         if x is None:
             self.x = lambda t: 0.0
@@ -298,17 +317,17 @@ class Cell(object):
         else:
             self.y = y
         if z is None:
-            self.z = lambda t: 20.0 # um
+            self.z = lambda t: 20.0  # um
         else:
             self.z = z
         if r is None:
-            self.r = lambda t: 5.0 # Hz
+            self.r = lambda t: 5.0  # Hz
         else:
             self.r = r
-        self.t  = t # cell type
-        self.sr = sr # sampling_rate
+        self.t = t  # cell type
+        self.sr = sr  # sampling_rate
         
-        self.rp = rp # refactory period
+        self.rp = rp  # refractory period
         self.nn = nn
         self.hf_dist = hf_dist
         self.a_dist = a_dist
@@ -316,7 +335,7 @@ class Cell(object):
         self.buffered_spike_times = np.array([], dtype='float32')
 
     def e(self, chunk_number, probe):
-        '''Nearest electrode for the given chunk.
+        """Nearest electrode for the given chunk.
 
         Parameter
         ---------
@@ -327,7 +346,7 @@ class Cell(object):
         ------
         e: int
             Number of the electrode/channel which is the nearest to this cell.
-        '''
+        """
 
         x = self.x(chunk_number)
         y = self.y(chunk_number)
@@ -340,7 +359,8 @@ class Cell(object):
         return e
 
     def generate_spike_trains(self, chunk_number, nb_samples):
-        '''TODO add docstring.'''
+        """Generate spike trains"""
+        # TODO complete docstring.
 
         if self.r(chunk_number) > 0.0:
             scale = 1.0 / self.r(chunk_number)
@@ -369,10 +389,9 @@ class Cell(object):
         return spike_steps
 
     def get_waveform(self):
-        '''TODO add docstring.'''
 
-        tau = 1.5e-3 # s # characteristic time
-        amp = -40.0 # um # minimal voltage
+        tau = 1.5e-3  # s  # characteristic time
+        amp = -40.0  # um  # minimal voltage
 
         i_start = -20
         i_stop = +60
@@ -386,7 +405,6 @@ class Cell(object):
         return steps, u
 
     def get_waveforms(self, chunk_number, probe):
-        '''TODO add docstring.'''
 
         steps, u = self.get_waveform()
 
@@ -401,7 +419,7 @@ class Cell(object):
         j = np.repeat(channels, steps.size)
         v = np.zeros((steps.size, channels.size))
         for k in range(0, channels.size):
-            coef = self.a_dist / (1.0 + (distances[k] / self.hf_dist) ** 2.0) # coefficient of attenuation
+            coef = self.a_dist / (1.0 + (distances[k] / self.hf_dist) ** 2.0)  # coefficient of attenuation
             v[:, k] = coef * u
         v = np.transpose(v)
         v = v.flatten()
