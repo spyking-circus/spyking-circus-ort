@@ -20,7 +20,26 @@ from circusort.io.synthetic import SyntheticStore
 
 
 class Synthetic_generator(block.Block):
-    """Synthetic generator"""
+    """Synthetic generator
+
+    Attributes:
+        dtype: type:
+            Data type.
+        probe: string
+            Path to the location of the file describing the probe.
+        sampling_rate: float
+            Sampling rate [Hz]. The default value is 20e+3.
+        nb_samples
+            Chunk size.
+        nb_cells: integer
+            Number of cells. The default value is 10.
+        hdf5_path: string
+            Path to the location used to save the parameters of the generation.
+
+    Output:
+        data
+
+    """
     # TODO complete docstring.
 
     name = "Synthetic Generator"
@@ -28,7 +47,7 @@ class Synthetic_generator(block.Block):
     params = {
         'dtype': 'float32',
         'probe': None,
-        'sampling_rate': 20000.0,
+        'sampling_rate': 20e+3,
         'nb_samples': 1024,
         'nb_cells': 10,
         'hdf5_path': None,
@@ -49,6 +68,7 @@ class Synthetic_generator(block.Block):
             self.cells_params = {}
         else:
             self.cells_params = cells_params
+
         self.add_output('data')
 
     def _get_tmp_path(self):
@@ -211,7 +231,7 @@ class Synthetic_generator(block.Block):
         # Get data from background thread.
         data = self.queue.get()
         # Simulate duration between two data acquisitions.
-        time.sleep(self.nb_samples / int(self.sampling_rate))
+        time.sleep(float(self.nb_samples) / self.sampling_rate)
         # Send data.
         self.output.send(data)
 
@@ -223,12 +243,12 @@ class Synthetic_generator(block.Block):
         Parameter
         ---------
         input_kwargs: dict
-            Dictionnary with the following keys: 'object', 'globals' and 'locals'.
+            Dictionary with the following keys: 'object', 'globals' and 'locals'.
 
         Return
         ------
         output_kwargs: dict
-            Dictionnary with the following keys: 'x', 'y', 'z' and 'r'.
+            Dictionary with the following keys: 'x', 'y', 'z' and 'r'.
         """
 
         # Define object (i.e. string or code object).
@@ -391,7 +411,7 @@ class Cell(object):
     def get_waveform(self):
 
         tau = 1.5e-3  # s  # characteristic time
-        amp = -40.0  # um  # minimal voltage
+        amp = -80.0  # um  # minimal voltage
 
         i_start = -20
         i_stop = +60
