@@ -13,13 +13,14 @@ host = '127.0.0.1'  # i.e. run the test locally
 
 cell_obj = {'r': 'r_ref'}
 cells_args = [cell_obj]
-cells_params = {'r_ref': 1.0}  # firing rate [Hz]
+cells_params = {'r_ref': 50.0}  # firing rate [Hz]
 
 tmp_dir = os.path.join('/', 'tmp', 'spyking_circus_ort', 'one_neuron')
 if not os.path.exists(tmp_dir):
     os.makedirs(tmp_dir)
 hdf5_path = os.path.join(tmp_dir, 'synthetic.h5')
 probe_path = os.path.join('..', 'mea_16.prb')
+peak_path = os.path.join(tmp_dir, 'peaks.raw')
 temp_path = os.path.join(tmp_dir, 'templates')
 
 
@@ -45,14 +46,17 @@ mad_estimator = manager.create_block('mad_estimator',
 peak_detector = manager.create_block('peak_detector',
                                      threshold_factor=7.0,
                                      log_level=DEBUG)
+peak_writer = manager.create_block('peak_writer',
+                                   neg_peaks=peak_path,
+                                   log_level=INFO)
 pca = manager.create_block('pca',
-                           nb_waveforms=1000,
+                           nb_waveforms=100,  # 1000
                            log_level=DEBUG)
 cluster = manager.create_block('density_clustering',
                                threshold_factor=7.0,
                                probe=probe_path,
-                               nb_waveforms=500,
-                               two_components=True,
+                               nb_waveforms=100,  # 500
+                               two_components=False,
                                log_level=DEBUG)
 updater = manager.create_block('template_updater',
                                probe=probe_path,
@@ -60,7 +64,7 @@ updater = manager.create_block('template_updater',
                                nb_channels=16,
                                log_level=INFO)
 fitter = manager.create_block('template_fitter',
-                              two_components=True,
+                              two_components=False,
                               log_level=DEBUG)
 spike_writer = manager.create_block('spike_writer',
                                     directory=tmp_dir,
@@ -90,7 +94,8 @@ director.connect(mad_estimator.output, [peak_detector.get_input('mads'),
                                         cluster.get_input('mads')])
 director.connect(peak_detector.get_output('peaks'), [pca.get_input('peaks'),
                                                      cluster.get_input('peaks'),
-                                                     fitter.get_input('peaks')])
+                                                     fitter.get_input('peaks'),
+                                                     peak_writer.input])
 director.connect(pca.get_output('pcs'), cluster.get_input('pcs'))
 director.connect(cluster.get_output('templates'), updater.get_input('templates'))
 director.connect(updater.get_output('updater'), fitter.get_input('updater'))
@@ -100,7 +105,7 @@ director.connect(fitter.output, spike_writer.input)
 # Launch the Circus network.
 
 director.start()
-director.sleep(duration=20.0)
+director.sleep(duration=60.0)
 director.stop()
 # director.join()
 

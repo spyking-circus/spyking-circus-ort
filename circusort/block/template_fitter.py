@@ -1,19 +1,23 @@
 from .block import Block
 import numpy
 import scipy.sparse
+
 from circusort.io.template import TemplateStore
-#from circusort.io.template import OverlapStore
-from circusort.io.utils import load_pickle
+# from circusort.io.template import OverlapStore
+# from circusort.io.utils import load_pickle
 
 
 class Template_fitter(Block):
-    '''TODO add docstring'''
+    """Template fitter"""
+    # TODO complete docstring.
 
     name   = "Template fitter"
 
-    params = {'spike_width'    : 5.,
-              'sampling_rate'  : 20000, 
-              'two_components' : False}
+    params = {
+        'spike_width': 5.,
+        'sampling_rate': 20000,
+        'two_components': False,
+    }
 
     def __init__(self, **kwargs):
 
@@ -236,6 +240,7 @@ class Template_fitter(Block):
                 self.log.debug('{n} fitted no spikes from {s} peaks'.format(n=self.name_and_counter, s=n_peaks))
 
     def _process(self):
+
         batch = self.inputs['data'].receive()
         peaks = self.inputs['peaks'].receive(blocking=False)
 
@@ -247,30 +252,47 @@ class Template_fitter(Block):
             if not self.is_active:
                 self._set_active_mode()
 
-            offset      = peaks.pop('offset')
+            offset = peaks.pop('offset')
             self.offset = self.counter * self.nb_samples
 
-            updater  = self.inputs['updater'].receive(blocking=False)
-            
+            updater = self.inputs['updater'].receive(blocking=False)
+
             if updater is not None:
 
                 if self.template_store is None:
                     self.template_store = TemplateStore(updater['templates_file'], 'r', self.two_components)
 
-                data            = self.template_store.get(updater['indices'], variables=self.variables)
+                data = self.template_store.get(updater['indices'], variables=self.variables)
 
-                self.norms      = numpy.concatenate((self.norms, data.pop('norms')))
+                self.norms = numpy.concatenate((self.norms, data.pop('norms')))
                 self.amplitudes = numpy.vstack((self.amplitudes, data.pop('amplitudes')))
-                self.templates  = scipy.sparse.vstack((self.templates, data.pop('templates').T), 'csr')
+                self.templates = scipy.sparse.vstack((self.templates, data.pop('templates').T), 'csr')
 
                 if self.two_components:
-                    self.norms2    = numpy.concatenate((self.norms2, data.pop('norms2')))
+                    self.norms2 = numpy.concatenate((self.norms2, data.pop('norms2')))
                     self.templates = scipy.sparse.vstack((self.templates, data.pop('templates2').T), 'csr')
-                
-                self.overlaps      = {}
+
+                self.overlaps = {}
+
+            # else:
+            #
+            #     # TODO remove the following line.
+            #     self.log.debug("updater is None")
 
             if self.nb_templates > 0:
                 self._fit_chunk(batch, peaks)
+                # # TODO remove the following line.
+                # self.log.debug("tf >>>>>>>>>>")
                 self.output.send(self.result)
+                # # TODO remove the following lines.
+                # self.log.debug("tf <<<<<<<<<<")
+            # else:
+            #     # TODO remove the following lines.
+            #     self.log.debug("self.nb_templates == {}".format(self.nb_templates))
+
+        # else:
+        #
+        #     # TODO remove the following line.
+        #     self.log.debug("peaks is None")
 
         return

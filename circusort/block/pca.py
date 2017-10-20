@@ -1,18 +1,39 @@
 from .block import Block
-import numpy
+import numpy as np
 import scipy.interpolate
+
 from circusort.utils.algorithms import PCAEstimator
 
+
 class Pca(Block):
-    '''TODO add docstring'''
+    """PCA
 
-    name   = "PCA"
+    Attributes:
+        spike_width
+        output_dim
+        alignment
+        nb_waveforms
+        sampling_rate
 
-    params = {'spike_width'   : 5,
-              'output_dim'    : 5, 
-              'alignment'     : True,
-              'nb_waveforms'  : 10000,
-              'sampling_rate' : 20000}
+    Inputs:
+        data
+        peaks
+
+    Output:
+        pcs
+
+    """
+    # TODO complete docstring.
+
+    name = "PCA"
+
+    params = {
+        'spike_width': 5,
+        'output_dim': 5,
+        'alignment': True,
+        'nb_waveforms': 10000,
+        'sampling_rate': 20000,
+    }
 
     def __init__(self, **kwargs):
         Block.__init__(self, **kwargs)
@@ -30,21 +51,21 @@ class Pca(Block):
 
     def _initialize(self):
         self._spike_width_ = int(self.sampling_rate*self.spike_width*1e-3)
-        self.sign_peaks    = None
-        self.send_pcs      = True
-        if numpy.mod(self._spike_width_, 2) == 0:
+        self.sign_peaks = None
+        self.send_pcs = True
+        if np.mod(self._spike_width_, 2) == 0:
             self._spike_width_ += 1
         self._width = (self._spike_width_-1)//2
 
         if self.alignment:
-            self.cdata = numpy.linspace(-self._width, self._width, 5*self._spike_width_)
-            self.xdata = numpy.arange(-2*self._width, 2*self._width + 1)
+            self.cdata = np.linspace(-self._width, self._width, 5*self._spike_width_)
+            self.xdata = np.arange(-2*self._width, 2*self._width + 1)
 
         return
 
     def _guess_output_endpoints(self):
         self.outputs['pcs'].configure(dtype='float32', shape=(2, self._spike_width_, self.output_dim))
-        self.pcs = numpy.zeros((2, self._spike_width_, self.output_dim), dtype=numpy.float32)
+        self.pcs = np.zeros((2, self._spike_width_, self.output_dim), dtype=np.float32)
 
     def _is_valid(self, peak):
         if self.alignment:
@@ -56,19 +77,19 @@ class Pca(Block):
         if key is not None:
             return (self.nb_spikes[key] == self.nb_waveforms) and not self.has_pcs[key]
         else:
-            return bool(numpy.prod([i for i in self.has_pcs.values()]))
+            return bool(np.prod([i for i in self.has_pcs.values()]))
 
     def _get_waveform(self, batch, channel, peak, key):
         if self.alignment:
             ydata    = batch[peak - 2*self._width:peak + 2*self._width + 1, channel]
             f        = scipy.interpolate.UnivariateSpline(self.xdata, ydata, s=0)
             if key == 'negative':
-                rmin = (numpy.argmin(f(self.cdata)) - len(self.cdata)/2.)/5.
+                rmin = (np.argmin(f(self.cdata)) - len(self.cdata)/2.)/5.
             else:
-                rmin = (numpy.argmax(f(self.cdata)) - len(self.cdata)/2.)/5.
-            ddata    = numpy.linspace(rmin - self._width, rmin + self._width, self._spike_width_)
+                rmin = (np.argmax(f(self.cdata)) - len(self.cdata)/2.)/5.
+            ddata    = np.linspace(rmin - self._width, rmin + self._width, self._spike_width_)
 
-            result = f(ddata).astype(numpy.float32)
+            result = f(ddata).astype(np.float32)
         else:
             result = batch[peak - self._width:peak + self._width + 1, channel]
         return result
@@ -78,11 +99,11 @@ class Pca(Block):
 
         self.nb_spikes = {}
         self.waveforms = {}
-        self.has_pcs   = {}
+        self.has_pcs = {}
         for key in peaks.keys():
             self.nb_spikes[key] = 0
-            self.has_pcs[key]   = False
-            self.waveforms[key] = numpy.zeros((self.nb_waveforms, self._spike_width_), dtype=numpy.float32)
+            self.has_pcs[key] = False
+            self.waveforms[key] = np.zeros((self.nb_waveforms, self._spike_width_), dtype=np.float32)
 
     def _process(self):
 
@@ -115,8 +136,8 @@ class Pca(Block):
                     if self.is_ready(key):
                         self.log.info("{n} computes the PCA matrix for {m} spikes".format(n=self.name_and_counter, m=key))
                         pca          = PCAEstimator(self.output_dim, copy=False)
-                        #numpy.save('pca_%s' %key, self.waveforms[key])
-                        res_pca      = pca.fit_transform(self.waveforms[key].T).astype(numpy.float32)
+                        # np.save('pca_%s' %key, self.waveforms[key])
+                        res_pca = pca.fit_transform(self.waveforms[key].T).astype(np.float32)
                         if key == 'negative':
                             self.pcs[0] = res_pca
                         elif key == 'positive':
@@ -126,4 +147,5 @@ class Pca(Block):
             if self.is_ready() and self.send_pcs:
                 self.outputs['pcs'].send(self.pcs)
                 self.send_pcs = False
+
         return

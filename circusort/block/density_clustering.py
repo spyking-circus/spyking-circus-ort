@@ -10,7 +10,18 @@ from circusort.utils.clustering import OnlineManager
 
 
 class Density_clustering(Block):
-    """Density clustering"""
+    """Density clustering
+
+    Inputs:
+        data
+        pcs
+        peaks
+        mads
+
+    Output:
+        templates
+
+    """
     # TODO complete docstring.
 
     name = "Density Clustering"
@@ -305,6 +316,10 @@ class Density_clustering(Block):
 
                 for key in self.sign_peaks:
 
+                    # TODO remove the 2 following lines.
+                    if len(all_peaks[key]) > 0:
+                        self.log.debug("{} processes {} {} peaks".format(self.name, len(all_peaks[key]), key))
+
                     while len(all_peaks[key]) > 0:
                         peak = all_peaks[key][0]
                         all_peaks[key] = self._remove_nn_peaks(peak, all_peaks[key])
@@ -329,14 +344,23 @@ class Density_clustering(Block):
                         self.managers[key][channel].set_physical_threshold(threshold)
 
                         if len(self.raw_data[key][channel]) >= self.nb_waveforms and not self.managers[key][channel].is_ready:
+                            # TODO remove the following line.
+                            self.log.debug("dc1 ============")
                             templates = self.managers[key][channel].initialize(self.counter, self.raw_data[key][channel], self.two_components)
                             self._prepare_templates(templates, key, channel)
                         elif self.managers[key][channel].time_to_cluster(self.nb_waveforms):
+                            # TODO remove the following line.
+                            self.log.debug("dc2 ============")
                             templates = self.managers[key][channel].cluster(two_components=self.two_components, tracking=self.tracking)
                             self._prepare_templates(templates, key, channel)
+                        else:
+                            # TODO remove the following line.
+                            self.log.debug("key:{}, channel:{}, test:{} >=? {}".format(key, channel, len(self.raw_data[key][channel]), self.nb_waveforms))
 
                 if len(self.to_reset) > 0:
-                    self.templates['offset'] = self.counter*self.nb_samples
+                    # TODO remove the following line.
+                    self.log.debug("{} sends templates".format(self.name))
+                    self.templates['offset'] = self.counter * self.nb_samples
                     self.outputs['templates'].send(self.templates)
                     for key, channel in self.to_reset:
                         self._reset_data_structures(key, channel)

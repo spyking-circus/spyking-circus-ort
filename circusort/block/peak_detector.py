@@ -47,6 +47,7 @@ class Peak_detector(Block):
             self.key_peaks = ['negative', 'positive']
         else:
             self.key_peaks = [self.sign_peaks]
+        self.nb_cum_peaks = {key: {} for key in self.key_peaks}
         self._spike_width_ = int(self.sampling_rate * self.spike_width * 1e-3)
         if np.mod(self._spike_width_, 2) == 0:
             self._spike_width_ += 1
@@ -126,18 +127,30 @@ class Peak_detector(Block):
 
             for key in self.key_peaks:
                 self.peaks[key] = {}
-                for i in xrange(self.nb_channels):
+                for i in range(self.nb_channels):
+                    if i not in self.nb_cum_peaks[key]:
+                        self.nb_cum_peaks[key][i] = 0
                     threshold = self.threshold_factor * thresholds[i]
                     if key == 'negative':
                         data = self._detect_peaks(batch[:, i],  threshold, valley=True, mpd=self.safety_time)
                         if len(data) > 0:
                             self.peaks[key][i] = data
+                            self.nb_cum_peaks[key][i] += len(data)
                     elif key == 'positive':
                         data = self._detect_peaks(batch[:, i],  threshold, valley=False, mpd=self.safety_time)
                         if len(data) > 0:
                             self.peaks[key][i] = data
+                            self.nb_cum_peaks[key][i] += len(data)
 
             self.peaks['offset'] = self.counter * self.nb_samples
             self.outputs['peaks'].send(self.peaks)
+
+        return
+
+    def __del__(self):
+
+        for key in self.key_peaks:
+            for i in range(self.nb_channels):
+                self.log.debug("{} detected {} {} peaks on channel {}".format(self.name, self.nb_cum_peaks[key][i], key, i))
 
         return
