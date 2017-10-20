@@ -18,47 +18,46 @@ class Results(object):
         self.probe_path = probe_path
         self.temp_path = temp_path
 
-        # TODO implement the function 'load_generation'.
-        # # Retrieve generation.
-        # self.gen = io.load_generation(generator)
+        # Retrieve generation parameters.
         gen_path = os.path.abspath(self.generator.hdf5_path)
         self.gen = SyntheticStore(gen_path)
 
-        # TODO correct the following line.
-        self.sampling_rate = 20.0e+3  # [Hz]
+        # Sampling rate.
+        self.sampling_rate = 20e+3  # [Hz]
 
         # Retrieve spike attributes.
         # # Retrieve spike times.
-        spike_steps_path = self.spike_writer.recorded_data['spike_times']
-        self.spike_steps = np.fromfile(spike_steps_path, dtype=np.int32)
-        self.spike_times = self.spike_steps.astype(np.float32) / self.sampling_rate
+        if 'spike_times' in self.spike_writer.recorded_data:
+            spike_steps_path = self.spike_writer.recorded_data['spike_times']
+            self.spike_steps = np.fromfile(spike_steps_path, dtype=np.int32)
+            self.spike_times = self.spike_steps.astype(np.float32) / self.sampling_rate
         # # Retrieve spike templates.
-        spike_templates_path = self.spike_writer.recorded_data['templates']
-        self.spike_templates = np.fromfile(spike_templates_path, dtype=np.int32)
+        if 'templates' in self.spike_writer.recorded_data:
+            spike_templates_path = self.spike_writer.recorded_data['templates']
+            self.spike_templates = np.fromfile(spike_templates_path, dtype=np.int32)
         # # Retrieve spike amplitudes.
-        spike_amplitudes_path = self.spike_writer.recorded_data['amplitudes']
-        self.spike_amplitudes = np.fromfile(spike_amplitudes_path, dtype=np.float32)
+        if 'amplitudes' in self.spike_writer.recorded_data:
+            spike_amplitudes_path = self.spike_writer.recorded_data['amplitudes']
+            self.spike_amplitudes = np.fromfile(spike_amplitudes_path, dtype=np.float32)
 
         # Retrieve probe.
         self.probe = io.Probe(self.probe_path)
 
     def compare_spike_trains(self):
-        """Compare spike trains.
+        """Compare spike trains."""
 
-        """
-
-        # TODO retrieve the generated spike train.
+        # Retrieve the generated spike train.
         generated_spike_train = self.gen.get(variables='spike_times')
         generated_spike_train = generated_spike_train[u'0']['spike_times']
         generated_spike_train = generated_spike_train.astype(np.float32) / self.sampling_rate
 
-        # TODO retrieve the inferred spike trains.
+        # Retrieve the inferred spike trains.
         inferred_spike_trains = {}
         for template_id in np.unique(self.spike_templates):
             inferred_spike_train = self.spike_times[self.spike_templates == template_id]
             inferred_spike_trains[template_id] = inferred_spike_train
 
-        # TODO plot spike trains to compare them visually.
+        # Plot spike trains to compare them visually.
         plt.figure()
         # Plot inferred spike trains.
         for k, template_id in enumerate(inferred_spike_trains):

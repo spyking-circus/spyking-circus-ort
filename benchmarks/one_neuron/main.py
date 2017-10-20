@@ -38,17 +38,18 @@ generator = manager.create_block('synthetic_generator',
 filtering = manager.create_block('filter',
                                  cut_off=100.0,
                                  log_level=DEBUG)
-whitening = manager.create_block('whitening',
-                                 log_level=DEBUG)
+# whitening = manager.create_block('whitening',
+#                                  log_level=DEBUG)
 mad_estimator = manager.create_block('mad_estimator',
                                      log_level=DEBUG)
 peak_detector = manager.create_block('peak_detector',
-                                     threshold=5.0,
+                                     threshold_factor=7.0,
                                      log_level=DEBUG)
 pca = manager.create_block('pca',
                            nb_waveforms=1000,
                            log_level=DEBUG)
 cluster = manager.create_block('density_clustering',
+                               threshold_factor=7.0,
                                probe=probe_path,
                                nb_waveforms=500,
                                two_components=True,
@@ -60,10 +61,10 @@ updater = manager.create_block('template_updater',
                                log_level=INFO)
 fitter = manager.create_block('template_fitter',
                               two_components=True,
-                              log_level=INFO)
+                              log_level=DEBUG)
 spike_writer = manager.create_block('spike_writer',
                                     directory=tmp_dir,
-                                    log_level=INFO)
+                                    log_level=DEBUG)
 
 
 # Initialize the elements of the Circus network.
@@ -74,8 +75,13 @@ director.initialize()
 # Connect the elements of the Circus network.
 
 director.connect(generator.output, filtering.input)
-director.connect(filtering.output, whitening.input)
-director.connect(whitening.output, [mad_estimator.input,
+# director.connect(filtering.output, whitening.input)
+# director.connect(whitening.output, [mad_estimator.input,
+#                                     peak_detector.get_input('data'),
+#                                     cluster.get_input('data'),
+#                                     pca.get_input('data'),
+#                                     fitter.get_input('data')])
+director.connect(filtering.output, [mad_estimator.input,
                                     peak_detector.get_input('data'),
                                     cluster.get_input('data'),
                                     pca.get_input('data'),
@@ -94,9 +100,9 @@ director.connect(fitter.output, spike_writer.input)
 # Launch the Circus network.
 
 director.start()
-director.sleep(duration=30.0)
+director.sleep(duration=20.0)
 director.stop()
-director.join()
+# director.join()
 
 
 # Analyze the results.
