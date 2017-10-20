@@ -153,18 +153,18 @@ class Block(threading.Thread):
                 if numpy.mod(self.counter, self.check_interval) == 0:
                     self._check_real_time_ratio()
         else:
-            # try:
-            while self.running and not self.stop_pending:
-                self._process()
-                self.counter += 1
-                if numpy.mod(self.counter, self.check_interval) == 0:
-                    self._check_real_time_ratio()
-            # except EOCError:
-            #     # TODO understand why it happens (should not happen).
-            #     for output in self.outputs.itervalues():
-            #         output.send_end_connection()
-            #     self.stop_pending = True
-            #     self.running = False
+            try:
+                while self.running and not self.stop_pending:
+                    self._process()
+                    self.counter += 1
+                    if numpy.mod(self.counter, self.check_interval) == 0:
+                        self._check_real_time_ratio()
+            except EOCError:
+                # TODO understand why it happens (should not happen).
+                for output in self.outputs.itervalues():
+                    output.send_end_connection()
+                self.stop_pending = True
+                self.running = False
             if self.running and self.stop_pending and self.nb_inputs == 0:
                 # In this condition, the block is a source block.
                 for output in self.outputs.itervalues():
