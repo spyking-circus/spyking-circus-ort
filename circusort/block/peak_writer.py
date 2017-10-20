@@ -1,10 +1,23 @@
 from .block import Block
+
 import tempfile
 import os
-import numpy
+import numpy as np
+
 
 class Peak_writer(Block):
-    """Peak writer block"""
+    """Peak writer block
+
+    Attributes:
+        pos_peaks: string
+            Path to the location to save positive peaks.
+        neg_peaks: string
+            Path to the location to save negative peaks.
+
+    Input:
+        peaks
+
+    """
     # TODO complete docstring.
 
     name   = "Peak writer"
@@ -20,14 +33,18 @@ class Peak_writer(Block):
         self.add_input('peaks')
 
     def _get_temp_file(self):
+
         tmp_file  = tempfile.NamedTemporaryFile()
         data_path = os.path.join(tempfile.gettempdir(), os.path.basename(tmp_file.name)) + ".dat"
         tmp_file.close()
+
         return data_path
 
     def _initialize(self):
+
         self.recorded_peaks = {}
         self.peaks_file     = {}
+
         return
 
     def _process(self):
@@ -56,11 +73,13 @@ class Peak_writer(Block):
                 to_write = []
                 for channel in batch[key].keys():
                     to_write += [(int(channel), value + offset) for value in batch[key][channel]]
-                to_write = numpy.array(to_write).astype(numpy.int32)
+                to_write = np.array(to_write).astype(np.int32)
                 self.peaks_file[key].write(to_write)
+                self.peaks_file[key].flush()
 
         return
 
     def __del__(self):
+
         for file in self.peaks_file.values():
             file.close()
