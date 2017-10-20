@@ -2,24 +2,24 @@ from __future__ import print_function
 from argparse import ArgumentParser
 import json
 from logging import basicConfig, getLogger, makeLogRecord
-from logging.handlers import DEFAULT_TCP_LOGGING_PORT
-from threading import Event, Thread
+# from logging.handlers import DEFAULT_TCP_LOGGING_PORT
+# from threading import Event, Thread
+from threading import Thread
 import zmq
 
-from circusort.base import utils
-
+# from circusort.base import utils
 
 
 def receive_log(context, interface):
 
     basicConfig(format='%(relativeCreated)5d %(name)-15s %(levelname)-8s %(message)s')
 
-    # TODO: connect to the temporary socket...
+    # Connect to the temporary socket.
     log_address = 'inproc://circusort_cli_logger'
     log_socket = context.socket(zmq.PAIR)
     log_socket.connect(log_address)
 
-    # TODO initialize server...
+    # Initialize server.
     topic = b'log'
     transport = 'tcp'
     host = interface
@@ -31,16 +31,17 @@ def receive_log(context, interface):
     socket.bind(address)
     endpoint = socket.getsockopt(zmq.LAST_ENDPOINT)
 
-    # TODO: send greetings via the temporary socket...
+    # Send greetings via the temporary socket.
     message = {
         'kind': 'greetings',
         'endpoint': endpoint,
     }
     log_socket.send_json(message)
-    # TODO: close the temporary socket...
+
+    # Close the temporary socket.
     log_socket.close()
 
-    # TODO serve until stopped...
+    # Serve until stopped...
     while True:
 
         topic, data = socket.recv_multipart()
@@ -100,22 +101,22 @@ def main(arguments):
     # 5. close temporary socket
     tmp_socket.close()
 
-    # TODO create temporary socket for the thread...
+    # Create temporary socket for the thread.
     log_address = 'inproc://circusort_cli_logger'
     log_socket = context.socket(zmq.PAIR)
     log_socket.bind(log_address)
-    # TODO start thread...
+    # Start thread...
     t = Thread(target=receive_log, args=(context, interface))
     t.setDaemon(True)
     t.start()
-    # TODO get log endpoint from temporary socket...
+    # Get log endpoint from temporary socket.
     message = log_socket.recv_json()
     kind = message['kind']
     assert kind == 'greetings', "kind: {k}".format(k=kind)
     log_endpoint = message['endpoint']
-    # TODO send log endpoint to the director...
+    # Send log endpoint to the director.
 
-    # 6. send acknowledgement to the director
+    # 6. Send acknowledgement to the director
     message = {
         'kind': 'acknowledgement',
         'endpoint': log_endpoint,
@@ -141,7 +142,6 @@ def main(arguments):
     rpc_socket.close()
 
     return
-
 
 
 if __name__ == '__main__':
