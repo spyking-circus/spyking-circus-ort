@@ -52,8 +52,32 @@ class Spike_writer(Block):
         return data_path
 
     def _initialize(self):
+
         self.recorded_data = {}
         self.data_file = {}
+
+        key = 'spike_times'
+        if self.spike_times is None:
+            self.recorded_data[key] = self._get_temp_file(basename='spike_times')
+        else:
+            self.recorded_data[key] = self.spike_times
+        self.log.info('{n} records {m} into {k}'.format(n=self.name, m=key, k=self.recorded_data[key]))
+        self.data_file[key] = open(self.recorded_data[key], mode='wb')
+        key = 'amplitudes'
+        if self.amplitudes is None:
+            self.recorded_data[key] = self._get_temp_file(basename='amplitudes')
+        else:
+            self.recorded_data[key] = self.amplitudes
+        self.log.info('{n} records {m} into {k}'.format(n=self.name, m=key, k=self.recorded_data[key]))
+        self.data_file[key] = open(self.recorded_data[key], mode='wb')
+        key = 'templates'
+        if self.templates is None:
+            self.recorded_data[key] = self._get_temp_file(basename='templates')
+        else:
+            self.recorded_data[key] = self.templates
+        self.log.info('{n} records {m} into {k}'.format(n=self.name, m=key, k=self.recorded_data[key]))
+        self.data_file[key] = open(self.recorded_data[key], mode='wb')
+
         return
 
     def _process(self):
@@ -65,27 +89,27 @@ class Spike_writer(Block):
         elif self.input.structure == 'dict':
             offset = batch.pop('offset')
             for key in batch:
-                if key not in self.recorded_data:
-                    if key == 'spike_times':
-                        if self.spike_times is None:
-                            self.recorded_data[key] = self._get_temp_file(basename='spike_times')
-                        else:
-                            self.recorded_data[key] = self.spike_times
-                    elif key == 'amplitudes':
-                        if self.amplitudes is None:
-                            self.recorded_data[key] = self._get_temp_file(basename='spike_amplitudes')
-                        else:
-                            self.recorded_data[key] = self.amplitudes
-                    elif key == 'templates':
-                        if self.templates is None:
-                            self.recorded_data[key] = self._get_temp_file(basename='spike_templates')
-                        else:
-                            self.recorded_data[key] = self.templates
-
-                    self.log.info('{n} records {m} into {k}'.format(n=self.name, m=key, k=self.recorded_data[key]))
-                    self.data_file[key] = open(self.recorded_data[key], mode='wb')
-                
-                if key in ['spike_times']:            
+                # TODO remove the following commented lines.
+                # if key not in self.recorded_data:
+                #     if key == 'spike_times':
+                #         if self.spike_times is None:
+                #             self.recorded_data[key] = self._get_temp_file(basename='spike_times')
+                #         else:
+                #             self.recorded_data[key] = self.spike_times
+                #     elif key == 'amplitudes':
+                #         if self.amplitudes is None:
+                #             self.recorded_data[key] = self._get_temp_file(basename='spike_amplitudes')
+                #         else:
+                #             self.recorded_data[key] = self.amplitudes
+                #     elif key == 'templates':
+                #         if self.templates is None:
+                #             self.recorded_data[key] = self._get_temp_file(basename='spike_templates')
+                #         else:
+                #             self.recorded_data[key] = self.templates
+                #
+                #     self.log.info('{n} records {m} into {k}'.format(n=self.name, m=key, k=self.recorded_data[key]))
+                #     self.data_file[key] = open(self.recorded_data[key], mode='wb')
+                if key in ['spike_times']:
                     to_write = numpy.array(batch[key]).astype(numpy.int32)
                     to_write += offset
                 elif key in ['templates']:
