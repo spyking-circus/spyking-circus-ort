@@ -20,6 +20,8 @@ if not os.path.exists(tmp_dir):
     os.makedirs(tmp_dir)
 hdf5_path = os.path.join(tmp_dir, 'synthetic.h5')
 probe_path = os.path.join('..', 'mea_16.prb')
+signal_path = os.path.join(tmp_dir, 'signal.raw')
+mad_path = os.path.join(tmp_dir, 'mad.raw')
 peak_path = os.path.join(tmp_dir, 'peaks.raw')
 temp_path = os.path.join(tmp_dir, 'templates')
 
@@ -41,8 +43,14 @@ filtering = manager.create_block('filter',
                                  log_level=DEBUG)
 # whitening = manager.create_block('whitening',
 #                                  log_level=DEBUG)
+signal_writer = manager.create_block('writer',
+                                     data_path=signal_path,
+                                     log_level=DEBUG)
 mad_estimator = manager.create_block('mad_estimator',
                                      log_level=DEBUG)
+mad_writer = manager.create_block('writer',
+                                  data_path=mad_path,
+                                  log_level=DEBUG)
 peak_detector = manager.create_block('peak_detector',
                                      threshold_factor=7.0,
                                      log_level=DEBUG)
@@ -89,9 +97,11 @@ director.connect(filtering.output, [mad_estimator.input,
                                     peak_detector.get_input('data'),
                                     cluster.get_input('data'),
                                     pca.get_input('data'),
-                                    fitter.get_input('data')])
+                                    fitter.get_input('data'),
+                                    signal_writer.input])
 director.connect(mad_estimator.output, [peak_detector.get_input('mads'),
-                                        cluster.get_input('mads')])
+                                        cluster.get_input('mads'),
+                                        mad_writer.input])
 director.connect(peak_detector.get_output('peaks'), [pca.get_input('peaks'),
                                                      cluster.get_input('peaks'),
                                                      fitter.get_input('peaks'),
@@ -112,4 +122,5 @@ director.stop()
 
 # Analyze the results.
 
-ans = utils.Results(generator, spike_writer, probe_path, temp_path)
+ans = utils.Results(generator, signal_writer, mad_writer, peak_writer,
+                    spike_writer, probe_path, temp_path)
