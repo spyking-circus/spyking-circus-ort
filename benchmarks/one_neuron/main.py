@@ -71,7 +71,6 @@ else:
     generator = manager.create_block('synthetic_generator',
                                      cells_args=cells_args,
                                      cells_params=cells_params,
-                                     probe=probe_path,
                                      log_level=DEBUG,
                                      **generator_kwargs)
     filtering = manager.create_block('filter',
