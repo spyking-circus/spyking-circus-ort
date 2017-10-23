@@ -1,3 +1,4 @@
+import json
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -10,23 +11,27 @@ class Results(object):
     """Results of the scenario"""
     # TODO complete docstring.
 
-    def __init__(self, generator, signal_writer, mad_writer, peak_writer, spike_writer, probe_path, temp_path):
+    def __init__(self, generator_kwargs, signal_writer_kwargs, mad_writer_kwargs, peak_writer_kwargs,
+                 updater_kwargs, spike_writer_kwargs):
 
         # Save raw input arguments.
-        self.generator = generator
-        self.signal_writer = signal_writer
-        self.mad_writer = mad_writer
-        self.peak_writer = peak_writer
-        self.spike_writer = spike_writer
-        self.probe_path = probe_path
-        self.temp_path = temp_path
+        self.generator_kwargs = generator_kwargs
+        self.signal_writer_kwargs = signal_writer_kwargs
+        self.mad_writer_kwargs = mad_writer_kwargs
+        self.peak_writer_kwargs = peak_writer_kwargs
+        self.updater_kwargs = updater_kwargs
+        self.spike_writer_kwargs = spike_writer_kwargs
 
         # Retrieve generation parameters.
-        gen_path = os.path.abspath(self.generator.hdf5_path)
-        self.gen = SyntheticStore(gen_path)
+        hdf5_path = os.path.abspath(self.generator_kwargs['hdf5_path'])
+        self.gen = SyntheticStore(hdf5_path)
+        log_path = os.path.abspath(self.generator_kwargs['log_path'])
+        with open(log_path, mode='r') as log_file:
+            self.generator = json.load(log_file)
+        self.probe_path = self.generator_kwargs['probe']
 
         # Retrieve detected peak.
-        peaks_path = self.peak_writer.recorded_peaks['negative']
+        peaks_path = self.peak_writer_kwargs['neg_peaks']
         self.detected_peaks = io.load_peaks(peaks_path)
 
         # Retrieve probe.
@@ -34,12 +39,12 @@ class Results(object):
 
         # Sampling rate.
         self.sampling_rate = 20e+3  # [Hz]
-        self.chunk_size = self.generator.nb_samples
+        self.chunk_size = self.generator['nb_samples']
 
         # Retrieve detected spikes.
-        spike_times_path = self.spike_writer.recorded_data['spike_times']
-        spike_templates_path = self.spike_writer.recorded_data['templates']
-        spike_amplitudes_path = self.spike_writer.recorded_data['amplitudes']
+        spike_times_path = self.spike_writer_kwargs['spike_times']
+        spike_templates_path = self.spike_writer_kwargs['templates']
+        spike_amplitudes_path = self.spike_writer_kwargs['amplitudes']
         self.detected_spikes = io.load_spikes(spike_times_path,
                                               spike_templates_path,
                                               spike_amplitudes_path)
@@ -110,7 +115,7 @@ class Results(object):
         """Plot signal"""
 
         # Retrieve signal data.
-        path = self.signal_writer.data_path
+        path = self.signal_writer_kwargs['data_path']
         data = np.memmap(path, dtype=np.float32, mode='r')
         data = np.reshape(data, (-1, self.nb_electrodes))
 
@@ -144,12 +149,12 @@ class Results(object):
         """Plot signal and peaks"""
 
         # Retrieve signal data.
-        path = self.signal_writer.data_path
+        path = self.signal_writer_kwargs['data_path']
         data = np.memmap(path, dtype=np.float32, mode='r')
         data = np.reshape(data, (-1, self.nb_electrodes))
 
         # Retrieve threshold data.
-        mad_path = self.mad_writer.data_path
+        mad_path = self.mad_writer_kwargs['data_path']
         mad_data = np.memmap(mad_path, dtype=np.float32, mode='r')
         mad_data = np.reshape(mad_data, (-1, self.nb_electrodes))
 
@@ -263,12 +268,12 @@ class Results(object):
         """
 
         # Retrieve signal data.
-        path = self.signal_writer.data_path
+        path = self.signal_writer_kwargs['data_path']
         data = np.memmap(path, dtype=np.float32, mode='r')
         data = np.reshape(data, (-1, self.nb_electrodes))
 
         # Retrieve threshold data.
-        mad_path = self.mad_writer.data_path
+        mad_path = self.mad_writer_kwargs['data_path']
         mad_data = np.memmap(mad_path, dtype=np.float32, mode='r')
         mad_data = np.reshape(mad_data, (-1, self.nb_electrodes))
 
@@ -321,3 +326,13 @@ class Results(object):
         plt.show()
 
         return
+
+    # Comparison between generated and fitted template.
+
+    def compare_generated_and_fitted_templates(self):
+
+        # TODO retrieve generated template.
+
+        # TODO retrieve fitted template.
+
+        raise NotImplementedError()
