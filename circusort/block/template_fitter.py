@@ -1,5 +1,7 @@
 from .block import Block
+
 import numpy as np
+import os
 from scipy.sparse import csr_matrix, vstack
 
 from circusort.io.template import TemplateStore
@@ -8,15 +10,29 @@ from circusort.io.template import TemplateStore
 
 
 class Template_fitter(Block):
-    """Template fitter"""
+    """Template fitter
+
+    Attributes:
+        spike_width: float (optional)
+            Spike width in time [ms]. the default value is 5.0.
+        sampling_rate: float (optional)
+            Sampling rate [Hz]. The default value is 20e+3.
+        two_components: boolean (optional)
+            The default value is False.
+        init_path: none | string (optional)
+            Path to the location used to load templates to initialize the
+            dictionary of templates. If equal to None, this dictionary will
+            start empty. The default value is None.
+    """
     # TODO complete docstring.
 
     name = "Template fitter"
 
     params = {
-        'spike_width': 5.,
+        'spike_width': 5.0,
         'sampling_rate': 20000,
         'two_components': False,
+        'init_path': None,
     }
 
     def __init__(self, **kwargs):
@@ -35,8 +51,8 @@ class Template_fitter(Block):
         self.template_store = None
         self.norms = np.zeros(0, dtype=np.float32)
         self.amplitudes = np.zeros((0, 2), dtype=np.float32)
+        self.templates = None
         self.variables = ['norms', 'templates', 'amplitudes']
-
         if self.two_components:
             self.norms2 = np.zeros(0, dtype=np.float32)
             self.variables += ['norms2', 'templates2']
@@ -45,6 +61,37 @@ class Template_fitter(Block):
             self._spike_width_ += 1
         self._width = (self._spike_width_ - 1) // 2
         self._overlap_size = 2 * self._spike_width_ - 1
+
+        if self.init_path is not None:
+            self.init_path = os.path.expanduser(self.init_path)
+            self.init_path = os.path.abspath(self.init_path)
+            self._initialize_templates()
+
+        return
+
+    def _initialize_templates(self):
+
+        assert self.template_store is None
+
+        self.template_store = TemplateStore(self.init_path,
+                                            initialized=True,
+                                            mode='r',
+                                            two_components=self.two_components,
+                                            N_t=self._spike_width_)
+        nb_templates = self.template_store.nb_templates
+        indices = [i for i in range(nb_templates)]
+        data = self.template_store.get(indices=indices,
+                                       variables=self.variables)
+        self.norms = np.concatenate((self.norms, data.pop('norms')))
+        self.amplitudes = np.vstack((self.amplitudes, data.pop('amplitudes')))
+        self.templates = vstack((data.pop('templates').T,), 'csr')
+        if self.two_components:
+            self.norms2 = np.concatenate((self.norms2, data.pop('norms2')))
+            self.templates = vstack((self.templates, data.pop('templates2').T), 'csr')
+        self.overlaps = {}
+
+        info_msg = "{} is initialized with {} templates from {}"
+        self.log.info(info_msg.format(self.name, nb_templates, self.init_path))
 
         return
 
@@ -69,7 +116,8 @@ class Template_fitter(Block):
     def _guess_output_endpoints(self):
 
         self._nb_elements = self.nb_channels * self._spike_width_
-        self.templates = csr_matrix((0, self._nb_elements), dtype=np.float32)
+        if self.templates is None:
+            self.templates = csr_matrix((0, self._nb_elements), dtype=np.float32)
         self.slice_indices = np.zeros(0, dtype=np.int32)
         self.all_cols = np.arange(self.nb_channels * self._spike_width_)
         self.all_delays = np.arange(1, self._spike_width_ + 1)
@@ -260,20 +308,29 @@ class Template_fitter(Block):
         batch = self.inputs['data'].receive()
         peaks = self.inputs['peaks'].receive(blocking=False)
 
-        if peaks is not None:
+        if peaks is None:
 
+            pass
+
+        else:
+
+            # TODO check if the following two lines are necessary.
             while not self._sync_buffer(peaks, self.nb_samples):
                 peaks = self.inputs['peaks'].receive()
 
             if not self.is_active:
                 self._set_active_mode()
 
-            offset = peaks.pop('offset')
+            _ = peaks.pop('offset')
             self.offset = self.counter * self.nb_samples
 
             updater = self.inputs['updater'].receive(blocking=False)
 
-            if updater is not None:
+            if updater is None:
+
+                pass
+
+            else:
 
                 if self.template_store is None:
                     self.template_store = TemplateStore(updater['templates_file'], 'r', self.two_components)
@@ -290,25 +347,9 @@ class Template_fitter(Block):
 
                 self.overlaps = {}
 
-            # else:
-            #
-            #     # TODO remove the following line.
-            #     self.log.debug("updater is None")
-
             if self.nb_templates > 0:
-                self._fit_chunk(batch, peaks)
-                # # TODO remove the following line.
-                # self.log.debug("tf >>>>>>>>>>")
-                self.output.send(self.result)
-                # # TODO remove the following lines.
-                # self.log.debug("tf <<<<<<<<<<")
-            # else:
-            #     # TODO remove the following lines.
-            #     self.log.debug("self.nb_templates == {}".format(self.nb_templates))
 
-        # else:
-        #
-        #     # TODO remove the following line.
-        #     self.log.debug("peaks is None")
+                self._fit_chunk(batch, peaks)
+                self.output.send(self.result)
 
         return
