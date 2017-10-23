@@ -42,13 +42,16 @@ signal_writer_kwargs = {
     'data_path': os.path.join(tmp_dir, 'signal.raw'),
 }
 mad_writer_kwargs = {
-    'data_path': os.path.join(tmp_dir, 'mad.raw')
+    'data_path': os.path.join(tmp_dir, 'mad.raw'),
 }
 peak_writer_kwargs = {
-    'neg_peaks': os.path.join(tmp_dir, 'peaks.raw')
+    'neg_peaks': os.path.join(tmp_dir, 'peaks.raw'),
 }
 updater_kwargs = {
-    'data_path': os.path.join(tmp_dir, 'templates')
+    'data_path': os.path.join(tmp_dir, 'templates.h5'),
+}
+fitter_kwargs = {
+    'init_path': os.path.join(tmp_dir, 'initial_templates.h5'),
 }
 spike_writer_kwargs = {
     'spike_times': os.path.join(tmp_dir, 'spike_times.raw'),
@@ -71,10 +74,11 @@ else:
     generator = manager.create_block('synthetic_generator',
                                      cells_args=cells_args,
                                      cells_params=cells_params,
+                                     seed=44,
                                      log_level=DEBUG,
                                      **generator_kwargs)
     filtering = manager.create_block('filter',
-                                     cut_off=100.0,
+                                     cut_off=1000.0,
                                      log_level=DEBUG)
 #     whitening = manager.create_block('whitening',
 #                                      log_level=DEBUG)
@@ -93,12 +97,12 @@ else:
                                        log_level=INFO,
                                        **peak_writer_kwargs)
     pca = manager.create_block('pca',
-                               nb_waveforms=100,  # 1000
+                               nb_waveforms=1000,  # 100
                                log_level=DEBUG)
     cluster = manager.create_block('density_clustering',
                                    threshold_factor=7.0,
                                    probe=probe_path,
-                                   nb_waveforms=100,  # 500
+                                   nb_waveforms=100,  # 100
                                    two_components=False,
                                    log_level=DEBUG)
     updater = manager.create_block('template_updater',
@@ -108,7 +112,8 @@ else:
                                    **updater_kwargs)
     fitter = manager.create_block('template_fitter',
                                   two_components=False,
-                                  log_level=DEBUG)
+                                  log_level=DEBUG,
+                                  **fitter_kwargs)
     spike_writer = manager.create_block('spike_writer',
                                         log_level=DEBUG,
                                         **spike_writer_kwargs)

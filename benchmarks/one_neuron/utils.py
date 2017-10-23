@@ -376,8 +376,7 @@ class Results(object):
                 Unit identifier.
         """
 
-        template_dir = os.path.abspath(self.updater_kwargs['data_path'])
-        template_path = os.path.join(template_dir, 'template_store.h5')
+        template_path = os.path.abspath(self.updater_kwargs['data_path'])
         template_store = TemplateStore(template_path, mode='r')
 
         data = template_store.get([i], ['templates', 'norms'])
