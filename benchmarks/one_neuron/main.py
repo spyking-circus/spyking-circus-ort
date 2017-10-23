@@ -21,13 +21,14 @@ host = '127.0.0.1'  # i.e. run the test locally
 
 cell_obj = {'r': 'r_ref'}
 cells_args = [cell_obj]
-cells_params = {'r_ref': 50.0}  # firing rate [Hz]
+cells_params = {'r_ref': 50.0}  # firiansng rate [Hz]
 
 tmp_dir = os.path.join('/', 'tmp', 'spyking_circus_ort', 'one_neuron')
 if not os.path.exists(tmp_dir):
     os.makedirs(tmp_dir)
 # hdf5_path = os.path.join(tmp_dir, 'synthetic.h5')
 probe_path = os.path.join('..', 'mea_16.prb')
+
 # signal_path = os.path.join(tmp_dir, 'signal.raw')
 # mad_path = os.path.join(tmp_dir, 'mad.raw')
 # peak_path = os.path.join(tmp_dir, 'peaks.raw')
@@ -71,7 +72,6 @@ else:
     generator = manager.create_block('synthetic_generator',
                                      cells_args=cells_args,
                                      cells_params=cells_params,
-                                     probe=probe_path,
                                      log_level=DEBUG,
                                      **generator_kwargs)
     filtering = manager.create_block('filter',
@@ -83,7 +83,8 @@ else:
                                          log_level=DEBUG,
                                          **signal_writer_kwargs)
     mad_estimator = manager.create_block('mad_estimator',
-                                         log_level=DEBUG)
+                                         log_level=DEBUG, 
+                                         time_constant=10)
     mad_writer = manager.create_block('writer',
                                       log_level=DEBUG,
                                       **mad_writer_kwargs)
@@ -105,7 +106,7 @@ else:
     updater = manager.create_block('template_updater',
                                    probe=probe_path,
                                    nb_channels=16,
-                                   log_level=INFO,
+                                   log_level=DEBUG,
                                    **updater_kwargs)
     fitter = manager.create_block('template_fitter',
                                   two_components=False,
