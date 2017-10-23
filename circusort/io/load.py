@@ -87,3 +87,49 @@ class Peaks(object):
             raise NotImplementedError()
 
         return ans
+
+
+def load_spikes(times_path, templates_path, amplitudes_path):
+    """Load spikes
+
+    Arguments:
+        times_path: string
+        templates_path: string
+        amplitudes_path: string
+
+    """
+    # TODO complete docstring.
+
+    return Spikes(times_path, templates_path, amplitudes_path)
+
+class Spikes(object):
+
+    def __init__(self, times_path, templates_path, amplitudes_path):
+
+        self.times_path = os.path.expanduser(times_path)
+        self.templates_path = os.path.expanduser(templates_path)
+        self.amplitudes_path = os.path.expanduser(amplitudes_path)
+
+        self.times = np.fromfile(self.times_path, dtype=np.int32)
+        self.templates = np.fromfile(self.templates_path, dtype=np.int32)
+        self.amplitudes = np.fromfile(self.amplitudes_path, dtype=np.float32)
+
+        self.units = np.unique(self.templates)
+        self.nb_units = self.units.size
+
+    def get_time_steps(self, selection=None):
+
+        if selection is None:
+            ans = self.times
+        elif np.any([isinstance(selection, t) for t in (int, np.int32)]):
+            mask = np.array([e == selection for e in self.templates])
+            ans = self.times[mask]
+        elif isinstance(selection, list):
+            mask = np.array([e in selection for e in self.templates])
+            ans = self.times[mask]
+        else:
+            msg = "Can't use {} ({}) as a selection."
+            msg = msg.format(selection, type(selection))
+            raise NotImplementedError(msg)
+
+        return ans
