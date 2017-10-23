@@ -9,7 +9,6 @@ from circusort.io.probe import Probe
 # from circusort.utils.clustering import density_based_clustering
 from circusort.utils.clustering import OnlineManager
 
-
 class Density_clustering(Block):
     """Density clustering
 
@@ -49,6 +48,7 @@ class Density_clustering(Block):
         'epsilon': 0.1,
         'theta': -np.log(0.001),
         'tracking': False,
+        'safety_time': 'auto'
     }
 
     def __init__(self, **kwargs):
@@ -71,9 +71,15 @@ class Density_clustering(Block):
         self._spike_width_ = int(self.sampling_rate * self.spike_width * 1e-3)
         self.sign_peaks = []
         self.receive_pcs = True
+        self.masks       = {}
         if np.mod(self._spike_width_, 2) == 0:
             self._spike_width_ += 1
         self._width = (self._spike_width_ - 1) // 2
+
+        if self.safety_time == 'auto':
+            self.safety_time = self._spike_width_ // 3
+        else:
+            self.safety_time = int(self.safety_time*self.sampling_rate * 1e-3)
 
         self.all_keys = ['dat', 'amp', 'ind']
         if self.two_components:
@@ -83,6 +89,7 @@ class Density_clustering(Block):
             num = 5 * self._spike_width_
             self.cdata = np.linspace(- self._width, self._width, num)
             self.xdata = np.arange(- 2 * self._width, 2 * self._width + 1)
+
         return
 
     @property
@@ -101,25 +108,37 @@ class Density_clustering(Block):
                 all_peaks[key] = all_peaks[key].union(peaks[key][channel])
 
             all_peaks[key] = np.array(list(all_peaks[key]), dtype=np.int32)
-            mask = self._is_valid(all_peaks[key])
+            mask           = self._is_valid(all_peaks[key])
             all_peaks[key] = all_peaks[key][mask]
-            if shuffle:
-                all_peaks[key] = np.random.permutation(all_peaks[key])
+
+            if len(all_peaks[key]) > 0:
+                rmin           = all_peaks[key].min()
+                rmax           = all_peaks[key].max()
+                diff_times     = rmax - rmin
+                self.masks[key]= {}
+                self.masks[key]['all_times'] = np.zeros((self.nb_channels, diff_times+1), dtype=np.bool)
+                self.masks[key]['min_times'] = np.maximum(all_peaks[key] - rmin - self.safety_time, 0)
+                self.masks[key]['max_times'] = np.minimum(all_peaks[key] - rmin + self.safety_time + 1, diff_times)
+
         return all_peaks
 
-    def _remove_nn_peaks(self, peak, peaks):
-        mask = np.abs(peaks - peak) > self._width
-        return peaks[mask]
+    def _remove_nn_peaks(self, key, peak_idx, channel):
+        indices = self.probe.edges[channel]
+        self.masks[key]['all_times'][indices, self.masks[key]['min_times'][peak_idx]:self.masks[key]['max_times'][peak_idx]] = True
+
+    def _isolated_peak(self, key, peak_idx, channel):
+        indices = self.probe.edges[channel]
+        myslice = self.masks[key]['all_times'][indices, self.masks[key]['min_times'][peak_idx]:self.masks[key]['max_times'][peak_idx]]
+        return not myslice.any()
 
     def _is_valid(self, peak):
         if self.alignment:
             cond_1 = (peak >= 2 * self._width)
             cond_2 = (peak + 2 * self._width < self.nb_samples)
-            return cond_1 & cond_2
         else:
             cond_1 = (peak >= self._width)
             cond_2 = (peak + self._width < self.nb_samples)
-            return cond_1 & cond_2
+        return cond_1 & cond_2
 
     def _get_extrema_indices(self, peak, peaks):
         res = []
@@ -332,26 +351,31 @@ class Density_clustering(Block):
                 for key in self.sign_peaks:
 
                     # # TODO remove the 2 following lines.
-                    # if len(all_peaks[key]) > 0:
-                    #     self.log.debug("{} processes {} {} peaks".format(self.name, len(all_peaks[key]), key))
+                    #self.log.debug("{} processes {}/{} peaks".format(self.name, len(all_peaks[key]), nb_peaks))
+                    n_times         = len(all_peaks[key])
+                    argmax_peak     = np.random.permutation(np.arange(n_times))
+                    all_idx         = np.take(all_peaks[key], argmax_peak)
 
-                    while len(all_peaks[key]) > 0:
-                        peak = all_peaks[key][0]
-                        all_peaks[key] = self._remove_nn_peaks(peak, all_peaks[key])
+                    for midx, peak in zip(argmax_peak, all_idx):
+
                         channel, is_neg = self._get_best_channel(batch, key, peak, peaks)
+                        
+                        if self._isolated_peak(key, midx, channel):
 
-                        if channel in self.channels:
-                            waveforms = self._get_snippet(batch, channel, peak, is_neg).T
-                            waveforms = waveforms.reshape(1, waveforms.shape[0], waveforms.shape[1])
-                            if is_neg:
-                                key = 'negative'
-                            else:
-                                key = 'positive'
+                            self._remove_nn_peaks(key, midx, channel)
 
-                            if not self.managers[key][channel].is_ready:
-                                self.raw_data[key][channel] = np.vstack((self.raw_data[key][channel], waveforms))
-                            else:
-                                self.managers[key][channel].update(self.counter, waveforms)
+                            if channel in self.channels:
+                                waveforms = self._get_snippet(batch, channel, peak, is_neg).T
+                                waveforms = waveforms.reshape(1, waveforms.shape[0], waveforms.shape[1])
+                                if is_neg:
+                                    key = 'negative'
+                                else:
+                                    key = 'positive'
+
+                                if not self.managers[key][channel].is_ready:
+                                    self.raw_data[key][channel] = np.vstack((self.raw_data[key][channel], waveforms))
+                                else:
+                                    self.managers[key][channel].update(self.counter, waveforms)
 
                     for channel in self.channels:
 
@@ -374,7 +398,6 @@ class Density_clustering(Block):
 
                 if len(self.to_reset) > 0:
                     # TODO remove the following line.
-                    self.log.debug("{} sends templates".format(self.name))
                     self.templates['offset'] = self.counter * self.nb_samples
                     self.outputs['templates'].send(self.templates)
                     for key, channel in self.to_reset:
