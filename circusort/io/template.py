@@ -1,41 +1,53 @@
 import h5py
 import os
-import scipy.sparse
-import numpy
+from scipy.sparse import csc_matrix, hstack
+import numpy as np
 from circusort.io.utils import append_hdf5
+
 
 class TemplateStore(object):
 
-    variables = ['norms', 'templates', 'amplitudes', 'channels', 'times']
+    variables = [
+        'norms',
+        'templates',
+        'amplitudes',
+        'channels',
+        'times',
+    ]
 
-    def __init__(self, file_name, mode='w', two_components=False, N_t=None):
+    def __init__(self, file_name, initialized=False, mode='w',
+                 two_components=False, N_t=None):
 
-        self.file_name      = os.path.abspath(file_name)
-        self.initialized    = False
-        self.mode           = mode
+        self.file_name = os.path.abspath(file_name)
+        self.initialized = initialized
+        self.mode = mode
         self.two_components = two_components
+        self._spike_width = N_t
+
         if self.two_components:
             self.variables += ['norms2', 'templates2']
-        self._spike_width   = N_t
+        self.h5_file = None
 
     @property
     def width(self):
+
         self.h5_file = h5py.File(self.file_name, 'r')
         res = self.h5_file['N_t'][0]
         self.h5_file.close() 
+
         return res
 
     def add(self, data):
 
-        norms      = data['norms']
-        templates  = data['templates']
+        norms = data['norms']
+        templates = data['templates']
         amplitudes = data['amplitudes']
-        channels   = data['channels']
-        times      = data['times']
+        channels = data['channels']
+        times = data['times']
 
         if self.two_components:
-            norms2      = data['norms2']
-            templates2  = data['templates2']
+            norms2 = data['norms2']
+            templates2 = data['templates2']
 
         if not self.initialized:
             self.h5_file = h5py.File(self.file_name, self.mode)
@@ -44,7 +56,6 @@ class TemplateStore(object):
             self.h5_file.create_dataset('channels', data=channels, chunks=True, maxshape=(None,))
             self.h5_file.create_dataset('amplitudes', data=amplitudes, chunks=True, maxshape=(None, 2))
             self.h5_file.create_dataset('times', data=times, chunks=True, maxshape=(None, ))
-
 
             if self.two_components:
                 self.h5_file.create_dataset('norms2', data=norms2, chunks=True, maxshape=(None,))
@@ -56,7 +67,7 @@ class TemplateStore(object):
             self.h5_file.create_dataset('shape', data=templates.shape, chunks=True)
 
             if self._spike_width is not None:
-                self.h5_file.create_dataset('N_t', data=numpy.array([self._spike_width]))
+                self.h5_file.create_dataset('N_t', data=np.array([self._spike_width]))
 
             self.initialized = True
             self.h5_file.close()
@@ -107,63 +118,71 @@ class TemplateStore(object):
 
             for var in ['norms', 'amplitudes', 'channels', 'times', 'norms2']:
                 if var in variables:
-                    result[var]      = self.h5_file[var][:]
+                    result[var] = self.h5_file[var][:]
 
             if 'templates' in variables:
-                result['templates']  = scipy.sparse.csc_matrix((self.h5_file['data'][:], self.h5_file['indices'][:], self.h5_file['indptr'][:]),
-                        shape=self.h5_file['shape'][:])
+                result['templates'] = csc_matrix((self.h5_file['data'][:],
+                                                  self.h5_file['indices'][:],
+                                                  self.h5_file['indptr'][:]),
+                                                  shape=self.h5_file['shape'][:])
 
             if 'templates2' in variables:
-                result['templates2'] = scipy.sparse.csc_matrix((self.h5_file['data'][:], self.h5_file['indices'][:], self.h5_file['indptr'][:]),
-                        shape=self.h5_file['shape'][:])
+                result['templates2'] = csc_matrix((self.h5_file['data'][:],
+                                                   self.h5_file['indices'][:],
+                                                   self.h5_file['indptr'][:]),
+                                                   shape=self.h5_file['shape'][:])
         else:
 
-            if not numpy.iterable(indices):
+            if not np.iterable(indices):
                 indices = [indices]
 
             for var in ['norms', 'channels', 'times', 'norms2']:
                 if var in variables:
-                    result[var]      = self.h5_file[var][indices]
+                    result[var] = self.h5_file[var][indices]
 
             if 'amplitudes' in variables:
                 result['amplitudes'] = self.h5_file['amplitudes'][indices, :]
 
-            load_t1        = 'templates' in variables
-            load_t2        = 'templates2' in variables
+            load_t1 = 'templates' in variables
+            load_t2 = 'templates2' in variables
             load_templates = load_t1 or load_t2
 
             if load_templates:
                 myshape = self.h5_file['shape'][0]
-                indptr  = self.h5_file['indptr'][:]
+                indptr = self.h5_file['indptr'][:]
 
             if load_t1:
-                result['templates'] = scipy.sparse.csc_matrix((myshape, 0), dtype=numpy.float32)
+                result['templates'] = csc_matrix((myshape, 0), dtype=np.float32)
 
             if load_t2:
-                result['templates2'] = scipy.sparse.csc_matrix((myshape, 0), dtype=numpy.float32)
+                result['templates2'] = csc_matrix((myshape, 0), dtype=np.float32)
 
             if load_templates:
                 for item in indices:
-                    mask    = numpy.zeros(len(self.h5_file['data']), dtype=numpy.bool)
+                    mask = np.zeros(len(self.h5_file['data']), dtype=np.bool)
                     mask[indptr[item]:indptr[item+1]] = 1
-                    n_data  = indptr[item+1] - indptr[item]
+                    n_data = indptr[item+1] - indptr[item]
                     if load_t1:
-                        temp    = scipy.sparse.csc_matrix((self.h5_file['data'][mask], (self.h5_file['indices'][mask], numpy.zeros(n_data))), shape=(myshape, 1))    
-                        result['templates']  = scipy.sparse.hstack((result['templates'], temp), 'csc')
+                        temp = csc_matrix((self.h5_file['data'][mask], (self.h5_file['indices'][mask], np.zeros(n_data))), shape=(myshape, 1))
+                        result['templates'] = hstack((result['templates'], temp), 'csc')
  
                     if load_t2:
-                        temp    = scipy.sparse.csc_matrix((self.h5_file['data2'][mask], (self.h5_file['indices'][mask], numpy.zeros(n_data))), shape=(myshape, 1))    
-                        result['templates2'] = scipy.sparse.hstack((result['templates2'], temp), 'csc')
+                        temp = csc_matrix((self.h5_file['data2'][mask], (self.h5_file['indices'][mask], np.zeros(n_data))), shape=(myshape, 1))
+                        result['templates2'] = hstack((result['templates2'], temp), 'csc')
 
         self.h5_file.close()
 
         return result
         
     def remove(self, index):
-        pass
+
+        raise NotImplementedError()
 
     def close(self):
+
         try:
             self.h5_file.close()
         except Exception:
             pass
+
+        return
