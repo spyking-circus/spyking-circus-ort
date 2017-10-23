@@ -94,7 +94,7 @@ class OnlineManager(object):
         self.glob_pca = pca
         
         self.is_ready = False
-        self.abs_n_min = 20
+        self.abs_n_min = 5
         self.nb_updates = 0
         self.sub_dim = 5
         self.loc_pca = None
@@ -131,7 +131,7 @@ class OnlineManager(object):
         data = data.reshape(a, self._width)
 
         # TODO uncomment the following line.
-        # self.log.debug("{n} computes local PCA".format(n=self.name))
+        self.log.debug("{n} computes local PCA".format(n=self.name))
         pca = PCAEstimator(self.sub_dim, copy=False)
         res_pca = pca.fit_transform(sub_data.T).astype(np.float32)
         self.loc_pca = res_pca
@@ -145,6 +145,10 @@ class OnlineManager(object):
         else:
             labels, c = np.array([]), np.array([])
         
+        self.log.debug('{s} has no clusters with less than {k} elements'.format(s=self.name, k=n_min))
+        np.save('rho_%s' %self.name, rhos)
+        np.save('delta_%s' %self.name, dist)
+
         mask = labels > -1
         self.nb_dimensions = sub_data.shape[1]
         amplitudes = np.zeros((0, 2), dtype=np.float32)
@@ -152,6 +156,8 @@ class OnlineManager(object):
         indices = np.zeros(0, dtype=np.int32)
         if two_components:
             templates2 = np.zeros((0, self._width), dtype=np.float32)
+
+        self.log.debug("{n} founds {k} initial clusters from {m} datapoints".format(n=self.name, k=len(np.unique(labels[mask])), m=len(sub_data)))
 
         for count, i in enumerate(np.unique(labels[mask])):
 

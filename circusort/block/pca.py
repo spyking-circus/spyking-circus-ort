@@ -134,7 +134,7 @@ class Pca(Block):
                                     self.nb_spikes[key] += 1
 
                     if self.is_ready(key):
-                        self.log.info("{n} computes the PCA matrix for {m} spikes".format(n=self.name_and_counter, m=key))
+                        self.log.info("{n} computes the PCA matrix from {k} {m} spikes".format(n=self.name_and_counter, k=len(self.waveforms[key]), m=key))
                         pca          = PCAEstimator(self.output_dim, copy=False)
                         # np.save('pca_%s' %key, self.waveforms[key])
                         res_pca = pca.fit_transform(self.waveforms[key].T).astype(np.float32)

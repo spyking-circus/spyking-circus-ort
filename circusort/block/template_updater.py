@@ -139,17 +139,21 @@ class Template_updater(Block):
     def _construct_templates(self, templates_data):
 
         new_templates = []
-        self.nb_duplicates = 0
 
         for key in templates_data['dat'].keys():
             for channel in templates_data['dat'][key].keys():
                 templates  = np.array(templates_data['dat'][key][channel]).astype(np.float32)
                 amplitudes = np.array(templates_data['amp'][key][channel]).astype(np.float32)
 
+                self.nb_duplicates = 0
+
                 if self.two_components:
                     templates2 = np.array(templates_data['two'][key][channel]).astype(np.float32)
 
                 if len(templates) > 0:
+
+                    self.log.debug('{n} received {s} {t} templates from electrode {k}'.format(n=self.name, s=len(templates), t=key, k=channel))
+
                     tmp_pos = self.temp_indices[int(channel)]
                     n_data  = len(tmp_pos)
 
@@ -168,7 +172,11 @@ class Template_updater(Block):
                             new_templates  += [self.global_id]
                             self.global_id += 1
 
-        self.log.debug('{n} rejected {s} duplicated templates'.format(n=self.name, s=self.nb_duplicates))
+                    if self.nb_duplicates > 0:
+                        self.log.debug('{n} rejected {s} duplicated templates'.format(n=self.name, s=self.nb_duplicates))
+                    else:
+                        self.log.debug('{n} accepted all {t} templates'.format(n=self.name, t=key))
+
 
         return new_templates
 

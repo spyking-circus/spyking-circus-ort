@@ -112,10 +112,10 @@ class Density_clustering(Block):
             all_peaks[key] = all_peaks[key][mask]
 
             if len(all_peaks[key]) > 0:
-                rmin           = all_peaks[key].min()
-                rmax           = all_peaks[key].max()
-                diff_times     = rmax - rmin
-                self.masks[key]= {}
+                rmin            = all_peaks[key].min()
+                rmax            = all_peaks[key].max()
+                diff_times      = rmax - rmin
+                self.masks[key] = {}
                 self.masks[key]['all_times'] = np.zeros((self.nb_channels, diff_times+1), dtype=np.bool)
                 self.masks[key]['min_times'] = np.maximum(all_peaks[key] - rmin - self.safety_time, 0)
                 self.masks[key]['max_times'] = np.minimum(all_peaks[key] - rmin + self.safety_time + 1, diff_times)
@@ -352,17 +352,16 @@ class Density_clustering(Block):
 
                     # # TODO remove the 2 following lines.
                     #self.log.debug("{} processes {}/{} peaks".format(self.name, len(all_peaks[key]), nb_peaks))
-                    n_times         = len(all_peaks[key])
-                    argmax_peak     = np.random.permutation(np.arange(n_times))
-                    all_idx         = np.take(all_peaks[key], argmax_peak)
+                    peak_indices = np.random.permutation(np.arange(len(all_peaks[key])))
+                    peak_values  = np.take(all_peaks[key], peak_indices)
 
-                    for midx, peak in zip(argmax_peak, all_idx):
+                    for peak_idx, peak in zip(peak_indices, peak_values):
 
                         channel, is_neg = self._get_best_channel(batch, key, peak, peaks)
                         
-                        if self._isolated_peak(key, midx, channel):
+                        if self._isolated_peak(key, peak_idx, channel):
 
-                            self._remove_nn_peaks(key, midx, channel)
+                            self._remove_nn_peaks(key, peak_idx, channel)
 
                             if channel in self.channels:
                                 waveforms = self._get_snippet(batch, channel, peak, is_neg).T
@@ -384,12 +383,12 @@ class Density_clustering(Block):
 
                         if len(self.raw_data[key][channel]) >= self.nb_waveforms and not self.managers[key][channel].is_ready:
                             # TODO remove the following line.
-                            self.log.debug("dc1 ============")
+                            self.log.debug("{n} Electrode {k} has obtained {m} {t} waveforms: clustering".format(n=self.name, k=channel, m=self.nb_waveforms, t=key))
                             templates = self.managers[key][channel].initialize(self.counter, self.raw_data[key][channel], self.two_components)
                             self._prepare_templates(templates, key, channel)
                         elif self.managers[key][channel].time_to_cluster(self.nb_waveforms):
                             # TODO remove the following line.
-                            self.log.debug("dc2 ============")
+                            self.log.debug("{n} Electrode {k} has obtained {m} {t} waveforms: reclustering".format(n=self.name, k=channel, m=self.nb_waveforms, t=key))
                             templates = self.managers[key][channel].cluster(two_components=self.two_components, tracking=self.tracking)
                             self._prepare_templates(templates, key, channel)
                         # else:
