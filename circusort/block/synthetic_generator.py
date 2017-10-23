@@ -7,6 +7,7 @@ import threading
 import time
 import tempfile
 import os
+import json
 
 from circusort.block import block
 from circusort import io
@@ -51,6 +52,7 @@ class Synthetic_generator(block.Block):
         'nb_samples': 1024,
         'nb_cells': 10,
         'hdf5_path': None,
+        'log_path': None,
     }
 
     def __init__(self, cells_args=None, cells_params=None, **kwargs):
@@ -68,6 +70,11 @@ class Synthetic_generator(block.Block):
             self.cells_params = {}
         else:
             self.cells_params = cells_params
+
+        # TODO log/save input keyword argument to file.
+        log_kwargs = {k: self.params[k] for k in ['nb_samples']}
+        with open(self.log_path, 'w') as log_file:
+            json.dump(log_kwargs, log_file, sort_keys=True, indent=4)
 
         self.add_output('data')
 
