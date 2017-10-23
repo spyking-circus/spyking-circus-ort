@@ -5,7 +5,8 @@ import scipy.interpolate
 
 from circusort.io.probe import Probe
 # from circusort.utils.algorithms import PCAEstimator
-# from circusort.utils.clustering import rho_estimation, density_based_clustering
+# from circusort.utils.clustering import rho_estimation
+# from circusort.utils.clustering import density_based_clustering
 from circusort.utils.clustering import OnlineManager
 
 
@@ -54,10 +55,11 @@ class Density_clustering(Block):
 
         Block.__init__(self, **kwargs)
         if self.probe is None:
-            self.log.error('{n}: the probe file must be specified!'.format(n=self.name))
+            error_msg = "{n}: the probe file must be specified!"
+            self.log.error(error_msg.format(n=self.name))
         else:
             self.probe = Probe(self.probe, radius=self.radius, logger=self.log)
-            self.log.info('{n} reads the probe layout'.format(n=self.name))
+            self.log.info("{n} reads the probe layout".format(n=self.name))
         self.add_input('data')
         self.add_input('pcs')
         self.add_input('peaks')
@@ -66,20 +68,21 @@ class Density_clustering(Block):
 
     def _initialize(self):
 
-        self._spike_width_ = int(self.sampling_rate*self.spike_width*1e-3)
+        self._spike_width_ = int(self.sampling_rate * self.spike_width * 1e-3)
         self.sign_peaks = []
         self.receive_pcs = True
         if np.mod(self._spike_width_, 2) == 0:
             self._spike_width_ += 1
-        self._width = (self._spike_width_-1)//2
+        self._width = (self._spike_width_ - 1) // 2
 
         self.all_keys = ['dat', 'amp', 'ind']
         if self.two_components:
             self.all_keys += ['two']
 
         if self.alignment:
-            self.cdata = np.linspace(-self._width, self._width, 5*self._spike_width_)
-            self.xdata = np.arange(-2*self._width, 2*self._width + 1)
+            num = 5 * self._spike_width_
+            self.cdata = np.linspace(- self._width, self._width, num)
+            self.xdata = np.arange(- 2 * self._width, 2 * self._width + 1)
         return
 
     @property
@@ -110,9 +113,13 @@ class Density_clustering(Block):
 
     def _is_valid(self, peak):
         if self.alignment:
-            return (peak >= 2*self._width) & (peak + 2*self._width < self.nb_samples)
+            cond_1 = (peak >= 2 * self._width)
+            cond_2 = (peak + 2 * self._width < self.nb_samples)
+            return cond_1 & cond_2
         else:
-            return (peak >= self._width) & (peak + self._width < self.nb_samples)
+            cond_1 = (peak >= self._width)
+            cond_2 = (peak + self._width < self.nb_samples)
+            return cond_1 & cond_2
 
     def _get_extrema_indices(self, peak, peaks):
         res = []
@@ -133,7 +140,9 @@ class Density_clustering(Block):
             channel = np.argmax(batch[peak, indices])
             is_neg = False
         elif key == 'both':
-            if np.abs(np.max(batch[peak, indices])) > np.abs(np.min(batch[peak, indices])):
+            v_max = np.max(batch[peak, indices])
+            v_min = np.min(batch[peak, indices])
+            if np.abs(v_max) > np.abs(v_min):
                 channel = np.argmax(batch[peak, indices])
                 is_neg = False
             else:
@@ -146,7 +155,9 @@ class Density_clustering(Block):
         indices = self.probe.edges[channel]
         if self.alignment:
             idx = self.chan_positions[channel]
-            zdata = batch[peak - 2*self._width:peak + 2*self._width + 1, indices]
+            k_min = peak - 2 * self._width
+            k_max = peak + 2 * self._width + 1
+            zdata = batch[k_min:k_max, indices]
             ydata = np.arange(len(indices))
 
             if len(ydata) == 1:
@@ -183,7 +194,8 @@ class Density_clustering(Block):
             #  probe.edges.keys = [0, 1, 2, 3]
             # I have to find where is the problem...
             for channel in xrange(self.nb_channels):
-                self.chan_positions[channel] = np.where(self.probe.edges[channel] == channel)[0]
+                mask = self.probe.edges[channel] == channel
+                self.chan_positions[channel] = np.where(mask)[0]
 
     def _init_data_structures(self):
 
@@ -198,7 +210,8 @@ class Density_clustering(Block):
             self.sign_peaks += ['negative']
         if not np.all(self.pcs[1] == 0):
             self.sign_peaks += ['positive']
-        self.log.debug("{n} will detect peaks {s}".format(n=self.name, s=self.sign_peaks))
+        debug_msg = "{} will detect peaks {}"
+        self.log.debug(debug_msg.format(self.name, self.sign_peaks))
 
         for key in self.sign_peaks:
             self.raw_data[key] = {}
@@ -278,12 +291,13 @@ class Density_clustering(Block):
         return aligned_template, shift
 
     def _reset_data_structures(self, key, channel):
-        self.raw_data[key][channel] = np.zeros((0, len(self.probe.edges[channel]), self._spike_width_), dtype=np.float32)
-        self.templates['dat'][key][channel] = np.zeros((0, len(self.probe.edges[channel]), self._spike_width_), dtype=np.float32)
+        shape =(0, len(self.probe.edges[channel]), self._spike_width_)
+        self.raw_data[key][channel] = np.zeros(shape, dtype=np.float32)
+        self.templates['dat'][key][channel] = np.zeros(shape, dtype=np.float32)
         self.templates['amp'][key][channel] = np.zeros((0, 2), dtype=np.float32)
         self.templates['ind'][key][channel] = np.zeros(0, dtype=np.int32)
         if self.two_components:
-            self.templates['two'][key][channel] = np.zeros((0, len(self.probe.edges[channel]), self._spike_width_), dtype=np.float32)
+            self.templates['two'][key][channel] = np.zeros(shape, dtype=np.float32)
 
     def _process(self):
 
@@ -297,7 +311,8 @@ class Density_clustering(Block):
         if self.pcs is not None:
 
             if self.receive_pcs:
-                self.log.info("{n} receives the PCA matrices".format(n=self.name_and_counter))
+                info_msg = "{} receives the PCA matrices"
+                self.log.info(info_msg.format(self.name_and_counter))
                 self.receive_pcs = False
                 self._init_data_structures()
 
@@ -316,9 +331,9 @@ class Density_clustering(Block):
 
                 for key in self.sign_peaks:
 
-                    # TODO remove the 2 following lines.
-                    if len(all_peaks[key]) > 0:
-                        self.log.debug("{} processes {} {} peaks".format(self.name, len(all_peaks[key]), key))
+                    # # TODO remove the 2 following lines.
+                    # if len(all_peaks[key]) > 0:
+                    #     self.log.debug("{} processes {} {} peaks".format(self.name, len(all_peaks[key]), key))
 
                     while len(all_peaks[key]) > 0:
                         peak = all_peaks[key][0]
@@ -353,9 +368,9 @@ class Density_clustering(Block):
                             self.log.debug("dc2 ============")
                             templates = self.managers[key][channel].cluster(two_components=self.two_components, tracking=self.tracking)
                             self._prepare_templates(templates, key, channel)
-                        else:
-                            # TODO remove the following line.
-                            self.log.debug("key:{}, channel:{}, test:{} >=? {}".format(key, channel, len(self.raw_data[key][channel]), self.nb_waveforms))
+                        # else:
+                        #     # TODO remove the following line.
+                        #     self.log.debug("key:{}, channel:{}, test:{} >=? {}".format(key, channel, len(self.raw_data[key][channel]), self.nb_waveforms))
 
                 if len(self.to_reset) > 0:
                     # TODO remove the following line.

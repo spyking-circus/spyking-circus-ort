@@ -118,8 +118,8 @@ class Spike_writer(Block):
                     to_write = numpy.array(batch[key]).astype(numpy.float32)
                 else:
                     raise KeyError(key)
-                # TODO remove the following line.
-                self.log.debug("{n} write in {k} file".format(n=self.name, k=key))
+                # # TODO remove the following commented line.
+                # self.log.debug("{n} write in {k} file".format(n=self.name, k=key))
                 self.data_file[key].write(to_write)
                 self.data_file[key].flush()
         else:
