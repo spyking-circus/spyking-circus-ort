@@ -216,13 +216,15 @@ class Results(object):
 
         generated_spike_steps = self.gen.get(variables='spike_times')
         generated_spike_steps = generated_spike_steps[u'0']['spike_times']
+        generated_spike_steps = generated_spike_steps.astype(np.int32)
 
         return generated_spike_steps
 
     @property
     def generated_spike_train(self):
 
-        generated_spike_train = self.generated_spike_steps
+        generated_spike_train = self.gen.get(variables='spike_times')
+        generated_spike_train = generated_spike_train[u'0']['spike_times']
         generated_spike_train = generated_spike_train.astype(np.float32)
         generated_spike_train /= self.sampling_rate
 
@@ -497,4 +499,4 @@ class Results(object):
         plt.tight_layout()
         plt.show()
 
-        return generated_template, detected_template
+        return
