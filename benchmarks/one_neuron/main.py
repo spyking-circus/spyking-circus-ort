@@ -3,7 +3,6 @@
 import argparse
 from logging import DEBUG, INFO
 import os
-
 import circusort
 import utils
 
@@ -26,6 +25,7 @@ cells_params = {'r_ref': 50.0}  # firiansng rate [Hz]
 tmp_dir = os.path.join('/', 'tmp', 'spyking_circus_ort', 'one_neuron')
 if not os.path.exists(tmp_dir):
     os.makedirs(tmp_dir)
+
 # hdf5_path = os.path.join(tmp_dir, 'synthetic.h5')
 probe_path = os.path.join('..', 'mea_16.prb')
 
@@ -95,7 +95,7 @@ else:
                                        log_level=INFO,
                                        **peak_writer_kwargs)
     pca = manager.create_block('pca',
-                               nb_waveforms=100,  # 1000
+                               nb_waveforms=2000,  # 1000
                                log_level=DEBUG)
     cluster = manager.create_block('density_clustering',
                                    threshold_factor=7.0,
@@ -110,7 +110,7 @@ else:
                                    **updater_kwargs)
     fitter = manager.create_block('template_fitter',
                                   two_components=False,
-                                  log_level=DEBUG)
+                                  log_level=INFO)
     spike_writer = manager.create_block('spike_writer',
                                         log_level=DEBUG,
                                         **spike_writer_kwargs)
@@ -152,7 +152,7 @@ else:
     # Launch the Circus network.
 
     director.start()
-    director.sleep(duration=60.0)
+    director.sleep(duration=120.0)
     director.stop()
     # director.join()
 
