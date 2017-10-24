@@ -45,8 +45,8 @@ class Template_fitter(Block):
 
     def _initialize(self):
 
-        self.space_explo = 0.5
-        self.nb_chances = 3
+        self.space_explo   = 0.5
+        self.nb_chances    = 3
         self._spike_width_ = int(self.sampling_rate * self.spike_width * 1e-3)
         self.template_store = None
         self.norms = np.zeros(0, dtype=np.float32)
@@ -121,7 +121,7 @@ class Template_fitter(Block):
         self.slice_indices = np.zeros(0, dtype=np.int32)
         self.all_cols = np.arange(self.nb_channels * self._spike_width_)
         self.all_delays = np.arange(1, self._spike_width_ + 1)
-        self._overlap_size = 2 * self._spike_width_ - 1
+
         temp_window = np.arange(-self._width, self._width + 1)
         for idx in range(self.nb_channels):
             self.slice_indices = np.concatenate((self.slice_indices, self.nb_samples * idx + temp_window))
@@ -280,8 +280,12 @@ class Template_fitter(Block):
                     # TODO clean comment: Define spike times.
                     ts = np.take(peaks, inds_t[idx_to_keep])
                     # TODO clean comment: Deconsider buffer edges.
-                    ts_min = 2 * self._width
-                    ts_max = self.nb_samples - 2 * self._width
+                    # TODO Change if we have a proper handling of the borders
+                    # ts_min = 2 * self._width
+                    # ts_max = self.nb_samples - 2 * self._width
+                    # good = (ts_min <= ts) & (ts < ts_max)
+                    ts_min = self._width
+                    ts_max = self.nb_samples - self._width
                     good = (ts_min <= ts) & (ts < ts_max)
 
                     # TODO: clean comment: If there is at least one matching...
@@ -334,12 +338,25 @@ class Template_fitter(Block):
 
         batch = self.inputs['data'].receive()
         peaks = self.inputs['peaks'].receive(blocking=False)
+        updater = self.inputs['updater'].receive(blocking=False)
 
-        if peaks is None:
+        if updater is not None:
+            if self.template_store is None:
+                self.template_store = TemplateStore(updater['templates_file'], 'r', self.two_components)
 
-            pass
+            data = self.template_store.get(updater['indices'], variables=self.variables)
 
-        else:
+            self.norms = np.concatenate((self.norms, data.pop('norms')))
+            self.amplitudes = np.vstack((self.amplitudes, data.pop('amplitudes')))
+            self.templates = vstack((self.templates, data.pop('templates').T), 'csr')
+
+            if self.two_components:
+                self.norms2 = np.concatenate((self.norms2, data.pop('norms2')))
+                self.templates = vstack((self.templates, data.pop('templates2').T), 'csr')
+
+            self.overlaps = {}
+
+        if peaks is not None:
 
             # TODO check if the following two lines are necessary.
             while not self._sync_buffer(peaks, self.nb_samples):
@@ -350,29 +367,6 @@ class Template_fitter(Block):
 
             _ = peaks.pop('offset')
             self.offset = self.counter * self.nb_samples
-
-            updater = self.inputs['updater'].receive(blocking=False)
-
-            if updater is None:
-
-                pass
-
-            else:
-
-                if self.template_store is None:
-                    self.template_store = TemplateStore(updater['templates_file'], 'r', self.two_components)
-
-                data = self.template_store.get(updater['indices'], variables=self.variables)
-
-                self.norms = np.concatenate((self.norms, data.pop('norms')))
-                self.amplitudes = np.vstack((self.amplitudes, data.pop('amplitudes')))
-                self.templates = vstack((self.templates, data.pop('templates').T), 'csr')
-
-                if self.two_components:
-                    self.norms2 = np.concatenate((self.norms2, data.pop('norms2')))
-                    self.templates = vstack((self.templates, data.pop('templates2').T), 'csr')
-
-                self.overlaps = {}
 
             if self.nb_templates > 0:
 
