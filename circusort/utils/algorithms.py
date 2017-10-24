@@ -380,7 +380,7 @@ class PCAEstimator(object):
     TruncatedSVD
     """
     def __init__(self, n_components=None, copy=True, whiten=False):
-        self.n_components = int(n_components)
+        self.n_components = n_components
         self.copy = copy
         self.whiten = whiten
 
@@ -888,7 +888,7 @@ class PCAEstimator(object):
     TruncatedSVD
     """
     def __init__(self, n_components=None, copy=True, whiten=False):
-        self.n_components = int(n_components)
+        self.n_components = n_components
         self.copy = copy
         self.whiten = whiten
 

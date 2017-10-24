@@ -94,7 +94,7 @@ class OnlineManager(object):
         self.glob_pca = pca
         
         self.is_ready = False
-        self.abs_n_min = 5
+        self.abs_n_min = 20
         self.nb_updates = 0
         self.sub_dim = 5
         self.loc_pca = None
@@ -133,8 +133,8 @@ class OnlineManager(object):
         # TODO uncomment the following line.
         self.log.debug("{n} computes local PCA".format(n=self.name))
         pca = PCAEstimator(self.sub_dim, copy=False)
-        res_pca = pca.fit_transform(sub_data.T).astype(np.float32)
-        self.loc_pca = res_pca
+        res_pca = pca.fit_transform(sub_data)
+        self.loc_pca = pca.components_.T
 
         sub_data = np.dot(sub_data, self.loc_pca)
         rhos, dist, _ = rho_estimation(sub_data)
@@ -146,8 +146,6 @@ class OnlineManager(object):
             labels, c = np.array([]), np.array([])
         
         self.log.debug('{s} has no clusters with less than {k} elements'.format(s=self.name, k=n_min))
-        np.save('rho_%s' %self.name, rhos)
-        np.save('delta_%s' %self.name, dist)
 
         mask = labels > -1
         self.nb_dimensions = sub_data.shape[1]
