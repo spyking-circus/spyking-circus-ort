@@ -433,11 +433,15 @@ class Results(object):
 
         return template
 
-    def compare_templates(self):
+    def compare_templates(self, time_shift=0.4):
         """Compare templates
 
         Compare the generated template with the detected template and the
         averaged template.
+
+        Attribute:
+            time_shift: float (optional)
+                Time shift [ms]. The default value is 0.4.
         """
 
         # Retrieve the generated template.
@@ -447,7 +451,7 @@ class Results(object):
         detected_template = self.detected_templates(0)
 
         # Retrieve the averaged template.
-        averaged_template = self.averaged_template()
+        averaged_template = self.averaged_template(time_shift=time_shift)
 
         scl = 0.9 * (self.probe.field_of_view['d'] / 2.0)
         alpha = 1.0
