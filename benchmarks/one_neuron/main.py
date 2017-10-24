@@ -104,7 +104,7 @@ else:
     cluster = manager.create_block('density_clustering',
                                    threshold_factor=7.0,
                                    probe=probe_path,
-                                   nb_waveforms=100,  # 100
+                                   nb_waveforms=10000,  # 100
                                    two_components=False,
                                    log_level=DEBUG)
     updater = manager.create_block('template_updater',
@@ -120,11 +120,9 @@ else:
                                         log_level=DEBUG,
                                         **spike_writer_kwargs)
 
-
     # Initialize the elements of the Circus network.
 
     director.initialize()
-
 
     # Connect the elements of the Circus network.
 
@@ -153,14 +151,12 @@ else:
     director.connect(updater.get_output('updater'), fitter.get_input('updater'))
     director.connect(fitter.output, spike_writer.input)
 
-
     # Launch the Circus network.
 
     director.start()
     director.sleep(duration=120.0)
     director.stop()
     # director.join()
-
 
 # Analyze the results.
 
