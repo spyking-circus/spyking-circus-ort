@@ -223,8 +223,7 @@ class Results(object):
     @property
     def generated_spike_train(self):
 
-        generated_spike_train = self.gen.get(variables='spike_times')
-        generated_spike_train = generated_spike_train[u'0']['spike_times']
+        generated_spike_train = self.generated_spike_steps
         generated_spike_train = generated_spike_train.astype(np.float32)
         generated_spike_train /= self.sampling_rate
 
@@ -345,6 +344,7 @@ class Results(object):
     def generated_templates(self, i, time=None, nn=100, hf_dist=45,
                             a_dist=1.0):
         """Get generated templates
+        
         Arguments:
             i: int
                 Cell identifier.

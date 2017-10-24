@@ -134,14 +134,14 @@ class Pca(Block):
                                     self.nb_spikes[key] += 1
 
                     if self.is_ready(key):
-                        self.log.info("{n} computes the PCA matrix for {m} spikes".format(n=self.name_and_counter, m=key))
+                        self.log.info("{n} computes the PCA matrix from {k} {m} spikes".format(n=self.name_and_counter, k=len(self.waveforms[key]), m=key))
                         pca          = PCAEstimator(self.output_dim, copy=False)
-                        # np.save('pca_%s' %key, self.waveforms[key])
-                        res_pca = pca.fit_transform(self.waveforms[key].T).astype(np.float32)
+                        res_pca = pca.fit_transform(self.waveforms[key])
+
                         if key == 'negative':
-                            self.pcs[0] = res_pca
+                            self.pcs[0] = pca.components_.T
                         elif key == 'positive':
-                            self.pcs[1] = res_pca
+                            self.pcs[1] = pca.components_.T
                         self.has_pcs[key] = True
 
             if self.is_ready() and self.send_pcs:
