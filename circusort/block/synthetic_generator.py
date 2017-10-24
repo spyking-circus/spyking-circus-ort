@@ -36,6 +36,9 @@ class Synthetic_generator(block.Block):
             Number of cells. The default value is 10.
         hdf5_path: string
             Path to the location used to save the parameters of the generation.
+        log_path: string (optional)
+        seed: integer (optional)
+            Seed for random generation. The default value is 42.
 
     Output:
         data
@@ -53,6 +56,7 @@ class Synthetic_generator(block.Block):
         'nb_cells': 10,
         'hdf5_path': None,
         'log_path': None,
+        'seed': 42,
     }
 
     def __init__(self, cells_args=None, cells_params=None, **kwargs):
@@ -85,6 +89,9 @@ class Synthetic_generator(block.Block):
         return data_path
 
     def _initialize(self):
+
+        # Seed the random generator.
+        np.random.seed(self.seed)
 
         # Retrieve the geometry of the probe.
         self.nb_channels = self.probe.nb_channels

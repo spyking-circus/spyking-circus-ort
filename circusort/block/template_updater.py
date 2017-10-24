@@ -10,16 +10,26 @@ from circusort.io.template import TemplateStore
 
 
 class Template_updater(Block):
-    """Template updater"""
+    """Template updater
+
+    Attributes:
+        spike_width: float (optional)
+        probe: string (optional)
+        radius: None (optional)
+        sampling_rate: float (optional)
+        cc_merge: float (optional)
+        data_path: string (optional)
+        nb_channels: integer (optional)
+    """
     # TODO complete docstring.
 
     name = "Template updater"
 
     params = {
-        'spike_width': 5.,
+        'spike_width': 5.,  # ms
         'probe': None,
-        'radius': None,
-        'sampling_rate': 20000,
+        'radius': None,  # um
+        'sampling_rate': 20000,  # Hz
         'cc_merge': 0.95,
         'data_path': None,
         'nb_channels': 10,
@@ -37,47 +47,61 @@ class Template_updater(Block):
         self.add_output('updater', 'dict')
 
     def _initialize(self):
-        self.spikes         = {}
-        self.global_id      = 0
+
+        self.spikes = {}
+        self.global_id = 0
         self.two_components = False
-        self.temp_indices   = {}
-        self._spike_width_  = int(self.sampling_rate*self.spike_width*1e-3)
+        self.temp_indices = {}
+        self._spike_width_ = int(self.sampling_rate * self.spike_width * 1e-3)
         if np.mod(self._spike_width_, 2) == 0:
             self._spike_width_ += 1
-        self._width        = (self._spike_width_-1)//2
-        self._overlap_size = 2*self._spike_width_ - 1
-        self.all_delays    = np.arange(1, self._spike_width_ + 1)
+        self._width = (self._spike_width_ - 1) // 2
+        self._overlap_size = 2 * self._spike_width_ - 1
+        self.all_delays = np.arange(1, self._spike_width_ + 1)
 
+        # Initialize path to save the templates.
         if self.data_path is None:
             self.data_path = self._get_tmp_path()
+        else:
+            self.data_path = os.path.expanduser(self.data_path)
+            self.data_path = os.path.abspath(self.data_path)
+        # Create the corresponding directory if it does not exist.
+        data_directory, _ = os.path.split(self.data_path)
+        if not os.path.exists(data_directory):
+            os.makedirs(data_directory)
+        # Create object to handle templates.
+        self.template_store = TemplateStore(self.data_path,
+                                            N_t=self._spike_width_)
+        # Log path.
+        info_msg = "{} records templates into {}"
+        self.log.info(info_msg.format(self.name, self.data_path))
 
-        self.data_path = os.path.abspath(os.path.expanduser(self.data_path))
-        if not os.path.exists(self.data_path):
-            os.makedirs(self.data_path)
-        self.log.info('{n} records templates into {k}'.format(k=self.data_path, n=self.name))
-        self.template_store = TemplateStore(os.path.join(self.data_path, 'template_store.h5'), N_t=self._spike_width_)
         return
 
     @property
     def nb_templates(self):
+
         return self.templates.shape[1]
 
     def _get_tmp_path(self):
-        tmp_file  = tempfile.NamedTemporaryFile()
-        data_path = os.path.join(tempfile.gettempdir(), os.path.basename(tmp_file.name))
-        tmp_file.close()
-        return data_path
+
+        tmp_directory = tempfile.gettempdir()
+        tmp_basename = 'templates.h5'
+        tmp_path = os.path.join(tmp_directory, tmp_basename)
+
+        return tmp_path
 
     def _guess_output_endpoints(self):
-        self._nb_elements = self.nb_channels*self._spike_width_
-        self.cc_merging   = self.cc_merge * self._nb_elements
-        self.all_rows     = np.arange(self.nb_channels*self._spike_width_)
-        self.templates    = scipy.sparse.csc_matrix((self._nb_elements, 0), dtype=np.float32)
-        self.norms        = np.zeros(0, dtype=np.float32)
-        self.amplitudes   = np.zeros((0, 2), dtype=np.float32)
-        self.channels     = np.zeros(0, dtype=np.int32)
-        self.overlaps     = {}
-        self.max_nn_chan  = 0
+
+        self._nb_elements = self.nb_channels * self._spike_width_
+        self.cc_merging = self.cc_merge * self._nb_elements
+        self.all_rows = np.arange(self.nb_channels * self._spike_width_)
+        self.templates = scipy.sparse.csc_matrix((self._nb_elements, 0), dtype=np.float32)
+        self.norms = np.zeros(0, dtype=np.float32)
+        self.amplitudes = np.zeros((0, 2), dtype=np.float32)
+        self.channels = np.zeros(0, dtype=np.int32)
+        self.overlaps = {}
+        self.max_nn_chan = 0
 
         for channel in xrange(self.nb_channels):
             indices = self.probe.edges[channel]
@@ -87,12 +111,10 @@ class Template_updater(Block):
 
             self.temp_indices[channel] = np.zeros(0, dtype=np.int32)
             for i in indices:
-                tmp = np.arange(i*self._spike_width_, (i+1)*self._spike_width_)
+                tmp = np.arange(i * self._spike_width_, (i + 1) * self._spike_width_)
                 self.temp_indices[channel] = np.concatenate((self.temp_indices[channel], tmp))
 
-        if self.data_path is not None:
-            self.overlaps_file  = os.path.join(self.data_path, 'overlaps')
-
+        return
 
     def _is_duplicated(self, template):
 
@@ -190,30 +212,34 @@ class Template_updater(Block):
                 if data.has_key('two'):
                     self.two_components = True
                     self.template_store.two_components = True
-                    self.templates2     = scipy.sparse.csc_matrix((self._nb_elements, 0), dtype=np.float32)
-                    self.norms2         = np.zeros(0, dtype=np.float32)
+                    self.templates2 = scipy.sparse.csc_matrix((self._nb_elements, 0), dtype=np.float32)
+                    self.norms2 = np.zeros(0, dtype=np.float32)
 
             self.log.debug("{n} updates the dictionary of templates".format(n=self.name))
 
             if self.two_components:
                 self.templates2 = scipy.sparse.csc_matrix((self._nb_elements, 0), dtype=np.float32)
 
-            nb_before     = self.nb_templates
+            nb_before = self.nb_templates
             new_templates = self._construct_templates(data)
-            offset        = data.pop('offset')
+            offset = data.pop('offset')
 
             if len(new_templates) > 0:
 
-                params = {'templates'  : self.templates[:, nb_before:],
-                          'norms'      : self.norms[nb_before:],
-                          'amplitudes' : self.amplitudes[nb_before:],
-                          'channels'   : self.channels[nb_before:], 
-                          'times'      : [offset] * len(new_templates)}
+                params = {
+                    'templates': self.templates[:, nb_before:],
+                    'norms': self.norms[nb_before:],
+                    'amplitudes': self.amplitudes[nb_before:],
+                    'channels': self.channels[nb_before:],
+                    'times': [offset] * len(new_templates),
+                }
 
                 if self.two_components:
                     params['templates2'] = self.templates2
-                    params['norms2']     = self.norms2[nb_before:]
+                    params['norms2'] = self.norms2[nb_before:]
 
                 self.template_store.add(params)
                 self.output.send({'templates_file' : self.template_store.file_name, 'indices' : new_templates})
+
+
         return

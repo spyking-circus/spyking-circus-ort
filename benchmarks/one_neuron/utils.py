@@ -14,7 +14,8 @@ class Results(object):
     """Results of the scenario"""
     # TODO complete docstring.
 
-    def __init__(self, generator_kwargs, signal_writer_kwargs, mad_writer_kwargs, peak_writer_kwargs,
+    def __init__(self, generator_kwargs, signal_writer_kwargs,
+                 mad_writer_kwargs, peak_writer_kwargs,
                  updater_kwargs, spike_writer_kwargs):
 
         # Save raw input arguments.
@@ -215,6 +216,7 @@ class Results(object):
 
         generated_spike_steps = self.gen.get(variables='spike_times')
         generated_spike_steps = generated_spike_steps[u'0']['spike_times']
+        generated_spike_steps = generated_spike_steps.astype(np.int32)
 
         return generated_spike_steps
 
@@ -255,8 +257,8 @@ class Results(object):
         y = [0.0 for _ in x]
         plt.scatter(x, y, c='C1', marker='|')
         # Plot detected spike trains.
-        for k, detected_spike_train in enumerate(detected_spike_trains.values()):
-            x = [t for t in detected_spike_train]
+        for k, train in enumerate(detected_spike_trains.values()):
+            x = [t for t in train]
             y = [float(k + 1) for _ in x]
             plt.scatter(x, y, c='C0', marker='|')
         plt.xlabel("time (s)")
@@ -339,9 +341,10 @@ class Results(object):
 
     # Comparison between generated and fitted template.
 
-    def generated_templates(self, i, time=None, nn=100, hf_dist=45, a_dist=1.0):
+    def generated_templates(self, i, time=None, nn=100, hf_dist=45,
+                            a_dist=1.0):
         """Get generated templates
-
+        
         Arguments:
             i: int
                 Cell identifier.
@@ -354,10 +357,13 @@ class Results(object):
         if time is None:
             time = 0
         res = self.gen.get(indices=[i], variables=['x', 'y', 'z'])
-        cell = Cell(lambda t: res[i]['x'][time], lambda t: res[i]['y'][time], lambda t: res[i]['z'][time], nn=nn,
+        cell = Cell(lambda t: res[i]['x'][time],
+                    lambda t: res[i]['y'][time],
+                    lambda t: res[i]['z'][time], nn=nn,
                     hf_dist=hf_dist, a_dist=a_dist)
         a, b, c = cell.get_waveforms(time, self.probe)
-        template = scipy.sparse.csc_matrix((c, (b, a + 20)), shape=(self.nb_channels, 81))
+        template = scipy.sparse.csc_matrix((c, (b, a + 20)),
+                                           shape=(self.nb_channels, 81))
 
         template = template.toarray()
 
@@ -365,14 +371,12 @@ class Results(object):
 
     def detected_templates(self, i):
         """Get detected templates
-
         Arguments:
             i: int
                 Unit identifier.
         """
 
-        template_dir = os.path.abspath(self.updater_kwargs['data_path'])
-        template_path = os.path.join(template_dir, 'template_store.h5')
+        template_path = os.path.abspath(self.updater_kwargs['data_path'])
         template_store = TemplateStore(template_path, mode='r')
 
         data = template_store.get([i], ['templates', 'norms'])
@@ -385,9 +389,9 @@ class Results(object):
 
         return templates
 
-    def averaged_template(self, time_window=5.0, time_shift=0.4, dtype=np.float32):
+    def averaged_template(self, time_window=5.0, time_shift=0.4,
+                          dtype=np.float32):
         """Get averaged template
-
         Arguments:
             time_window: float (optional)
                 Time window [ms]. The default value is 5.0.
@@ -422,8 +426,9 @@ class Results(object):
                 template = spike_data
                 count = 1
             else:
-                template = (float(count - 1) / float(count)) * template + (1.0 / float(count)) * spike_data
-                count +=1
+                template = (float(count - 1) / float(count)) * template\
+                           + (1.0 / float(count)) * spike_data
+                count += 1
         template = np.transpose(template)
 
         return template
@@ -431,7 +436,8 @@ class Results(object):
     def compare_templates(self):
         """Compare templates
 
-        Compare the generated template with the detected template and the averaged template.
+        Compare the generated template with the detected template and the
+        averaged template.
         """
 
         # Retrieve the generated template.
@@ -492,4 +498,4 @@ class Results(object):
         plt.tight_layout()
         plt.show()
 
-        return generated_template, detected_template
+        return
