@@ -20,7 +20,7 @@ host = '127.0.0.1'  # i.e. run the test locally
 
 cell_obj = {'r': 'r_ref'}
 cells_args = [cell_obj]
-cells_params = {'r_ref': 50.0}  # firiansng rate [Hz]
+cells_params = {'r_ref': 50.0}  # firing rate [Hz]
 
 tmp_dir = os.path.join('/', 'tmp', 'spyking_circus_ort', 'one_neuron')
 if not os.path.exists(tmp_dir):
@@ -75,11 +75,11 @@ else:
     generator = manager.create_block('synthetic_generator',
                                      cells_args=cells_args,
                                      cells_params=cells_params,
-                                     seed=44,
+                                     seed=43,
                                      log_level=DEBUG,
                                      **generator_kwargs)
     filtering = manager.create_block('filter',
-                                     cut_off=1000.0,
+                                     cut_off=100.0,
                                      log_level=DEBUG)
 #     whitening = manager.create_block('whitening',
 #                                      log_level=DEBUG)
