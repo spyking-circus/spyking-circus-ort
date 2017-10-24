@@ -329,8 +329,28 @@ class Results(object):
         detected_spike_trains = self.detected_spike_trains
         for k, train in enumerate(detected_spike_trains.values()):
             x = [t for t in train if t_min <= t <= t_max]
-            y = [float(k) for _ in x]
+            y = [-float(k + 2) for _ in x]
             plt.scatter(x, y, c='C1', marker='|', zorder=2)
+        # TODO remove the following lines.
+        # Plot rejected peaks.
+        rejected_path = '/tmp/spyking_circus_ort/template_matching/rejected_peaks.raw'
+        rejected_peaks = io.load_peaks(rejected_path)
+        rejected_peaks = rejected_peaks.get_time_steps(0)
+        rejected_peaks = rejected_peaks.astype(np.float32)
+        rejected_peaks /= self.sampling_rate
+        x = [t for t in rejected_peaks]
+        y = [-3.0 for _ in x]
+        plt.scatter(x, y, c='C3', marker='|', zorder=2)
+        # TODO remove the following.
+        # Plot thrown peaks.
+        thrown_path = '/tmp/spyking_circus_ort/template_matching/thrown_peaks.raw'
+        thrown_peaks = io.load_peaks(thrown_path)
+        thrown_peaks = thrown_peaks.get_time_steps(0)
+        thrown_peaks = thrown_peaks.astype(np.float32)
+        thrown_peaks /= self.sampling_rate
+        x = [t for t in thrown_peaks]
+        y = [-4.0 for _ in x]
+        plt.scatter(x, y, c='C4', marker='|', zorder=2)
         plt.xlabel("time (s)")
         plt.ylabel("electrode")
         plt.ylabel("Signal and spikes")

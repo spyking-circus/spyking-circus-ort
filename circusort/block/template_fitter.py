@@ -67,6 +67,12 @@ class Template_fitter(Block):
             self.init_path = os.path.abspath(self.init_path)
             self._initialize_templates()
 
+        # TODO remove the following lines.
+        rejected_path = '/tmp/spyking_circus_ort/template_matching/rejected_peaks.raw'
+        thrown_path = '/tmp/spyking_circus_ort/template_matching/thrown_peaks.raw'
+        self.rejected_file = open(rejected_path, mode='wb')
+        self.thrown_file = open(thrown_path, mode='wb')
+
         return
 
     def _initialize_templates(self):
@@ -143,6 +149,11 @@ class Template_fitter(Block):
             for channel in peak_steps[key].keys():
                 all_peak_steps = all_peak_steps.union(peak_steps[key][channel])
         all_peak_steps = np.array(list(all_peak_steps), dtype=np.int32)
+
+        # TODO remove the 2 following lines.
+        for i in all_peak_steps:
+            to_write = np.array([(0, i + self.offset)], dtype=np.int32)
+            self.thrown_file.write(to_write)
 
         mask = self._is_valid(all_peak_steps)
         all_valid_peak_steps = all_peak_steps[mask]
@@ -317,7 +328,9 @@ class Template_fitter(Block):
                         mask[best_template_index, peak_index] = 0
                     else:
                         # Reject the matching.
-                        peak_index
+                        # TODO remove the 2 following lines.
+                        to_write = np.array([(0, peaks[peak_index] + self.offset)], dtype=np.int32)
+                        self.rejected_file.write(to_write)
                         # Update failure counter of the peak.
                         nb_failures[peak_index] += 1
                         # If the maximal number of failures is reached then mark as solved (i.e. not fitted).
@@ -337,10 +350,14 @@ class Template_fitter(Block):
     def _process(self):
 
         batch = self.inputs['data'].receive()
-        peaks = self.inputs['peaks'].receive(blocking=False)
+        if self.is_active:
+            peaks = self.inputs['peaks'].receive()
+        else:
+            peaks = self.inputs['peaks'].receive(blocking=False)
         updater = self.inputs['updater'].receive(blocking=False)
 
         if updater is not None:
+
             if self.template_store is None:
                 self.template_store = TemplateStore(updater['templates_file'], 'r', self.two_components)
 
@@ -358,11 +375,11 @@ class Template_fitter(Block):
 
         if peaks is not None:
 
-            # TODO check if the following two lines are necessary.
-            while not self._sync_buffer(peaks, self.nb_samples):
-                peaks = self.inputs['peaks'].receive()
-
             if not self.is_active:
+                # Synchronize peak reception.
+                while not self._sync_buffer(peaks, self.nb_samples):
+                    peaks = self.inputs['peaks'].receive()
+                # Set active mode.
                 self._set_active_mode()
 
             _ = peaks.pop('offset')
