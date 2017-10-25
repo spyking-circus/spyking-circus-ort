@@ -4,14 +4,29 @@ from scipy import signal
 
 
 class Filter(Block):
-    """Filter block"""
+    """Filtering of the voltage traces of the recording channels
+
+    Parameters
+    ----------
+    sampling_rate: int (default 20000)
+        Sampling rate (in Hz) used to record the signal.
+    cut_off: int (default 500)
+        Cutoff frequency (in Hz) used to define the high-pass filter
+        (third-order Butterworth).
+    remove_median: bool (default False)
+        Option to remove the median over all the channels for each time step.
+
+    See Also
+    --------
+    Block
+    """
     # TODO complete docstring.
 
     name = "Filter"
 
     params = {
-        'cut_off': 500,
-        'sampling_rate': 20000,
+        'cut_off': 500,  # Hz
+        'sampling_rate': 20000,  # Hz
         'remove_median': False,
     }
 
@@ -38,7 +53,7 @@ class Filter(Block):
         return self.input.shape[0]
 
     def _guess_output_endpoints(self):
-        self.output.configure(dtype=self.input.dtype, shape=self.input.shape)        
+        self.output.configure(dtype=self.input.dtype, shape=self.input.shape)
         self.z = {}
         m = max(len(self.a), len(self.b)) - 1
         for i in xrange(self.nb_channels):

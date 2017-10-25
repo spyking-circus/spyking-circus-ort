@@ -31,7 +31,7 @@ nb_channels    = 16
 sim_time       = 200
 
 nb_cells   = 10
-cell_obj_1 = {'r': 'r_ref*(t < tc)'}
+cell_obj_1 = {'r': 'r_ref*(t < tc)', }
 cell_obj_2 = {'r': '2*r_ref*(t >= tc)'}
 
 cells_params = {'r_ref': 10.0, # reference firing rate (i.e. mean firing rate)

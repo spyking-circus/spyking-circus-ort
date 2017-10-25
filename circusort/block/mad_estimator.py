@@ -44,7 +44,7 @@ class Mad_estimator(Block):
     def nb_channels(self):
 
         return self.input.shape[1]
-        
+
     @property
     def nb_samples(self):
 
@@ -72,6 +72,8 @@ class Mad_estimator(Block):
         if (test < self.epsilon):
             self.log.info('{n} has converged'.format(n=self.name_and_counter))
             self._set_active_mode()
+            # # TODO remove follwing line.
+            # print(">>>(Mad_estimator._check_if_active) self.counter={}, self.start_step= {}".format(self.counter, self.start_step))
 
         return
 
