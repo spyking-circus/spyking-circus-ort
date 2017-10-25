@@ -282,6 +282,75 @@ class Results(object):
 
         return
 
+    def van_rossum_distances(self, t_min=None, t_max=None,c=100.0):
+        """Compute von Rossum distance between generated and detected spike trains"""
+
+        # Retrieve the generated spike train.
+        generated_spike_train = self.generated_spike_train
+
+        # Retrieve the detected spike trains.
+        detected_spike_trains = self.detected_spike_trains
+
+        d = np.zeros(len(detected_spike_trains))
+        for k, train in enumerate(detected_spike_trains.values()):
+            # Initialize distance.
+            d[k] = 0.0
+            # Collect spike times and polarities.
+            nb_spikes = len(generated_spike_train) + len(train)
+            t = np.zeros(nb_spikes, dtype=float)
+            p = np.zeros(nb_spikes, dtype=float)
+            i_gen = 0
+            i_det = 0
+            for i in range(0, nb_spikes):
+                if i_gen == len(generated_spike_train):
+                    t[i] = train[i_det]
+                    p[i] = -1.0
+                    i_det += 1
+                elif i_det == len(train):
+                    t[i] = generated_spike_train[i_gen]
+                    p[i] = +1.0
+                    i_gen += 1
+                elif generated_spike_train[i_gen] < train[i_det]:
+                    t[i] = generated_spike_train[i_gen]
+                    p[i] = +1.0
+                    i_gen += 1
+                else:
+                    t[i] = train[i_det]
+                    p[i] = -1.0
+                    i_det += 1
+            # Keep spike times between t_min and t_max.
+            if t_min is not None:
+                mask = t_min <= t
+                t = t[mask]
+                p = p[mask]
+            if t_max is not None:
+                mask = t <= t_max
+                t = t[mask]
+                p = p[mask]
+            nb_spikes = t.size
+            # Add area between (i-1)th and (i)th spikes.
+            for i in range(1, nb_spikes):
+                dd = 0.0
+                for j in range(0, i):
+                    a = t[i - 1] - t[j]
+                    b = t[i] - t[j]
+                    da = c * (np.exp(- a / c) - np.exp(- b / c))
+                    dd += p[j] * da
+                dd = np.abs(dd)
+                d[k] += dd
+            # Add area after last spike if it exists.
+            if nb_spikes > 0:
+                dd = 0.0
+                for j in range(0, nb_spikes):
+                    a = t[-1] - t[j]
+                    da = c * np.exp(- a / c)
+                    dd += p[j] * da
+                dd = np.abs(dd)
+                d[k] += dd
+            d[k] /= float(nb_spikes) * c
+
+        return d
+
     def plot_signal_and_spikes(self, t_min=None, t_max=None, thold=1.0):
         """Plot signal and spikes
 
