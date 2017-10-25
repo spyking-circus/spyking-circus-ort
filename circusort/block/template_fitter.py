@@ -344,19 +344,22 @@ class Template_fitter(Block):
 
         if updater is not None:
 
+            # Create the template dictionary if necessary.
             if self.template_store is None:
                 self.template_store = TemplateStore(updater['templates_file'], 'r', self.two_components)
 
+            # Retrieve data associated to new and updated templates.
             data = self.template_store.get(updater['indices'], variables=self.variables)
 
+            # Add new and updated templates to the dictionary.
             self.norms = np.concatenate((self.norms, data.pop('norms')))
             self.amplitudes = np.vstack((self.amplitudes, data.pop('amplitudes')))
             self.templates = vstack((self.templates, data.pop('templates').T), 'csr')
-
             if self.two_components:
                 self.norms2 = np.concatenate((self.norms2, data.pop('norms2')))
                 self.templates = vstack((self.templates, data.pop('templates2').T), 'csr')
 
+            # Reinitialize overlapping matrix for recomputation.
             self.overlaps = {}
 
         if peaks is not None:
