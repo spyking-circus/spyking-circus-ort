@@ -1,5 +1,3 @@
-# import h5py
-# import multiprocessing
 import numpy as np
 import Queue
 # import scipy as sp
@@ -8,6 +6,7 @@ import threading
 import time
 # import tempfile
 import os
+import json
 
 from circusort.block import block
 from circusort import io
@@ -20,11 +19,11 @@ from circusort.io.synthetic import SyntheticStore
 # threads is necessary, i.e. is there another canonical way to stop the
 # background thread (in a infinite loop) from the main thread?
 
-class Synthetic_generator(block.Block):
-    """Generate a synthetics MEA recording.
 
-    Parameters
-    ----------
+class Synthetic_generator(block.Block):
+    """Generate a synthetic MEA recording.
+
+    Arguments:
     cells_args: list
         List of dictionaries used as input arguments for the creation of the
         synthetic cells.
@@ -37,20 +36,40 @@ class Synthetic_generator(block.Block):
     log_level: integer
         Level for the associated logger.
 
+    Attributes:
+        dtype: type:
+            Data type.
+        probe: string
+            Path to the location of the file describing the probe.
+        sampling_rate: float
+            Sampling rate [Hz]. The default value is 20e+3.
+        nb_samples
+            Chunk size.
+        nb_cells: integer
+            Number of cells. The default value is 10.
+        hdf5_path: string
+            Path to the location used to save the parameters of the generation.
+        log_path: string (optional)
+        seed: integer (optional)
+            Seed for random generation. The default value is 42.
+
+    Output:
+        data
+
     """
     # TODO complete docstring.
-
-    # TODO understand the expected format for cells_args and cells_params.
 
     name = "Synthetic Generator"
 
     params = {
         'dtype': 'float32',
         'probe': None,
-        'sampling_rate': 20000.0,
+        'sampling_rate': 20e+3,  # Hz
         'nb_samples': 1024,
         'nb_cells': 10,
         'hdf5_path': None,
+        'log_path': None,
+        'seed': 42,
     }
 
     def __init__(self, cells_args=None, cells_params=None, **kwargs):
@@ -59,9 +78,12 @@ class Synthetic_generator(block.Block):
         block.Block.__init__(self, **kwargs)
         # Save class parameters.
         self.cells_args = cells_args
-        self.cells_params = {} if cells_params is None else cells_params
-        # Calculate the number of cells.
-        if isinstance(self.cells_args, list):
+        if cells_params is None:
+            self.cells_params = {}
+        else:
+            self.cells_params = cells_params
+        # Compute the number of cells.
+        if self.cells_args is not None:
             self.nb_cells = len(self.cells_args)
         # Open the probe file.
         if self.probe is None:
@@ -69,9 +91,12 @@ class Synthetic_generator(block.Block):
         else:
             self.probe = io.Probe(self.probe, logger=self.log)
             self.log.info('{n} reads the probe layout'.format(n=self.name))
-        # # Retrieve the geometry of the probe.
-        self.nb_channels = self.probe.nb_channels
-        self.fov = self.probe.field_of_view
+
+        # TODO log/save input keyword argument to file.
+        log_kwargs = {k: self.params[k] for k in ['nb_samples']}
+        with open(self.log_path, 'w') as log_file:
+            json.dump(log_kwargs, log_file, sort_keys=True, indent=4)
+
         # Add data output.
         self.add_output('data')
 
@@ -84,14 +109,29 @@ class Synthetic_generator(block.Block):
 
         return tmp_path
 
+    def _get_tmp_path(self):
+
+        tmp_file = tempfile.NamedTemporaryFile()
+        data_path = os.path.join(tempfile.gettempdir(), os.path.basename(tmp_file.name))
+        tmp_file.close()
+
+        return data_path
+
     def _initialize(self):
         """TODO add docstring."""
+
+        # Seed the random generator.
+        np.random.seed(self.seed)
+
+        # # Retrieve the geometry of the probe.
+        self.nb_channels = self.probe.nb_channels
+        self.fov = self.probe.field_of_view
 
         # Generate synthetic cells.
         self.cells = {}
         for c in range(0, self.nb_cells):
-            x_ref = np.random.uniform(self.fov['x_min'], self.fov['x_max'])  # um # cell x-coordinate
-            y_ref = np.random.uniform(self.fov['y_min'], self.fov['y_max'])  # um # cell y-coordinate
+            x_ref = np.random.uniform(self.fov['x_min'], self.fov['x_max'])  # um  # cell x-coordinate
+            y_ref = np.random.uniform(self.fov['y_min'], self.fov['y_max'])  # um  # cell y-coordinate
             z_ref = 0.0  # um  # cell z-coordinate
             r_ref = 5.0  # Hz  # cell firing rate
             cell_args = {
@@ -118,8 +158,8 @@ class Synthetic_generator(block.Block):
             self.hdf5_path = self._resolve_hdf5_path()
 
         self.hdf5_path = os.path.abspath(os.path.expanduser(self.hdf5_path))
-        self.log.info('{n} records synthetic data from {d} cells into {k}'.format(k=self.hdf5_path, n=self.name,
-                                                                                  d=self.nb_cells))
+        info_msg = "{n} records synthetic data from {d} cells into {k}"
+        self.log.info(info_msg.format(k=self.hdf5_path, n=self.name, d=self.nb_cells))
 
         # Define and launch the background thread for data generation.
         # # First queue is used as a buffer for synthetic data.
@@ -131,11 +171,12 @@ class Synthetic_generator(block.Block):
         # # Define the target function of the background thread.
         def syn_gen_target(rpc_queue, queue, nb_channels, probe, nb_samples, nb_cells, cells, hdf5_path):
             """Synthetic data generation (background thread)"""
+
             mu = 0.0  # uV  # noise mean
             sigma = 4.0  # uV  # noise standard deviation
-            spike_trains_buffer_ante = {cell_id: np.array([], dtype='int') for cell_id in range(0, nb_cells)}
-            spike_trains_buffer_curr = {cell_id: np.array([], dtype='int') for cell_id in range(0, nb_cells)}
-            spike_trains_buffer_post = {cell_id: np.array([], dtype='int') for cell_id in range(0, nb_cells)}
+            spike_trains_buffer_ante = {c: np.array([], dtype='int') for c in range(0, nb_cells)}
+            spike_trains_buffer_curr = {c: np.array([], dtype='int') for c in range(0, nb_cells)}
+            spike_trains_buffer_post = {c: np.array([], dtype='int') for c in range(0, nb_cells)}
 
             synthetic_store = SyntheticStore(hdf5_path, 'w')
 
@@ -144,9 +185,9 @@ class Synthetic_generator(block.Block):
                 s, u = cells[cell_id].get_waveform()
 
                 params = {
-                    'cell_id': cell_id,
+                    'cell_id': c,
                     'waveform/x': s,
-                    'waveform/y': u,
+                    'waveform/y': u
                 }
 
                 synthetic_store.add(params)
@@ -156,10 +197,10 @@ class Synthetic_generator(block.Block):
             to_write = {}
             frequency = 100
 
-            for cell_id in range(0, nb_cells):
-                spike_trains_buffer_post[cell_id] = cells[cell_id].generate_spike_trains(chunk_number, nb_samples)
-                to_write[cell_id] = {
-                    'cell_id': cell_id,
+            for c in range(0, nb_cells):
+                spike_trains_buffer_post[c] = cells[c].generate_spike_trains(chunk_number, nb_samples)
+                to_write[c] = {
+                    'cell_id': c,
                     'x': [],
                     'y': [],
                     'z': [],
@@ -218,9 +259,9 @@ class Synthetic_generator(block.Block):
                         to_write[cell_id]['spike_times'] += spike_times.tolist()
 
                         if chunk_number % frequency == 0:
-                            synthetic_store.add(to_write[cell_id])
-                            to_write[cell_id] = {
-                                'cell_id': cell_id,
+                            self.synthetic_store.add(to_write[c])
+                            to_write[c] = {
+                                'cell_id': c,
                                 'x': [],
                                 'y': [],
                                 'z': [],
@@ -237,14 +278,13 @@ class Synthetic_generator(block.Block):
                 # TODO test if the following line is necessary.
                 time.sleep(0.001)
 
-            # We write the remaining data for the cells.
-            for cell_id in range(0, nb_cells):
-                synthetic_store.add(to_write[cell_id])
+            # We write the remaining data for the cells
+            for c in range(0, nb_cells):
+                self.synthetic_store.add(to_write[c])
 
             synthetic_store.close()
 
             return
-
         # # Define background thread for data generation.
         args = (self.rpc_queue, self.queue, self.nb_channels, self.probe,
                 self.nb_samples, self.nb_cells, self.cells, self.hdf5_path)
@@ -266,23 +306,19 @@ class Synthetic_generator(block.Block):
         return
 
     def _process(self):
-        """TODO add docstring."""
 
         # Get data from background thread.
         # # TODO remove following line.
         # self.log.debug("get data from queue")
         data = self.queue.get()
         # Simulate duration between two data acquisitions.
-        # # TODO remove following line.
-        # self.log.debug("sleep duration: {}".format(self.nb_samples * self.sampling_rate))
-        time.sleep(self.nb_samples / int(self.sampling_rate))
+        time.sleep(float(self.nb_samples) / self.sampling_rate)
         # Send data.
         self.output.send(data)
 
         return
 
-    @staticmethod
-    def exec_kwargs(input_kwargs, input_params):
+    def exec_kwargs(self, input_kwargs, input_params):
         """Convert input keyword arguments into output keyword arguments.
 
         Parameter
@@ -294,7 +330,6 @@ class Synthetic_generator(block.Block):
         ------
         output_kwargs: dict
             Dictionary with the following keys: 'x', 'y', 'z' and 'r'.
-
         """
 
         # Define object (i.e. string or code object).
@@ -414,7 +449,7 @@ class Cell(object):
         self.buffered_spike_times = np.array([], dtype='float32')
 
     def e(self, chunk_number, probe):
-        """Nearest electrode for the given chunk
+        """Nearest electrode for the given chunk.
 
         Parameter
         ---------
@@ -425,7 +460,6 @@ class Cell(object):
         ------
         e: int
             Number of the electrode/channel which is the nearest to this cell.
-
         """
 
         x = self.x(chunk_number)
@@ -447,8 +481,8 @@ class Cell(object):
             Identifier of the current chunk.
         nb_samples
             Number of samples per buffer.
-
         """
+        # TODO complete docstring.
 
         if self.t == 'default':
 
@@ -517,7 +551,7 @@ class Cell(object):
         """Get spike waveform"""
 
         tau = 1.5e-3  # s  # characteristic time
-        amp = -40.0  # um  # minimal voltage
+        amp = -80.0  # um  # minimal voltage
 
         i_start = -20
         i_stop = +60
@@ -539,7 +573,6 @@ class Cell(object):
             Number of the current chunk.
         probe: circusort.io.Probe
             Description of the probe.
-
         """
 
         steps, u = self.get_waveform()

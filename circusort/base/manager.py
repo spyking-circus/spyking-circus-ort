@@ -2,8 +2,10 @@ from circusort.base import utils
 from circusort.base.process import Process
 import logging
 
+
 class Manager(object):
-    '''TODO add docstring'''
+    """Manager"""
+    # TODO complete docstring.
 
     def __init__(self, name=None, host=None, log_address=None, log_level=logging.INFO):
 
@@ -22,16 +24,16 @@ class Manager(object):
         self.log.info("{d} is created".format(d=str(self)))
 
     def create_block(self, block_type, name=None, log_level=None, **kwargs):
-        '''TODO add docstring'''
+        """Create a new block linked to the manager."""
+        # TODO complete docstring.
 
         if name is None:
-            if self.blocks_types.has_key(block_type):
+            if block_type in self.blocks_types:
                 suffix = 1 + self.blocks_types[block_type]
                 self.blocks_types[block_type] += 1
             else:
                 suffix = 1
                 self.blocks_types[block_type] = 1
-
 
         if log_level is None:
             log_level = self.log_level
@@ -52,7 +54,8 @@ class Manager(object):
         return block
 
     def connect(self, output_endpoints, input_endpoints, protocol='ipc', show_log=True):
-        '''TODO add docstring'''
+        """Connect endpoints"""
+        # TODO complete docstring.
 
         if not type(input_endpoints) == list:
             input_endpoints = [input_endpoints]
@@ -74,11 +77,10 @@ class Manager(object):
                 input_endpoint.configure(**description)
                 input_endpoint.block.connect(input_endpoint.name)
                 input_endpoint.block.guess_output_endpoints()
-                self.log.debug("{p} connection established from {a}[{s}] to {b}[{t}]".format(p=protocol, s=(output_endpoint.name, output_endpoint.structure),
-                                                                                                    t=(input_endpoint.name, input_endpoint.structure),
-                                                                                                    a=output_endpoint.block.name,
-                                                                                                    b=input_endpoint.block.name))
-
+                debug_msg = "{p} connection established from {a}[{s}] to {b}[{t}]"
+                self.log.debug(debug_msg.format(p=protocol, s=(output_endpoint.name, output_endpoint.structure),
+                                                t=(input_endpoint.name, input_endpoint.structure),
+                                                a=output_endpoint.block.name, b=input_endpoint.block.name))
 
         return
 
@@ -101,7 +103,7 @@ class Manager(object):
         return self.blocks.keys()
 
     def get_block(self, key):
-        assert key in self.list_blocks(), self.log.error("%s is not a valid block" %key)
+        assert key in self.list_blocks(), self.log.error("%s is not a valid block" % key)
         return self.blocks[key]
 
     def initialize(self):
@@ -111,9 +113,10 @@ class Manager(object):
         return
 
     def join(self):
-        self.log.info("{d} joins {s}".format(d=str(self), s=", ".join(self.list_blocks())))
+        self.log.debug("{d} joins {s}".format(d=str(self), s=", ".join(self.list_blocks())))
         for block in self.blocks.itervalues():
             block.join()
+        self.log.info("{d} joins {s}".format(d=str(self), s=", ".join(self.list_blocks())))
         return
 
     @property
@@ -156,12 +159,13 @@ class Manager(object):
         return
 
     def stop(self):
-        self.log.info("{d} stops {s}".format(d=str(self), s=", ".join(self.list_blocks())))
+        self.log.debug("{d} stops {s}".format(d=str(self), s=", ".join(self.list_blocks())))
         for block in self.blocks.itervalues():
             block.stop()
+        self.log.info("{d} stops {s}".format(d=str(self), s=", ".join(self.list_blocks())))
         return
 
     def __del__(self):
-        self.log.info("{d} is destroyed".format(d=str(self)))
         for block in self.blocks.itervalues():
             block.__del__()
+        self.log.info("{d} is destroyed".format(d=str(self)))

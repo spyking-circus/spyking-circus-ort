@@ -17,9 +17,12 @@ tests/*
 !tests/test_updater_multiple_clustering.py
 !tests/test_updater_multiple_fitters.py
 !tests/test_syn_gen.py
+!tests/test_listener_writer.py
+!tests/test_mua.py
+*settings.py
 
 # PyCharm project files
-.idea
+.idea/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

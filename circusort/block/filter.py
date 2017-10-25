@@ -4,7 +4,7 @@ from scipy import signal
 
 
 class Filter(Block):
-    '''Filtering of the voltage traces of the recording channels
+    """Filtering of the voltage traces of the recording channels
 
     Parameters
     ----------
@@ -19,15 +19,15 @@ class Filter(Block):
     See Also
     --------
     Block
-
-    '''
+    """
+    # TODO complete docstring.
 
     name = "Filter"
 
     params = {
-        'sampling_rate' : 20000, # Hz
-        'cut_off': 500, # Hz
-        'remove_median' : False,
+        'cut_off': 500,  # Hz
+        'sampling_rate': 20000,  # Hz
+        'remove_median': False,
     }
 
     def __init__(self, **kwargs):
@@ -38,7 +38,7 @@ class Filter(Block):
 
     def _initialize(self):
         cut_off = numpy.array([self.cut_off, 0.95*(self.sampling_rate/2.)])
-        b, a   = signal.butter(3, cut_off/(self.sampling_rate/2.), 'pass')
+        b, a = signal.butter(3, cut_off/(self.sampling_rate/2.), 'pass')
         self.b = b
         self.a = a
         self.z = {}
@@ -61,17 +61,17 @@ class Filter(Block):
 
     def _process(self):
 
+        # Receive input data.
         batch = self.input.receive()
-
+        # Process data.
         for i in xrange(self.nb_channels):
-            batch[:, i], self.z[i]  = signal.lfilter(self.b, self.a, batch[:, i], zi=self.z[i])
+            batch[:, i], self.z[i] = signal.lfilter(self.b, self.a, batch[:, i], zi=self.z[i])
             batch[:, i] -= numpy.median(batch[:, i])
-
         if self.remove_median:
             global_median = numpy.median(batch, 1)
             for i in xrange(self.nb_channels):
                 batch[:, i] -= global_median
-
+        # Send output data.
         self.output.send(batch)
 
         return

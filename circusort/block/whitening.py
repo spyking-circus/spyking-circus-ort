@@ -4,7 +4,7 @@ from numpy.linalg import eigh
 
 
 class Whitening(Block):
-    '''Decorrelation of the voltage traces of the recording channels
+    """Decorrelation of the voltage traces of the recording channels
 
     Parameters
     ----------
@@ -25,15 +25,18 @@ class Whitening(Block):
     -----
     This block discards the first batches of data until the necessary period of
     time to estimate the covariance matrix has passed.
-
-    '''
+    """
+    # TODO complete docstring.
 
     name   = "Whitening"
 
     params = {
-        'sampling_rate': 20000, # Hz
-        'tau': 10.0, # s
+        'spike_width': 5,
+        'radius': 'auto',
         'fudge': 1e-18,
+        'sampling_rate': 20000,  # Hz
+        'tau': 10.0,  # s
+        'chunks': 10,
     }
 
     def __init__(self, **kwargs):
@@ -67,15 +70,14 @@ class Whitening(Block):
 
         batch = self.input.receive()
 
-        if not self.is_active:
+        if self.is_active:
+            batch = numpy.dot(batch, self.whitening_matrix)
+            self.output.send(batch)
+        else:
             self.silences = numpy.vstack((self.silences, batch))
             if self.silences.shape[0] > self.duration:
                 self._get_whitening_matrix()
                 self.log.info("{n} computes whitening matrix".format(n=self.name_and_counter))
                 self._set_active_mode()
-
-        if self.is_active:
-            batch = numpy.dot(batch, self.whitening_matrix)
-            self.output.send(batch)
 
         return

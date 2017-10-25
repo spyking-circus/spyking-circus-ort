@@ -1,18 +1,17 @@
 from __future__ import print_function
 from setuptools import setup, find_packages
 import os
-from os.path import join as pjoin
-import sys, subprocess, re
+import sys, re
 
 
 requires = [
-    'numpy',
-    'tqdm',
-    'pyzmq',
-    'scipy',
     'h5py',
-    'paramiko',
     'matplotlib',
+    'numpy',
+    'paramiko',
+    'scipy',
+    'tqdm',
+    'zmq',
 ]
 
 def read(fname):

@@ -7,15 +7,17 @@ class Fake_spike_generator(Block):
 
     name = "Fake Spike Generator"
 
-    params = {'dtype'         : 'float32',
-              'nb_channels'   : 10,
-              'sampling_rate' : 20000,
-              'nb_samples'    : 1024,
-              'time_constant' : 60.,
-              'rate'          : 5,
-              'nb_cells'      : 100,
-              'refractory'    : 5,
-              'duration'      : 2}
+    params = {
+        'dtype': 'float32',
+        'nb_channels': 10,
+        'sampling_rate': 20000,
+        'nb_samples': 1024,
+        'time_constant': 60.,
+        'rate': 5,
+        'nb_cells': 100,
+        'refractory': 5,
+        'duration': 2
+    }
 
     def __init__(self, **kwargs):
         Block.__init__(self, **kwargs)

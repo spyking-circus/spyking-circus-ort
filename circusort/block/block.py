@@ -4,12 +4,13 @@ import zmq
 import logging
 import time
 
-from circusort.base.endpoint import Endpoint
+from circusort.base.endpoint import Endpoint, EOCError
 from circusort.base import utils
 
 
 class Block(threading.Thread):
-    """TODO add docstring"""
+    """Block base class."""
+    # TODO complete docstring.
 
     name = "Block"
     params = {}
@@ -31,12 +32,16 @@ class Block(threading.Thread):
 
         self.log = utils.get_log(self.log_address, name=__name__, log_level=self.log_level)
 
+        self.parent = None
+        self.host = None
+
         self.running = False
         self.ready = False
+        self.stop_pending = False
         self.t_start = None
         self.nb_steps = None
         self.is_active = False
-        self.start_step = None
+        self.start_steps = None
         self.check_interval = 100
         self.counter = 0
         self.mpl_display = False
@@ -78,8 +83,8 @@ class Block(threading.Thread):
         elif len(self.inputs) == 0:
             self.log.error('{n} has no Inputs'.format(n=self.name))
         else:
-            self.log.error('{n} has multiple Inputs:{i}, you must be more explicit'.format(n=self.name,
-                                                                                           i=self.inputs.keys()))
+            error_msg = "{n} has multiple Inputs:{i}, you must be more explicit"
+            self.log.error(error_msg.format(n=self.name, i=self.inputs.keys()))
 
     @property
     def output(self):
@@ -88,8 +93,8 @@ class Block(threading.Thread):
         elif len(self.outputs) == 0:
             self.log.error('{n} has no Outputs'.format(n=self.name))
         else:
-            self.log.error('{n} has multiple Outputs:{o}, you must be more explicit'.format(n=self.name,
-                                                                                            o=self.outputs.keys()))
+            error_msg = "{n} has multiple Outputs:{o}, you must be more explicit"
+            self.log.error(error_msg.format(n=self.name, o=self.outputs.keys()))
 
     @property
     def nb_inputs(self):
@@ -125,13 +130,14 @@ class Block(threading.Thread):
             self.log.debug("{n} guesses output connections".format(n=self.name))
             return self._guess_output_endpoints(**kwargs)
 
-    def _sync_buffer(self, dict, nb_samples):
-        offset = dict['offset']
+    def _sync_buffer(self, dictionary, nb_samples):
+        offset = dictionary['offset']
         if offset < self.counter * nb_samples:
             return False
         return True
 
     def run(self):
+
         if not self.ready:
             self.initialize()
 
@@ -147,21 +153,64 @@ class Block(threading.Thread):
                 if numpy.mod(self.counter, self.check_interval) == 0:
                     self._check_real_time_ratio()
         else:
-            while self.running:
-                self._process()
-                self.counter += 1
-                if numpy.mod(self.counter, self.check_interval) == 0:
-                    self._check_real_time_ratio()
+            try:
+                while self.running and not self.stop_pending:
+                    self._process()
+                    self.counter += 1
+                    if numpy.mod(self.counter, self.check_interval) == 0:
+                        self._check_real_time_ratio()
+            except EOCError:
+                # TODO understand why it happens (should not happen).
+                for output in self.outputs.itervalues():
+                    output.send_end_connection()
+                self.stop_pending = True
+                self.running = False
+            if self.running and self.stop_pending and self.nb_inputs == 0:
+                # In this condition, the block is a source block.
+                for output in self.outputs.itervalues():
+                    output.send_end_connection()
+                self.running = False
+            try:
+                while self.running and self.stop_pending:
+                    self._process()
+                    self.counter += 1
+                    if numpy.mod(self.counter, self.check_interval) == 0:
+                        self._check_real_time_ratio()
+            except EOCError:
+                for output in self.outputs.itervalues():
+                    output.send_end_connection()
+                self.running = False
 
-    def stop(self):
-        self.running = False
         self.log.debug("{n} is stopped".format(n=self.name))
         if self.real_time_ratio is not None:
-            self.log.info("{n} processed {m} buffers [{k} x real time]".format(n=self.name,
-                                                                               m=self.counter - self.start_step,
-                                                                               k=self.real_time_ratio))
+            info_msg = "{n} processed {m} buffers [{k} x real time]"
+            self.log.info(info_msg.format(n=self.name, m=self.counter - self.start_step, k=self.real_time_ratio))
         else:
             self.log.info("{n} processed {m} buffers".format(n=self.name, m=self.counter - self.start_step))
+
+        return
+
+    def stop(self):
+        """Send a stop signal to the block.
+
+        The block will wait until the termination of the underlying process.
+
+        """
+
+        self.stop_pending = True
+
+        return
+
+    def kill(self):
+        """Kill the block.
+
+        The block won't wait until the termination of the underlying process.
+
+        """
+
+        self.running = False
+
+        return
 
     def _check_real_time_ratio(self):
         data = self.real_time_ratio

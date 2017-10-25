@@ -145,15 +145,17 @@ class Director(object):
         return
 
     def stop(self):
-        self.log.info("{d} stops {s}".format(d=str(self), s=", ".join(self.list_managers())))
+        self.log.debug("{d} stops {s}".format(d=str(self), s=", ".join(self.list_managers())))
         for manager in self.managers.itervalues():
             manager.stop()
+        self.log.info("{d} stops {s}".format(d=str(self), s=", ".join(self.list_managers())))
         return
 
     def join(self):
-        self.log.info("{d} joins {s}".format(d=str(self), s=", ".join(self.list_managers())))
+        self.log.debug("{d} joins {s}".format(d=str(self), s=", ".join(self.list_managers())))
         for manager in self.managers.itervalues():
             manager.join()
+        self.log.info("{d} joins {s}".format(d=str(self), s=", ".join(self.list_managers())))
         return
 
     def destroy(self):
