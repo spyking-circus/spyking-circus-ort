@@ -44,11 +44,7 @@ class Peak_detector(Block):
 
     def _initialize(self):
 
-        self.peaks = {
-            'offset': 0,
-            'negative': {},
-            'positive': {},
-        }
+        self.peaks = {'offset': 0}
         if self.sign_peaks == 'both':
             self.key_peaks = ['negative', 'positive']
         else:
@@ -138,7 +134,7 @@ class Peak_detector(Block):
         # Detect small edges closer than minimum peak distance.
         # TODO remove the three following lines.
         # e = self.e[self.nb_samples-mpd-1:2*self.nb_samples-mpd-1, i]
-        # ind = numpy.add(numpy.where(e)[0], self.nb_samples - mpd - 1)
+        # ind = np.add(np.where(e)[0], self.nb_samples - mpd - 1)
         # self.p[ind, i] = True
         p = self.e[self.nb_samples-2*mpd-1:2*self.nb_samples-1, i]
         ind = np.where(p)[0]
@@ -218,7 +214,7 @@ class Peak_detector(Block):
             self.e = np.zeros((2 * self.nb_samples, self.nb_channels), dtype=np.bool)
             self.e[:self.nb_samples, :] = self.e[self.nb_samples:, :]
             self.e[self.nb_samples:, :] = np.zeros((self.nb_samples, self.nb_channels), dtype=np.bool)
-            self.p = np.zeros((2 * self.nb_samples, self.nb_channels), dtype=numpy.bool)
+            self.p = np.zeros((2 * self.nb_samples, self.nb_channels), dtype=np.bool)
             self.p[:self.nb_samples, :] = self.p[self.nb_samples:, :]
             self.p[self.nb_samples:, :] = np.zeros((self.nb_samples, self.nb_channels), dtype=np.bool)
             self.mph = np.zeros((self.nb_channels,), dtype=np.float)
