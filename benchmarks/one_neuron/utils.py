@@ -106,12 +106,25 @@ class Results(object):
     def compare_peaks_number(self):
         """Compare number of peaks"""
 
+        # Compute the number of generated peaks.
+        nb_generated_peaks = self.generated_peak_train.size
+        # Print the number of generated peaks.
         msg = "number of generated peaks: {}"
-        print(msg.format(self.generated_peak_train.size))
+        print(msg.format(nb_generated_peaks))
+        # Retrieve the detected peaks.
         detected_peak_trains = self.detected_peak_trains
+        # Compute the number of detected peaks.
+        nb_detected_peaks = 0
         for k in range(0, self.nb_channels):
-            msg = "number of detected peaks on electrode {}: {}"
-            print(msg.format(k, detected_peak_trains[k].size))
+            nb_detected_peaks += detected_peak_trains[k].size
+        # Print the number of detected peaks.
+        msg = "number of detected peaks: {}"
+        print(msg.format(nb_detected_peaks))
+        # Print the number of detected peaks per channel.
+        for k in range(0, self.nb_channels):
+            msg = "number of detected peaks on channel {}: {} [{:2f}%]"
+            p = 100.0 * float(detected_peak_trains[k].size) / float(nb_detected_peaks)
+            print(msg.format(k, detected_peak_trains[k].size), p)
 
         return
 
