@@ -351,6 +351,70 @@ class Results(object):
 
         return d
 
+    def compute_interspike_intervals(self, train, t_min=None, t_max=None):
+
+        train = np.sort(train)
+        if t_min is not None and t_max is not None:
+            assert t_min <= t_max
+        if t_min is not None:
+            train = train[train >= t_min]
+        if t_max is not None:
+            train = train[train <= t_max]
+        isis = train[+1:] - train[:-1]
+        isis = np.sort(isis)
+
+        return isis
+
+    def plot_cum_dist_isis(self, train, t_min=None, t_max=None, d_max=200.0, ax=None, **kwargs):
+
+        d_max = d_max * 1e-3  # ms
+        isis = self.compute_interspike_intervals(train, t_min=t_min, t_max=t_max)
+        isis = isis[isis < d_max]
+        x = np.unique(isis)
+        y = np.array([np.sum(x <= e) for e in x])
+        x = np.insert(x, 0, 0.0)
+        y = np.insert(y, 0, 0.0)
+        x = np.append(x, d_max)
+        y = np.append(y, y[-1])
+
+        if ax is None:
+            plt.style.use('seaborn-paper')
+            plt.figure()
+            ax = plt.gca()
+            ax.set_xlabel("duration (ms)")
+            ax.set_ylabel("number")
+        ax.step(1e+3 * x, y, where='post', **kwargs)
+
+        return
+
+    def plot_cum_dists_isis(self, t_min=None, t_max=None, d_max=200.0):
+        """Plot cumulative distributions of ISIs
+
+        Arguments:
+            t_min: none | float (optional)
+                Start time of each spike trains. The default value is None.
+            t_max: none | float (optional)
+                End time of each spike trains. The default value is None.
+            d_max: float (optional)
+                Maximal interspike interval duration. The default value is 200.0.
+        """
+
+        assert d_max >= 0
+
+        plt.style.use('seaborn-paper')
+        plt.figure()
+        ax = plt.gca()
+        self.plot_cum_dist_isis(self.generated_spike_train, t_min=t_min, t_max=t_max, d_max=d_max, ax=ax, c='C0', label='generated')
+        for k in self.detected_spike_trains:
+            self.plot_cum_dist_isis(self.detected_spike_trains[k], t_min=t_min, t_max=t_max, d_max=d_max, ax=ax, c='C{}'.format(k+1), label='detected {}'.format(k+1))
+        ax.set_xlabel("duration (ms)")
+        ax.set_ylabel("number")
+        ax.set_title("Cumulative distributions of ISIs")
+        ax.legend()
+        plt.show()
+
+        return
+
     def plot_signal_and_spikes(self, t_min=None, t_max=None, thold=1.0):
         """Plot signal and spikes
 
