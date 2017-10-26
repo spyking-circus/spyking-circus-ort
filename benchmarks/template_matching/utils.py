@@ -372,7 +372,6 @@ class Results(object):
         isis = isis[isis < d_max]
         x = np.unique(isis)
         y = np.array([np.sum(isis <= e) for e in x])
-        print(np.unique(y))
         x = np.insert(x, 0, 0.0)
         y = np.insert(y, 0, 0.0)
         x = np.append(x, d_max)
