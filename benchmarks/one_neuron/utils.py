@@ -1,5 +1,10 @@
+# -*- coding: utf-8 -*-
+
+from __future__ import unicode_literals
+
 import json
 import matplotlib.pyplot as plt
+from matplotlib.collections import PatchCollection
 import numpy as np
 import os
 import scipy.sparse
@@ -57,6 +62,88 @@ class Results(object):
     def nb_channels(self):
 
         return self.probe.nb_channels
+
+    def plot_synthetic_spatial_layout(self):
+
+        radius = 5
+        positions = self.probe.positions
+
+        cells_radius = 7
+        cells_positions = self.gen.get(variables=['x', 'y'])
+
+        x_min = np.min(positions[0, :]) - float(radius)
+        x_max = np.max(positions[0, :]) + float(radius)
+        x_pad = 0.2 * (x_max - x_min)
+        y_min = np.min(positions[1, :]) - float(radius)
+        y_max = np.max(positions[1, :]) + float(radius)
+        y_pad = 0.2 * (x_max - x_min)
+
+        plt.style.use('seaborn-paper')
+
+        plt.figure()
+        ax = plt.gca()
+        # Plot the tips of the electrodes.
+        for k in range(self.probe.nb_channels):
+            x, y = positions[:, k]
+            c = plt.Circle((x, y), radius=radius, facecolor='gray', edgecolor='black')
+            ax.add_artist(c)
+        # Plot the cells.
+        for k in range(0, self.gen.nb_cells):
+            x, y = [cells_positions[str(k)][key][0] for key in ['x', 'y']]
+            c = plt.Circle((x, y), radius=cells_radius, color='C{}'.format(k))
+            ax.add_artist(c)
+        plt.axis('scaled')
+        plt.xlim(x_min - x_pad, x_max + x_pad)
+        plt.ylim(y_min - y_pad, y_max + y_pad)
+        plt.xlabel("x (µm)")
+        plt.ylabel("y (µm)")
+        plt.title("Synthetic spatial layout")
+        plt.tight_layout()
+        plt.show()
+
+        return
+
+    def plot_synthetic_templates(self):
+
+        radius = 5
+        positions = self.probe.positions
+
+        x_min = np.min(positions[0, :]) - float(radius)
+        x_max = np.max(positions[0, :]) + float(radius)
+        x_pad = 0.2 * (x_max - x_min)
+        y_min = np.min(positions[1, :]) - float(radius)
+        y_max = np.max(positions[1, :]) + float(radius)
+        y_pad = 0.2 * (x_max - x_min)
+
+        scl = 0.9 * (self.probe.field_of_view['d'] / 2.0)
+        alpha = 1.0
+
+        plt.style.use('seaborn-paper')
+
+        plt.figure()
+        # Plot the generated template.
+        for i in range(0, self.gen.nb_cells):
+            # Retrieve the generated template.
+            generated_template = self.generated_templates(i)
+            x_scl = scl
+            y_scl = scl * (1.0 / np.max(np.abs(generated_template)))
+            width = generated_template.shape[1]
+            color = 'C{}'.format(i)
+            for k in range(self.nb_channels):
+                x_prb, y_prb = self.probe.positions[:, k]
+                x = x_prb + x_scl * np.linspace(-1.0, +1.0, num=width)
+                y = y_prb + y_scl * generated_template[k, :]
+                plt.plot(x, y, c=color, alpha=alpha)
+        plt.axis('scaled')
+        plt.xlim(x_min - x_pad, x_max + x_pad)
+        plt.ylim(y_min - y_pad, y_max + y_pad)
+        plt.xlabel("x (µm)")
+        plt.ylabel("y (µm)")
+        plt.title("Synthetic template")
+        plt.tight_layout()
+        plt.show()
+
+        return
 
     @property
     def generated_peak_train(self):
@@ -145,6 +232,8 @@ class Results(object):
         else:
             i_max = int(t_max * self.sampling_rate) + 1
 
+        plt.style.use('seaborn-paper')
+
         plt.figure()
         y_scale = 0.0
         for k in range(0, self.nb_channels):
@@ -156,7 +245,8 @@ class Results(object):
             x = np.arange(i_min, i_max).astype(np.float32) / self.sampling_rate
             plt.plot(x, y / y_scale + y_offset, c='C0')
         plt.xlabel("time (s)")
-        plt.ylabel("electrode")
+        plt.ylabel("channel")
+        plt.title("Synthetic voltage signal (filtered)")
         plt.tight_layout()
         plt.show()
 
