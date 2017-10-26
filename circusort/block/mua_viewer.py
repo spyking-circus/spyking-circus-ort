@@ -80,6 +80,8 @@ class Mua_viewer(Block):
         # Called from the main thread.
         plt.ion()
 
+        plt.style.use('seaborn-paper')
+
         if not getattr(self, 'data_available', False):
             return
 
