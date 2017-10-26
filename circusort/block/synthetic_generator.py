@@ -352,7 +352,7 @@ class Synthetic_generator(block.Block):
         # output_kwargs = loc['ans']
 
         for key in input_kwargs.keys():
-            if type(input_kwargs[key]) == unicode:
+            if type(input_kwargs[key]) == unicode and key != 't':
                 input_kwargs[key] = eval("lambda t: %s" % input_kwargs[key], input_params)
 
         return input_kwargs
