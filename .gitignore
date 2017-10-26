@@ -1,4 +1,4 @@
-# Test file
+# Test files
 tests/*
 !tests/test_clustering.py
 !tests/test_filter.py
@@ -20,6 +20,9 @@ tests/*
 !tests/test_listener_writer.py
 !tests/test_mua.py
 *settings.py
+
+# Benchmark files
+benchmarks/mea_4_copy.prb
 
 # PyCharm project files
 .idea/
