@@ -38,7 +38,8 @@ b = (peak_elecs == spike_elec)
 peak_elecs = peak_elecs[b]
 peak_times = peak_times[b]
 
-time_offset = whitening.start_step * nb_samples
+shift = 1
+time_offset = (whitening.start_step + shift) * nb_samples
 peak_times = peak_times + time_offset
 
 
@@ -59,6 +60,7 @@ whitened_signal = np.reshape(whitened_signal, (-1, probe.nb_channels))
 
 
 # 6. We want to load the MADs.
+thresh_factor = 5.0
 mads_data = np.fromfile(mad_estimator_path, dtype=np.float32)
 mads = np.reshape(mads_data, (-1, probe.nb_channels))
 
@@ -106,7 +108,10 @@ print("Start peak detector: {}".format(peak_detector.start_step))
 print("Start peak fitter: {}".format(peak_fitter.start_step))
 
 
-plt.figure(figsize=(12, 9))
+plt.style.use('seaborn-paper')
+
+# plt.figure(figsize=(12, 9))
+plt.figure()
 
 # Plot spans for each buffer.
 k_min = i_min / nb_samples
@@ -129,8 +134,8 @@ peak_times_bis = peak_times[np.logical_and(i_min <= peak_times, peak_times < i_m
 for x in peak_times_bis:
     x_min = x - 20 - 0.5
     x_max = x + 60 + 0.5
-    plt.axvspan(x_min, x_max, facecolor='C1', alpha=0.25)
-    plt.axvline(x, color='C1', linestyle='--')
+    plt.axvspan(x_min, x_max, facecolor='C2', alpha=0.25)
+    plt.axvline(x, color='C2', linestyle='--')
 
 # Plot raw voltage trace for each channel.
 x = np.arange(i_min - 0.5, i_max + 0.5)
@@ -140,7 +145,10 @@ for channel_id in range(probe.nb_channels):
     y = np.append(y, y[-1])
     y = y * y_scale
     y_offset = channel_id
-    plt.step(x, y + y_offset, where='post', color='C0')
+    if channel_id == 0:
+        plt.step(x, y + y_offset, where='post', color='C0', label='generated')
+    else:
+        plt.step(x, y + y_offset, where='post', color='C0')
 
 # Plot filtered voltage trace for each channel.
 x = np.arange(i_min - 0.5, i_max + 0.5)
@@ -150,11 +158,14 @@ for channel_id in range(probe.nb_channels):
     y = np.append(y, y[-1])
     y = y * y_scale
     y_offset = channel_id
-    plt.step(x, y + y_offset, where='post', color='C1')
+    if channel_id == 0:
+        plt.step(x, y + y_offset, where='post', color='C1', label='filtered')
+    else:
+        plt.step(x, y + y_offset, where='post', color='C1')
 
 # Plot whitened voltage trace for each channel.
-j_min = i_min - whitening.start_step * nb_samples
-j_max = i_max - whitening.start_step * nb_samples
+j_min = i_min - (whitening.start_step + shift) * nb_samples
+j_max = i_max - (whitening.start_step + shift) * nb_samples
 x = np.arange(i_min - 0.5, i_max + 0.5)
 y_scale = 0.02
 for channel_id in range(probe.nb_channels):
@@ -162,7 +173,10 @@ for channel_id in range(probe.nb_channels):
     y = np.append(y, y[-1])
     y = y * y_scale
     y_offset = channel_id
-    plt.step(x, y + y_offset, where='post', color='C2')
+    if channel_id == 0:
+        plt.step(x, y + y_offset, where='post', color='C2', label='whitened')
+    else:
+        plt.step(x, y + y_offset, where='post', color='C2')
 
 # Plot thresholds for each channel.
 k_min = (i_min - whitening.start_step * nb_samples) / nb_samples
@@ -173,14 +187,16 @@ for channel_id in range(0, probe.nb_channels):
         if k < start_mad:
             thresh = np.concatenate((thresh, np.zeros(nb_samples)))
         else:
-            thresh = np.concatenate((thresh, mads[k - start_mad, channel_id] * np.ones(nb_samples)))
+            thresh = np.concatenate((thresh, thresh_factor * mads[k - start_mad, channel_id] * np.ones(nb_samples)))
     thresh *= y_scale
     y_offset = channel_id
     plt.plot(np.arange(i_min, i_max), +thresh + y_offset, c='gray', ls='--')
     plt.plot(np.arange(i_min, i_max), -thresh + y_offset, c='gray', ls='--')
 
-plt.xlabel("time (bin)")
+plt.xlabel("time step")
 plt.ylabel("channel")
+plt.title("Check peaks alignment")
+plt.legend()
 plt.tight_layout()
 
 plt.show()

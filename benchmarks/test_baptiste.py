@@ -57,8 +57,8 @@ director.connect(peak_fitter.get_output('peaks'), [writer_3.input])
 
 
 director.start()
-director.sleep(duration=10.0)
+director.sleep(duration=30.0)
 director.stop()
 
 
-director.destroy()
+# director.destroy()

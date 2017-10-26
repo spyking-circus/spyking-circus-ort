@@ -78,7 +78,7 @@ director.sleep(duration=10.0)
 director.stop()
 
 
-director.destroy()
+# director.destroy()
 
 
 # Analysis
