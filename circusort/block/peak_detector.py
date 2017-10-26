@@ -268,4 +268,7 @@ class Peak_detector(Block):
 
         for key in self.key_peaks:
             for i in range(self.nb_channels):
-                self.log.debug("{} detected {} {} peaks on channel {}".format(self.name, self.nb_cum_peaks[key][i], key, i))
+                if i in self.nb_cum_peaks[key]:
+                    self.log.debug("{} detected {} {} peaks on channel {}".format(self.name, self.nb_cum_peaks[key][i], key, i))
+                else:
+                    self.log.debug("{} detected 0 {} peaks on channel {}".format(self.name, key, i))
