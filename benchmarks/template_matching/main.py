@@ -18,9 +18,17 @@ args = parser.parse_args()
 
 host = '127.0.0.1'  # i.e. run the test locally
 
-cell_obj = {'r': 'r_ref'}
+sampling_rate = 20e+3
+nb_samples = 1024
+cell_obj = {
+    'r': 'r_ref',
+    't': 'periodic',
+    's': 0.01 * float(nb_samples) / sampling_rate,  # phase of the periodic spike train  # s,
+}
 cells_args = [cell_obj]
-cells_params = {'r_ref': 50.0}  # firing rate [Hz]
+cells_params = {
+    'r_ref': sampling_rate / float(nb_samples),  # firing rate  # Hz
+}
 
 tmp_dir = os.path.join('/', 'tmp', 'spyking_circus_ort', 'template_matching')
 if not os.path.exists(tmp_dir):
@@ -52,7 +60,7 @@ updater_kwargs = {
     'data_path': os.path.join(tmp_dir, 'templates.h5'),
 }
 fitter_kwargs = {
-    # 'init_path': os.path.join(tmp_dir, 'initial_templates.h5'),
+    'init_path': os.path.join(tmp_dir, 'initial_templates.h5'),
 }
 spike_writer_kwargs = {
     'spike_times': os.path.join(tmp_dir, 'spike_times.raw'),
@@ -104,7 +112,7 @@ else:
     cluster = manager.create_block('density_clustering',
                                    threshold_factor=7.0,
                                    probe=probe_path,
-                                   nb_waveforms=100,  # 100
+                                   nb_waveforms=10000,  # 100
                                    two_components=False,
                                    log_level=DEBUG)
     updater = manager.create_block('template_updater',
