@@ -58,6 +58,44 @@ class Results(object):
 
         return self.probe.nb_channels
 
+    # Voltage signal analysis.
+
+    def plot_signal(self, t_min=None, t_max=None):
+        """Plot signal"""
+
+        # Retrieve signal data.
+        path = self.signal_writer_kwargs['data_path']
+        data = np.memmap(path, dtype=np.float32, mode='r')
+        data = np.reshape(data, (-1, self.nb_channels))
+
+        if t_min is None:
+            i_min = 0
+        else:
+            i_min = int(t_min * self.sampling_rate)
+        if t_max is None:
+            i_max = data.shape[0]
+        else:
+            i_max = int(t_max * self.sampling_rate) + 1
+
+        plt.figure()
+        y_scale = 0.0
+        for k in range(0, self.nb_channels):
+            y = data[i_min:i_max, k]
+            y_scale = max(y_scale, 2.0 * np.amax(np.abs(y)))
+        for k in range(0, self.nb_channels):
+            y = data[i_min:i_max, k]
+            y_offset = float(k)
+            x = np.arange(i_min, i_max).astype(np.float32) / self.sampling_rate
+            plt.plot(x, y / y_scale + y_offset, c='C0')
+        plt.xlabel("time (s)")
+        plt.ylabel("electrode")
+        plt.tight_layout()
+        plt.show()
+
+        return
+
+    # Peak trains analysis.
+
     @property
     def generated_peak_train(self):
 
@@ -128,36 +166,73 @@ class Results(object):
 
         return
 
-    def plot_signal(self, t_min=None, t_max=None):
-        """Plot signal"""
+    @staticmethod
+    def compute_ipis(train, t_min=None, t_max=None):
+        """Compute interpeak intervals"""
 
-        # Retrieve signal data.
-        path = self.signal_writer_kwargs['data_path']
-        data = np.memmap(path, dtype=np.float32, mode='r')
-        data = np.reshape(data, (-1, self.nb_channels))
+        train = np.sort(train)
+        if t_min is not None and t_max is not None:
+            assert t_min <= t_max
+        if t_min is not None:
+            train = train[train >= t_min]
+        if t_max is not None:
+            train = train[train <= t_max]
+        ipis = train[+1:] - train[:-1]
+        ipis = np.sort(ipis)
 
-        if t_min is None:
-            i_min = 0
-        else:
-            i_min = int(t_min * self.sampling_rate)
-        if t_max is None:
-            i_max = data.shape[0]
-        else:
-            i_max = int(t_max * self.sampling_rate) + 1
+        return ipis
 
+    def plot_cum_dist_ipis(self, train, t_min=None, t_max=None, d_max=200.0, ax=None, **kwargs):
+        """Plot cumulative distribution of IPIs"""
+
+        d_max = d_max * 1e-3  # ms
+        ipis = self.compute_ipis(train, t_min=t_min, t_max=t_max)
+        ipis = ipis[ipis < d_max]
+        x = np.unique(ipis)
+        y = np.array([np.sum(ipis <= e) for e in x])
+        x = np.insert(x, 0, [0.0])
+        y = np.insert(y, 0, [0.0])
+        x = np.append(x, [d_max])
+        y = np.append(y, y[-1])
+
+        if ax is None:
+            plt.style.use('seaborn-paper')
+            plt.figure()
+            ax = plt.gca()
+            ax.set_xlabel("duration (ms)")
+            ax.set_ylabel("number")
+        ax.step(1e+3 * x, y, where='post', **kwargs)
+
+        return
+
+    def plot_cum_dists_ipis(self, t_min=None, t_max=None, d_max=200.0):
+        """Plot cumulative distributions of IPIs
+
+        Arguments:
+            t_min: none | float (optional)
+                Start time of each peak trains. The default value is None.
+            t_max: none | float (optional)
+                End time of each peak trains. The default value is None.
+            d_max: float (optional)
+                Maximal interpeak interval duration. The default value is 200.0.
+        """
+
+        assert d_max >= 0
+
+        plt.style.use('seaborn-paper')
         plt.figure()
-        y_scale = 0.0
-        for k in range(0, self.nb_channels):
-            y = data[i_min:i_max, k]
-            y_scale = max(y_scale, 2.0 * np.amax(np.abs(y)))
-        for k in range(0, self.nb_channels):
-            y = data[i_min:i_max, k]
-            y_offset = float(k)
-            x = np.arange(i_min, i_max).astype(np.float32) / self.sampling_rate
-            plt.plot(x, y / y_scale + y_offset, c='C0')
-        plt.xlabel("time (s)")
-        plt.ylabel("electrode")
-        plt.tight_layout()
+        ax = plt.gca()
+        self.plot_cum_dist_ipis(self.generated_peak_train, t_min=t_min, t_max=t_max, d_max=d_max,
+                                ax=ax, c='C0', label='generated')
+        for k in self.detected_peak_trains:
+            c = 'C{}'.format((k % 9) + 1)
+            label = 'detected {}'.format(k + 1)
+            self.plot_cum_dist_ipis(self.detected_peak_trains[k], t_min=t_min, t_max=t_max, d_max=d_max,
+                                    ax=ax, c=c, label=label)
+        ax.set_xlabel("duration (ms)")
+        ax.set_ylabel("number")
+        ax.set_title("Cumulative distributions of IPIs")
+        ax.legend()
         plt.show()
 
         return
@@ -224,6 +299,8 @@ class Results(object):
 
         return
 
+    # Spike trains analysis.
+
     @property
     def generated_spike_steps(self):
 
@@ -282,7 +359,7 @@ class Results(object):
 
         return
 
-    def van_rossum_distances(self, t_min=None, t_max=None,c=100.0):
+    def van_rossum_distances(self, t_min=None, t_max=None, c=100.0):
         """Compute von Rossum distance between generated and detected spike trains"""
 
         # Retrieve the generated spike train.
@@ -351,7 +428,9 @@ class Results(object):
 
         return d
 
-    def compute_interspike_intervals(self, train, t_min=None, t_max=None):
+    @staticmethod
+    def compute_isis(train, t_min=None, t_max=None):
+        """Compute interspike intervals"""
 
         train = np.sort(train)
         if t_min is not None and t_max is not None:
@@ -366,15 +445,16 @@ class Results(object):
         return isis
 
     def plot_cum_dist_isis(self, train, t_min=None, t_max=None, d_max=200.0, ax=None, **kwargs):
+        """Plot cumulative distribution of ISIs"""
 
         d_max = d_max * 1e-3  # ms
-        isis = self.compute_interspike_intervals(train, t_min=t_min, t_max=t_max)
+        isis = self.compute_isis(train, t_min=t_min, t_max=t_max)
         isis = isis[isis < d_max]
         x = np.unique(isis)
         y = np.array([np.sum(isis <= e) for e in x])
-        x = np.insert(x, 0, 0.0)
-        y = np.insert(y, 0, 0.0)
-        x = np.append(x, d_max)
+        x = np.insert(x, 0, [0.0])
+        y = np.insert(y, 0, [0.0])
+        x = np.append(x, [d_max])
         y = np.append(y, y[-1])
 
         if ax is None:
@@ -404,9 +484,11 @@ class Results(object):
         plt.style.use('seaborn-paper')
         plt.figure()
         ax = plt.gca()
-        self.plot_cum_dist_isis(self.generated_spike_train, t_min=t_min, t_max=t_max, d_max=d_max, ax=ax, c='C0', label='generated')
+        self.plot_cum_dist_isis(self.generated_spike_train, t_min=t_min, t_max=t_max, d_max=d_max,
+                                ax=ax, c='C0', label='generated')
         for k in self.detected_spike_trains:
-            self.plot_cum_dist_isis(self.detected_spike_trains[k], t_min=t_min, t_max=t_max, d_max=d_max, ax=ax, c='C{}'.format(k+1), label='detected {}'.format(k+1))
+            self.plot_cum_dist_isis(self.detected_spike_trains[k], t_min=t_min, t_max=t_max, d_max=d_max,
+                                    ax=ax, c='C{}'.format(k+1), label='detected {}'.format(k+1))
         ax.set_xlabel("duration (ms)")
         ax.set_ylabel("number")
         ax.set_title("Cumulative distributions of ISIs")
