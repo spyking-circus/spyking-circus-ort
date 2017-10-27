@@ -182,16 +182,19 @@ class Results(object):
 
         return ipis
 
-    def plot_cum_dist_ipis(self, train, t_min=None, t_max=None, d_max=200.0, ax=None, **kwargs):
+    def plot_cum_dist_ipis(self, train, t_min=None, t_max=None, d_min=0.0, d_max=200.0, ax=None, **kwargs):
         """Plot cumulative distribution of IPIs"""
 
+        d_min = d_min * 1e-3  # ms
         d_max = d_max * 1e-3  # ms
         ipis = self.compute_ipis(train, t_min=t_min, t_max=t_max)
-        ipis = ipis[ipis < d_max]
+        y_min = np.sum(ipis <= d_min)
+        ipis = ipis[d_min < ipis]
+        ipis = ipis[ipis <= d_max]
         x = np.unique(ipis)
-        y = np.array([np.sum(ipis <= e) for e in x])
-        x = np.insert(x, 0, [0.0])
-        y = np.insert(y, 0, [0.0])
+        y = np.array([y_min + np.sum(ipis <= e) for e in x])
+        x = np.insert(x, 0, [d_min])
+        y = np.insert(y, 0, [y_min])
         x = np.append(x, [d_max])
         y = np.append(y, y[-1])
 
@@ -205,7 +208,7 @@ class Results(object):
 
         return
 
-    def plot_cum_dists_ipis(self, t_min=None, t_max=None, d_max=200.0):
+    def plot_cum_dists_ipis(self, t_min=None, t_max=None, d_min=0.0, d_max=200.0):
         """Plot cumulative distributions of IPIs
 
         Arguments:
@@ -213,21 +216,23 @@ class Results(object):
                 Start time of each peak trains. The default value is None.
             t_max: none | float (optional)
                 End time of each peak trains. The default value is None.
+            d_min: float (optional)
+                Minimal interpeak interval duration [ms]. The default value is 0.0.
             d_max: float (optional)
-                Maximal interpeak interval duration. The default value is 200.0.
+                Maximal interpeak interval duration [ms]. The default value is 200.0.
         """
 
-        assert d_max >= 0
+        assert 0.0 <= d_min <= d_max
 
         plt.style.use('seaborn-paper')
         plt.figure()
         ax = plt.gca()
-        self.plot_cum_dist_ipis(self.generated_peak_train, t_min=t_min, t_max=t_max, d_max=d_max,
+        self.plot_cum_dist_ipis(self.generated_peak_train, t_min=t_min, t_max=t_max, d_min=d_min, d_max=d_max,
                                 ax=ax, c='C0', label='generated')
         for k in self.detected_peak_trains:
             c = 'C{}'.format((k % 9) + 1)
             label = 'detected {}'.format(k + 1)
-            self.plot_cum_dist_ipis(self.detected_peak_trains[k], t_min=t_min, t_max=t_max, d_max=d_max,
+            self.plot_cum_dist_ipis(self.detected_peak_trains[k], t_min=t_min, t_max=t_max, d_min=d_min, d_max=d_max,
                                     ax=ax, c=c, label=label)
         ax.set_xlabel("duration (ms)")
         ax.set_ylabel("number")
@@ -444,16 +449,19 @@ class Results(object):
 
         return isis
 
-    def plot_cum_dist_isis(self, train, t_min=None, t_max=None, d_max=200.0, ax=None, **kwargs):
+    def plot_cum_dist_isis(self, train, t_min=None, t_max=None, d_min=0.0, d_max=200.0, ax=None, **kwargs):
         """Plot cumulative distribution of ISIs"""
 
+        d_min = d_min * 1e-3  # ms
         d_max = d_max * 1e-3  # ms
         isis = self.compute_isis(train, t_min=t_min, t_max=t_max)
-        isis = isis[isis < d_max]
+        y_min = np.sum(isis <= d_min)
+        isis = isis[d_min < isis]
+        isis = isis[isis <= d_max]
         x = np.unique(isis)
-        y = np.array([np.sum(isis <= e) for e in x])
-        x = np.insert(x, 0, [0.0])
-        y = np.insert(y, 0, [0.0])
+        y = np.array(y_min + [np.sum(isis <= e) for e in x])
+        x = np.insert(x, 0, [d_min])
+        y = np.insert(y, 0, [y_min])
         x = np.append(x, [d_max])
         y = np.append(y, y[-1])
 
@@ -467,7 +475,7 @@ class Results(object):
 
         return
 
-    def plot_cum_dists_isis(self, t_min=None, t_max=None, d_max=200.0):
+    def plot_cum_dists_isis(self, t_min=None, t_max=None, d_min=0.0, d_max=200.0):
         """Plot cumulative distributions of ISIs
 
         Arguments:
@@ -475,20 +483,24 @@ class Results(object):
                 Start time of each spike trains. The default value is None.
             t_max: none | float (optional)
                 End time of each spike trains. The default value is None.
+            d_min: float (optional)
+                Minimal interspike interval duration [ms]. The default value is 0.0.
             d_max: float (optional)
-                Maximal interspike interval duration. The default value is 200.0.
+                Maximal interspike interval duration [ms]. The default value is 200.0.
         """
 
-        assert d_max >= 0
+        assert 0.0 <= d_min <= d_max
 
         plt.style.use('seaborn-paper')
         plt.figure()
         ax = plt.gca()
-        self.plot_cum_dist_isis(self.generated_spike_train, t_min=t_min, t_max=t_max, d_max=d_max,
+        self.plot_cum_dist_isis(self.generated_spike_train, t_min=t_min, t_max=t_max, d_min=d_min, d_max=d_max,
                                 ax=ax, c='C0', label='generated')
         for k in self.detected_spike_trains:
-            self.plot_cum_dist_isis(self.detected_spike_trains[k], t_min=t_min, t_max=t_max, d_max=d_max,
-                                    ax=ax, c='C{}'.format(k+1), label='detected {}'.format(k+1))
+            c = 'C{}'.format((k % 9) + 1)
+            label = 'detected {}'.format(k + 1)
+            self.plot_cum_dist_isis(self.detected_spike_trains[k], t_min=t_min, t_max=t_max, d_min=d_min, d_max=d_max,
+                                    ax=ax, c=c, label=label)
         ax.set_xlabel("duration (ms)")
         ax.set_ylabel("number")
         ax.set_title("Cumulative distributions of ISIs")
