@@ -414,7 +414,7 @@ class Results(object):
         y = [v for v in range(0, nb_generated_spike_trains)]\
             + [v + nb_generated_spike_trains for v in range(0, nb_detected_spike_trains)]
         labels = ["{}".format(v) for v in range(0, nb_generated_spike_trains)]\
-                 + ["{}".format(v) for v in range(0, nb_detected_spike_trains)]
+            + ["{}".format(v) for v in range(0, nb_detected_spike_trains)]
         plt.yticks(y, labels)
         plt.xlabel("time (s)")
         plt.ylabel("train")
@@ -568,6 +568,29 @@ class Results(object):
         ax.set_title("Cumulative distributions of ISIs")
         ax.legend()
         plt.show()
+
+        return
+
+    def plot_all_cum_dists_isis(self, matching=None, **kwargs):
+        """Plot cumulative distributions of ISIs for a given matching
+
+        Arguments:
+            matching: none | list (optional)
+                Matching between detected and generated units. The default value is None.
+
+        See also:
+            plot_cum_dists_isis
+        """
+
+        if matching is None:
+            self.plot_cum_dist_isis(**kwargs)
+        else:
+            nb_pairs = len(matching)
+            _, ax_arr = plt.subplots(nrows=1, ncols=nb_pairs)
+            for k, (detected_unit, generated_unit) in enumerate(matching):
+                self.plot_cum_dists_isis(detected_unit, generated_unit, ax=ax_arr[k])
+            # TODO complete.
+            plt.show()
 
         return
 
