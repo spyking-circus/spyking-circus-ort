@@ -347,13 +347,13 @@ class Template_fitter(Block):
             self.r['templates'] = self.r['templates'][is_not_in_result]
 
             # Log fitting result.
-            if len(self.result['spike_times']) > 0:
+            nb_spike_times = len(self.result['spike_times'])
+            if nb_spike_times > 0:
                 debug_msg = "{} fitted {} spikes from {} templates"
-                nb_spike_times = len(self.result['spike_times'])
                 self.log.debug(debug_msg.format(self.name_and_counter, nb_spike_times, self.nb_templates))
             else:
-                debug_msg = "{} fitted no spikes from {} peaks"
-                self.log.debug(debug_msg.format(self.name_and_counter, nb_peaks))
+                debug_msg = "{} fitted no spikes"
+                self.log.debug(debug_msg.format(self.name_and_counter))
 
         return
 
