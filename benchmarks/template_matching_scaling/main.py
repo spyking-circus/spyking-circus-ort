@@ -25,7 +25,7 @@ cell_obj = {
     'r': 'r_ref',
     't': 'default',
 }
-cells_args = [cell_obj]
+cells_args = [cell_obj for _ in range(0, 3)]
 cells_params = {
     'r_ref': sampling_rate / float(nb_samples),  # firing rate  # Hz
 }
@@ -115,7 +115,6 @@ else:
     cluster = manager.create_block('density_clustering',
                                    threshold_factor=7.0,
                                    probe=probe_path,
-                                   nb_waveforms=10000,
                                    two_components=False,
                                    log_level=DEBUG,
                                    **cluster_kwargs)
