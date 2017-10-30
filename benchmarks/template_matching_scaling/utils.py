@@ -326,41 +326,100 @@ class Results(object):
 
         return generated_spike_train
 
-    @property
-    def detected_spike_trains(self):
+    def get_detected_spike_trains(self, t_min=None, t_max=None):
+        """Get detected spike trains
 
-        detected_spike_trains = {}
+        Arguments:
+            t_min: none | float (optional)
+                Start time for the comparison (in s). The default value is None.
+            t_max: none | float (optional)
+                End time for the comparison (in s). The default value is None.
+        """
+
+        trains = {}
         for k in self.detected_spikes.units:
-            detected_spike_train = self.detected_spikes.get_time_steps(k)
-            detected_spike_train = detected_spike_train.astype(np.float32)
-            detected_spike_train /= self.sampling_rate
-            detected_spike_trains[k] = detected_spike_train
+            train = self.detected_spikes.get_time_steps(k)
+            train = train.astype(np.float32)
+            train /= self.sampling_rate
+            if t_min is not None:
+                train = train[t_min <= train]
+            if t_max is not None:
+                train = train[train <= t_max]
+            trains[k] = train
 
-        return detected_spike_trains
+        return trains
 
-    def compare_spike_trains(self):
-        """Compare spike trains."""
+    def get_generated_spike_trains(self, t_min=None, t_max=None):
+        """Get generated spike trains
 
-        # Retrieve the generated spike train.
-        generated_spike_train = self.generated_spike_train
+        Arguments:
+            t_min: none | float (optional)
+                Start time for the comparison (in s). The default value is None.
+            t_max: none | float (optional)
+                End time for the comparison (in s). The default value is None.
+        """
 
-        # Retrieve the inferred spike trains.
-        detected_spike_trains = self.detected_spike_trains
+        spike_times = self.gen.get(variables='spike_times')
+        trains = {}
+        for k in range(0, self.gen.nb_cells):
+            key = u'{}'.format(k)
+            train = spike_times[key]['spike_times']
+            train = train.astype(np.float32)
+            train /= self.sampling_rate
+            if t_min is not None:
+                train = train[t_min <= train]
+            if t_max is not None:
+                train = train[train <= t_max]
+            trains[k] = train
+
+        return trains
+
+    def compare_spike_trains(self, t_min=None, t_max=None):
+        """Compare spike trains
+
+        Arguments:
+            t_min: none | float (optional)
+                Start time for the comparison (in s). The default value is None.
+            t_max: none | float (optional)
+                End time for the comparison (in s). The default value is None.
+        """
+
+        # Retrieve detected spike trains.
+        detected_spike_trains = self.get_detected_spike_trains(t_min=t_min, t_max=t_max)
+        # Retrieve generated spike trains.
+        generated_spike_trains = self.get_generated_spike_trains(t_min=t_min, t_max=t_max)
+        # Compute number of detected spike trains.
+        nb_detected_spike_trains = len(detected_spike_trains)
+        # Compute number of generated spike trains.
+        nb_generated_spike_trains = len(generated_spike_trains)
 
         # Plot spike trains to compare them visually.
         plt.figure()
-        # Plot generated spike train.
-        x = [t for t in generated_spike_train]
-        y = [0.0 for _ in x]
-        plt.scatter(x, y, c='C1', marker='|')
-        # Plot detected spike trains.
-        for k, train in enumerate(detected_spike_trains.values()):
+        # Plot generated spike trains.
+        for k, train in generated_spike_trains.iteritems():
             x = [t for t in train]
-            y = [float(k + 1) for _ in x]
-            plt.scatter(x, y, c='C0', marker='|')
+            y = [float(k + 0) for _ in x]
+            if k == 0:
+                plt.scatter(x, y, c='C0', marker='|', label='generated')
+            else:
+                plt.scatter(x, y, c='C0', marker='|')
+        # Plot detected spike trains.
+        for k, train in detected_spike_trains.iteritems():
+            x = [t for t in train]
+            y = [float(k + nb_generated_spike_trains) for _ in x]
+            if k == 0:
+                plt.scatter(x, y, c='C1', marker='|', label='detected')
+            else:
+                plt.scatter(x, y, c='C1', marker='|')
+        y = [v for v in range(0, nb_generated_spike_trains)]\
+            + [v + nb_generated_spike_trains for v in range(0, nb_detected_spike_trains)]
+        labels = ["{}".format(v) for v in range(0, nb_generated_spike_trains)]\
+                 + ["{}".format(v) for v in range(0, nb_detected_spike_trains)]
+        plt.yticks(y, labels)
         plt.xlabel("time (s)")
-        plt.ylabel("spike train")
+        plt.ylabel("train")
         plt.title("Spike trains comparison")
+        plt.legend()
         plt.tight_layout()
         plt.show()
 
@@ -373,7 +432,7 @@ class Results(object):
         generated_spike_train = self.generated_spike_train
 
         # Retrieve the detected spike trains.
-        detected_spike_trains = self.detected_spike_trains
+        detected_spike_trains = self.get_detected_spike_trains()
 
         d = np.zeros(len(detected_spike_trains))
         for k, train in enumerate(detected_spike_trains.values()):
@@ -498,10 +557,11 @@ class Results(object):
         ax = plt.gca()
         self.plot_cum_dist_isis(self.generated_spike_train, t_min=t_min, t_max=t_max, d_min=d_min, d_max=d_max,
                                 ax=ax, c='C0', label='generated')
-        for k in self.detected_spike_trains:
+        detected_spike_trains = self.get_detected_spike_trains()
+        for k in detected_spike_trains:
             c = 'C{}'.format((k % 9) + 1)
             label = 'detected {}'.format(k + 1)
-            self.plot_cum_dist_isis(self.detected_spike_trains[k], t_min=t_min, t_max=t_max, d_min=d_min, d_max=d_max,
+            self.plot_cum_dist_isis(detected_spike_trains[k], t_min=t_min, t_max=t_max, d_min=d_min, d_max=d_max,
                                     ax=ax, c=c, label=label)
         ax.set_xlabel("duration (ms)")
         ax.set_ylabel("number")
@@ -568,7 +628,7 @@ class Results(object):
         y = [-1.0 for _ in x]
         plt.scatter(x, y, c='C2', marker='|', zorder=2)
         # Plot detected spike trains.
-        detected_spike_trains = self.detected_spike_trains
+        detected_spike_trains = self.get_detected_spike_trains()
         for k, train in enumerate(detected_spike_trains.values()):
             x = [t for t in train if t_min <= t <= t_max]
             y = [-float(k + 2) for _ in x]
@@ -709,7 +769,7 @@ class Results(object):
     def compare_templates(self, ij, time_shift=0.4, ax=None):
         """Compare templates of one generated unit with one detected unit.
 
-        Attribute:
+        Arguments:
             ij: tuple
                 Pair of indices. The first one is the index of the detected unit of interest. The second one is the
                 index of the generated unit of interest, e.g. (0, 0).
