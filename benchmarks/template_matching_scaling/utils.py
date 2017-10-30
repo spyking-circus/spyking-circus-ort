@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import json
 import matplotlib.pyplot as plt
 import numpy as np
@@ -704,7 +706,7 @@ class Results(object):
 
         return template
 
-    def compare_templates(self, ij, time_shift=0.4):
+    def compare_templates(self, ij, time_shift=0.4, ax=None):
         """Compare templates of one generated unit with one detected unit.
 
         Attribute:
@@ -713,6 +715,7 @@ class Results(object):
                 index of the generated unit of interest, e.g. (0, 0).
             time_shift: float (optional)
                 Time shift [ms]. The default value is 0.4.
+            ax: none | matplotlib.axes.Axes (optional)
         """
 
         assert 0 <= ij[0] < self.nb_detected_units,\
@@ -733,7 +736,11 @@ class Results(object):
 
         scl = 0.9 * (self.probe.field_of_view['d'] / 2.0)
         alpha = 1.0
-        plt.figure()
+        if ax is None:
+            _, ax = plt.subplots()
+            is_subplot = False
+        else:
+            is_subplot = True
         # Plot the generated template.
         x_scl = scl
         y_scl = scl * (1.0 / np.max(np.abs(generated_template)))
@@ -744,9 +751,9 @@ class Results(object):
             x = x_prb + x_scl * np.linspace(-1.0, +1.0, num=width)
             y = y_prb + y_scl * generated_template[k, :]
             if k == 0:
-                plt.plot(x, y, c=color, alpha=alpha, label='generated template')
+                ax.plot(x, y, c=color, alpha=alpha, label='generated template')
             else:
-                plt.plot(x, y, c=color, alpha=alpha)
+                ax.plot(x, y, c=color, alpha=alpha)
         # Plot the generated STA.
         x_scl = scl
         if np.max(np.abs(generated_sta)) == 0.0:
@@ -760,9 +767,9 @@ class Results(object):
             x = x_prb + x_scl * np.linspace(-1.0, +1.0, num=width)
             y = y_prb + y_scl * generated_sta[k, :]
             if k == 0:
-                plt.plot(x, y, c=color, alpha=alpha, linestyle='--', label='generated STA')
+                ax.plot(x, y, c=color, alpha=alpha, linestyle='--', label='generated STA')
             else:
-                plt.plot(x, y, c=color, alpha=alpha, linestyle='--')
+                ax.plot(x, y, c=color, alpha=alpha, linestyle='--')
         # Plot the detected template.
         x_scl = scl
         y_scl = scl * (1.0 / np.max(np.abs(detected_template)))
@@ -773,9 +780,9 @@ class Results(object):
             x = x_prb + x_scl * np.linspace(-1.0, +1.0, num=width)
             y = y_prb + y_scl * detected_template[k, :]
             if k == 0:
-                plt.plot(x, y, c=color, alpha=alpha, label='detected template')
+                ax.plot(x, y, c=color, alpha=alpha, label='detected template')
             else:
-                plt.plot(x, y, c=color, alpha=alpha)
+                ax.plot(x, y, c=color, alpha=alpha)
         # Plot the detected STA.
         x_scl = scl
         if np.max(np.abs(detected_sta)) == 0.0:
@@ -789,14 +796,42 @@ class Results(object):
             x = x_prb + x_scl * np.linspace(-1.0, +1.0, num=width)
             y = y_prb + y_scl * detected_sta[k, :]
             if k == 0:
-                plt.plot(x, y, c=color, alpha=alpha, linestyle='--', label='detected STA')
+                ax.plot(x, y, c=color, alpha=alpha, linestyle='--', label='detected STA')
             else:
-                plt.plot(x, y, c=color, alpha=alpha, linestyle='--')
-        plt.xlabel("x [um]")
-        plt.ylabel("y [um]")
-        plt.title("Templates comparison")
-        plt.legend()
+                ax.plot(x, y, c=color, alpha=alpha, linestyle='--')
+        if not is_subplot:
+            plt.xlabel("x (µm)")
+            plt.ylabel("y (µm)")
+            plt.title("Templates comparison")
+            plt.legend()
+            plt.tight_layout()
+            plt.show()
+
+        return
+
+    def compare_all_templates(self):
+        """Compare templates of generated units with detected units."""
+
+        nb_rows = self.nb_generated_units
+        nb_cols = self.nb_detected_units
+        _, ax_arr = plt.subplots(nb_rows, nb_cols, sharex='all', sharey='all')
+        for row in range(0, nb_rows):
+            for col in range(0, nb_cols):
+                self.compare_templates((col, row), ax=ax_arr[row, col])
+        # Fine-tune figure.
+        for col in range(0, nb_cols):
+            ax_arr[-1, col].set_xlabel("detected {}".format(col))
+        for row in range(0, nb_rows):
+            ax_arr[row, 0].set_ylabel("generated {}".format(row))
+        for row in range(0, nb_rows - 1):
+            plt.setp([a.get_xticklabels() for a in ax_arr[row, :]], visible=False)
+            plt.setp([a.get_xticklines() for a in ax_arr[row, :]], visible=False)
+        for col in range(1, nb_cols):
+            plt.setp([a.get_yticklabels() for a in ax_arr[:, col]], visible=False)
+            plt.setp([a.get_yticklines() for a in ax_arr[:, col]], visible=False)
+        plt.suptitle("Templates comparison")
         plt.tight_layout()
+        plt.subplots_adjust(top=0.9, wspace=0.0, hspace=0.0)
         plt.show()
 
         return
