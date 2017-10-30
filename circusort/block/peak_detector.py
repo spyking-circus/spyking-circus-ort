@@ -15,11 +15,18 @@ class Peak_detector(Block):
         safety_time
 
     Inputs:
-        data
+        data: np.ndarray
+            Voltage signal.
         mads
 
     Outputs:
-        peaks
+        peaks: dictionary
+            'offset' -> integer
+                Chunk offset.
+            'positive' -> np.ndarray (optional)
+                Time step of each positive peak detected in the chunk.
+            'negative' -> np.ndarray (optional)
+                Time step of each negative peak detected in the chunk.
         dict
 
     """
