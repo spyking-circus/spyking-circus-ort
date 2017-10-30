@@ -581,8 +581,24 @@ class Results(object):
 
     # Comparison between generated and fitted template.
 
-    def generated_templates(self, i, time=None, nn=100, hf_dist=45,
-                            a_dist=1.0):
+    @property
+    def nb_detected_units(self):
+
+        template_path = os.path.abspath(self.updater_kwargs['data_path'])
+        template_store = TemplateStore(template_path, mode='r')
+        nb_detected_units = template_store.nb_templates
+        template_store.close()
+
+        return nb_detected_units
+
+    @property
+    def nb_generated_units(self):
+
+        nb_generated_units = self.gen.nb_cells
+
+        return nb_generated_units
+
+    def get_generated_template(self, i, time=None, nn=100, hf_dist=45, a_dist=1.0):
         """Get generated templates
         
         Arguments:
@@ -599,18 +615,17 @@ class Results(object):
         res = self.gen.get(indices=[i], variables=['x', 'y', 'z'])
         cell = Cell(lambda t: res[i]['x'][time],
                     lambda t: res[i]['y'][time],
-                    lambda t: res[i]['z'][time], nn=nn,
-                    hf_dist=hf_dist, a_dist=a_dist)
+                    lambda t: res[i]['z'][time],
+                    nn=nn, hf_dist=hf_dist, a_dist=a_dist)
         a, b, c = cell.get_waveforms(time, self.probe)
-        template = scipy.sparse.csc_matrix((c, (b, a + 20)),
-                                           shape=(self.nb_channels, 81))
-
+        template = scipy.sparse.csc_matrix((c, (b, a + 20)), shape=(self.nb_channels, 81))
         template = template.toarray()
 
         return template
 
-    def detected_templates(self, i):
+    def get_detected_template(self, i):
         """Get detected templates
+
         Arguments:
             i: int
                 Unit identifier.
@@ -627,12 +642,32 @@ class Results(object):
         templates = np.reshape(templates, (self.nb_channels, width))
         templates *= norms[0]
 
+        template_store.close()
+
         return templates
 
-    def averaged_template(self, time_window=5.0, time_shift=0.4,
-                          dtype=np.float32):
-        """Get averaged template
+    def get_detected_spike_train(self, i):
+
+        train = self.detected_spikes.get_time_steps(i)
+        train = train.astype(np.int32)
+
+        return train
+
+    def get_generated_spike_train(self, i):
+
+        key = u'{}'.format(i)
+        train = self.gen.get(variables='spike_times')
+        train = train[key]['spike_times']
+        train = train.astype(np.int32)
+
+        return train
+
+    def get_sta(self, trains, time_window=5.0, time_shift=0.4, dtype=np.float32):
+        """Get spike triggered average
+
         Arguments:
+            trains: np.ndarray
+                Spike trains (i.e. array of spike time steps).
             time_window: float (optional)
                 Time window [ms]. The default value is 5.0.
             time_shift: float (optional)
@@ -646,52 +681,55 @@ class Results(object):
         data = np.memmap(path, dtype=dtype, mode='r')
         data = np.reshape(data, (-1, self.nb_channels))
 
-        # Retrieve the generated spike times.
-        generated_spike_steps = self.generated_spike_steps
-
         # Initialize averaged template.
-        template = None
-        count = 0
         nb_samples = int(time_window * 1e-3 * self.sampling_rate)
         i_shift = int(time_shift * 1e-3 * self.sampling_rate)
         di = nb_samples // 2
-        for i in generated_spike_steps:
+        template = np.zeros((nb_samples, self.nb_channels), dtype=dtype)
+        count = 0
+        for i in trains:
             i_ = i + i_shift
             i_min = i_ - di
             i_max = i_ + di + 1
             spike_data = data[i_min:i_max, :]
             if spike_data.shape[0] != i_max - i_min:
                 pass
-            elif template is None:
+            elif count == 0:
                 template = spike_data
                 count = 1
             else:
-                template = (float(count - 1) / float(count)) * template\
-                           + (1.0 / float(count)) * spike_data
+                template = (float(count - 1) / float(count)) * template + (1.0 / float(count)) * spike_data
                 count += 1
         template = np.transpose(template)
 
         return template
 
-    def compare_templates(self, time_shift=0.4):
-        """Compare templates
-
-        Compare the generated template with the detected template and the
-        averaged template.
+    def compare_templates(self, ij, time_shift=0.4):
+        """Compare templates of one generated unit with one detected unit.
 
         Attribute:
+            ij: tuple
+                Pair of indices. The first one is the index of the detected unit of interest. The second one is the
+                index of the generated unit of interest, e.g. (0, 0).
             time_shift: float (optional)
                 Time shift [ms]. The default value is 0.4.
         """
 
-        # Retrieve the generated template.
-        generated_template = self.generated_templates(0)
+        assert 0 <= ij[0] < self.nb_detected_units,\
+            "detected unit {} does not exist, {} units were detected".format(ij[0], self.nb_detected_units)
+        assert 0 <= ij[1] < self.nb_generated_units,\
+            "generated unit {} does not exist, {} units were generated".format(ij[1], self.nb_generated_units)
 
-        # Retrieve the detected template.
-        detected_template = self.detected_templates(0)
-
-        # Retrieve the averaged template.
-        averaged_template = self.averaged_template(time_shift=time_shift)
+        # Retrieve detected template.
+        detected_template = self.get_detected_template(ij[0])
+        # Retrieve generated template.
+        generated_template = self.get_generated_template(ij[1])
+        # Retrieve STA of detected spike train.
+        detected_spike_train = self.get_detected_spike_train(ij[0])
+        detected_sta = self.get_sta(detected_spike_train, time_shift=time_shift)
+        # Retrieve STA of generated spike train.
+        generated_spike_train = self.get_generated_spike_train(ij[1])
+        generated_sta = self.get_sta(generated_spike_train, time_shift=time_shift)
 
         scl = 0.9 * (self.probe.field_of_view['d'] / 2.0)
         alpha = 1.0
@@ -701,40 +739,59 @@ class Results(object):
         y_scl = scl * (1.0 / np.max(np.abs(generated_template)))
         width = generated_template.shape[1]
         color = 'C0'
-        for k in range(self.nb_channels):
+        for k in range(0, self.nb_channels):
             x_prb, y_prb = self.probe.positions[:, k]
             x = x_prb + x_scl * np.linspace(-1.0, +1.0, num=width)
             y = y_prb + y_scl * generated_template[k, :]
             if k == 0:
-                plt.plot(x, y, c=color, alpha=alpha, label='generated')
+                plt.plot(x, y, c=color, alpha=alpha, label='generated template')
             else:
                 plt.plot(x, y, c=color, alpha=alpha)
+        # Plot the generated STA.
+        x_scl = scl
+        if np.max(np.abs(generated_sta)) == 0.0:
+            y_scl = scl
+        else:
+            y_scl = scl * (1.0 / np.max(np.abs(generated_sta)))
+        width = generated_sta.shape[1]
+        color = 'C0'
+        for k in range(0, self.nb_channels):
+            x_prb, y_prb = self.probe.positions[:, k]
+            x = x_prb + x_scl * np.linspace(-1.0, +1.0, num=width)
+            y = y_prb + y_scl * generated_sta[k, :]
+            if k == 0:
+                plt.plot(x, y, c=color, alpha=alpha, linestyle='--', label='generated STA')
+            else:
+                plt.plot(x, y, c=color, alpha=alpha, linestyle='--')
         # Plot the detected template.
         x_scl = scl
         y_scl = scl * (1.0 / np.max(np.abs(detected_template)))
         width = detected_template.shape[1]
         color = 'C1'
-        for k in range(self.nb_channels):
+        for k in range(0, self.nb_channels):
             x_prb, y_prb = self.probe.positions[:, k]
             x = x_prb + x_scl * np.linspace(-1.0, +1.0, num=width)
             y = y_prb + y_scl * detected_template[k, :]
             if k == 0:
-                plt.plot(x, y, c=color, alpha=alpha, label='detected')
+                plt.plot(x, y, c=color, alpha=alpha, label='detected template')
             else:
                 plt.plot(x, y, c=color, alpha=alpha)
-        # Plot the averaged template.
+        # Plot the detected STA.
         x_scl = scl
-        y_scl = scl * (1.0 / np.max(np.abs(averaged_template)))
-        width = averaged_template.shape[1]
-        color = 'C2'
-        for k in range(self.nb_channels):
+        if np.max(np.abs(detected_sta)) == 0.0:
+            y_scl = scl
+        else:
+            y_scl = scl * (1.0 / np.max(np.abs(detected_sta)))
+        width = detected_sta.shape[1]
+        color = 'C1'
+        for k in range(0, self.nb_channels):
             x_prb, y_prb = self.probe.positions[:, k]
             x = x_prb + x_scl * np.linspace(-1.0, +1.0, num=width)
-            y = y_prb + y_scl * averaged_template[k, :]
+            y = y_prb + y_scl * detected_sta[k, :]
             if k == 0:
-                plt.plot(x, y, c=color, alpha=alpha, label='averaged')
+                plt.plot(x, y, c=color, alpha=alpha, linestyle='--', label='detected STA')
             else:
-                plt.plot(x, y, c=color, alpha=alpha)
+                plt.plot(x, y, c=color, alpha=alpha, linestyle='--')
         plt.xlabel("x [um]")
         plt.ylabel("y [um]")
         plt.title("Templates comparison")
