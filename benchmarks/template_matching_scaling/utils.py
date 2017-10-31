@@ -536,10 +536,15 @@ class Results(object):
 
         return
 
-    def plot_cum_dists_isis(self, t_min=None, t_max=None, d_min=0.0, d_max=200.0):
+    def plot_cum_dists_isis(self, detected_units=None, generated_units=None,
+                            t_min=None, t_max=None, d_min=0.0, d_max=200.0, ax=None):
         """Plot cumulative distributions of ISIs
 
         Arguments:
+            detected_units: none | iterable (optional)
+                Detected units. The default value is None.
+            generated_units: none | iterable (optional)
+                Generated units. The default value is None.
             t_min: none | float (optional)
                 Start time of each spike trains. The default value is None.
             t_max: none | float (optional)
@@ -548,26 +553,41 @@ class Results(object):
                 Minimal interspike interval duration [ms]. The default value is 0.0.
             d_max: float (optional)
                 Maximal interspike interval duration [ms]. The default value is 200.0.
+            ax: none | matplotlib.axes.Axes (optional)
+                Matplotlib axes. The default value is None.
         """
 
         assert 0.0 <= d_min <= d_max
 
-        plt.style.use('seaborn-paper')
-        plt.figure()
-        ax = plt.gca()
-        self.plot_cum_dist_isis(self.generated_spike_train, t_min=t_min, t_max=t_max, d_min=d_min, d_max=d_max,
-                                ax=ax, c='C0', label='generated')
+        if ax is None:
+            plt.style.use('seaborn-paper')
+            plt.figure()
+            ax = plt.gca()
+            is_subplot = False
+        else:
+            is_subplot = True
+        generated_spike_trains = self.get_generated_spike_trains()
+        if generated_units is not None:
+            generated_spike_trains = {i: generated_spike_trains[i] for i in generated_units}
+        for k, (i, train) in enumerate(generated_spike_trains.iteritems()):
+            c = 'C{}'.format(2 * (k % 5) + 0)
+            label = 'generated {}'.format(i)
+            self.plot_cum_dist_isis(train, t_min=t_min, t_max=t_max, d_min=d_min, d_max=d_max, ax=ax, c=c, label=label)
         detected_spike_trains = self.get_detected_spike_trains()
-        for k in detected_spike_trains:
-            c = 'C{}'.format((k % 9) + 1)
-            label = 'detected {}'.format(k + 1)
-            self.plot_cum_dist_isis(detected_spike_trains[k], t_min=t_min, t_max=t_max, d_min=d_min, d_max=d_max,
-                                    ax=ax, c=c, label=label)
-        ax.set_xlabel("duration (ms)")
-        ax.set_ylabel("number")
-        ax.set_title("Cumulative distributions of ISIs")
-        ax.legend()
-        plt.show()
+        if detected_units is not None:
+            detected_spike_trains = {i: detected_spike_trains[i] for i in detected_units}
+        for k, (i, train) in enumerate(detected_spike_trains.iteritems()):
+            c = 'C{}'.format(2 * (k % 5) + 1)
+            label = 'detected {}'.format(i)
+            self.plot_cum_dist_isis(train, t_min=t_min, t_max=t_max, d_min=d_min, d_max=d_max, ax=ax, c=c, label=label)
+        if not is_subplot:
+            ax.set_xlabel("duration (ms)")
+            ax.set_ylabel("number of intervals")
+            ax.set_title("Cumulative distributions of ISIs")
+            ax.legend()
+            plt.show()
+        else:
+            ax.set_xlabel("duration (ms)")
 
         return
 
@@ -585,11 +605,18 @@ class Results(object):
         if matching is None:
             self.plot_cum_dist_isis(**kwargs)
         else:
+            plt.style.use('seaborn-paper')
             nb_pairs = len(matching)
-            _, ax_arr = plt.subplots(nrows=1, ncols=nb_pairs)
+            _, ax_arr = plt.subplots(nrows=1, ncols=nb_pairs, sharey='row')
             for k, (detected_unit, generated_unit) in enumerate(matching):
-                self.plot_cum_dists_isis(detected_unit, generated_unit, ax=ax_arr[k])
-            # TODO complete.
+                ax = ax_arr[k]
+                self.plot_cum_dists_isis([detected_unit], [generated_unit], ax=ax, **kwargs)
+                if k == 0:
+                    ax.set_ylabel("number of intervals")
+                ax.set_title("det. {} - gen. {}".format(detected_unit, generated_unit))
+            plt.suptitle("Cumulative distributions of ISIs")
+            plt.tight_layout()
+            plt.subplots_adjust(top=0.85)
             plt.show()
 
         return
