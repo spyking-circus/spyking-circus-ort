@@ -475,8 +475,16 @@ class Cell(object):
 
         if self.t == 'default':
 
-            if self.r(chunk_number) > 0.0:
-                scale = 1.0 / self.r(chunk_number)
+            # Take refractory period into account to achieve the wanted firing rate.
+            r = self.r(chunk_number)
+            if self.rp > 0.0:
+                r_max = 1.0 / self.rp  # maximal firing rate with refractory periods
+                if r < r_max:
+                    r = r / (1.0 - r * self.rp)
+                else:
+                    r = np.inf
+            if r > 0.0:
+                scale = 1.0 / r
             else:
                 scale = np.inf
 
