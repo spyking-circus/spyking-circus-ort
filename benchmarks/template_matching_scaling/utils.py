@@ -447,7 +447,7 @@ class Results(object):
         if t_max is None:
             t_max = np.max(train) if train.size > 0 else 0.0
         nb_bins = int(np.ceil((t_max - t_min) / bin_width))
-        bins = [t_min + float(i) * bin_width for i in range(0, nb_bins)]  # bin edges
+        bins = [t_min + float(i) * bin_width for i in range(0, nb_bins + 1)]  # bin edges
         bin_values, bin_edges = np.histogram(train, bins=bins, **kwargs)
         rates = bin_values.astype(np.float) / bin_width
 
@@ -493,20 +493,20 @@ class Results(object):
         plt.figure()
         # Plot detected firing rates.
         for k, rate in detected_firing_rates.iteritems():
-            x = bin_edges[:-1]
-            y = rate
+            x = bin_edges
+            y = np.append(rate, [rate[-1]])
             if k == 0:
-                plt.plot(x, y, c='C1', label='detected')
+                plt.step(x, y, c='C1', where='post', label='detected')
             else:
-                plt.plot(x, y, c='C1')
+                plt.step(x, y, c='C1', where='post')
         # Plot generated firing rates.
         for k, rate in generated_firing_rates.iteritems():
-            x = bin_edges[:-1]
-            y = rate
+            x = bin_edges
+            y = np.append(rate, [rate[-1]])
             if k == 0:
-                plt.plot(x, y, c='C0', label='generated')
+                plt.step(x, y, c='C0', where='post', label='generated')
             else:
-                plt.plot(x, y, c='C0')
+                plt.step(x, y, c='C0', where='post')
         plt.xlabel("time (s)")
         plt.ylabel("rate (Hz)")
         plt.title("Firing rate comparison")
