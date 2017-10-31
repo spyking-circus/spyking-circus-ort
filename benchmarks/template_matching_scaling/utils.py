@@ -425,6 +425,97 @@ class Results(object):
 
         return
 
+    def compute_firing_rate(self, train, t_min=None, t_max=None, bin_width=1.0, **kwargs):
+        """Compute the firing rate
+
+        Arguments:
+            train: np.ndarray
+                Spike train.
+            t_min: none | float
+                Start time (in s). The default value is None.
+            t_max: none | float
+                End time (in s). The default value is None.
+            bin_width: float (optional)
+                Bin width (in s). The default value is 1.0.
+
+        See also:
+            numpy.histogram for additional keyword arguments.
+        """
+
+        if t_min is None:
+            t_min = np.min(train) if train.size > 0 else 0.0
+        if t_max is None:
+            t_max = np.max(train) if train.size > 0 else 0.0
+        nb_bins = int(np.ceil((t_max - t_min) / bin_width))
+        bins = [t_min + float(i) * bin_width for i in range(0, nb_bins)]  # bin edges
+        bin_values, bin_edges = np.histogram(train, bins=bins, **kwargs)
+        rates = bin_values.astype(np.float) / bin_width
+
+        return rates, bin_edges
+
+    def get_detected_firing_rates(self, t_min=None, t_max=None, bin_width=1.0):
+
+        trains = self.get_detected_spike_trains(t_min=t_min, t_max=t_max)
+        rates, bin_edges = {}, None
+        for k, train in trains.iteritems():
+            rates[k], bin_edges = self.compute_firing_rate(train, t_min=t_min, t_max=t_max, bin_width=bin_width)
+
+        return rates, bin_edges
+
+    def get_generated_firing_rates(self, t_min=None, t_max=None, bin_width=1.0):
+
+        trains = self.get_generated_spike_trains(t_min=t_min, t_max=t_max)
+        rates, bin_edges = {}, None
+        for k, train in trains.iteritems():
+            rates[k], bin_edges = self.compute_firing_rate(train, t_min=t_min, t_max=t_max, bin_width=bin_width)
+
+        return rates, bin_edges
+
+    def inspect_firing_rates(self, **kwargs):
+        """Firing rates inspection
+
+        See also:
+            get_detected_firing_rates for additional keyword arguments.
+            get_generated_firing_rates for additional keyword arguments.
+        """
+
+        # Retrieve detected firing rates.
+        detected_firing_rates, bin_edges = self.get_detected_firing_rates(**kwargs)
+        # Retrieve generated firing rates.
+        generated_firing_rates, bin_edges = self.get_generated_firing_rates(**kwargs)
+        # # Compute number of detected spike trains.
+        # nb_detected_spike_trains = len(detected_spike_trains)
+        # # Compute number of generated spike trains.
+        # nb_generated_spike_trains = len(generated_spike_trains)
+
+        # Plot firing rates to compare them visually.
+        plt.style.use('seaborn-paper')
+        plt.figure()
+        # Plot detected firing rates.
+        for k, rate in detected_firing_rates.iteritems():
+            x = bin_edges[:-1]
+            y = rate
+            if k == 0:
+                plt.plot(x, y, c='C1', label='detected')
+            else:
+                plt.plot(x, y, c='C1')
+        # Plot generated firing rates.
+        for k, rate in generated_firing_rates.iteritems():
+            x = bin_edges[:-1]
+            y = rate
+            if k == 0:
+                plt.plot(x, y, c='C0', label='generated')
+            else:
+                plt.plot(x, y, c='C0')
+        plt.xlabel("time (s)")
+        plt.ylabel("rate (Hz)")
+        plt.title("Firing rate comparison")
+        plt.legend()
+        plt.tight_layout()
+        plt.show()
+
+        return
+
     def van_rossum_distances(self, t_min=None, t_max=None, c=100.0):
         """Compute von Rossum distance between generated and detected spike trains"""
 
