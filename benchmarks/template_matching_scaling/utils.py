@@ -54,6 +54,11 @@ class Results(object):
         self.detected_spikes = io.load_spikes(spike_times_path,
                                               spike_templates_path,
                                               spike_amplitudes_path)
+        # Retrieve rejected times.
+        rejected_times_path = self.spike_writer_kwargs['rejected_times']
+        rejected_amplitudes_path = self.spike_writer_kwargs['rejected_amplitudes']
+        self.rejected_times = io.load_times(rejected_times_path,
+                                            rejected_amplitudes_path)
 
     @property
     def nb_channels(self):

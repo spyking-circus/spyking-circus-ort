@@ -163,3 +163,40 @@ class Spikes(object):
             raise NotImplementedError(msg)
 
         return ans
+
+def load_times(times_path, amplitudes_path):
+    """Load times
+
+    Arguments:
+        times_path: string
+        amplitudes_path: string
+
+    """
+    # TODO complete docstring.
+
+    return Times(times_path, amplitudes_path)
+
+
+class Times(object):
+
+    def __init__(self, times_path, amplitudes_path):
+
+        self.times_path = os.path.expanduser(times_path)
+        self.amplitudes_path = os.path.expanduser(amplitudes_path)
+
+        self.times = np.fromfile(self.times_path, dtype=np.int32)
+        self.amplitudes = np.fromfile(self.amplitudes_path, dtype=np.float32)
+
+    def get_time_steps(self):
+        """Get time steps"""
+
+        ans = self.times
+
+        return ans
+
+    def get_amplitudes(self, selection=None):
+        """Get amplitudes"""
+
+        ans = self.amplitudes
+
+        return ans
