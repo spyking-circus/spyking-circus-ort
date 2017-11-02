@@ -758,7 +758,7 @@ class Results(object):
 
         return amplitudes
 
-    def inspect_spike_amplitudes(self, matching, t_min=None, t_max=None):
+    def inspect_spike_amplitudes(self, matching, t_min=None, t_max=None, tol=1.0):
         # TODO add docstring.
 
         # Retrieve detected spike trains.
@@ -780,25 +780,36 @@ class Results(object):
             detected_train = detected_spike_trains[detected_unit]
             detected_amplitude = detected_spike_amplitudes[detected_unit]
             generated_train = generated_spike_trains[generated_unit]
-            is_excessive = self.get_excesses(detected_train, generated_train)
+            is_excessive = self.get_excesses(detected_train, generated_train, tol=tol)
+            # Plot amplitude limits.
+            if t_min is not None and t_max is not None:
+                ax.plot([t_min, t_max], 2 * [1.2], c='gray', linestyle='--', zorder=1)
+                ax.plot([t_min, t_max], 2 * [0.8], c='gray', linestyle='--', zorder=1)
             # Plot correct spikes.
             x = detected_train[~is_excessive]
             y = detected_amplitude[~is_excessive]
             label = 'correct spike' if k == 0 else '_nolegend_'
-            ax.scatter(x, y, c='C1', marker='.', label=label)
+            ax.scatter(x, y, c='C1', marker='.', label=label, zorder=2)
             # Plot excessive spikes.
             x = detected_train[is_excessive]
             y = detected_amplitude[is_excessive]
             label = 'excessive spike' if k == 0 else '_nolegend_'
-            ax.scatter(x, y, c='C0', marker='.', label=label)
+            ax.scatter(x, y, c='C0', marker='.', label=label, zorder=2)
             # Plot missing spikes.
-            is_missing = self.get_misses(detected_train, generated_train)
+            is_missing = self.get_misses(detected_train, generated_train, tol=tol)
             missing_times = generated_train[is_missing]
-            is_excessive = self.get_excesses(rejected_times, missing_times)
+            is_excessive = self.get_excesses(rejected_times, missing_times, tol=tol)
             x = rejected_times[~is_excessive]
             y = rejected_amplitudes[~is_excessive]
-            label = 'missing spike' if k == 0 else '_nolegend_'
-            ax.scatter(x, y, c='C2', marker='.', label=label)
+            label = 'missing spike candidate' if k == 0 else '_nolegend_'
+            ax.scatter(x, y, c='C2', marker='.', label=label, zorder=2)
+        ax_arr[-1].set_xlabel("time (s)")
+        ax_arr[0].set_ylabel("amplitude")
+        ax_arr[0].legend()
+        x_min, x_max = ax_arr[0].get_xlim()
+        x_min = t_min if t_min is not None else x_min
+        x_max = t_max if t_max is not None else x_max
+        ax_arr[0].set_xlim(x_min, x_max)
         # Add text.
         for k, pair in enumerate(matching):
             ax = ax_arr[k]
@@ -807,9 +818,6 @@ class Results(object):
             y_min, y_max = ax.get_ylim()
             ax.text(x_min, y_max, "det. {} - gen. {}".format(detected_unit, generated_unit),
                     verticalalignment='top', horizontalalignment='left')
-        ax_arr[-1].set_xlabel("time (s)")
-        ax_arr[0].set_ylabel("amplitude")
-        ax_arr[0].legend()
         plt.suptitle("Spike amplitudes")
         plt.tight_layout()
         plt.subplots_adjust(top=0.9, hspace=0.0)
