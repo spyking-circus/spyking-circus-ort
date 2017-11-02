@@ -685,10 +685,87 @@ class Results(object):
             y_ticklabels.append("det. {}".format(pair[0]))
             y_tickvalues.append(3 * k + 0)
             y_ticklabels.append("gen. {}".format(pair[1]))
-        plt.yticks(y_tickvalues,y_ticklabels)
+        plt.yticks(y_tickvalues, y_ticklabels)
         plt.title("Spike trains precision")
         plt.legend()
         plt.tight_layout()
+        plt.show()
+
+        return
+
+
+    def get_detected_spike_amplitudes(self, t_min=None, t_max=None):
+        """Get detected spike amplitudes
+
+        Arguments:
+            t_min: none | float (optional)
+                Start of the time window of interest (in s). The default value is None.
+            t_max: none | float (optional)
+                End time of the time window of interest (in s). The default value is None.
+        """
+
+        amplitudes = {}
+        for k in self.detected_spikes.units:
+            train = self.detected_spikes.get_time_steps(k)
+            amplitude = self.detected_spikes.get_amplitudes(k)
+            train = train.astype(np.float32)
+            train /= self.sampling_rate
+            if t_min is not None:
+                is_selected = t_min <= train
+                amplitude = amplitude[is_selected]
+                train = train[is_selected]
+            if t_max is not None:
+                is_selected = train <= t_max
+                amplitude = amplitude[is_selected]
+                train = train[is_selected]
+            amplitude = amplitude[np.argsort(train)]
+            amplitudes[k] = amplitude
+
+        return amplitudes
+
+    def inspect_spike_amplitudes(self, matching, t_min=None, t_max=None):
+        # TODO add docstring.
+
+        # Retrieve detected spike trains.
+        detected_spike_trains = self.get_detected_spike_trains(t_min=t_min, t_max=t_max)
+        # Retrieve detected spike amplitudes.
+        detected_spike_amplitudes = self.get_detected_spike_amplitudes(t_min=t_min, t_max=t_max)
+        # Retrieve generated spike trains.
+        generated_spike_trains = self.get_generated_spike_trains(t_min=t_min, t_max=t_max)
+
+        nb_pairs = len(matching)
+        _, ax_arr = plt.subplots(nrows=nb_pairs, sharex='all', sharey='all')
+        for k, pair in enumerate(matching):
+            ax = ax_arr[k]
+            detected_unit, generated_unit = pair
+            detected_train = detected_spike_trains[detected_unit]
+            detected_amplitude = detected_spike_amplitudes[detected_unit]
+            generated_train = generated_spike_trains[generated_unit]
+            is_excessive = self.get_excesses(detected_train, generated_train)
+            # Plot correct spikes.
+            x = detected_train[~is_excessive]
+            y = detected_amplitude[~is_excessive]
+            label = 'correct spike' if k == 0 else '_nolegend_'
+            ax.scatter(x, y, c='C1', marker='.', label=label)
+            # Plot excessive spikes.
+            x = detected_train[is_excessive]
+            y = detected_amplitude[is_excessive]
+            label = 'excessive spike' if k == 0 else '_nolegend_'
+            ax.scatter(x, y, c='C0', marker='.', label=label)
+        # Add text.
+        for k, pair in enumerate(matching):
+            ax = ax_arr[k]
+            detected_unit, generated_unit = pair
+            x_min, x_max = ax.get_xlim()
+            y_min, y_max = ax.get_ylim()
+            ax.text(x_min, y_max, "det. {} - gen. {}".format(detected_unit, generated_unit),
+                    verticalalignment='top', horizontalalignment='left')
+        ax_arr[-1].set_xlabel("time (s)")
+        ax_arr[0].set_ylabel("amplitude")
+        ax_arr[0].legend()
+        plt.suptitle("Spike amplitudes")
+        plt.tight_layout()
+        plt.subplots_adjust(top=0.9, hspace=0.0)
         plt.show()
 
         return
