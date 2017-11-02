@@ -194,7 +194,7 @@ class Times(object):
 
         return ans
 
-    def get_amplitudes(self, selection=None):
+    def get_amplitudes(self):
         """Get amplitudes"""
 
         ans = self.amplitudes
