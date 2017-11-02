@@ -345,6 +345,7 @@ class Results(object):
                 train = train[t_min <= train]
             if t_max is not None:
                 train = train[train <= t_max]
+            train = np.sort(train)
             trains[k] = train
 
         return trains
@@ -370,6 +371,7 @@ class Results(object):
                 train = train[t_min <= train]
             if t_max is not None:
                 train = train[train <= t_max]
+            train = np.sort(train)
             trains[k] = train
 
         return trains
@@ -620,8 +622,74 @@ class Results(object):
             nb_spikes = generated_train.size
             excess_rate = 100.0 * float(nb_excessive_spikes) / float(nb_spikes)
             miss_rate = 100.0 * float(nb_missing_spikes) / float(nb_spikes)
-            print("excess rate: {:.2f}% ({}/{})".format(excess_rate, nb_excessive_spikes, nb_spikes))
-            print("miss rate: {:.2f}% ({}/{})".format(miss_rate, nb_missing_spikes, nb_spikes))
+            print("det. {} - gen. {}".format(detected_unit, generated_unit))
+            print("    excess rate: {:.2f}% ({}/{})".format(excess_rate, nb_excessive_spikes, nb_spikes))
+            print("    miss rate: {:.2f}% ({}/{})".format(miss_rate, nb_missing_spikes, nb_spikes))
+
+        return
+
+    def get_excesses(self, detected_train, generated_train, tol=1.0):
+        # TODO add docstring.
+
+        detected_nsis, _ = self.compute_nsis(detected_train, generated_train)
+        is_excessive = detected_nsis > tol * 1e-3
+
+        return is_excessive
+
+    def get_misses(self, detected_train, generated_train, tol=1.0):
+        # TODO add docstring.
+
+        _, generated_nsis = self.compute_nsis(detected_train, generated_train)
+        is_missing = generated_nsis > tol * 1e-3
+
+        return is_missing
+
+    def compare_spike_trains_precision(self, matching, tol=1.0, t_min=None, t_max=None):
+        # TODO add docstring.
+
+        # Retrieve detected spike trains.
+        detected_spike_trains = self.get_detected_spike_trains(t_min=t_min, t_max=t_max)
+        # Retrieve generated spike trains.
+        generated_spike_trains = self.get_generated_spike_trains(t_min=t_min, t_max=t_max)
+
+        plt.style.use('seaborn-paper')
+        plt.subplots()
+        for k, pair in enumerate(matching):
+            detected_unit, generated_unit = pair
+            detected_train = detected_spike_trains[detected_unit]
+            generated_train = generated_spike_trains[generated_unit]
+            is_excessive = self.get_excesses(detected_train, generated_train, tol=tol)
+            is_missing = self.get_misses(detected_train, generated_train, tol=tol)
+            # Plot detected spike train.
+            x = [t for t in detected_train[~is_excessive]]
+            y = [float(3 * k + 1) for _ in x]
+            plt.scatter(x, y, c='C1', marker='|')
+            x = [t for t in detected_train[is_excessive]]
+            y = [float(3 * k + 1) for _ in x]
+            label = 'excessive' if k == 0 else '_nolegend_'
+            plt.scatter(x, y, c='C3', marker='|', label=label)
+            # Plot generated spike train.
+            x = [t for t in generated_train[~is_missing]]
+            y = [float(3 * k + 0) for _ in x]
+            plt.scatter(x, y, c='C0', marker='|')
+            x = [t for t in generated_train[is_missing]]
+            y = [float(3 * k + 0) for _ in x]
+            label = 'missing' if k == 0 else '_nolegend_'
+            plt.scatter(x, y, c='C2', marker='|', label=label)
+        plt.xlabel("time (s)")
+        plt.ylabel("spike train")
+        y_tickvalues = []
+        y_ticklabels = []
+        for k, pair in enumerate(matching):
+            y_tickvalues.append(3 * k + 1)
+            y_ticklabels.append("det. {}".format(pair[0]))
+            y_tickvalues.append(3 * k + 0)
+            y_ticklabels.append("gen. {}".format(pair[1]))
+        plt.yticks(y_tickvalues,y_ticklabels)
+        plt.title("Spike trains precision")
+        plt.legend()
+        plt.tight_layout()
+        plt.show()
 
         return
 
