@@ -580,9 +580,7 @@ class Results(object):
                         k_1 += 1
                     elif train_1[k_1] == train_2[k_2]:
                         nsis_1[k_1] = 0.0
-                        nsis_2[k_2] = 0.0
                         k_1 += 1
-                        k_2 += 1
                     else:
                         if k_1 == 0:
                             nsis_2[k_2] = np.abs(train_1[k_1] - train_2[k_2])
@@ -698,7 +696,6 @@ class Results(object):
 
         return
 
-
     def get_detected_spike_amplitudes(self, t_min=None, t_max=None):
         """Get detected spike amplitudes
 
@@ -728,6 +725,39 @@ class Results(object):
 
         return amplitudes
 
+    def get_rejected_times(self, t_min=None, t_max=None):
+        # TODO add docstring.
+
+        times = self.rejected_times.get_time_steps()
+        times = times.astype(np.float32)
+        times /= self.sampling_rate
+        if t_min is not None:
+            times = times[t_min <= times]
+        if t_max is not None:
+            times = times[times <= t_max]
+        times = np.sort(times)
+
+        return times
+
+    def get_rejected_amplitudes(self, t_min=None, t_max=None):
+        # TODO add docstring.
+
+        times = self.rejected_times.get_time_steps()
+        amplitudes = self.rejected_times.get_amplitudes()
+        times = times.astype(np.float32)
+        times /= self.sampling_rate
+        if t_min is not None:
+            is_selected = t_min <= times
+            times = times[is_selected]
+            amplitudes = amplitudes[is_selected]
+        if t_max is not None:
+            is_selected = times <= t_max
+            times = times[is_selected]
+            amplitudes = amplitudes[is_selected]
+        amplitudes = amplitudes[np.argsort(times)]
+
+        return amplitudes
+
     def inspect_spike_amplitudes(self, matching, t_min=None, t_max=None):
         # TODO add docstring.
 
@@ -737,6 +767,10 @@ class Results(object):
         detected_spike_amplitudes = self.get_detected_spike_amplitudes(t_min=t_min, t_max=t_max)
         # Retrieve generated spike trains.
         generated_spike_trains = self.get_generated_spike_trains(t_min=t_min, t_max=t_max)
+        # Retrieve rejected times.
+        rejected_times = self.get_rejected_times(t_min=t_min, t_max=t_max)
+        # Retrieve rejected amplitudes.
+        rejected_amplitudes = self.get_rejected_amplitudes(t_min=t_min, t_max=t_max)
 
         nb_pairs = len(matching)
         _, ax_arr = plt.subplots(nrows=nb_pairs, sharex='all', sharey='all')
@@ -757,6 +791,14 @@ class Results(object):
             y = detected_amplitude[is_excessive]
             label = 'excessive spike' if k == 0 else '_nolegend_'
             ax.scatter(x, y, c='C0', marker='.', label=label)
+            # Plot missing spikes.
+            is_missing = self.get_misses(detected_train, generated_train)
+            missing_times = generated_train[is_missing]
+            is_excessive = self.get_excesses(rejected_times, missing_times)
+            x = rejected_times[~is_excessive]
+            y = rejected_amplitudes[~is_excessive]
+            label = 'missing spike' if k == 0 else '_nolegend_'
+            ax.scatter(x, y, c='C2', marker='.', label=label)
         # Add text.
         for k, pair in enumerate(matching):
             ax = ax_arr[k]
