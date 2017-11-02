@@ -471,8 +471,12 @@ class Results(object):
 
         return rates, bin_edges
 
-    def inspect_firing_rates(self, **kwargs):
+    def inspect_firing_rates(self, matching=None, **kwargs):
         """Firing rates inspection
+
+        Argument:
+            matching: none | list (optional)
+                Matching. The default value is None.
 
         See also:
             get_detected_firing_rates for additional keyword arguments.
@@ -483,36 +487,63 @@ class Results(object):
         detected_firing_rates, bin_edges = self.get_detected_firing_rates(**kwargs)
         # Retrieve generated firing rates.
         generated_firing_rates, bin_edges = self.get_generated_firing_rates(**kwargs)
-        # # Compute number of detected spike trains.
-        # nb_detected_spike_trains = len(detected_spike_trains)
-        # # Compute number of generated spike trains.
-        # nb_generated_spike_trains = len(generated_spike_trains)
 
-        # Plot firing rates to compare them visually.
         plt.style.use('seaborn-paper')
-        plt.figure()
-        # Plot detected firing rates.
-        for k, rate in detected_firing_rates.iteritems():
-            x = bin_edges
-            y = np.append(rate, [rate[-1]])
-            if k == 0:
-                plt.step(x, y, c='C1', where='post', label='detected')
-            else:
-                plt.step(x, y, c='C1', where='post')
-        # Plot generated firing rates.
-        for k, rate in generated_firing_rates.iteritems():
-            x = bin_edges
-            y = np.append(rate, [rate[-1]])
-            if k == 0:
-                plt.step(x, y, c='C0', where='post', label='generated')
-            else:
-                plt.step(x, y, c='C0', where='post')
-        plt.xlabel("time (s)")
-        plt.ylabel("rate (Hz)")
-        plt.title("Firing rate comparison")
-        plt.legend()
-        plt.tight_layout()
-        plt.show()
+        if matching is None:
+            # Plot firing rates to compare them visually.
+            plt.figure()
+            # Plot detected firing rates.
+            for k, rate in detected_firing_rates.iteritems():
+                x = bin_edges
+                y = np.append(rate, [rate[-1]])
+                if k == 0:
+                    plt.step(x, y, c='C1', where='post', label='detected')
+                else:
+                    plt.step(x, y, c='C1', where='post')
+            # Plot generated firing rates.
+            for k, rate in generated_firing_rates.iteritems():
+                x = bin_edges
+                y = np.append(rate, [rate[-1]])
+                if k == 0:
+                    plt.step(x, y, c='C0', where='post', label='generated')
+                else:
+                    plt.step(x, y, c='C0', where='post')
+            plt.xlabel("time (s)")
+            plt.ylabel("rate (Hz)")
+            plt.title("Firing rate comparison")
+            plt.legend()
+            plt.tight_layout()
+            plt.show()
+        else:
+            nb_pairs = len(matching)
+            _, ax_arr = plt.subplots(nrows=nb_pairs, sharex='all', sharey='all')
+            for k, pair in enumerate(matching):
+                ax = ax_arr[k]
+                detected_unit, generated_unit = pair
+                # Plot detected firing rates.
+                x = bin_edges
+                y = detected_firing_rates[detected_unit]
+                y = np.append(y, [y[-1]])
+                ax.step(x, y, c='C1', where='post')
+                # Plot generated firing rates.
+                x = bin_edges
+                y = generated_firing_rates[generated_unit]
+                y = np.append(y, [y[-1]])
+                ax.step(x, y, c='C0', where='post')
+            # Add text.
+            for k, pair in enumerate(matching):
+                ax = ax_arr[k]
+                detected_unit, generated_unit = pair
+                x_min, x_max = ax.get_xlim()
+                y_min, y_max = ax.get_ylim()
+                ax.text(x_min, y_max, "det. {} - gen. {}".format(detected_unit, generated_unit),
+                        verticalalignment='top', horizontalalignment='left')
+            ax_arr[-1].set_ylabel("rate (Hz)")
+            ax_arr[-1].set_xlabel("time (s)")
+            plt.suptitle("Firing rate comparison")
+            plt.tight_layout()
+            plt.subplots_adjust(top=0.9, hspace=0.0)
+            plt.show()
 
         return
 
