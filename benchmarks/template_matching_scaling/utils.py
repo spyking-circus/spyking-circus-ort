@@ -547,6 +547,84 @@ class Results(object):
 
         return
 
+    def compute_nsis(self, train_1, train_2):
+        """Compute nearest spike intervals"""
+
+        nb_spikes_1 = train_1.size
+        nb_spikes_2 = train_2.size
+        nsis_1 = np.inf * np.ones(nb_spikes_1, dtype=np.float)
+        nsis_2 = np.inf * np.ones(nb_spikes_2, dtype=np.float)
+
+        if 0 < nb_spikes_1 and 0 < nb_spikes_1:
+            k_1, k_2 = 0, 0
+            for k in range(0, nb_spikes_1 + nb_spikes_2):
+                if k_1 == nb_spikes_1:
+                    nsis_2[k_2] = np.abs(train_1[k_1 - 1] - train_2[k_2])
+                    k_2 += 1
+                elif k_2 == nb_spikes_2:
+                    nsis_1[k_1] = np.abs(train_2[k_2 - 1] - train_1[k_1])
+                    k_1 += 1
+                else:
+                    if train_1[k_1] < train_2[k_2]:
+                        if k_2 == 0:
+                            nsis_1[k_1] = np.abs(train_2[k_2] - train_1[k_1])
+                        else:
+                            nsis_1[k_1] = min(np.abs(train_2[k_2] - train_1[k_1]), np.abs(train_2[k_2 - 1] - train_1[k_1]))
+                        k_1 += 1
+                    elif train_1[k_1] == train_2[k_2]:
+                        nsis_1[k_1] = 0.0
+                        nsis_2[k_2] = 0.0
+                        k_1 += 1
+                        k_2 += 1
+                    else:
+                        if k_1 == 0:
+                            nsis_2[k_2] = np.abs(train_1[k_1] - train_2[k_2])
+                        else:
+                            nsis_2[k_2] = min(np.abs(train_1[k_1] - train_2[k_2]), np.abs(train_1[k_1 - 1] - train_2[k_2]))
+                        k_2 += 1
+            assert k_1 == nb_spikes_1
+            assert k_2 == nb_spikes_2
+
+        return nsis_1, nsis_2
+
+    def display_precisions(self, matching, tol=1.0, t_min=None, t_max=None):
+        """Display precisions
+
+        Arguments:
+            matching: list
+            tol: float (optional)
+                Tolerance threshold for spike time equality (in ms). The default value is 1.0.
+            t_min: none | float (optional)
+                The default value is None.
+            t_max: none | float (optional)
+                The default value is None.
+        """
+
+        # Convert tolerance threshold in seconds.
+        tol = tol * 1e-3  # s
+
+        # Retrieve detected spike trains.
+        detected_spike_trains = self.get_detected_spike_trains(t_min=t_min, t_max=t_max)
+        # Retrieve generated spike trains.
+        generated_spike_trains = self.get_generated_spike_trains(t_min=t_min, t_max=t_max)
+
+        for k, pair in enumerate(matching):
+            detected_unit, generated_unit = pair
+            detected_train = detected_spike_trains[detected_unit]
+            generated_train = generated_spike_trains[generated_unit]
+            detected_nsis, generated_nsis = self.compute_nsis(detected_train, generated_train)
+            is_excessive = detected_nsis > tol
+            is_missing = generated_nsis > tol
+            nb_excessive_spikes = np.count_nonzero(is_excessive)
+            nb_missing_spikes = np.count_nonzero(is_missing)
+            nb_spikes = generated_train.size
+            excess_rate = 100.0 * float(nb_excessive_spikes) / float(nb_spikes)
+            miss_rate = 100.0 * float(nb_missing_spikes) / float(nb_spikes)
+            print("excess rate: {:.2f}% ({}/{})".format(excess_rate, nb_excessive_spikes, nb_spikes))
+            print("miss rate: {:.2f}% ({}/{})".format(miss_rate, nb_missing_spikes, nb_spikes))
+
+        return
+
     def van_rossum_distances(self, t_min=None, t_max=None, c=100.0):
         """Compute von Rossum distance between generated and detected spike trains"""
 
