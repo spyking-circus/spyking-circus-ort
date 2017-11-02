@@ -64,6 +64,7 @@ updater_kwargs = {
 if args.init_temp_dict:
     fitter_kwargs = {
         'init_path': os.path.join(tmp_dir, 'initial_templates.h5'),
+        'with_rejected_times': True,
     }
 else:
     fitter_kwargs = {}
@@ -71,6 +72,8 @@ spike_writer_kwargs = {
     'spike_times': os.path.join(tmp_dir, 'spike_times.raw'),
     'templates': os.path.join(tmp_dir, 'templates.raw'),
     'amplitudes': os.path.join(tmp_dir, 'amplitudes.raw'),
+    'rejected_times': os.path.join(tmp_dir, 'rejected_times.raw'),
+    'rejected_amplitudes': os.path.join(tmp_dir, 'rejected_amplitudes.raw'),
 }
 
 if args.skip_generation:

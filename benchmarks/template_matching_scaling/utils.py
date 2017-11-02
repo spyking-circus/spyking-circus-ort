@@ -345,6 +345,7 @@ class Results(object):
                 train = train[t_min <= train]
             if t_max is not None:
                 train = train[train <= t_max]
+            train = np.sort(train)
             trains[k] = train
 
         return trains
@@ -370,6 +371,7 @@ class Results(object):
                 train = train[t_min <= train]
             if t_max is not None:
                 train = train[train <= t_max]
+            train = np.sort(train)
             trains[k] = train
 
         return trains
@@ -471,8 +473,12 @@ class Results(object):
 
         return rates, bin_edges
 
-    def inspect_firing_rates(self, **kwargs):
+    def inspect_firing_rates(self, matching=None, **kwargs):
         """Firing rates inspection
+
+        Argument:
+            matching: none | list (optional)
+                Matching. The default value is None.
 
         See also:
             get_detected_firing_rates for additional keyword arguments.
@@ -483,35 +489,283 @@ class Results(object):
         detected_firing_rates, bin_edges = self.get_detected_firing_rates(**kwargs)
         # Retrieve generated firing rates.
         generated_firing_rates, bin_edges = self.get_generated_firing_rates(**kwargs)
-        # # Compute number of detected spike trains.
-        # nb_detected_spike_trains = len(detected_spike_trains)
-        # # Compute number of generated spike trains.
-        # nb_generated_spike_trains = len(generated_spike_trains)
 
-        # Plot firing rates to compare them visually.
         plt.style.use('seaborn-paper')
-        plt.figure()
-        # Plot detected firing rates.
-        for k, rate in detected_firing_rates.iteritems():
-            x = bin_edges
-            y = np.append(rate, [rate[-1]])
-            if k == 0:
-                plt.step(x, y, c='C1', where='post', label='detected')
-            else:
-                plt.step(x, y, c='C1', where='post')
-        # Plot generated firing rates.
-        for k, rate in generated_firing_rates.iteritems():
-            x = bin_edges
-            y = np.append(rate, [rate[-1]])
-            if k == 0:
-                plt.step(x, y, c='C0', where='post', label='generated')
-            else:
-                plt.step(x, y, c='C0', where='post')
+        if matching is None:
+            # Plot firing rates to compare them visually.
+            plt.figure()
+            # Plot detected firing rates.
+            for k, rate in detected_firing_rates.iteritems():
+                x = bin_edges
+                y = np.append(rate, [rate[-1]])
+                if k == 0:
+                    plt.step(x, y, c='C1', where='post', label='detected')
+                else:
+                    plt.step(x, y, c='C1', where='post')
+            # Plot generated firing rates.
+            for k, rate in generated_firing_rates.iteritems():
+                x = bin_edges
+                y = np.append(rate, [rate[-1]])
+                if k == 0:
+                    plt.step(x, y, c='C0', where='post', label='generated')
+                else:
+                    plt.step(x, y, c='C0', where='post')
+            plt.xlabel("time (s)")
+            plt.ylabel("rate (Hz)")
+            plt.title("Firing rate comparison")
+            plt.legend()
+            plt.tight_layout()
+            plt.show()
+        else:
+            nb_pairs = len(matching)
+            _, ax_arr = plt.subplots(nrows=nb_pairs, sharex='all', sharey='all')
+            for k, pair in enumerate(matching):
+                ax = ax_arr[k]
+                detected_unit, generated_unit = pair
+                # Plot detected firing rates.
+                x = bin_edges
+                y = detected_firing_rates[detected_unit]
+                y = np.append(y, [y[-1]])
+                ax.step(x, y, c='C1', where='post')
+                # Plot generated firing rates.
+                x = bin_edges
+                y = generated_firing_rates[generated_unit]
+                y = np.append(y, [y[-1]])
+                ax.step(x, y, c='C0', where='post')
+            # Add text.
+            for k, pair in enumerate(matching):
+                ax = ax_arr[k]
+                detected_unit, generated_unit = pair
+                x_min, x_max = ax.get_xlim()
+                y_min, y_max = ax.get_ylim()
+                ax.text(x_min, y_max, "det. {} - gen. {}".format(detected_unit, generated_unit),
+                        verticalalignment='top', horizontalalignment='left')
+            ax_arr[-1].set_ylabel("rate (Hz)")
+            ax_arr[-1].set_xlabel("time (s)")
+            plt.suptitle("Firing rate comparison")
+            plt.tight_layout()
+            plt.subplots_adjust(top=0.9, hspace=0.0)
+            plt.show()
+
+        return
+
+    def compute_nsis(self, train_1, train_2):
+        """Compute nearest spike intervals"""
+
+        nb_spikes_1 = train_1.size
+        nb_spikes_2 = train_2.size
+        nsis_1 = np.inf * np.ones(nb_spikes_1, dtype=np.float)
+        nsis_2 = np.inf * np.ones(nb_spikes_2, dtype=np.float)
+
+        if 0 < nb_spikes_1 and 0 < nb_spikes_1:
+            k_1, k_2 = 0, 0
+            for k in range(0, nb_spikes_1 + nb_spikes_2):
+                if k_1 == nb_spikes_1:
+                    nsis_2[k_2] = np.abs(train_1[k_1 - 1] - train_2[k_2])
+                    k_2 += 1
+                elif k_2 == nb_spikes_2:
+                    nsis_1[k_1] = np.abs(train_2[k_2 - 1] - train_1[k_1])
+                    k_1 += 1
+                else:
+                    if train_1[k_1] < train_2[k_2]:
+                        if k_2 == 0:
+                            nsis_1[k_1] = np.abs(train_2[k_2] - train_1[k_1])
+                        else:
+                            nsis_1[k_1] = min(np.abs(train_2[k_2] - train_1[k_1]), np.abs(train_2[k_2 - 1] - train_1[k_1]))
+                        k_1 += 1
+                    elif train_1[k_1] == train_2[k_2]:
+                        nsis_1[k_1] = 0.0
+                        nsis_2[k_2] = 0.0
+                        k_1 += 1
+                        k_2 += 1
+                    else:
+                        if k_1 == 0:
+                            nsis_2[k_2] = np.abs(train_1[k_1] - train_2[k_2])
+                        else:
+                            nsis_2[k_2] = min(np.abs(train_1[k_1] - train_2[k_2]), np.abs(train_1[k_1 - 1] - train_2[k_2]))
+                        k_2 += 1
+            assert k_1 == nb_spikes_1
+            assert k_2 == nb_spikes_2
+
+        return nsis_1, nsis_2
+
+    def display_precisions(self, matching, tol=1.0, t_min=None, t_max=None):
+        """Display precisions
+
+        Arguments:
+            matching: list
+            tol: float (optional)
+                Tolerance threshold for spike time equality (in ms). The default value is 1.0.
+            t_min: none | float (optional)
+                The default value is None.
+            t_max: none | float (optional)
+                The default value is None.
+        """
+
+        # Convert tolerance threshold in seconds.
+        tol = tol * 1e-3  # s
+
+        # Retrieve detected spike trains.
+        detected_spike_trains = self.get_detected_spike_trains(t_min=t_min, t_max=t_max)
+        # Retrieve generated spike trains.
+        generated_spike_trains = self.get_generated_spike_trains(t_min=t_min, t_max=t_max)
+
+        for k, pair in enumerate(matching):
+            detected_unit, generated_unit = pair
+            detected_train = detected_spike_trains[detected_unit]
+            generated_train = generated_spike_trains[generated_unit]
+            detected_nsis, generated_nsis = self.compute_nsis(detected_train, generated_train)
+            is_excessive = detected_nsis > tol
+            is_missing = generated_nsis > tol
+            nb_excessive_spikes = np.count_nonzero(is_excessive)
+            nb_missing_spikes = np.count_nonzero(is_missing)
+            nb_spikes = generated_train.size
+            excess_rate = 100.0 * float(nb_excessive_spikes) / float(nb_spikes)
+            miss_rate = 100.0 * float(nb_missing_spikes) / float(nb_spikes)
+            print("det. {} - gen. {}".format(detected_unit, generated_unit))
+            print("    excess rate: {:.2f}% ({}/{})".format(excess_rate, nb_excessive_spikes, nb_spikes))
+            print("    miss rate: {:.2f}% ({}/{})".format(miss_rate, nb_missing_spikes, nb_spikes))
+
+        return
+
+    def get_excesses(self, detected_train, generated_train, tol=1.0):
+        # TODO add docstring.
+
+        detected_nsis, _ = self.compute_nsis(detected_train, generated_train)
+        is_excessive = detected_nsis > tol * 1e-3
+
+        return is_excessive
+
+    def get_misses(self, detected_train, generated_train, tol=1.0):
+        # TODO add docstring.
+
+        _, generated_nsis = self.compute_nsis(detected_train, generated_train)
+        is_missing = generated_nsis > tol * 1e-3
+
+        return is_missing
+
+    def compare_spike_trains_precision(self, matching, tol=1.0, t_min=None, t_max=None):
+        # TODO add docstring.
+
+        # Retrieve detected spike trains.
+        detected_spike_trains = self.get_detected_spike_trains(t_min=t_min, t_max=t_max)
+        # Retrieve generated spike trains.
+        generated_spike_trains = self.get_generated_spike_trains(t_min=t_min, t_max=t_max)
+
+        plt.style.use('seaborn-paper')
+        plt.subplots()
+        for k, pair in enumerate(matching):
+            detected_unit, generated_unit = pair
+            detected_train = detected_spike_trains[detected_unit]
+            generated_train = generated_spike_trains[generated_unit]
+            is_excessive = self.get_excesses(detected_train, generated_train, tol=tol)
+            is_missing = self.get_misses(detected_train, generated_train, tol=tol)
+            # Plot detected spike train.
+            x = [t for t in detected_train[~is_excessive]]
+            y = [float(3 * k + 1) for _ in x]
+            plt.scatter(x, y, c='C1', marker='|')
+            x = [t for t in detected_train[is_excessive]]
+            y = [float(3 * k + 1) for _ in x]
+            label = 'excessive' if k == 0 else '_nolegend_'
+            plt.scatter(x, y, c='C3', marker='|', label=label)
+            # Plot generated spike train.
+            x = [t for t in generated_train[~is_missing]]
+            y = [float(3 * k + 0) for _ in x]
+            plt.scatter(x, y, c='C0', marker='|')
+            x = [t for t in generated_train[is_missing]]
+            y = [float(3 * k + 0) for _ in x]
+            label = 'missing' if k == 0 else '_nolegend_'
+            plt.scatter(x, y, c='C2', marker='|', label=label)
         plt.xlabel("time (s)")
-        plt.ylabel("rate (Hz)")
-        plt.title("Firing rate comparison")
+        plt.ylabel("spike train")
+        y_tickvalues = []
+        y_ticklabels = []
+        for k, pair in enumerate(matching):
+            y_tickvalues.append(3 * k + 1)
+            y_ticklabels.append("det. {}".format(pair[0]))
+            y_tickvalues.append(3 * k + 0)
+            y_ticklabels.append("gen. {}".format(pair[1]))
+        plt.yticks(y_tickvalues, y_ticklabels)
+        plt.title("Spike trains precision")
         plt.legend()
         plt.tight_layout()
+        plt.show()
+
+        return
+
+
+    def get_detected_spike_amplitudes(self, t_min=None, t_max=None):
+        """Get detected spike amplitudes
+
+        Arguments:
+            t_min: none | float (optional)
+                Start of the time window of interest (in s). The default value is None.
+            t_max: none | float (optional)
+                End time of the time window of interest (in s). The default value is None.
+        """
+
+        amplitudes = {}
+        for k in self.detected_spikes.units:
+            train = self.detected_spikes.get_time_steps(k)
+            amplitude = self.detected_spikes.get_amplitudes(k)
+            train = train.astype(np.float32)
+            train /= self.sampling_rate
+            if t_min is not None:
+                is_selected = t_min <= train
+                amplitude = amplitude[is_selected]
+                train = train[is_selected]
+            if t_max is not None:
+                is_selected = train <= t_max
+                amplitude = amplitude[is_selected]
+                train = train[is_selected]
+            amplitude = amplitude[np.argsort(train)]
+            amplitudes[k] = amplitude
+
+        return amplitudes
+
+    def inspect_spike_amplitudes(self, matching, t_min=None, t_max=None):
+        # TODO add docstring.
+
+        # Retrieve detected spike trains.
+        detected_spike_trains = self.get_detected_spike_trains(t_min=t_min, t_max=t_max)
+        # Retrieve detected spike amplitudes.
+        detected_spike_amplitudes = self.get_detected_spike_amplitudes(t_min=t_min, t_max=t_max)
+        # Retrieve generated spike trains.
+        generated_spike_trains = self.get_generated_spike_trains(t_min=t_min, t_max=t_max)
+
+        nb_pairs = len(matching)
+        _, ax_arr = plt.subplots(nrows=nb_pairs, sharex='all', sharey='all')
+        for k, pair in enumerate(matching):
+            ax = ax_arr[k]
+            detected_unit, generated_unit = pair
+            detected_train = detected_spike_trains[detected_unit]
+            detected_amplitude = detected_spike_amplitudes[detected_unit]
+            generated_train = generated_spike_trains[generated_unit]
+            is_excessive = self.get_excesses(detected_train, generated_train)
+            # Plot correct spikes.
+            x = detected_train[~is_excessive]
+            y = detected_amplitude[~is_excessive]
+            label = 'correct spike' if k == 0 else '_nolegend_'
+            ax.scatter(x, y, c='C1', marker='.', label=label)
+            # Plot excessive spikes.
+            x = detected_train[is_excessive]
+            y = detected_amplitude[is_excessive]
+            label = 'excessive spike' if k == 0 else '_nolegend_'
+            ax.scatter(x, y, c='C0', marker='.', label=label)
+        # Add text.
+        for k, pair in enumerate(matching):
+            ax = ax_arr[k]
+            detected_unit, generated_unit = pair
+            x_min, x_max = ax.get_xlim()
+            y_min, y_max = ax.get_ylim()
+            ax.text(x_min, y_max, "det. {} - gen. {}".format(detected_unit, generated_unit),
+                    verticalalignment='top', horizontalalignment='left')
+        ax_arr[-1].set_xlabel("time (s)")
+        ax_arr[0].set_ylabel("amplitude")
+        ax_arr[0].legend()
+        plt.suptitle("Spike amplitudes")
+        plt.tight_layout()
+        plt.subplots_adjust(top=0.9, hspace=0.0)
         plt.show()
 
         return

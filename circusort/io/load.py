@@ -102,6 +102,7 @@ def load_spikes(times_path, templates_path, amplitudes_path):
 
     return Spikes(times_path, templates_path, amplitudes_path)
 
+
 class Spikes(object):
 
     def __init__(self, times_path, templates_path, amplitudes_path):
@@ -118,15 +119,44 @@ class Spikes(object):
         self.nb_units = self.units.size
 
     def get_time_steps(self, selection=None):
+        """Get time steps
+
+        Argument:
+            selection: none | integer | list (optional)
+                Unit index or indices. The default value is None.
+        """
 
         if selection is None:
             ans = self.times
         elif np.any([isinstance(selection, t) for t in (int, np.int32)]):
-            mask = np.array([e == selection for e in self.templates])
-            ans = self.times[mask]
+            is_selected = np.array([e == selection for e in self.templates])
+            ans = self.times[is_selected]
         elif isinstance(selection, list):
-            mask = np.array([e in selection for e in self.templates])
-            ans = self.times[mask]
+            is_selected = np.array([e in selection for e in self.templates])
+            ans = self.times[is_selected]
+        else:
+            msg = "Can't use {} ({}) as a selection."
+            msg = msg.format(selection, type(selection))
+            raise NotImplementedError(msg)
+
+        return ans
+
+    def get_amplitudes(self, selection=None):
+        """Get amplitudes
+
+        Argument:
+            selection: none | integer | list (optional)
+                Unit index or indices. The default value is None.
+        """
+
+        if selection is None:
+            ans = self.amplitudes
+        elif np.any([isinstance(selection, t) for t in (int, np.int32)]):
+            is_selected = np.array([e == selection for e in self.templates])
+            ans = self.amplitudes[is_selected]
+        elif isinstance(selection, list):
+            is_selected = np.array([e in selection for e in self.templates])
+            ans = self.times[is_selected]
         else:
             msg = "Can't use {} ({}) as a selection."
             msg = msg.format(selection, type(selection))
