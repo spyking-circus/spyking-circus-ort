@@ -31,6 +31,7 @@ class Template_fitter(Block):
         'sampling_rate': 20000,
         'two_components': False,
         'init_path': None,
+        'with_rejected_times': False,
     }
 
     def __init__(self, **kwargs):
@@ -73,6 +74,11 @@ class Template_fitter(Block):
             'amplitudes': np.zeros(0, dtype=np.float32),
             'templates': np.zeros(0, dtype=np.int32),
         }  # temporary result
+        if self.with_rejected_times:
+            self.r.update({
+                'rejected_times': np.zeros(0, dtype=np.int32),
+                'rejected_amplitudes': np.zeros(0, dtype=np.float32),
+            })
 
         return
 
@@ -165,11 +171,21 @@ class Template_fitter(Block):
             'templates': self.r['templates'],
             'offset': self.offset,
         }
+        if self.with_rejected_times:
+            self.result.update({
+                'rejected_times': self.r['rejected_times'],
+                'rejected_amplitudes': self.r['rejected_amplitudes']
+            })
         self.r = {
             'spike_times': np.zeros(0, dtype=np.int32),
             'amplitudes': np.zeros(0, dtype=np.float32),
             'templates': np.zeros(0, dtype=np.int32),
         }
+        if self.with_rejected_times:
+            self.r.update({
+                'rejected_times': np.zeros(0, dtype=np.int32),
+                'rejected_amplitudes': np.zeros(0, dtype=np.float32)
+            })
 
         return
 
@@ -243,7 +259,6 @@ class Template_fitter(Block):
     def _fit_chunk(self):
 
         # Reset result.
-        # TODO check the value used for the offset (buffer shift?).
         self._reset_result()
 
         # Compute the number of peaks in the current chunk.
@@ -332,6 +347,10 @@ class Template_fitter(Block):
                             mask[:, peak_index] = 0
                         else:
                             mask[best_template_index, peak_index] = 0
+                        # Add reject to the result if necessary.
+                        if self.with_rejected_times:
+                            self.r['rejected_times'] = np.concatenate((self.r['rejected_times'], [peaks[peak_index]]))
+                            self.r['rejected_amplitudes'] = np.concatenate((self.r['rejected_amplitudes'], [best_amplitude_]))
 
             # Handle result.
             is_in_result = self.r['spike_times'] < self.nb_samples
@@ -341,10 +360,17 @@ class Template_fitter(Block):
                                                         self.r['amplitudes'][is_in_result]))
             self.result['templates'] = np.concatenate((self.result['templates'],
                                                        self.r['templates'][is_in_result]))
-            is_not_in_result = np.logical_not(is_in_result)
-            self.r['spike_times'] = self.r['spike_times'][is_not_in_result] - self.nb_samples
-            self.r['amplitudes'] = self.r['amplitudes'][is_not_in_result]
-            self.r['templates'] = self.r['templates'][is_not_in_result]
+            self.r['spike_times'] = self.r['spike_times'][~is_in_result] - self.nb_samples
+            self.r['amplitudes'] = self.r['amplitudes'][~is_in_result]
+            self.r['templates'] = self.r['templates'][~is_in_result]
+            if self.with_rejected_times:
+                is_in_result = self.r['rejected_times'] < self.nb_samples
+                self.result['rejected_times'] = np.concatenate((self.result['rejected_times'],
+                                                                self.r['rejected_times'][is_in_result]))
+                self.result['rejected_amplitudes'] = np.concatenate((self.result['rejected_amplitudes'],
+                                                                     self.r['rejected_amplitudes'][is_in_result]))
+                self.r['rejected_times'] = self.r['rejected_times'][~is_in_result] - self.nb_samples
+                self.r['rejected_amplitudes'] = self.r['rejected_amplitudes'][~is_in_result]
 
             # Log fitting result.
             nb_spike_times = len(self.result['spike_times'])
