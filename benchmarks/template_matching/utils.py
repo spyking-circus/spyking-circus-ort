@@ -96,39 +96,46 @@ class Results(object):
 
     # Peak trains analysis.
 
-    @property
-    def generated_peak_train(self):
+    def generated_peak_train(self, t_min=None, t_max=None):
 
         generated_peak_train = self.gen.get(variables='spike_times')
         generated_peak_train = generated_peak_train[u'0']['spike_times']
         generated_peak_train = generated_peak_train.astype(np.float32)
         generated_peak_train /= self.sampling_rate
+        if t_min is not None:
+            generated_peak_train = generated_peak_train[t_min <= generated_peak_train]
+        if t_max is not None:
+            generated_peak_train = generated_peak_train[generated_peak_train <= t_max]
 
         return generated_peak_train
 
-    @property
-    def detected_peak_trains(self):
+    def detected_peak_trains(self, t_min=None, t_max=None):
 
         detected_peak_trains = {}
         for k in range(0, self.nb_channels):
             detected_peak_train = self.detected_peaks.get_time_steps(k)
             detected_peak_train = detected_peak_train.astype(np.float32)
             detected_peak_train /= self.sampling_rate
+            if t_min is not None:
+                detected_peak_train = detected_peak_train[t_min <= detected_peak_train]
+            if t_max is not None:
+                detected_peak_train = detected_peak_train[detected_peak_train <= t_max]
             detected_peak_trains[k] = detected_peak_train
 
         return detected_peak_trains
 
-    def compare_peak_trains(self):
+    def compare_peak_trains(self, **kwargs):
         """Compare peak trains"""
 
         # Plot peak trains to compare them visually.
         plt.figure()
         # Plot generated peak train.
-        x = [t for t in self.generated_peak_train]
+        train = self.generated_peak_train(**kwargs)
+        x = [t for t in train]
         y = [0.0 for _ in x]
         plt.scatter(x, y, c='C1', marker='|')
         # Plot detected peak trains.
-        detected_peak_trains = self.detected_peak_trains
+        detected_peak_trains = self.detected_peak_trains(**kwargs)
         for k in range(0, self.nb_channels):
             x = [t for t in detected_peak_trains[k]]
             y = [float(k + 1) for _ in x]
@@ -141,16 +148,17 @@ class Results(object):
 
         return
 
-    def compare_peaks_number(self):
+    def compare_peaks_number(self, **kwargs):
         """Compare number of peaks"""
 
         # Compute the number of generated peaks.
-        nb_generated_peaks = self.generated_peak_train.size
+        generated_peak_train = self.generated_peak_train(**kwargs)
+        nb_generated_peaks = generated_peak_train.size
         # Print the number of generated peaks.
         msg = "number of generated peaks: {}"
         print(msg.format(nb_generated_peaks))
         # Retrieve the detected peaks.
-        detected_peak_trains = self.detected_peak_trains
+        detected_peak_trains = self.detected_peak_trains(**kwargs)
         # Compute the number of detected peaks.
         nb_detected_peaks = 0
         for k in range(0, self.nb_channels):
@@ -227,12 +235,14 @@ class Results(object):
         plt.style.use('seaborn-paper')
         plt.figure()
         ax = plt.gca()
-        self.plot_cum_dist_ipis(self.generated_peak_train, t_min=t_min, t_max=t_max, d_min=d_min, d_max=d_max,
+        generated_peak_train = self.generated_peak_train(t_min=t_min, t_max=t_max)
+        self.plot_cum_dist_ipis(generated_peak_train, t_min=t_min, t_max=t_max, d_min=d_min, d_max=d_max,
                                 ax=ax, c='C0', label='generated')
-        for k in self.detected_peak_trains:
+        detected_peak_trains = self.detected_peak_trains(t_min=t_min, t_max=t_max)
+        for k in detected_peak_trains:
             c = 'C{}'.format((k % 9) + 1)
             label = 'detected {}'.format(k + 1)
-            self.plot_cum_dist_ipis(self.detected_peak_trains[k], t_min=t_min, t_max=t_max, d_min=d_min, d_max=d_max,
+            self.plot_cum_dist_ipis(detected_peak_trains[k], t_min=t_min, t_max=t_max, d_min=d_min, d_max=d_max,
                                     ax=ax, c=c, label=label)
         ax.set_xlabel("duration (ms)")
         ax.set_ylabel("number")
@@ -288,13 +298,14 @@ class Results(object):
             plt.step(x, + y / y_scale + y_offset, where='post', c='C3')
             plt.step(x, - y / y_scale + y_offset, where='post', c='C3')
         # Plot generated peaks.
-        x = [t for t in self.generated_peak_train if t_min <= t <= t_max]
+        train = self.generated_peak_train(t_min=t_min, t_max=t_max)
+        x = [t for t in train]
         y = [-1.0 for _ in x]
         plt.scatter(x, y, c='C2', marker='|', zorder=2)
         # Plot detected peaks.
-        detected_peak_trains = self.detected_peak_trains
+        detected_peak_trains = self.detected_peak_trains(t_min=t_min, t_max=t_max)
         for k in range(0, self.nb_channels):
-            x = [t for t in detected_peak_trains[k] if t_min <= t <= t_max]
+            x = [t for t in detected_peak_trains[k]]
             y = [float(k) for _ in x]
             plt.scatter(x, y, c='C1', marker='|', zorder=2)
         plt.xlabel("time (s)")
@@ -315,35 +326,41 @@ class Results(object):
 
         return generated_spike_steps
 
-    @property
-    def generated_spike_train(self):
+    def generated_spike_train(self, t_min=None, t_max=None):
 
         generated_spike_train = self.generated_spike_steps
         generated_spike_train = generated_spike_train.astype(np.float32)
         generated_spike_train /= self.sampling_rate
+        if t_min is not None:
+            generated_spike_train = generated_spike_train[t_min <= generated_spike_train]
+        if t_max is not None:
+            generated_spike_train = generated_spike_train[generated_spike_train <= t_max]
 
         return generated_spike_train
 
-    @property
-    def detected_spike_trains(self):
+    def detected_spike_trains(self, t_min=None, t_max=None):
 
         detected_spike_trains = {}
         for k in self.detected_spikes.units:
             detected_spike_train = self.detected_spikes.get_time_steps(k)
             detected_spike_train = detected_spike_train.astype(np.float32)
             detected_spike_train /= self.sampling_rate
+            if t_min is not None:
+                detected_spike_train = detected_spike_train[t_min <= detected_spike_train]
+            if t_max is not None:
+                detected_spike_train = detected_spike_train[detected_spike_train <= t_max]
             detected_spike_trains[k] = detected_spike_train
 
         return detected_spike_trains
 
-    def compare_spike_trains(self):
+    def compare_spike_trains(self, t_min=None, t_max=None):
         """Compare spike trains."""
 
         # Retrieve the generated spike train.
-        generated_spike_train = self.generated_spike_train
+        generated_spike_train = self.generated_spike_train(t_min=t_min, t_max=t_max)
 
         # Retrieve the inferred spike trains.
-        detected_spike_trains = self.detected_spike_trains
+        detected_spike_trains = self.detected_spike_trains(t_min=t_min, t_max=t_max)
 
         # Plot spike trains to compare them visually.
         plt.figure()
@@ -368,10 +385,10 @@ class Results(object):
         """Compute von Rossum distance between generated and detected spike trains"""
 
         # Retrieve the generated spike train.
-        generated_spike_train = self.generated_spike_train
+        generated_spike_train = self.generated_spike_train(t_min=t_min, t_max=t_max)
 
         # Retrieve the detected spike trains.
-        detected_spike_trains = self.detected_spike_trains
+        detected_spike_trains = self.detected_spike_trains(t_min=t_min, t_max=t_max)
 
         d = np.zeros(len(detected_spike_trains))
         for k, train in enumerate(detected_spike_trains.values()):
@@ -494,12 +511,14 @@ class Results(object):
         plt.style.use('seaborn-paper')
         plt.figure()
         ax = plt.gca()
-        self.plot_cum_dist_isis(self.generated_spike_train, t_min=t_min, t_max=t_max, d_min=d_min, d_max=d_max,
+        generated_spike_train = self.generated_spike_train(t_min=t_min, t_max=t_max)
+        self.plot_cum_dist_isis(generated_spike_train, t_min=t_min, t_max=t_max, d_min=d_min, d_max=d_max,
                                 ax=ax, c='C0', label='generated')
-        for k in self.detected_spike_trains:
+        detected_spike_trains = self.detected_spike_trains(t_min=t_min, t_max=t_max)
+        for k in detected_spike_trains:
             c = 'C{}'.format((k % 9) + 1)
             label = 'detected {}'.format(k + 1)
-            self.plot_cum_dist_isis(self.detected_spike_trains[k], t_min=t_min, t_max=t_max, d_min=d_min, d_max=d_max,
+            self.plot_cum_dist_isis(detected_spike_trains[k], t_min=t_min, t_max=t_max, d_min=d_min, d_max=d_max,
                                     ax=ax, c=c, label=label)
         ax.set_xlabel("duration (ms)")
         ax.set_ylabel("number")
@@ -562,18 +581,21 @@ class Results(object):
             plt.step(x, + y / y_scale + y_offset, where='post', c='C3')
             plt.step(x, - y / y_scale + y_offset, where='post', c='C3')
         # Plot generated spike train.
-        x = [t for t in self.generated_spike_train if t_min <= t <= t_max]
+        generated_spike_train = self.generated_spike_train(t_min=t_min, t_max=t_max)
+        x = [t for t in generated_spike_train]
         y = [-1.0 for _ in x]
-        plt.scatter(x, y, c='C2', marker='|', zorder=2)
+        plt.scatter(x, y, c='C2', marker='|', zorder=2, label='generated')
         # Plot detected spike trains.
-        detected_spike_trains = self.detected_spike_trains
+        detected_spike_trains = self.detected_spike_trains(t_min=t_min, t_max=t_max)
         for k, train in enumerate(detected_spike_trains.values()):
-            x = [t for t in train if t_min <= t <= t_max]
+            x = [t for t in train]
             y = [-float(k + 2) for _ in x]
-            plt.scatter(x, y, c='C1', marker='|', zorder=2)
+            label = 'detected' if k == 0 else '_nolegend_'
+            plt.scatter(x, y, c='C1', marker='|', zorder=2, label=label)
         plt.xlabel("time (s)")
         plt.ylabel("electrode")
-        plt.ylabel("Signal and spikes")
+        plt.title("Signal and spikes")
+        plt.legend()
         plt.tight_layout()
         plt.show()
 
