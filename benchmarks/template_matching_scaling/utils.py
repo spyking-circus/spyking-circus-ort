@@ -758,7 +758,7 @@ class Results(object):
 
         return amplitudes
 
-    def inspect_spike_amplitudes(self, matching, t_min=None, t_max=None, tol=1.0):
+    def inspect_spike_amplitudes(self, matching, t_min=None, t_max=None, tol=5.0, tol_bis=1.0):
         # TODO add docstring.
 
         # Retrieve detected spike trains.
@@ -798,7 +798,7 @@ class Results(object):
             # Plot missing spikes.
             is_missing = self.get_misses(detected_train, generated_train, tol=tol)
             missing_times = generated_train[is_missing]
-            is_excessive = self.get_excesses(rejected_times, missing_times, tol=tol)
+            is_excessive = self.get_excesses(rejected_times, missing_times, tol=tol_bis)
             x = rejected_times[~is_excessive]
             y = rejected_amplitudes[~is_excessive]
             label = 'missing spike candidate' if k == 0 else '_nolegend_'
@@ -819,6 +819,85 @@ class Results(object):
             ax.text(x_min, y_max, "det. {} - gen. {}".format(detected_unit, generated_unit),
                     verticalalignment='top', horizontalalignment='left')
         plt.suptitle("Spike amplitudes")
+        plt.tight_layout()
+        plt.subplots_adjust(top=0.9, hspace=0.0)
+        plt.show()
+
+        return
+
+    def inspect_missing_spike_candidates(self, matching, t_min=None, t_max=None, tol=5.0, tol_bis=1.0, time_shift=0.4):
+        # TODO add docstring.
+
+        # Retrieve detected spike trains.
+        detected_spike_trains = self.get_detected_spike_trains(t_min=t_min, t_max=t_max)
+        # Retrieve generated spike trains.
+        generated_spike_trains = self.get_generated_spike_trains(t_min=t_min, t_max=t_max)
+        # Retrieve rejected times.
+        rejected_times = self.get_rejected_times(t_min=t_min, t_max=t_max)
+
+        nb_pairs = len(matching)
+        _, ax_arr = plt.subplots(ncols=nb_pairs, sharex='all', sharey='all')
+        for k, pair in enumerate(matching):
+            ax = ax_arr[k]
+            detected_unit, generated_unit = pair
+            detected_train = detected_spike_trains[detected_unit]
+            generated_train = generated_spike_trains[generated_unit]
+            is_missing = self.get_misses(detected_train, generated_train, tol=tol)
+            missing_times = generated_train[is_missing]
+            is_excessive = self.get_excesses(rejected_times, missing_times, tol=tol_bis)
+            times = rejected_times[~is_excessive]
+            time_steps = times * self.sampling_rate
+            time_steps = time_steps.astype(np.int32)
+            # Retrieve the signal data.
+            path = self.signal_writer_kwargs['data_path']
+            data = np.memmap(path, dtype=np.float32, mode='r')
+            data = np.reshape(data, (-1, self.nb_channels))
+            # Initialize averaged template.
+            nb_samples = int(5.0 * 1e-3 * self.sampling_rate)
+            i_shift = int(time_shift * 1e-3 * self.sampling_rate)
+            di = nb_samples // 2
+            for i in time_steps:
+                i_ = i + i_shift
+                i_min = i_ - di
+                i_max = i_ + di + 1
+                spike_data = data[i_min:i_max, :]
+                if spike_data.shape[0] != i_max - i_min:
+                    pass
+                else:
+                    spike_data = np.transpose(spike_data)
+                    # Plot the generated template.
+                    scl = 0.9 * (self.probe.field_of_view['d'] / 2.0)
+                    alpha = 1.0
+                    x_scl = scl
+                    y_scl = scl * (1.0 / np.max(np.abs(spike_data)))
+                    width = spike_data.shape[1]
+                    for j in range(0, self.nb_channels):
+                        x_prb, y_prb = self.probe.positions[:, j]
+                        x = x_prb + x_scl * np.linspace(-1.0, +1.0, num=width)
+                        y = y_prb + y_scl * spike_data[j, :]
+                        ax.plot(x, y, c='C1', alpha=alpha)
+            # Retrieve generated template.
+            generated_template = self.get_generated_template(generated_unit)
+            # Plot the generated template.
+            scl = 0.9 * (self.probe.field_of_view['d'] / 2.0)
+            alpha = 1.0
+            x_scl = scl
+            y_scl = scl * (1.0 / np.max(np.abs(generated_template)))
+            width = generated_template.shape[1]
+            for j in range(0, self.nb_channels):
+                x_prb, y_prb = self.probe.positions[:, j]
+                x = x_prb + x_scl * np.linspace(-1.0, +1.0, num=width)
+                y = y_prb + y_scl * generated_template[j, :]
+                ax.plot(x, y, c='C0', alpha=alpha)
+        # Add text.
+        for k, pair in enumerate(matching):
+            ax = ax_arr[k]
+            detected_unit, generated_unit = pair
+            x_min, x_max = ax.get_xlim()
+            y_min, y_max = ax.get_ylim()
+            ax.text(x_min, y_max, "det. {} - gen. {}".format(detected_unit, generated_unit),
+                    verticalalignment='top', horizontalalignment='left')
+        plt.suptitle("Missing spike candidates")
         plt.tight_layout()
         plt.subplots_adjust(top=0.9, hspace=0.0)
         plt.show()
