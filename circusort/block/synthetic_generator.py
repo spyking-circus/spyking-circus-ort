@@ -479,10 +479,9 @@ class Cell(object):
             r = self.r(chunk_number)
             if self.rp > 0.0:
                 r_max = 1.0 / self.rp  # maximal firing rate with refractory periods
-                if r < r_max:
-                    r = r / (1.0 - r * self.rp)
-                else:
-                    r = np.inf
+                msg = "A firing rate of {} Hz is impossible with a refractory period of {} ms"
+                assert r < r_max, msg.format(r, self.rp)
+                r = r / (1.0 - r * self.rp)
             if r > 0.0:
                 scale = 1.0 / r
             else:

@@ -54,6 +54,11 @@ class Results(object):
         self.detected_spikes = io.load_spikes(spike_times_path,
                                               spike_templates_path,
                                               spike_amplitudes_path)
+        # Retrieve rejected times.
+        rejected_times_path = self.spike_writer_kwargs['rejected_times']
+        rejected_amplitudes_path = self.spike_writer_kwargs['rejected_amplitudes']
+        self.rejected_times = io.load_times(rejected_times_path,
+                                            rejected_amplitudes_path)
 
     @property
     def nb_channels(self):
@@ -575,9 +580,7 @@ class Results(object):
                         k_1 += 1
                     elif train_1[k_1] == train_2[k_2]:
                         nsis_1[k_1] = 0.0
-                        nsis_2[k_2] = 0.0
                         k_1 += 1
-                        k_2 += 1
                     else:
                         if k_1 == 0:
                             nsis_2[k_2] = np.abs(train_1[k_1] - train_2[k_2])
@@ -693,7 +696,6 @@ class Results(object):
 
         return
 
-
     def get_detected_spike_amplitudes(self, t_min=None, t_max=None):
         """Get detected spike amplitudes
 
@@ -723,7 +725,40 @@ class Results(object):
 
         return amplitudes
 
-    def inspect_spike_amplitudes(self, matching, t_min=None, t_max=None):
+    def get_rejected_times(self, t_min=None, t_max=None):
+        # TODO add docstring.
+
+        times = self.rejected_times.get_time_steps()
+        times = times.astype(np.float32)
+        times /= self.sampling_rate
+        if t_min is not None:
+            times = times[t_min <= times]
+        if t_max is not None:
+            times = times[times <= t_max]
+        times = np.sort(times)
+
+        return times
+
+    def get_rejected_amplitudes(self, t_min=None, t_max=None):
+        # TODO add docstring.
+
+        times = self.rejected_times.get_time_steps()
+        amplitudes = self.rejected_times.get_amplitudes()
+        times = times.astype(np.float32)
+        times /= self.sampling_rate
+        if t_min is not None:
+            is_selected = t_min <= times
+            times = times[is_selected]
+            amplitudes = amplitudes[is_selected]
+        if t_max is not None:
+            is_selected = times <= t_max
+            times = times[is_selected]
+            amplitudes = amplitudes[is_selected]
+        amplitudes = amplitudes[np.argsort(times)]
+
+        return amplitudes
+
+    def inspect_spike_amplitudes(self, matching, t_min=None, t_max=None, tol=5.0, tol_bis=1.0):
         # TODO add docstring.
 
         # Retrieve detected spike trains.
@@ -732,6 +767,10 @@ class Results(object):
         detected_spike_amplitudes = self.get_detected_spike_amplitudes(t_min=t_min, t_max=t_max)
         # Retrieve generated spike trains.
         generated_spike_trains = self.get_generated_spike_trains(t_min=t_min, t_max=t_max)
+        # Retrieve rejected times.
+        rejected_times = self.get_rejected_times(t_min=t_min, t_max=t_max)
+        # Retrieve rejected amplitudes.
+        rejected_amplitudes = self.get_rejected_amplitudes(t_min=t_min, t_max=t_max)
 
         nb_pairs = len(matching)
         _, ax_arr = plt.subplots(nrows=nb_pairs, sharex='all', sharey='all')
@@ -741,17 +780,36 @@ class Results(object):
             detected_train = detected_spike_trains[detected_unit]
             detected_amplitude = detected_spike_amplitudes[detected_unit]
             generated_train = generated_spike_trains[generated_unit]
-            is_excessive = self.get_excesses(detected_train, generated_train)
+            is_excessive = self.get_excesses(detected_train, generated_train, tol=tol)
+            # Plot amplitude limits.
+            if t_min is not None and t_max is not None:
+                ax.plot([t_min, t_max], 2 * [1.2], c='gray', linestyle='--', zorder=1)
+                ax.plot([t_min, t_max], 2 * [0.8], c='gray', linestyle='--', zorder=1)
             # Plot correct spikes.
             x = detected_train[~is_excessive]
             y = detected_amplitude[~is_excessive]
             label = 'correct spike' if k == 0 else '_nolegend_'
-            ax.scatter(x, y, c='C1', marker='.', label=label)
+            ax.scatter(x, y, c='C1', marker='.', label=label, zorder=2)
             # Plot excessive spikes.
             x = detected_train[is_excessive]
             y = detected_amplitude[is_excessive]
             label = 'excessive spike' if k == 0 else '_nolegend_'
-            ax.scatter(x, y, c='C0', marker='.', label=label)
+            ax.scatter(x, y, c='C0', marker='.', label=label, zorder=2)
+            # Plot missing spikes.
+            is_missing = self.get_misses(detected_train, generated_train, tol=tol)
+            missing_times = generated_train[is_missing]
+            is_excessive = self.get_excesses(rejected_times, missing_times, tol=tol_bis)
+            x = rejected_times[~is_excessive]
+            y = rejected_amplitudes[~is_excessive]
+            label = 'missing spike candidate' if k == 0 else '_nolegend_'
+            ax.scatter(x, y, c='C2', marker='.', label=label, zorder=2)
+        ax_arr[-1].set_xlabel("time (s)")
+        ax_arr[0].set_ylabel("amplitude")
+        ax_arr[0].legend()
+        x_min, x_max = ax_arr[0].get_xlim()
+        x_min = t_min if t_min is not None else x_min
+        x_max = t_max if t_max is not None else x_max
+        ax_arr[0].set_xlim(x_min, x_max)
         # Add text.
         for k, pair in enumerate(matching):
             ax = ax_arr[k]
@@ -760,12 +818,132 @@ class Results(object):
             y_min, y_max = ax.get_ylim()
             ax.text(x_min, y_max, "det. {} - gen. {}".format(detected_unit, generated_unit),
                     verticalalignment='top', horizontalalignment='left')
-        ax_arr[-1].set_xlabel("time (s)")
-        ax_arr[0].set_ylabel("amplitude")
-        ax_arr[0].legend()
         plt.suptitle("Spike amplitudes")
         plt.tight_layout()
         plt.subplots_adjust(top=0.9, hspace=0.0)
+        plt.show()
+
+        return
+
+    def inspect_missing_spike_candidates(self, matching, t_min=None, t_max=None, tol=5.0, tol_bis=1.0, time_shift=0.4):
+        # TODO add docstring.
+
+        # Retrieve detected spike trains.
+        detected_spike_trains = self.get_detected_spike_trains(t_min=t_min, t_max=t_max)
+        # Retrieve generated spike trains.
+        generated_spike_trains = self.get_generated_spike_trains(t_min=t_min, t_max=t_max)
+        # Retrieve rejected times.
+        rejected_times = self.get_rejected_times(t_min=t_min, t_max=t_max)
+
+        nb_pairs = len(matching)
+        _, ax_arr = plt.subplots(ncols=nb_pairs, sharex='all', sharey='all')
+        for k, pair in enumerate(matching):
+            ax = ax_arr[k]
+            detected_unit, generated_unit = pair
+            detected_train = detected_spike_trains[detected_unit]
+            generated_train = generated_spike_trains[generated_unit]
+            is_missing = self.get_misses(detected_train, generated_train, tol=tol)
+            missing_times = generated_train[is_missing]
+            is_excessive = self.get_excesses(rejected_times, missing_times, tol=tol_bis)
+            times = rejected_times[~is_excessive]
+            time_steps = times * self.sampling_rate
+            time_steps = time_steps.astype(np.int32)
+            # Retrieve the signal data.
+            path = self.signal_writer_kwargs['data_path']
+            data = np.memmap(path, dtype=np.float32, mode='r')
+            data = np.reshape(data, (-1, self.nb_channels))
+            # Initialize averaged template.
+            nb_samples = int(5.0 * 1e-3 * self.sampling_rate)
+            i_shift = int(time_shift * 1e-3 * self.sampling_rate)
+            di = nb_samples // 2
+            for i in time_steps:
+                i_ = i + i_shift
+                i_min = i_ - di
+                i_max = i_ + di + 1
+                spike_data = data[i_min:i_max, :]
+                if spike_data.shape[0] != i_max - i_min:
+                    pass
+                else:
+                    spike_data = np.transpose(spike_data)
+                    # Plot the generated template.
+                    scl = 0.9 * (self.probe.field_of_view['d'] / 2.0)
+                    alpha = 1.0
+                    x_scl = scl
+                    y_scl = scl * (1.0 / np.max(np.abs(spike_data)))
+                    width = spike_data.shape[1]
+                    for j in range(0, self.nb_channels):
+                        x_prb, y_prb = self.probe.positions[:, j]
+                        x = x_prb + x_scl * np.linspace(-1.0, +1.0, num=width)
+                        y = y_prb + y_scl * spike_data[j, :]
+                        ax.plot(x, y, c='C1', alpha=alpha)
+            # Retrieve generated template.
+            generated_template = self.get_generated_template(generated_unit)
+            # Plot the generated template.
+            scl = 0.9 * (self.probe.field_of_view['d'] / 2.0)
+            alpha = 1.0
+            x_scl = scl
+            y_scl = scl * (1.0 / np.max(np.abs(generated_template)))
+            width = generated_template.shape[1]
+            for j in range(0, self.nb_channels):
+                x_prb, y_prb = self.probe.positions[:, j]
+                x = x_prb + x_scl * np.linspace(-1.0, +1.0, num=width)
+                y = y_prb + y_scl * generated_template[j, :]
+                ax.plot(x, y, c='C0', alpha=alpha)
+        # Add text.
+        for k, pair in enumerate(matching):
+            ax = ax_arr[k]
+            detected_unit, generated_unit = pair
+            x_min, x_max = ax.get_xlim()
+            y_min, y_max = ax.get_ylim()
+            ax.text(x_min, y_max, "det. {} - gen. {}".format(detected_unit, generated_unit),
+                    verticalalignment='top', horizontalalignment='left')
+        plt.suptitle("Missing spike candidates")
+        plt.tight_layout()
+        plt.subplots_adjust(top=0.9, hspace=0.0)
+        plt.show()
+
+        return
+
+    def compute_unnormalized_crosscorrelogram(self, a, b, nb_bins=101, width=100e-3, f=0.0):
+        """Compute the un-normalized cross-correlogram"""
+
+        bin_width = width / float(nb_bins)
+        start = - width / 2.0
+        stop = + width / 2.0
+        bins = np.linspace(start, stop, nb_bins + 1)
+        values = np.zeros(nb_bins, dtype=np.int)
+        for v in a:
+            d = b - v - f * bin_width
+            is_selected = np.abs(d) < width / 2.0
+            d = d[is_selected]
+            indices = np.digitize(d, bins) - 1
+            values[indices] += 1
+        bins = bins * 1e+3
+        bins = bins[:-1]
+
+        return bins, values
+
+    def inspect_crosscorrelogram_estimation(self, ij, matching, **kwargs):
+        # TODO add docstring.
+
+        det_unit_1 = matching[ij[0]][0]
+        gen_unit_1 = matching[ij[0]][1]
+        det_unit_2 = matching[ij[1]][0]
+        gen_unit_2 = matching[ij[1]][1]
+
+        det_trains = self.get_detected_spike_trains(**kwargs)
+        gen_trains = self.get_generated_spike_trains(**kwargs)
+
+        plt.style.use('seaborn-paper')
+        plt.subplots()
+        x, y = self.compute_unnormalized_crosscorrelogram(det_trains[det_unit_1], det_trains[det_unit_2])
+        plt.plot(x, y, c='C0', label='detected')
+        x, y = self.compute_unnormalized_crosscorrelogram(gen_trains[gen_unit_1], gen_trains[gen_unit_2])
+        plt.plot(x, y, c='C1', label='generated')
+        plt.xlabel("lag (ms)")
+        plt.ylabel("cross-covariance (spikes)")
+        plt.title("Cross-correlogram estimation")
+        plt.legend()
         plt.show()
 
         return

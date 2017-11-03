@@ -62,46 +62,6 @@ class Spike_writer(Block):
         self.recorded_data = {}
         self.data_file = {}
 
-        # key = 'spike_times'
-        # if self.spike_times is None:
-        #     self.recorded_data[key] = self._get_temp_file(basename='spike_times')
-        # else:
-        #     self.recorded_data[key] = self.spike_times
-        # self.log.info('{n} records {m} into {k}'.format(n=self.name, m=key, k=self.recorded_data[key]))
-        # self.data_file[key] = open(self.recorded_data[key], mode='wb')
-        #
-        # key = 'amplitudes'
-        # if self.amplitudes is None:
-        #     self.recorded_data[key] = self._get_temp_file(basename='amplitudes')
-        # else:
-        #     self.recorded_data[key] = self.amplitudes
-        # self.log.info('{n} records {m} into {k}'.format(n=self.name, m=key, k=self.recorded_data[key]))
-        # self.data_file[key] = open(self.recorded_data[key], mode='wb')
-        #
-        # key = 'templates'
-        # if self.templates is None:
-        #     self.recorded_data[key] = self._get_temp_file(basename='templates')
-        # else:
-        #     self.recorded_data[key] = self.templates
-        # self.log.info('{n} records {m} into {k}'.format(n=self.name, m=key, k=self.recorded_data[key]))
-        # self.data_file[key] = open(self.recorded_data[key], mode='wb')
-        #
-        # key = 'rejected_times'
-        # if self.rejected_times is None:
-        #     self.recorded_data[key] = self._get_temp_file(basename='rejected_times')
-        # else:
-        #     self.recorded_data[key] = self.rejected_times
-        # self.log.info('{n} records {m} into {k}'.format(n=self.name, m=key, k=self.recorded_data[key]))
-        # self.data_file[key] = open(self.recorded_data[key], mode='wb')
-        #
-        # key = 'rejected_amplitudes'
-        # if self.rejected_amplitudes is None:
-        #     self.recorded_data[key] = self._get_temp_file(basename='rejected_amplitudes')
-        # else:
-        #     self.recorded_data[key] = self.rejected_amplitudes
-        # self.log.info('{n} records {m} into {k}'.format(n=self.name, m=key, k=self.recorded_data[key]))
-        # self.data_file[key] = open(self.recorded_data[key], mode='wb')
-
         self._initialize_data_file('spike_times', self.spike_times)
         self._initialize_data_file('amplitudes', self.amplitudes)
         self._initialize_data_file('templates', self.templates)
