@@ -904,6 +904,50 @@ class Results(object):
 
         return
 
+    def compute_unnormalized_crosscorrelogram(self, a, b, nb_bins=101, width=100e-3, f=0.0):
+        """Compute the un-normalized cross-correlogram"""
+
+        bin_width = width / float(nb_bins)
+        start = - width / 2.0
+        stop = + width / 2.0
+        bins = np.linspace(start, stop, nb_bins + 1)
+        values = np.zeros(nb_bins, dtype=np.int)
+        for v in a:
+            d = b - v - f * bin_width
+            is_selected = np.abs(d) < width / 2.0
+            d = d[is_selected]
+            indices = np.digitize(d, bins) - 1
+            values[indices] += 1
+        bins = bins * 1e+3
+        bins = bins[:-1]
+
+        return bins, values
+
+    def inspect_crosscorrelogram_estimation(self, ij, matching, **kwargs):
+        # TODO add docstring.
+
+        det_unit_1 = matching[ij[0]][0]
+        gen_unit_1 = matching[ij[0]][1]
+        det_unit_2 = matching[ij[1]][0]
+        gen_unit_2 = matching[ij[1]][1]
+
+        det_trains = self.get_detected_spike_trains(**kwargs)
+        gen_trains = self.get_generated_spike_trains(**kwargs)
+
+        plt.style.use('seaborn-paper')
+        plt.subplots()
+        x, y = self.compute_unnormalized_crosscorrelogram(det_trains[det_unit_1], det_trains[det_unit_2])
+        plt.plot(x, y, c='C0', label='detected')
+        x, y = self.compute_unnormalized_crosscorrelogram(gen_trains[gen_unit_1], gen_trains[gen_unit_2])
+        plt.plot(x, y, c='C1', label='generated')
+        plt.xlabel("lag (ms)")
+        plt.ylabel("cross-covariance (spikes)")
+        plt.title("Cross-correlogram estimation")
+        plt.legend()
+        plt.show()
+
+        return
+
     def van_rossum_distances(self, t_min=None, t_max=None, c=100.0):
         """Compute von Rossum distance between generated and detected spike trains"""
 
