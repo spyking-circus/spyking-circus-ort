@@ -331,7 +331,7 @@ class Results(object):
 
         return generated_spike_train
 
-    def get_detected_spike_trains(self, t_min=None, t_max=None):
+    def get_detected_spike_trains(self, t_min=None, t_max=None, **kwargs):
         """Get detected spike trains
 
         Arguments:
@@ -355,7 +355,7 @@ class Results(object):
 
         return trains
 
-    def get_generated_spike_trains(self, t_min=None, t_max=None):
+    def get_generated_spike_trains(self, t_min=None, t_max=None, **kwargs):
         """Get generated spike trains
 
         Arguments:
@@ -904,7 +904,7 @@ class Results(object):
 
         return
 
-    def compute_unnormalized_crosscorrelogram(self, a, b, nb_bins=101, width=100e-3, f=0.0):
+    def compute_unnormalized_crosscorrelogram(self, a, b, nb_bins=101, width=100e-3, f=0.0, **kwargs):
         """Compute the un-normalized cross-correlogram"""
 
         bin_width = width / float(nb_bins)
@@ -918,6 +918,10 @@ class Results(object):
             d = d[is_selected]
             indices = np.digitize(d, bins) - 1
             values[indices] += 1
+        if 't_min' in kwargs and 't_max' in kwargs:
+            t_min, t_max = [kwargs[key] for key in ['t_min', 't_max']]
+            if t_min is not None and t_max is not None:
+                values = values.astype(np.float) / (t_max - t_min)
         bins = bins * 1e+3
         bins = bins[:-1]
 
@@ -936,12 +940,15 @@ class Results(object):
 
         plt.style.use('seaborn-paper')
         plt.subplots()
-        x, y = self.compute_unnormalized_crosscorrelogram(det_trains[det_unit_1], det_trains[det_unit_2])
-        plt.plot(x, y, c='C0', label='detected')
-        x, y = self.compute_unnormalized_crosscorrelogram(gen_trains[gen_unit_1], gen_trains[gen_unit_2])
-        plt.plot(x, y, c='C1', label='generated')
+        x, y = self.compute_unnormalized_crosscorrelogram(det_trains[det_unit_1], det_trains[det_unit_2], **kwargs)
+        plt.plot(x, y, c='C0', linestyle='-', label='detected')
+        x, y = self.compute_unnormalized_crosscorrelogram(gen_trains[gen_unit_1], gen_trains[gen_unit_2], **kwargs)
+        plt.plot(x, y, c='C1', linestyle='--', label='generated')
         plt.xlabel("lag (ms)")
-        plt.ylabel("cross-covariance (spikes)")
+        if 't_min' in kwargs and 't_max' in kwargs and kwargs['t_min'] is not None and kwargs['t_max'] is not None:
+            plt.ylabel("cross-covariance (spikes/s)")
+        else:
+            plt.ylabel("cross-covariance (spikes)")
         plt.title("Cross-correlogram estimation")
         plt.legend()
         plt.show()
