@@ -16,12 +16,13 @@ class Results(object):
     """Results of the scenario"""
     # TODO complete docstring.
 
-    def __init__(self, generator_kwargs, signal_writer_kwargs,
+    def __init__(self, generator_kwargs, raw_signal_writer_kwargs, signal_writer_kwargs,
                  mad_writer_kwargs, peak_writer_kwargs,
                  updater_kwargs, spike_writer_kwargs):
 
         # Save raw input arguments.
         self.generator_kwargs = generator_kwargs
+        self.raw_signal_writer_kwargs = raw_signal_writer_kwargs
         self.signal_writer_kwargs = signal_writer_kwargs
         self.mad_writer_kwargs = mad_writer_kwargs
         self.peak_writer_kwargs = peak_writer_kwargs
@@ -245,6 +246,39 @@ class Results(object):
         ax.set_ylabel("number")
         ax.set_title("Cumulative distributions of IPIs")
         ax.legend()
+        plt.show()
+
+        return
+
+    def plot_raw_signal(self, t_min=None, t_max=None):
+        """Plot raw signal"""
+
+        # Retrieve raw signal data.
+        path = self.raw_signal_writer_kwargs['data_path']
+        data = np.memmap(path, dtype=np.float32, mode='r')
+        data = np.reshape(data, (-1, self.nb_channels))
+
+        # Compute bound indices of the time window of interest.
+        i_min = 0 if t_min is None else int(t_min * self.sampling_rate)
+        i_max = data.shape[0] if t_max is None else int(t_max * self.sampling_rate) + 1
+
+        # Plot raw signal data.
+        plt.style.use('seaborn-paper')
+        plt.figure()
+        ## Compute y-scale.
+        y_scale = 0.0
+        for k in range(0, self.nb_channels):
+            y = data[i_min:i_max, k]
+            y_scale = max(y_scale, 2.0 * np.amax(np.abs(y)))
+        ## Plot electrode raw signals.
+        for k in range(0, self.nb_channels):
+            x = np.arange(i_min, i_max).astype(np.float32) / self.sampling_rate
+            y = data[i_min:i_max, k]
+            y_offset = float(k)
+            plt.plot(x, y / y_scale + y_offset, c='C0', zorder=1)
+        plt.xlabel(u"time (ms)")
+        plt.ylabel(u"channel")
+        plt.title(u"Raw signal")
         plt.show()
 
         return
