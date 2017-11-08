@@ -1346,6 +1346,49 @@ class Results(object):
 
         return template
 
+    def plot_generated_template(self, i, x_bar=1.0, y_bar=20.0):
+        """Plot generated template
+
+        Arguments:
+            i: integer
+                Template index.
+            x_bar: float
+                x-scale bar length (in ms). The default value is 1.0.
+            y_bar: float
+                y-scale bar length (in µV). The default value is 20.0.
+        """
+
+        # Retrieve generated template.
+        generated_template = self.get_generated_template(i)
+
+        plt.style.use('seaborn-paper')
+        plt.subplots()
+        scl = 0.9 * (self.probe.field_of_view['d'] / 2.0)
+        # Plot the generated template.
+        x_scl = scl
+        y_scl = scl * (1.0 / np.max(np.abs(generated_template)))
+        width = generated_template.shape[1]
+        color = 'C{}'.format(i)
+        for k in range(0, self.nb_channels):
+            x_prb, y_prb = self.probe.positions[:, k]
+            x = x_prb + x_scl * np.linspace(-1.0, +1.0, num=width)
+            y = y_prb + y_scl * generated_template[k, :]
+            plt.plot(x, y, c=color)
+        # Plot scale bars.
+        x_bar_ = x_scl * (x_bar * 1e-3 * 20e+3) / (float(width) / 2.0)
+        plt.plot([0.0, x_bar_], 2 * [0.0], c='black')
+        plt.annotate(u"{} ms".format(x_bar), xy=(x_bar_, 0.0))
+        y_bar_ = y_scl * y_bar
+        plt.plot(2 * [0.0], [0.0, y_bar_], c='black')
+        plt.annotate(u"{} µV".format(y_bar), xy=(0.0, y_bar_))
+        plt.xlabel(u"x (µm)")
+        plt.ylabel(u"y (µm)")
+        plt.title(u"Generated template n°{}".format(i))
+        plt.axis('scaled')
+        plt.show()
+
+        return
+
     def compare_templates(self, ij, time_shift=0.4, ax=None):
         """Compare templates of one generated unit with one detected unit.
 
