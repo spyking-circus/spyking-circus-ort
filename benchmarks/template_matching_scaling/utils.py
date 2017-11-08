@@ -381,6 +381,36 @@ class Results(object):
 
         return trains
 
+    def plot_generated_spike_trains(self, selection, **kwargs):
+        """Plot generated spike trains
+
+        Arguments:
+            selection: list
+                List of indices of generated units.
+
+        See also:
+            get_generated_spike_trains for additional keyword arguments.
+        """
+
+        # Retrieve generated spike trains.
+        generated_spike_trains = self.get_generated_spike_trains(**kwargs)
+
+        # Plot generated spike trains.
+        plt.style.use('seaborn-paper')
+        plt.figure()
+        for k, i in enumerate(selection):
+            train = generated_spike_trains[i]
+            x = [t for t in train]
+            y = [float(k + 0) for _ in x]
+            c = 'C{}'.format(k)
+            plt.scatter(x, y, c=c, marker='|')
+        plt.xlabel(u"time (ms)")
+        plt.ylabel(u"unit")
+        plt.title(u"Generated spike trains")
+        plt.show()
+
+        return
+
     def compare_spike_trains(self, t_min=None, t_max=None):
         """Compare spike trains
 
