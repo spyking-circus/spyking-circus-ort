@@ -21,12 +21,19 @@ host = '127.0.0.1'  # i.e. run the test locally
 
 sampling_rate = 20e+3
 nb_samples = 1024
-cell_obj = {
-    'r': 'r_ref',
-    't': 'default',
-}
-cells_args = [cell_obj for _ in range(0, 3)]
+def define_cell_obj(k):
+    cell_obj = {
+        'x': 'x_{}'.format(k),
+        'y': 'y_{}'.format(k),
+        'r': 'r_ref',
+        't': 'default',
+    }
+    return cell_obj
+cells_args = [define_cell_obj(k) for k in range(0, 3)]
 cells_params = {
+    'x_0': +50.0, 'y_0': +50.0,
+    'x_1': -50.0, 'y_1': +50.0,
+    'x_2': -50.0, 'y_2': -50.0,
     'r_ref': sampling_rate / float(nb_samples),  # firing rate  # Hz
 }
 
@@ -40,6 +47,9 @@ generator_kwargs = {
     'hdf5_path': os.path.join(tmp_dir, 'synthetic.h5'),
     'log_path': os.path.join(tmp_dir, 'synthetic.json'),
     'probe': probe_path,
+}
+raw_signal_writer_kwargs = {
+    'data_path': os.path.join(tmp_dir, 'raw_signal.raw'),
 }
 signal_writer_kwargs = {
     'data_path': os.path.join(tmp_dir, 'signal.raw'),
@@ -94,6 +104,9 @@ else:
                                      seed=43,
                                      log_level=DEBUG,
                                      **generator_kwargs)
+    raw_signal_writer = manager.create_block('writer',
+                                             log_level=DEBUG,
+                                             **raw_signal_writer_kwargs)
     filtering = manager.create_block('filter',
                                      cut_off=100.0,
                                      log_level=DEBUG)
@@ -140,7 +153,8 @@ else:
 
     # Connect the elements of the Circus network.
 
-    director.connect(generator.output, filtering.input)
+    director.connect(generator.output, [filtering.input,
+                                        raw_signal_writer.input])
     director.connect(filtering.output, [mad_estimator.input,
                                         peak_detector.get_input('data'),
                                         cluster.get_input('data'),
@@ -168,5 +182,5 @@ else:
 
 # Analyze the results.
 
-ans = utils.Results(generator_kwargs, signal_writer_kwargs, mad_writer_kwargs,
-                    peak_writer_kwargs, updater_kwargs, spike_writer_kwargs)
+ans = utils.Results(generator_kwargs, raw_signal_writer_kwargs, signal_writer_kwargs,
+                    mad_writer_kwargs, peak_writer_kwargs, updater_kwargs, spike_writer_kwargs)
