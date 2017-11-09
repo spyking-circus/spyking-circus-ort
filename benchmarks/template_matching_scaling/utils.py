@@ -16,12 +16,13 @@ class Results(object):
     """Results of the scenario"""
     # TODO complete docstring.
 
-    def __init__(self, generator_kwargs, signal_writer_kwargs,
+    def __init__(self, generator_kwargs, raw_signal_writer_kwargs, signal_writer_kwargs,
                  mad_writer_kwargs, peak_writer_kwargs,
                  updater_kwargs, spike_writer_kwargs):
 
         # Save raw input arguments.
         self.generator_kwargs = generator_kwargs
+        self.raw_signal_writer_kwargs = raw_signal_writer_kwargs
         self.signal_writer_kwargs = signal_writer_kwargs
         self.mad_writer_kwargs = mad_writer_kwargs
         self.peak_writer_kwargs = peak_writer_kwargs
@@ -249,6 +250,39 @@ class Results(object):
 
         return
 
+    def plot_raw_signal(self, t_min=None, t_max=None):
+        """Plot raw signal"""
+
+        # Retrieve raw signal data.
+        path = self.raw_signal_writer_kwargs['data_path']
+        data = np.memmap(path, dtype=np.float32, mode='r')
+        data = np.reshape(data, (-1, self.nb_channels))
+
+        # Compute bound indices of the time window of interest.
+        i_min = 0 if t_min is None else int(t_min * self.sampling_rate)
+        i_max = data.shape[0] if t_max is None else int(t_max * self.sampling_rate) + 1
+
+        # Plot raw signal data.
+        plt.style.use('seaborn-paper')
+        plt.figure()
+        ## Compute y-scale.
+        y_scale = 0.0
+        for k in range(0, self.nb_channels):
+            y = data[i_min:i_max, k]
+            y_scale = max(y_scale, 2.0 * np.amax(np.abs(y)))
+        ## Plot electrode raw signals.
+        for k in range(0, self.nb_channels):
+            x = np.arange(i_min, i_max).astype(np.float32) / self.sampling_rate
+            y = data[i_min:i_max, k]
+            y_offset = float(k)
+            plt.plot(x, y / y_scale + y_offset, c='C0', zorder=1)
+        plt.xlabel(u"time (ms)")
+        plt.ylabel(u"channel")
+        plt.title(u"Raw signal")
+        plt.show()
+
+        return
+
     def plot_signal_and_peaks(self, t_min=None, t_max=None, thold=1.0):
         """Plot signal and peaks"""
 
@@ -331,7 +365,7 @@ class Results(object):
 
         return generated_spike_train
 
-    def get_detected_spike_trains(self, t_min=None, t_max=None):
+    def get_detected_spike_trains(self, t_min=None, t_max=None, **kwargs):
         """Get detected spike trains
 
         Arguments:
@@ -355,7 +389,7 @@ class Results(object):
 
         return trains
 
-    def get_generated_spike_trains(self, t_min=None, t_max=None):
+    def get_generated_spike_trains(self, t_min=None, t_max=None, **kwargs):
         """Get generated spike trains
 
         Arguments:
@@ -380,6 +414,36 @@ class Results(object):
             trains[k] = train
 
         return trains
+
+    def plot_generated_spike_trains(self, selection, **kwargs):
+        """Plot generated spike trains
+
+        Arguments:
+            selection: list
+                List of indices of generated units.
+
+        See also:
+            get_generated_spike_trains for additional keyword arguments.
+        """
+
+        # Retrieve generated spike trains.
+        generated_spike_trains = self.get_generated_spike_trains(**kwargs)
+
+        # Plot generated spike trains.
+        plt.style.use('seaborn-paper')
+        plt.figure()
+        for k, i in enumerate(selection):
+            train = generated_spike_trains[i]
+            x = [t for t in train]
+            y = [float(k + 0) for _ in x]
+            c = 'C{}'.format(k)
+            plt.scatter(x, y, c=c, marker='|')
+        plt.xlabel(u"time (ms)")
+        plt.ylabel(u"unit")
+        plt.title(u"Generated spike trains")
+        plt.show()
+
+        return
 
     def compare_spike_trains(self, t_min=None, t_max=None):
         """Compare spike trains
@@ -904,7 +968,7 @@ class Results(object):
 
         return
 
-    def compute_unnormalized_crosscorrelogram(self, a, b, nb_bins=101, width=100e-3, f=0.0):
+    def compute_unnormalized_crosscorrelogram(self, a, b, nb_bins=101, width=100e-3, f=0.0, **kwargs):
         """Compute the un-normalized cross-correlogram"""
 
         bin_width = width / float(nb_bins)
@@ -918,6 +982,10 @@ class Results(object):
             d = d[is_selected]
             indices = np.digitize(d, bins) - 1
             values[indices] += 1
+        if 't_min' in kwargs and 't_max' in kwargs:
+            t_min, t_max = [kwargs[key] for key in ['t_min', 't_max']]
+            if t_min is not None and t_max is not None:
+                values = values.astype(np.float) / (t_max - t_min)
         bins = bins * 1e+3
         bins = bins[:-1]
 
@@ -936,12 +1004,15 @@ class Results(object):
 
         plt.style.use('seaborn-paper')
         plt.subplots()
-        x, y = self.compute_unnormalized_crosscorrelogram(det_trains[det_unit_1], det_trains[det_unit_2])
-        plt.plot(x, y, c='C0', label='detected')
-        x, y = self.compute_unnormalized_crosscorrelogram(gen_trains[gen_unit_1], gen_trains[gen_unit_2])
-        plt.plot(x, y, c='C1', label='generated')
+        x, y = self.compute_unnormalized_crosscorrelogram(det_trains[det_unit_1], det_trains[det_unit_2], **kwargs)
+        plt.plot(x, y, c='C0', linestyle='-', label='detected')
+        x, y = self.compute_unnormalized_crosscorrelogram(gen_trains[gen_unit_1], gen_trains[gen_unit_2], **kwargs)
+        plt.plot(x, y, c='C1', linestyle='--', label='generated')
         plt.xlabel("lag (ms)")
-        plt.ylabel("cross-covariance (spikes)")
+        if 't_min' in kwargs and 't_max' in kwargs and kwargs['t_min'] is not None and kwargs['t_max'] is not None:
+            plt.ylabel("cross-covariance (spikes/s)")
+        else:
+            plt.ylabel("cross-covariance (spikes)")
         plt.title("Cross-correlogram estimation")
         plt.legend()
         plt.show()
@@ -1338,6 +1409,49 @@ class Results(object):
         template = np.transpose(template)
 
         return template
+
+    def plot_generated_template(self, i, x_bar=1.0, y_bar=20.0):
+        """Plot generated template
+
+        Arguments:
+            i: integer
+                Template index.
+            x_bar: float
+                x-scale bar length (in ms). The default value is 1.0.
+            y_bar: float
+                y-scale bar length (in µV). The default value is 20.0.
+        """
+
+        # Retrieve generated template.
+        generated_template = self.get_generated_template(i)
+
+        plt.style.use('seaborn-paper')
+        plt.subplots()
+        scl = 0.9 * (self.probe.field_of_view['d'] / 2.0)
+        # Plot the generated template.
+        x_scl = scl
+        y_scl = scl * (1.0 / np.max(np.abs(generated_template)))
+        width = generated_template.shape[1]
+        color = 'C{}'.format(i)
+        for k in range(0, self.nb_channels):
+            x_prb, y_prb = self.probe.positions[:, k]
+            x = x_prb + x_scl * np.linspace(-1.0, +1.0, num=width)
+            y = y_prb + y_scl * generated_template[k, :]
+            plt.plot(x, y, c=color)
+        # Plot scale bars.
+        x_bar_ = x_scl * (x_bar * 1e-3 * 20e+3) / (float(width) / 2.0)
+        plt.plot([0.0, x_bar_], 2 * [0.0], c='black')
+        plt.annotate(u"{} ms".format(x_bar), xy=(x_bar_, 0.0))
+        y_bar_ = y_scl * y_bar
+        plt.plot(2 * [0.0], [0.0, y_bar_], c='black')
+        plt.annotate(u"{} µV".format(y_bar), xy=(0.0, y_bar_))
+        plt.xlabel(u"x (µm)")
+        plt.ylabel(u"y (µm)")
+        plt.title(u"Generated template n°{}".format(i))
+        plt.axis('scaled')
+        plt.show()
+
+        return
 
     def compare_templates(self, ij, time_shift=0.4, ax=None):
         """Compare templates of one generated unit with one detected unit.
