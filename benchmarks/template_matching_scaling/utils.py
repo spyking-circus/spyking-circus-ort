@@ -265,12 +265,12 @@ class Results(object):
         # Plot raw signal data.
         plt.style.use('seaborn-paper')
         plt.figure()
-        ## Compute y-scale.
+        # # Compute y-scale.
         y_scale = 0.0
         for k in range(0, self.nb_channels):
             y = data[i_min:i_max, k]
             y_scale = max(y_scale, 2.0 * np.amax(np.abs(y)))
-        ## Plot electrode raw signals.
+        # # Plot electrode raw signals.
         for k in range(0, self.nb_channels):
             x = np.arange(i_min, i_max).astype(np.float32) / self.sampling_rate
             y = data[i_min:i_max, k]
@@ -496,7 +496,8 @@ class Results(object):
 
         return
 
-    def compute_firing_rate(self, train, t_min=None, t_max=None, bin_width=1.0, **kwargs):
+    @staticmethod
+    def compute_firing_rate(train, t_min=None, t_max=None, bin_width=1.0, **kwargs):
         """Compute the firing rate
 
         Arguments:
@@ -623,7 +624,8 @@ class Results(object):
 
         return
 
-    def compute_nsis(self, train_1, train_2):
+    @staticmethod
+    def compute_nsis(train_1, train_2):
         """Compute nearest spike intervals"""
 
         nb_spikes_1 = train_1.size
@@ -645,7 +647,8 @@ class Results(object):
                         if k_2 == 0:
                             nsis_1[k_1] = np.abs(train_2[k_2] - train_1[k_1])
                         else:
-                            nsis_1[k_1] = min(np.abs(train_2[k_2] - train_1[k_1]), np.abs(train_2[k_2 - 1] - train_1[k_1]))
+                            nsis_1[k_1] = min(np.abs(train_2[k_2] - train_1[k_1]),
+                                              np.abs(train_2[k_2 - 1] - train_1[k_1]))
                         k_1 += 1
                     elif train_1[k_1] == train_2[k_2]:
                         nsis_1[k_1] = 0.0
@@ -654,7 +657,8 @@ class Results(object):
                         if k_1 == 0:
                             nsis_2[k_2] = np.abs(train_1[k_1] - train_2[k_2])
                         else:
-                            nsis_2[k_2] = min(np.abs(train_1[k_1] - train_2[k_2]), np.abs(train_1[k_1 - 1] - train_2[k_2]))
+                            nsis_2[k_2] = min(np.abs(train_1[k_1] - train_2[k_2]),
+                                              np.abs(train_1[k_1 - 1] - train_2[k_2]))
                         k_2 += 1
             assert k_1 == nb_spikes_1
             assert k_2 == nb_spikes_2
@@ -973,7 +977,8 @@ class Results(object):
 
         return
 
-    def compute_unnormalized_crosscorrelogram(self, a, b, nb_bins=101, width=100e-3, f=0.0, **kwargs):
+    @staticmethod
+    def compute_unnormalized_crosscorrelogram(a, b, nb_bins=101, width=100e-3, f=0.0, **kwargs):
         """Compute the un-normalized cross-correlogram"""
 
         bin_width = width / float(nb_bins)
@@ -1034,7 +1039,7 @@ class Results(object):
             plt.ylabel("cross-covariance (spikes/s)")
         else:
             plt.ylabel("cross-covariance (spikes)")
-        plt.suptitle("Cross-correlogram estimation (unit {} - unit {})".format(ij[0], ij[1]))
+        plt.suptitle("Cross-correlogram estimates")
         plt.legend()
         plt.tight_layout()
         plt.subplots_adjust(hspace=0.0, top=0.9)
