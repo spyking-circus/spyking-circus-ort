@@ -265,12 +265,12 @@ class Results(object):
         # Plot raw signal data.
         plt.style.use('seaborn-paper')
         plt.figure()
-        ## Compute y-scale.
+        # # Compute y-scale.
         y_scale = 0.0
         for k in range(0, self.nb_channels):
             y = data[i_min:i_max, k]
             y_scale = max(y_scale, 2.0 * np.amax(np.abs(y)))
-        ## Plot electrode raw signals.
+        # # Plot electrode raw signals.
         for k in range(0, self.nb_channels):
             x = np.arange(i_min, i_max).astype(np.float32) / self.sampling_rate
             y = data[i_min:i_max, k]
@@ -496,7 +496,8 @@ class Results(object):
 
         return
 
-    def compute_firing_rate(self, train, t_min=None, t_max=None, bin_width=1.0, **kwargs):
+    @staticmethod
+    def compute_firing_rate(train, t_min=None, t_max=None, bin_width=1.0, **kwargs):
         """Compute the firing rate
 
         Arguments:
@@ -591,16 +592,20 @@ class Results(object):
             for k, pair in enumerate(matching):
                 ax = ax_arr[k]
                 detected_unit, generated_unit = pair
-                # Plot detected firing rates.
-                x = bin_edges
-                y = detected_firing_rates[detected_unit]
-                y = np.append(y, [y[-1]])
-                ax.step(x, y, c='C1', where='post')
                 # Plot generated firing rates.
                 x = bin_edges
                 y = generated_firing_rates[generated_unit]
                 y = np.append(y, [y[-1]])
-                ax.step(x, y, c='C0', where='post')
+                label = 'generated' if k == len(matching) - 1 else '_nolegend_'
+                # ax.step(x, y, c='C0', where='post', label=label)
+                ax.plot(0.5 * (x[:-1] + x[1:]), y[:-1], c='C0', linestyle='-', label=label)
+                # Plot detected firing rates.
+                x = bin_edges
+                y = detected_firing_rates[detected_unit]
+                y = np.append(y, [y[-1]])
+                label = 'detected' if k == len(matching) - 1 else '_nolegend_'
+                # ax.step(x, y, c='C1', where='post', label=label)
+                ax.plot(0.5 * (x[:-1] + x[1:]), y[:-1], c='C1', linestyle='--', label=label)
             # Add text.
             for k, pair in enumerate(matching):
                 ax = ax_arr[k]
@@ -611,6 +616,7 @@ class Results(object):
                         verticalalignment='top', horizontalalignment='left')
             ax_arr[-1].set_ylabel("rate (Hz)")
             ax_arr[-1].set_xlabel("time (s)")
+            ax_arr[-1].legend()
             plt.suptitle("Firing rate comparison")
             plt.tight_layout()
             plt.subplots_adjust(top=0.9, hspace=0.0)
@@ -618,7 +624,8 @@ class Results(object):
 
         return
 
-    def compute_nsis(self, train_1, train_2):
+    @staticmethod
+    def compute_nsis(train_1, train_2):
         """Compute nearest spike intervals"""
 
         nb_spikes_1 = train_1.size
@@ -640,7 +647,8 @@ class Results(object):
                         if k_2 == 0:
                             nsis_1[k_1] = np.abs(train_2[k_2] - train_1[k_1])
                         else:
-                            nsis_1[k_1] = min(np.abs(train_2[k_2] - train_1[k_1]), np.abs(train_2[k_2 - 1] - train_1[k_1]))
+                            nsis_1[k_1] = min(np.abs(train_2[k_2] - train_1[k_1]),
+                                              np.abs(train_2[k_2 - 1] - train_1[k_1]))
                         k_1 += 1
                     elif train_1[k_1] == train_2[k_2]:
                         nsis_1[k_1] = 0.0
@@ -649,7 +657,8 @@ class Results(object):
                         if k_1 == 0:
                             nsis_2[k_2] = np.abs(train_1[k_1] - train_2[k_2])
                         else:
-                            nsis_2[k_2] = min(np.abs(train_1[k_1] - train_2[k_2]), np.abs(train_1[k_1 - 1] - train_2[k_2]))
+                            nsis_2[k_2] = min(np.abs(train_1[k_1] - train_2[k_2]),
+                                              np.abs(train_1[k_1 - 1] - train_2[k_2]))
                         k_2 += 1
             assert k_1 == nb_spikes_1
             assert k_2 == nb_spikes_2
@@ -968,7 +977,8 @@ class Results(object):
 
         return
 
-    def compute_unnormalized_crosscorrelogram(self, a, b, nb_bins=101, width=100e-3, f=0.0, **kwargs):
+    @staticmethod
+    def compute_unnormalized_crosscorrelogram(a, b, nb_bins=101, width=100e-3, f=0.0, **kwargs):
         """Compute the un-normalized cross-correlogram"""
 
         bin_width = width / float(nb_bins)
@@ -987,34 +997,52 @@ class Results(object):
             if t_min is not None and t_max is not None:
                 values = values.astype(np.float) / (t_max - t_min)
         bins = bins * 1e+3
-        bins = bins[:-1]
+        values = np.append(values, [values[-1]])
 
         return bins, values
 
-    def inspect_crosscorrelogram_estimation(self, ij, matching, **kwargs):
-        # TODO add docstring.
+    def inspect_crosscorrelogram_estimations(self, selection, matching, **kwargs):
+        """Inspect cross-correlogram estimations
 
-        det_unit_1 = matching[ij[0]][0]
-        gen_unit_1 = matching[ij[0]][1]
-        det_unit_2 = matching[ij[1]][0]
-        gen_unit_2 = matching[ij[1]][1]
-
-        det_trains = self.get_detected_spike_trains(**kwargs)
-        gen_trains = self.get_generated_spike_trains(**kwargs)
+        Arguments:
+            selection: list
+                List of couple of indices.
+            matching: list
+                List of couple of indices.
+        """
+        # TODO complete docstring.
 
         plt.style.use('seaborn-paper')
-        plt.subplots()
-        x, y = self.compute_unnormalized_crosscorrelogram(det_trains[det_unit_1], det_trains[det_unit_2], **kwargs)
-        plt.plot(x, y, c='C0', linestyle='-', label='detected')
-        x, y = self.compute_unnormalized_crosscorrelogram(gen_trains[gen_unit_1], gen_trains[gen_unit_2], **kwargs)
-        plt.plot(x, y, c='C1', linestyle='--', label='generated')
+        _, ax_arr = plt.subplots(nrows=len(selection), sharex='all', sharey='all')
+
+        for k, ij in enumerate(selection):
+
+            ax = ax_arr[k]
+
+            det_unit_1 = matching[ij[0]][0]
+            gen_unit_1 = matching[ij[0]][1]
+            det_unit_2 = matching[ij[1]][0]
+            gen_unit_2 = matching[ij[1]][1]
+
+            det_trains = self.get_detected_spike_trains(**kwargs)
+            gen_trains = self.get_generated_spike_trains(**kwargs)
+
+            x, y = self.compute_unnormalized_crosscorrelogram(gen_trains[gen_unit_1], gen_trains[gen_unit_2], **kwargs)
+            ax.plot(0.5 * (x[:-1] + x[1:]), y[:-1], c='C0', label='generated')
+            x, y = self.compute_unnormalized_crosscorrelogram(det_trains[det_unit_1], det_trains[det_unit_2], **kwargs)
+            ax.plot(0.5 * (x[:-1] + x[1:]), y[:-1], c='C1', label='detected')
+            x_min, _ = ax.get_xlim()
+            y_min, _ = ax.get_ylim()
+            ax.annotate("{} - {}".format(ij[0], ij[1]), xy=(x_min, y_min))
         plt.xlabel("lag (ms)")
         if 't_min' in kwargs and 't_max' in kwargs and kwargs['t_min'] is not None and kwargs['t_max'] is not None:
             plt.ylabel("cross-covariance (spikes/s)")
         else:
             plt.ylabel("cross-covariance (spikes)")
-        plt.title("Cross-correlogram estimation")
+        plt.suptitle("Cross-correlogram estimates")
         plt.legend()
+        plt.tight_layout()
+        plt.subplots_adjust(hspace=0.0, top=0.9)
         plt.show()
 
         return

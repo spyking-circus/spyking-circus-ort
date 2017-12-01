@@ -21,11 +21,16 @@ host = '127.0.0.1'  # i.e. run the test locally
 
 sampling_rate = 20e+3
 nb_samples = 1024
+r = {
+    0: "r_ref*(t<t_a)+0.25*r_ref*(t_a<=t)*(t<t_b)+0.8*r_ref*(t_b<=t)*(t<t_d)+0.6*r_ref*(t_d<=t)",
+    1: "r_ref*(t<t_a)+0.50*r_ref*(t_a<=t)*(t<t_b)+0.3*r_ref*(t_b<=t)*(t<t_c)+0.4*r_ref*(t_c<=t)",
+    2: "r_ref*(t<t_a)+0.75*r_ref*(t_a<=t)*(t<t_b)+0.4*r_ref*(t_b<=t)*(t<t_d)+0.7*r_ref*(t_d<=t)",
+}
 def define_cell_obj(k):
     cell_obj = {
         'x': 'x_{}'.format(k),
         'y': 'y_{}'.format(k),
-        'r': 'r_ref',
+        'r': r[k],
         't': 'default',
     }
     return cell_obj
@@ -35,6 +40,10 @@ cells_params = {
     'x_1': -50.0, 'y_1': +50.0,
     'x_2': -50.0, 'y_2': -50.0,
     'r_ref': sampling_rate / float(nb_samples),  # firing rate  # Hz
+    't_a': 2 * 60 * 20,
+    't_b': 5 * 60 * 20,
+    't_c': 7 * 60 * 20,
+    't_d': 8 * 60 * 20,
 }
 
 tmp_dir = os.path.join('/', 'tmp', 'spyking_circus_ort', 'template_matching_scaling')
@@ -62,7 +71,7 @@ peak_writer_kwargs = {
 }
 if args.init_temp_dict:
     cluster_kwargs = {
-        'nb_waveforms': 10000,  # i.e. delay clustering (template already exists)
+        'nb_waveforms': 100000,  # i.e. delay clustering (template already exists)
     }
 else:
     cluster_kwargs = {
@@ -176,7 +185,7 @@ else:
     # Launch the Circus network.
 
     director.start()
-    director.sleep(duration=120.0)
+    director.sleep(duration=10.0+10.0*60.0)
     director.stop()
     # director.join()
 
