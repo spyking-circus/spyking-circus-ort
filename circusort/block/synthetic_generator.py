@@ -86,7 +86,7 @@ class Synthetic_generator(block.Block):
         if self.probe is None:
             self.log.error('{n}: the probe file must be specified!'.format(n=self.name))
         else:
-            self.probe = io.Probe(self.probe, logger=self.log)
+            self.probe = io.load_probe(self.probe, logger=self.log)
             self.log.info('{n} reads the probe layout'.format(n=self.name))
 
         # TODO log/save input keyword argument to file.

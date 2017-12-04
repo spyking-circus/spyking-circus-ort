@@ -1,5 +1,5 @@
 from .block import Block
-from circusort.io.probe import Probe
+from circusort.io.probe import load_probe
 import numpy
 import time
 import pylab
@@ -21,7 +21,7 @@ class Rate_viewer(Block):
         if self.probe == None:
             self.log.error('{n}: the probe file must be specified!'.format(n=self.name))
         else:
-            self.probe = Probe(self.probe, radius=None, logger=self.log)
+            self.probe = load_probe(self.probe, radius=None, logger=self.log)
             self.log.info('{n} reads the probe layout'.format(n=self.name))
 
         self.positions = self.probe.positions

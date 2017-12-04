@@ -14,7 +14,7 @@ class Analyzer(object):
 
     def __init__(self, spk_writer_params, probe, template_store, synthetic_store=None, filtered_data=None, threshold_data=None, start_time=0, stop_time=None):
 
-        self.probe    = io.Probe(probe)
+        self.probe    = io.load_probe(probe)
 
         self.spikes   = numpy.fromfile(spk_writer_params['spike_times'], dtype=numpy.int32)
         self.temp_ids = numpy.fromfile(spk_writer_params['templates'], dtype=numpy.int32)

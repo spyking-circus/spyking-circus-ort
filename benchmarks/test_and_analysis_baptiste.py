@@ -118,7 +118,7 @@ peak_times = np.array([peak_time + time_offset for peak_time in peak_times])
 
 
 # 3. We want to load the raw signal.
-probe = circusort.io.Probe(probe_path)
+probe = circusort.io.load_probe(probe_path)
 trace_data = np.fromfile(generator_path, dtype=np.float32)
 trace_data = np.reshape(trace_data, (-1, probe.nb_channels))
 

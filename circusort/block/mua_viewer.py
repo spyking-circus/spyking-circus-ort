@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from .block import Block
-from circusort.io.probe import Probe
+from circusort.io.probe import load_probe
 
 
 class Mua_viewer(Block):
@@ -39,7 +39,7 @@ class Mua_viewer(Block):
             # TODO improve the following line.
             raise NotImplementedError()
         else:
-            self.probe = Probe(self.probe, radius=None, logger=self.log)
+            self.probe = load_probe(self.probe, radius=None, logger=self.log)
 
         self.add_input('peaks')
 

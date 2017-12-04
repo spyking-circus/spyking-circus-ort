@@ -2,7 +2,7 @@ from .block import Block
 import numpy as np
 import os
 import tempfile
-from circusort.io.probe import Probe
+from circusort.io.probe import load_probe
 import scipy.sparse
 
 # from circusort.io.utils import save_pickle
@@ -41,7 +41,7 @@ class Template_updater(Block):
         if self.probe == None:
             self.log.error('{n}: the probe file must be specified!'.format(n=self.name))
         else:
-            self.probe = Probe(self.probe, radius=self.radius, logger=self.log)
+            self.probe = load_probe(self.probe, radius=self.radius, logger=self.log)
             self.log.info('{n} reads the probe layout'.format(n=self.name))
         self.add_input('templates')
         self.add_output('updater', 'dict')

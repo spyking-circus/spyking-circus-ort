@@ -42,7 +42,7 @@ class Results(object):
         self.detected_peaks = io.load_peaks(peaks_path)
 
         # Retrieve probe.
-        self.probe = io.Probe(self.probe_path)
+        self.probe = io.load_probe(self.probe_path)
 
         # Sampling rate.
         self.sampling_rate = 20e+3  # [Hz]
