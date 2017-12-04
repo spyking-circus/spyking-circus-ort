@@ -1,6 +1,10 @@
 - [ ] Create a script `pregenerate.py` to pregenerate the synthetic data
   - [ ] First, find/generate the probe to use during the pregeneration
-    - [ ] Modify the `Probe` class in `circusort.io` to handle path management outside `__init__`
+    - [x] Modify the `Probe` class in `circusort.io` to handle path management outside `__init__`
+    - [x] Implement method to generate a probe
+    - [x] Implement method to save a probe
+    - [x] Implement method to load a probe
+    - [ ] Be less restrictive concerning the probe filenames
   - [ ] Implement method to generate some templates
   - [ ] Implement method to save some templates
   - [ ] Implement method to load some templates
