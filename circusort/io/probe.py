@@ -72,6 +72,7 @@ def generate_probe(nb_electrodes_width=4, nb_electrodes_height=4, interelectrode
         geometry[k] = [x, y]
 
     channel_group = {
+        'channels': list(range(nb_electrodes)),
         'graph': [],
         'geometry': geometry,
     }
@@ -311,4 +312,50 @@ class Probe(object):
                 Path to which the probe is saved.
         """
 
-        raise NotImplementedError()
+        # Make directories (if necessary).
+        directory = os.path.dirname(path)
+        if not os.path.isdir(directory):
+            os.makedirs(directory)
+
+        # Prepare lines to be saved.
+        lines = []
+        # Save total number of channels to probe file.
+        line = "total_nb_channels = {}\n".format(self.total_nb_channels)
+        lines.append(line)
+        # Save radius to probe file.
+        line = "radius = {}\n".format(self.radius)
+        lines.append(line)
+        # Save `channel_groups` to probe file.
+        line = "channel_groups = {\n"
+        lines.append(line)
+        for channel_group_id, channel_group in self.channel_groups.iteritems():
+            line = " {}: {{\n".format(channel_group_id)
+            lines.append(line)
+            line = "  'channels': {},\n".format(channel_group['channels'])
+            lines.append(line)
+            line = "  'graph': {},\n".format(channel_group['graph'])
+            lines.append(line)
+            line = "  'geometry: {\n"
+            lines.append(line)
+            for key, value in channel_group['geometry'].iteritems():
+                line = "   {}: {},\n".format(key, value)
+                lines.append(line)
+            line = "  },\n"
+            lines.append(line)
+            line = " },\n"
+            lines.append(line)
+        line = "}\n"
+        lines.append(line)
+        line = "\n"
+        lines.append(line)
+
+        # Open probe file.
+        probe_file = open(path, mode='w')
+
+        # Write lines to save.
+        probe_file.writelines(lines)
+
+        # Close probe file.
+        probe_file.close()
+
+        return
