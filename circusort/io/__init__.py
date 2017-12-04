@@ -5,3 +5,5 @@ from . import generate
 from .load import load, load_peaks, load_spikes, load_times
 from .configure import Configuration
 from .probe import Probe
+from .parse import parse_parameters
+from .pregenerate import pregenerate
