@@ -272,7 +272,7 @@ class Probe(object):
             n += len(value)
         return n/float(len(self.edges.values()))
 
-    def get_channels_around(self, x, y, r):
+    def get_channels_around(self, x, y, r=None):
         """Get channel identifiers around a given point in space
 
         Parameters
@@ -281,8 +281,8 @@ class Probe(object):
             x-coordinate.
         y: float
             y-coordinate
-        r: float
-            Radius in um.
+        r: none | float (optional)
+            Radius in um. The default value is None.
 
         """
 
@@ -295,7 +295,7 @@ class Probe(object):
             for channel in channel_group['channels']:
                 pos_c = np.array(channel_group['geometry'][channel])
                 d = np.linalg.norm(pos_c - pos)
-                if d < r:
+                if r is None or d < r:
                     # Channel position is near given position.
                     channels += [channel]
                     distances += [d]
@@ -359,3 +359,29 @@ class Probe(object):
         probe_file.close()
 
         return
+
+    def get_nearest_electrode_distance(self, point):
+        """Get distance to nearest electrode.
+
+        Parameter:
+            point: tuple
+                Point coordinate (e.g. `(0.0, 1.0)`).
+
+        Return:
+            distance: float
+                Distance to nearest electrode.
+        """
+
+        x, y = point
+        _, distances = self.get_channels_around(x, y)
+        distance = np.min(distances)
+
+        return distance
+
+    def get_electrodes_around(self, point, radius):
+        # TODO add docstring.
+
+        x, y = point
+        electrodes, _ = self.get_channels_around(x, y, r=radius)
+
+        return electrodes

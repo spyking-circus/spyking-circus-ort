@@ -5,9 +5,17 @@
     - [x] Implement method to save a probe
     - [x] Implement method to load a probe
     - [ ] Be less restrictive concerning the probe filenames
-  - [ ] Implement method to generate some templates
-  - [ ] Implement method to save some templates
-  - [ ] Implement method to load some templates
+  - [x] Find/generate the templates to use during the pregeneration
+    - [x] Implement method to generate some templates
+    - [x] Implement method to save some templates
+    - [x] Implement method to load some templates
+  - [x] Find/generate the trains to use during the pregeneration
+    - [x] Implement method to generate some trains
+    - [x] Implement method to save some trains
+    - [x] Implement method to load some trains
+  - [ ] Generate the signal (i.e. raw data)
+    - [x] Add gaussian noise to the signal
+    - [ ] Add template waveforms to the signal
 - [ ] Move the utils from `utils.py` to `circusort`'s core
 - [ ] Explain how to use a non-empty initial template dictionary (in the README)
  
