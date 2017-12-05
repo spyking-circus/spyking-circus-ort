@@ -56,6 +56,9 @@ def get_parameter_filename(path):
         "config.params",
     ]
 
+    if not os.path.exists(path):
+        os.makedirs(path)
+    
     names = os.listdir(path)
 
     parameter_filename = None
