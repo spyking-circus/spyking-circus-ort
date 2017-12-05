@@ -18,14 +18,14 @@ class MacroCluster(object):
 
     def __init__(self, id, pca_data, data, creation_time=0):
 
-        self.id = id
-        self.density = len(pca_data)
-        self.sum_pca = np.sum(pca_data, 0)
-        self.sum_pca_sq = np.sum(pca_data**2, 0)
-        self.sum_full = np.sum(data, 0)
+        self.id            = id
+        self.density       = len(pca_data)
+        self.sum_pca       = np.sum(pca_data, 0)
+        self.sum_pca_sq    = np.sum(pca_data**2, 0)
+        self.sum_full      = np.sum(data, 0)
         self.creation_time = creation_time
-        self.last_update = creation_time
-        self.label = None
+        self.last_update   = creation_time
+        self.label         = 'sparse'
 
     def set_label(self, label):
         assert label in ['sparse', 'dense']
@@ -65,6 +65,10 @@ class MacroCluster(object):
     def sigma(self):
         return np.sqrt(np.linalg.norm(self.sum_pca_sq / self.density - self.center ** 2))
 
+    @property
+    def radius(self):
+        return 1.8*np.sqrt((self.sum_pca_sq / self.density - self.center ** 2).max())
+
     def get_z_score(self, pca_data, sigma):
         return np.linalg.norm(self.center - pca_data) / sigma
 
@@ -75,7 +79,7 @@ class MacroCluster(object):
 
 class OnlineManager(object):
 
-    def __init__(self, decay=0.35, mu=2, sigma_rad=3, epsilon=0.1, theta=-np.log(0.001), dispersion=(5, 5),
+    def __init__(self, decay=0.25, mu=10, sigma_rad=3, epsilon=15, theta=-np.log(0.001), dispersion=(5, 5),
                  n_min=None, noise_thr=0.8, pca=None, logger=None, name=None):
 
         if name is None:
@@ -107,7 +111,7 @@ class OnlineManager(object):
 
     @property
     def D_threshold(self):
-        return self.mu / (self.nb_clusters*(1 - 2**(-self.decay_factor)))
+        return self.mu * 0.2 #/ (self.nb_clusters*(1 - 2**(-self.decay_factor)))
 
     @property
     def time_gap(self):
@@ -150,8 +154,8 @@ class OnlineManager(object):
         mask = labels > -1
         self.nb_dimensions = sub_data.shape[1]
         amplitudes = np.zeros((0, 2), dtype=np.float32)
-        templates = np.zeros((0, self._width), dtype=np.float32)
-        indices = np.zeros(0, dtype=np.int32)
+        templates  = np.zeros((0, self._width), dtype=np.float32)
+        indices    = np.zeros(0, dtype=np.int32)
         if two_components:
             templates2 = np.zeros((0, self._width), dtype=np.float32)
 
@@ -162,10 +166,11 @@ class OnlineManager(object):
             indices = np.where(labels == i)[0]
             self.clusters[count] = MacroCluster(count, sub_data[indices], data[indices], creation_time=time)
             self.tracking[count] = self.clusters[count].tracking_properties
-            template = np.median(data[indices], 0)
+            
+            template   = np.median(data[indices], 0)
             amplitudes = np.vstack((amplitudes, self._compute_amplitudes(data[indices], template)))
-            templates = np.vstack((templates, template))
-            indices = np.concatenate((indices, [count]))
+            templates  = np.vstack((templates, template))
+            indices    = np.concatenate((indices, [count]))
             if two_components:
                 templates2 = np.vstack((templates2, self._compute_template2(data[indices], template)))
 
@@ -244,17 +249,19 @@ class OnlineManager(object):
 
         if len(clusters) > 0:
 
-            centers = self._get_centers(cluster_type)
+            centers  = self._get_centers(cluster_type)
             new_dist = scipy.spatial.distance.cdist(pca_data, centers, 'euclidean')[0]
-            cluster = clusters[np.argmin(new_dist)]
+            cluster  = clusters[np.argmin(new_dist)]
 
             cluster.add_and_update(pca_data[0], data[0], self.time, self.decay_factor)
-            sigma = cluster.sigma
             
-            if sigma == 0:
-                sigma = self._estimate_sigma()
-            
-            to_be_merged = cluster.get_z_score(pca_data[0], sigma) <= self.epsilon
+            # sigma = cluster.sigma
+            # if sigma == 0:
+            #     sigma = self._estimate_sigma()
+            # to_be_merged = cluster.get_z_score(pca_data[0], sigma) <= self.epsilon
+
+            radius = cluster.radius
+            to_be_merged = cluster.radius <= self.epsilon
 
             if to_be_merged:
                 if cluster.density >= self.D_threshold:
@@ -314,13 +321,14 @@ class OnlineManager(object):
         self.time = time
         if self.nb_sparse > 500:
             self.log.warning('{n} has too many ({s}) sparse clusters'.format(n=self.name, s=self.nb_sparse))
-        # self.log.debug("{n} processes time {t} with {s} sparse and {d} dense clusters".format(n=self.name, t=time, s=self.nb_sparse, d=self.nb_dense))
+        
+        self.log.debug("{n} processes time {t} with {s} sparse and {d} dense clusters".format(n=self.name, t=time, s=self.nb_sparse, d=self.nb_dense))
         
         if data is not None:
         
             if self.glob_pca is not None:
                 red_data = np.dot(data, self.glob_pca)
-                data = data.reshape(1, self._width)
+                data     = data.reshape(1, self._width)
                 red_data = red_data.reshape(1, self.loc_pca.shape[0])
             
                 if self.loc_pca is not None:
@@ -518,9 +526,9 @@ def rho_estimation(data, mratio=0.01):
 
     for i in xrange(N):
         indices = np.concatenate((didx(i, np.arange(i+1, N)), didx(np.arange(0, i-1), i)))
-        tmp = np.argsort(np.take(dist, indices))[:nb_selec]
-        sdist = np.take(dist, np.take(indices, tmp))
-        rho[i] = np.mean(sdist)
+        tmp     = np.argsort(np.take(dist, indices))[:nb_selec]
+        sdist   = np.take(dist, np.take(indices, tmp))
+        rho[i]  = np.mean(sdist)
 
     return rho, dist, nb_selec
 
