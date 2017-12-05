@@ -79,7 +79,7 @@ class MacroCluster(object):
 
 class OnlineManager(object):
 
-    def __init__(self, decay=0.25, mu=10, sigma_rad=3, epsilon=15, theta=-np.log(0.001), dispersion=(5, 5),
+    def __init__(self, decay=0.25, mu=10, epsilon=15, theta=-np.log(0.001), dispersion=(5, 5),
                  n_min=None, noise_thr=0.8, pca=None, logger=None, name=None):
 
         if name is None:
@@ -91,7 +91,6 @@ class OnlineManager(object):
         self.mu = mu
         self.epsilon = epsilon
         self.theta = theta
-        self.radius = sigma_rad
         self.dispersion = dispersion
         self.noise_thr = noise_thr
         self.n_min = n_min
@@ -368,7 +367,7 @@ class OnlineManager(object):
 
         if len(self.tracking) > 0:
             all_centers = np.array([i[0] for i in self.tracking.values()], dtype=np.float32)
-            all_sigmas = [i[1] for i in self.tracking.values()]
+            all_sigmas  = np.array([i[1] for i in self.tracking.values()], dtype=np.float32)
             all_indices = self.tracking.keys()
 
             for key, value in new_tracking_data.items():
@@ -377,7 +376,7 @@ class OnlineManager(object):
                 dist_min = np.min(new_dist)
                 dist_idx = np.argmin(new_dist)
 
-                if dist_min < self.radius*max(sigma, all_sigmas[dist_idx]):
+                if dist_min <= (sigma + all_sigmas[dist_idx]):
                     # self.log.debug("{n} establishes a match between target {t} and source {s}".format(n=self.name, t=key, s=all_indices[dist_idx]))
                     changes['merged'][key] = all_indices[dist_idx]
                     self.tracking[key]     = center, sigma
