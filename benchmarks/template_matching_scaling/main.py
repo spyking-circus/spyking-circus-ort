@@ -140,7 +140,7 @@ else:
     cluster = manager.create_block('density_clustering',
                                    threshold_factor=7.0,
                                    probe=probe_path,
-                                   two_components=False,
+                                   two_components=True,
                                    log_level=DEBUG,
                                    **cluster_kwargs)
     updater = manager.create_block('template_updater',
@@ -149,7 +149,7 @@ else:
                                    log_level=INFO,
                                    **updater_kwargs)
     fitter = manager.create_block('template_fitter',
-                                  two_components=False,
+                                  two_components=True,
                                   log_level=INFO,
                                   **fitter_kwargs)
     spike_writer = manager.create_block('spike_writer',
@@ -185,7 +185,7 @@ else:
     # Launch the Circus network.
 
     director.start()
-    director.sleep(duration=10.0+10.0*60.0)
+    director.sleep(duration=10.0+3.0*60.0)
     director.stop()
     # director.join()
 

@@ -42,10 +42,9 @@ class Density_clustering(Block):
         'sub_dim': 5,
         'extraction': 'median-raw',
         'two_components': False,
-        'decay_factor': 0.35,
-        'mu': 2,
-        'sigma_rad': 3,
-        'epsilon': 0.1,
+        'decay_factor': 0.25,
+        'mu': 10,
+        'epsilon': 10,
         'theta': -np.log(0.001),
         'tracking': False,
         'safety_time': 'auto'
@@ -244,7 +243,6 @@ class Density_clustering(Block):
                 params = {
                     'dispersion': self.dispersion,
                     'mu': self.mu,
-                    'sigma_rad': self.sigma_rad,
                     'decay': self.decay_time,
                     'epsilon': self.epsilon,
                     'theta': self.theta,

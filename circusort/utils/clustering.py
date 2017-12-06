@@ -67,7 +67,7 @@ class MacroCluster(object):
 
     @property
     def radius(self):
-        return 1.8*np.sqrt((self.sum_pca_sq / self.density - self.center ** 2).max())
+        return np.sqrt((self.sum_pca_sq / self.density - self.center ** 2).max())
 
     def get_z_score(self, pca_data, sigma):
         return np.linalg.norm(self.center - pca_data) / sigma
@@ -79,7 +79,7 @@ class MacroCluster(object):
 
 class OnlineManager(object):
 
-    def __init__(self, decay=0.25, mu=10, epsilon=15, theta=-np.log(0.001), dispersion=(5, 5),
+    def __init__(self, decay=0.25, mu=10, epsilon=10, theta=-np.log(0.001), dispersion=(5, 5),
                  n_min=None, noise_thr=0.8, pca=None, logger=None, name=None):
 
         if name is None:
@@ -294,7 +294,8 @@ class OnlineManager(object):
                 count += 1
 
         # TODO uncomment the following line.
-        # self.log.debug("{n} turns {m} dense clusters into sparse...".format(n=self.name, m=count))
+        if count > 0:
+            self.log.debug("{n} turns {m} dense clusters into sparse...".format(n=self.name, m=count))
 
         count = 0
         for cluster in self.sparse_clusters:
@@ -313,7 +314,8 @@ class OnlineManager(object):
                     count += 1
 
         # TODO uncomment the following line.
-        # self.log.debug("{n} prunes {m} sparse clusters...".format(n=self.name, m=count))
+        if count > 0:
+            self.log.debug("{n} prunes {m} sparse clusters...".format(n=self.name, m=count))
 
     def update(self, time, data=None):
         
@@ -321,7 +323,7 @@ class OnlineManager(object):
         if self.nb_sparse > 500:
             self.log.warning('{n} has too many ({s}) sparse clusters'.format(n=self.name, s=self.nb_sparse))
         
-        self.log.debug("{n} processes time {t} with {s} sparse and {d} dense clusters".format(n=self.name, t=time, s=self.nb_sparse, d=self.nb_dense))
+        #self.log.debug("{n} processes time {t} with {s} sparse and {d} dense clusters. Time gap is {g}".format(n=self.name, t=time, s=self.nb_sparse, d=self.nb_dense, g=self.time_gap))
         
         if data is not None:
         
