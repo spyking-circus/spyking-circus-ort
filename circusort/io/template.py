@@ -62,7 +62,7 @@ def generate_templates(nb_templates=3, probe=None,
 
     Return:
         templates: dictionary
-            Generated templates.
+            Generated dictionary of templates.
     """
 
     if probe is None:
@@ -107,8 +107,14 @@ def generate_templates(nb_templates=3, probe=None,
 
 
 def save_templates(directory, templates):
-    """Save templates."""
-    # TODO complete docstring.
+    """Save templates.
+
+    Parameters:
+        directory: string
+            Directory in which to save the templates.
+        templates: dictionary
+            Dictionary of templates.
+    """
 
     if not os.path.isdir(directory):
         os.makedirs(directory)
@@ -126,8 +132,16 @@ def save_templates(directory, templates):
 
 
 def load_templates(directory):
-    """Load templates."""
-    # TODO complete docstring.
+    """Load templates.
+
+    Parameter:
+        directory: string
+            Directory from which to load the templates.
+
+    Return:
+        templates: dictionary
+            Dictionary of templates.
+    """
 
     if not os.path.isdir(directory):
         message = "No such template directory: {}".format(directory)

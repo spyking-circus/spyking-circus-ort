@@ -40,9 +40,10 @@ def save_trains(directory, trains):
 
     Parameters:
         directory: string
+            Directory in which to save the trains.
         trains: dictionary
+            Dictionary of trains.
     """
-    # TODO complete docstring.
 
     if not os.path.isdir(directory):
         os.makedirs(directory)
@@ -62,8 +63,12 @@ def load_trains(directory):
 
     Parameter:
         directory: string
+            Directory from which to load the trains.
+
+    Return:
+        trains: dictionary
+            Dictionary of trains.
     """
-    # TODO complete docstring.
 
     if not os.path.isdir(directory):
         message = "No such train directory: {}".format(directory)

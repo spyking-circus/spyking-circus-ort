@@ -3,6 +3,7 @@ import os
 
 
 def parse_parameters():
+    # TODO add docstring.
 
     # 1. Parse command line
     parser = argparse.ArgumentParser()

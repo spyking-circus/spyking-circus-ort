@@ -1,14 +1,27 @@
 import os
 
 from circusort import io
-from circusort.base import create_director
+# from circusort.base import create_director
 
 
-def find_or_generate_probe(probe_path, working_directory):
-    """Find or generate probe to use during the pregeneration."""
-    # TODO complete docstring.
+def find_or_generate_probe(probe_path=None, working_directory=None):
+    """Find or generate probe to use during the pregeneration.
+
+    Parameters:
+        probe_path: none | string (optional)
+            Path to the probe file. The default value is None.
+        working_directory: none | string (optional)
+            Path to the working directory. The default value is None.
+
+    Return:
+        probe: circusort.io.Probe
+            Found or generated probe.
+    """
 
     if probe_path is None:
+        if working_directory is None:
+            working_directory = os.path.join("~", ".spyking-circus-ort")
+            working_directory = os.path.expanduser(working_directory)
         # Check if there is a probe file in the working directory.
         probe_path = os.path.join(working_directory, "config", "generation", "probe.prb")
         # TODO check if there is any .prb file not only a probe.prb file.
@@ -32,8 +45,14 @@ def find_or_generate_probe(probe_path, working_directory):
 
 
 def save_probe(working_directory, probe):
-    """Save probe to use during the pregeneration."""
-    # TODO complete docstring.
+    """Save probe to use during the pregeneration.
+
+    Parameters:
+        working_directory: string
+            Path to the working directory in which to save the probe.
+        probe: circusort.io.Probe
+            Probe.
+    """
 
     probe_path = os.path.join(working_directory, "generation", "probe.prb")
     io.save_probe(probe_path, probe)
@@ -41,11 +60,27 @@ def save_probe(working_directory, probe):
     return
 
 
-def find_or_generate_templates(template_directory, probe, working_directory):
-    """Find or generate templates to use during the pregeneration."""
-    # TODO complete docstring.
+def find_or_generate_templates(template_directory=None, probe=None, working_directory=None):
+    """Find or generate templates to use during the pregeneration.
+
+    Parameters:
+        template_directory: none | string (optional)
+            Path to the template directory from which to load the templates. The default value is None.
+        probe: none | circusort.io.Probe (optional)
+            Probe. The default value is None.
+        working_directory: none | string (optional)
+            Path to the working directory from which to load the templates and in which to save the templates. The
+            default value is None.
+
+    Return:
+        templates: dictionary
+            Found or generated dictionary of templates.
+    """
 
     if template_directory is None:
+        if working_directory is None:
+            working_directory = os.path.join("~", ".spyking-circus-ort")
+            working_directory = os.path.expanduser(working_directory)
         # Check if there is a template directory in the working directory.
         template_directory = os.path.join(working_directory, "config", "generation", "templates")
         if os.path.isdir(template_directory):
@@ -68,8 +103,14 @@ def find_or_generate_templates(template_directory, probe, working_directory):
 
 
 def save_templates(working_directory, templates):
-    """Save templates to use during the pregeneration."""
-    # TODO complet docstring.
+    """Save templates to use during the pregeneration.
+
+    Parameters:
+        working_directory: string
+            Path to the working directory in which to save the templates.
+        templates: dictionary
+            Dictionary of templates to save.
+    """
 
     template_directory = os.path.join(working_directory, "generation", "templates")
     io.save_templates(template_directory, templates)
@@ -77,11 +118,25 @@ def save_templates(working_directory, templates):
     return
 
 
-def find_or_generate_trains(train_directory, working_directory):
-    """Find or generate trains to use during the pregeneration."""
-    # TODO add docstring.
+def find_or_generate_trains(train_directory=None, working_directory=None):
+    """Find or generate trains to use during the pregeneration.
+
+    Parameters:
+        train_directory: none | string (optional)
+            Path to the train directory from which to load the trains. The default value is None.
+        working_directory: none | string (optional)
+            Path to the working directory from which to load the trains and in which to save the trains. The default
+            value is None.
+
+    Return:
+        trains: dictionary
+            Found or generated dictionary of trains.
+    """
 
     if train_directory is None:
+        if working_directory is None:
+            working_directory = os.path.join("~", ".spyking-circus-ort")
+            working_directory = os.path.expanduser(working_directory)
         # Check if there is a train directory in the working directory.
         train_directory = os.path.join(working_directory, "config", "generation", "trains")
         if os.path.isdir(train_directory):
@@ -104,6 +159,14 @@ def find_or_generate_trains(train_directory, working_directory):
 
 
 def save_trains(working_directory, trains):
+    """Save trains to use during the pregeneration.
+
+    Parameters:
+        working_directory: string
+            Path to the working directory in which to save the trains.
+        trains: dictionary
+            Dictionary of trains to save.
+    """
 
     train_directory = os.path.join(working_directory, "generation", "trains")
     io.save_trains(train_directory, trains)
@@ -112,7 +175,14 @@ def save_trains(working_directory, trains):
 
 
 def pregenerator(working_directory=None, probe_path=None, template_directory=None, train_directory=None):
-    """Pregenerate synthetic signal."""
+    """Pregenerate synthetic signal.
+
+    Parameters:
+        working_directory: none | string (optional)
+        probe_path: none | string (optional)
+        template_directory: none | string (optional)
+        train_directory: none | string (optional)
+    """
     # TODO complete docstring.
 
     # Get probe.
