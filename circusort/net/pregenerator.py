@@ -1,7 +1,7 @@
 import os
 
 from circusort import io
-# from circusort.base import create_director
+from circusort.base import create_director
 
 
 def find_or_generate_probe(probe_path=None, working_directory=None):
@@ -185,29 +185,29 @@ def pregenerator(working_directory=None, probe_path=None, template_directory=Non
     """
     # TODO complete docstring.
 
-    # Get probe.
+    # Retrieve probe.
     probe = find_or_generate_probe(probe_path, working_directory)
     save_probe(working_directory, probe)
 
-    # Get templates.
+    # Retrieve templates.
     templates = find_or_generate_templates(template_directory, probe, working_directory)
     save_templates(working_directory, templates)
 
-    # Get trains.
+    # Retrieve trains.
     trains = find_or_generate_trains(train_directory, working_directory)
     save_trains(working_directory, trains)
 
-    # TODO uncomment the following lines.
-    # # Generate signal.
-    # host = '127.0.0.1'  # TODO keyword argument?
-    # director = create_director(host=host)
-    # manager = director.create_manager(host=host)
-    # generator = manager.create_block('synthetic_generator')  # TODO give some parameters.
-    # writer = manager.create_block('writer')  # TODO give some parameters.
-    # director.initialize()
-    # director.connect(generator.output, writer.input)
-    # director.start()
-    # director.sleep(duration=60.0)  # TODO test if we can remove this line.
-    # director.join()  # TODO test if it returns after the completion of the pregeneration.
+    # Generate signal.
+    host = '127.0.0.1'  # TODO correct IP address? & transform into a keyword argument?
+    data_path = os.path.join(working_directory, "data.raw")
+    director = create_director(host=host)
+    manager = director.create_manager(host=host)
+    generator = manager.create_block('synthetic_generator', working_directory=working_directory)
+    writer = manager.create_block('writer', data_path=data_path)
+    director.initialize()
+    director.connect(generator.output, writer.input)
+    director.start()
+    director.sleep(duration=60.0)  # TODO test if we can remove this line.
+    director.join()  # TODO test if it returns after the completion of the pregeneration.
 
-    raise NotImplementedError()
+    return

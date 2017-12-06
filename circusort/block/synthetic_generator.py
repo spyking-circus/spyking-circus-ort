@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import numpy as np
 import Queue
 import tempfile
@@ -59,6 +61,7 @@ class Synthetic_generator(block.Block):
     name = "Synthetic Generator"
 
     params = {
+        'working_directory': None,
         'dtype': 'float32',
         'probe': None,
         'sampling_rate': 20e+3,  # Hz
@@ -73,27 +76,35 @@ class Synthetic_generator(block.Block):
 
         # Preinitialize object with the base class.
         block.Block.__init__(self, **kwargs)
-        # Save class parameters.
-        self.cells_args = cells_args
-        if cells_params is None:
-            self.cells_params = {}
-        else:
-            self.cells_params = cells_params
-        # Compute the number of cells.
-        if self.cells_args is not None:
-            self.nb_cells = len(self.cells_args)
-        # Open the probe file.
-        if self.probe is None:
-            self.log.error('{n}: the probe file must be specified!'.format(n=self.name))
-        else:
-            self.probe = io.load_probe(self.probe, logger=self.log)
-            self.log.info('{n} reads the probe layout'.format(n=self.name))
 
-        # TODO log/save input keyword argument to file.
-        if self.log_path is not None:
-            log_kwargs = {k: self.params[k] for k in ['nb_samples']}
-            with open(self.log_path, 'w') as log_file:
-                json.dump(log_kwargs, log_file, sort_keys=True, indent=4)
+        if self.working_directory is None:
+
+            # Save class parameters.
+            self.cells_args = cells_args
+            if cells_params is None:
+                self.cells_params = {}
+            else:
+                self.cells_params = cells_params
+            # Compute the number of cells.
+            if self.cells_args is not None:
+                self.nb_cells = len(self.cells_args)
+            # Open the probe file.
+            if self.probe is None:
+                self.log.error('{n}: the probe file must be specified!'.format(n=self.name))
+            else:
+                self.probe = io.load_probe(self.probe, logger=self.log)
+                self.log.info('{n} reads the probe layout'.format(n=self.name))
+
+            # TODO log/save input keyword argument to file.
+            if self.log_path is not None:
+                log_kwargs = {k: self.params[k] for k in ['nb_samples']}
+                with open(self.log_path, 'w') as log_file:
+                    json.dump(log_kwargs, log_file, sort_keys=True, indent=4)
+
+        else:
+
+            path = os.path.join(self.working_directory, "generation", "probe.prb")
+            self.probe = io.load_probe(path, logger=self.log)
 
         # Add data output.
         self.add_output('data')
@@ -107,7 +118,8 @@ class Synthetic_generator(block.Block):
 
         return tmp_path
 
-    def _get_tmp_path(self):
+    @staticmethod
+    def _get_tmp_path():
 
         tmp_file = tempfile.NamedTemporaryFile()
         data_path = os.path.join(tempfile.gettempdir(), os.path.basename(tmp_file.name))
@@ -116,7 +128,7 @@ class Synthetic_generator(block.Block):
         return data_path
 
     def _initialize(self):
-        """TODO add docstring."""
+        # TODO add docstring.
 
         # Seed the random generator.
         np.random.seed(self.seed)
@@ -125,38 +137,41 @@ class Synthetic_generator(block.Block):
         self.nb_channels = self.probe.nb_channels
         self.fov = self.probe.field_of_view
 
-        # Generate synthetic cells.
-        self.cells = {}
-        for c in range(0, self.nb_cells):
-            x_ref = np.random.uniform(self.fov['x_min'], self.fov['x_max'])  # um  # cell x-coordinate
-            y_ref = np.random.uniform(self.fov['y_min'], self.fov['y_max'])  # um  # cell y-coordinate
-            z_ref = 0.0  # um  # cell z-coordinate
-            r_ref = 5.0  # Hz  # cell firing rate
-            cell_args = {
-                'x': eval("lambda t: %s" % x_ref),
-                'y': eval("lambda t: %s" % y_ref),
-                'z': eval("lambda t: %s" % z_ref),
-                'r': eval("lambda t: %s" % r_ref),
-            }
+        if self.working_directory is None:
 
-            if self.cells_args is not None:
-                self.log.debug('{n} creates a cell with params {p}'.format(n=self.name, p=self.cells_args[c]))
-                cell_args.update(self.exec_kwargs(self.cells_args[c], self.cells_params))
-                # TODO remove the following commented lines.
-                # curr_cell_args = self.cells_args[c]
-                # lambda_keys = ('x', 'y', 'z', 'r')
-                # lambda_cell_args = dict((k, curr_cell_args[k]) for k in curr_cell_args if k in lambda_keys)
-                # non_lambda_cell_args = dict((k, curr_cell_args[k]) for k in curr_cell_args if k not in lambda_keys)
-                # cell_args.update(self.exec_kwargs(lambda_cell_args, self.cells_params))
-                # cell_args.update(non_lambda_cell_args)
-            self.cells[c] = Cell(**cell_args)
+            # Generate synthetic cells.
+            self.cells = {}
+            for c in range(0, self.nb_cells):
+                x_ref = np.random.uniform(self.fov['x_min'], self.fov['x_max'])  # µm  # cell x-coordinate
+                y_ref = np.random.uniform(self.fov['y_min'], self.fov['y_max'])  # µm  # cell y-coordinate
+                z_ref = 0.0  # um  # cell z-coordinate
+                r_ref = 5.0  # Hz  # cell firing rate
+                cell_args = {
+                    'x': eval("lambda t: %s" % x_ref),
+                    'y': eval("lambda t: %s" % y_ref),
+                    'z': eval("lambda t: %s" % z_ref),
+                    'r': eval("lambda t: %s" % r_ref),
+                }
+
+                if self.cells_args is not None:
+                    self.log.debug('{n} creates a cell with params {p}'.format(n=self.name, p=self.cells_args[c]))
+                    cell_args.update(self.exec_kwargs(self.cells_args[c], self.cells_params))
+                self.cells[c] = Cell(**cell_args)
+
+        else:
+
+            self.nb_cells = 0
+            self.cells = {}
+            # Cell(x=None, y=None, z=None, r=None, s=0.0, t='default', sr=20.0e+3, rp=20.0e-3, nn=100.0, hf_dist=45.0, a_dist=1.0):
+
+            # TODO complete.
+
+            raise NotImplementedError()
 
         # Configure the data output of this block.
         self.output.configure(dtype=self.dtype, shape=(self.nb_samples, self.nb_channels))
 
         if self.hdf5_path is None:
-            # TODO remove the following commented line.
-            # self.hdf5_path = self._resolve_hdf5_path()
             self.hdf5_path = self._get_tmp_path()
 
         self.hdf5_path = os.path.abspath(os.path.expanduser(self.hdf5_path))
@@ -297,8 +312,6 @@ class Synthetic_generator(block.Block):
     def _process(self):
 
         # Get data from background thread.
-        # # TODO remove following line.
-        # self.log.debug("get data from queue")
         data = self.queue.get()
         # Simulate duration between two data acquisitions.
         time.sleep(float(self.nb_samples) / self.sampling_rate)
@@ -307,7 +320,8 @@ class Synthetic_generator(block.Block):
 
         return
 
-    def exec_kwargs(self, input_kwargs, input_params):
+    @staticmethod
+    def exec_kwargs(input_kwargs, input_params):
         """Convert input keyword arguments into output keyword arguments.
 
         Parameter

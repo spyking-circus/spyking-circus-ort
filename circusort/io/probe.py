@@ -25,7 +25,7 @@ def resolve_probe_path(path, logger=None):
             message = "No such probe file: {}".format(path)
             logger.error(message)
             sys.exit(1)
-    elif len(path > 0 and path[0] is '/'):
+    elif len(path) > 0 and path[0] is '/':
         # TODO make this case compatible with Windows.
         if not os.path.isfile(path):
             message = "No such probe file: {}".format(path)
@@ -121,6 +121,7 @@ def load_probe(path, radius=None, logger=None):
         with open(path, mode='r') as probe_file:
             probe_text = probe_file.read()
             exec(probe_text, probe_kwargs)
+            del probe_kwargs['__builtins__']
     except Exception as exception:
         message = "Something wrong with the syntax of the probe file:\n{}".format(str(exception))
         logger.error(message)
@@ -335,7 +336,7 @@ class Probe(object):
             lines.append(line)
             line = "  'graph': {},\n".format(channel_group['graph'])
             lines.append(line)
-            line = "  'geometry: {\n"
+            line = "  'geometry': {\n"
             lines.append(line)
             for key, value in channel_group['geometry'].iteritems():
                 line = "   {}: {},\n".format(key, value)
