@@ -162,7 +162,7 @@ class OnlineManager(object):
 
         for count, i in enumerate(np.unique(labels[mask])):
 
-            indices = np.where(labels == i)[0]
+            indices              = np.where(labels == i)[0]
             self.clusters[count] = MacroCluster(count, sub_data[indices], data[indices], creation_time=time)
             self.tracking[count] = self.clusters[count].tracking_properties
             
@@ -379,7 +379,7 @@ class OnlineManager(object):
                 dist_idx = np.argmin(new_dist)
 
                 if dist_min <= (sigma + all_sigmas[dist_idx]):
-                    # self.log.debug("{n} establishes a match between target {t} and source {s}".format(n=self.name, t=key, s=all_indices[dist_idx]))
+                    self.log.debug("{n} establishes a match between target {t} and source {s}".format(n=self.name, t=key, s=all_indices[dist_idx]))
                     changes['merged'][key] = all_indices[dist_idx]
                     self.tracking[key]     = center, sigma
                 else:
@@ -400,10 +400,10 @@ class OnlineManager(object):
 
     def _compute_amplitudes(self, data, template):
         # # We could to this in the PCA space, to speed up the computation
-        temp_flat = template.reshape(template.size, 1)
-        amplitudes = np.dot(data, temp_flat)
+        temp_flat   = template.reshape(template.size, 1)
+        amplitudes  = np.dot(data, temp_flat)
         amplitudes /= np.sum(temp_flat**2)
-        variation = np.median(np.abs(amplitudes - np.median(amplitudes)))
+        variation   = np.median(np.abs(amplitudes - np.median(amplitudes)))
         # physical_limit = self.threshold
         amp_min = min(0.8, np.median(amplitudes) - self.dispersion[0]*variation)
         amp_max = max(1.2, np.median(amplitudes) + self.dispersion[1]*variation)
@@ -431,8 +431,8 @@ class OnlineManager(object):
     def cluster(self, tracking=True, two_components=False):
 
         self.log.debug('{n} launches clustering with {s} sparse and {t} dense clusters'.format(n=self.name, s=self.nb_sparse, t=self.nb_dense))
-        centers = self._get_centers('dense')
-        centers_full = self._get_centers_full('dense')
+        centers       = self._get_centers('dense')
+        centers_full  = self._get_centers_full('dense')
         rhos, dist, _ = rho_estimation(centers)
         if len(rhos) > 0:
             rhos = -rhos + rhos.max()
@@ -445,40 +445,40 @@ class OnlineManager(object):
         new_tracking_data = {}
         mask = labels > -1
         for l in np.unique(labels[mask]):
-            idx = np.where(labels == l)[0]
-            cluster = MacroCluster(-1, centers[idx], centers_full[idx])
+            idx                  = np.where(labels == l)[0]
+            cluster              = MacroCluster(-1, centers[idx], centers_full[idx])
             new_tracking_data[l] = cluster.tracking_properties
 
         changes = self._perform_tracking(new_tracking_data)
 
-        templates = np.zeros((0, self._width), dtype=np.float32)
+        templates  = np.zeros((0, self._width), dtype=np.float32)
         amplitudes = np.zeros((0, 2), dtype=np.float32)
-        indices = np.zeros(0, dtype=np.int32)
+        indices    = np.zeros(0, dtype=np.int32)
 
         if two_components:
             templates2 = np.zeros((0, self._width), dtype=np.float32)
 
         for key, value in changes['new'].items():
-            data = centers_full[labels == key]
-            template = np.median(data, 0)
-            templates = np.vstack((templates, template))
+            data       = centers_full[labels == key]
+            template   = np.median(data, 0)
+            templates  = np.vstack((templates, template))
             amplitudes = np.vstack((amplitudes, self._compute_amplitudes(data, template)))
-            indices = np.concatenate((indices, [value]))
+            indices    = np.concatenate((indices, [value]))
             if two_components:
-                template2 = self._compute_template2(data, template)
+                template2  = self._compute_template2(data, template)
                 templates2 = np.vstack((templates2, template2))
 
         self.log.debug('{n} found {a} new templates: {s}'.format(n=self.name, a=len(changes['new']), s=changes['new']))
 
         if tracking:
             for key, value in changes['merged'].items():
-                data = centers_full[labels == value]
-                template = np.median(data, 0)
-                templates = np.vstack((templates, template))
+                data       = centers_full[labels == value]
+                template   = np.median(data, 0)
+                templates  = np.vstack((templates, template))
                 amplitudes = np.vstack((amplitudes, self._compute_amplitudes(data, template)))
-                indices = np.concatenate((indices, [key]))
+                indices    = np.concatenate((indices, [key]))
                 if two_components:
-                    template2 = self._compute_template2(data, template)
+                    template2  = self._compute_template2(data, template)
                     templates2 = np.vstack((templates2, template2))
 
             self.log.debug('{n} modified {a} templates with tracking: {s}'.format(n=self.name, a=len(changes['merged']), s=changes['merged'].values()))

@@ -46,7 +46,7 @@ class Density_clustering(Block):
         'mu': 10,
         'epsilon': 10,
         'theta': -np.log(0.001),
-        'tracking': False,
+        'tracking': True,
         'safety_time': 'auto'
     }
 
