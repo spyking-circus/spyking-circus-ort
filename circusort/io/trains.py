@@ -58,6 +58,18 @@ def save_trains(directory, trains):
     return
 
 
+def list_trains(directory):
+    # TODO add docstring.
+
+    raise NotImplementedError()  # TODO complete.
+
+
+def load_train(path):
+    # TODO add docstring.
+
+    raise NotImplementedError()  # TODO complete.
+
+
 def load_trains(directory):
     """Load trains from files.
 

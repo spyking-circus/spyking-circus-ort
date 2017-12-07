@@ -131,6 +131,18 @@ def save_templates(directory, templates):
     return
 
 
+def list_templates(directory):
+    # TODO add docstring.
+
+    raise NotImplementedError()  # TODO complete.
+
+
+def load_template(path):
+    # TODO add docstring.
+
+    raise NotImplementedError()  # TODO complete.
+
+
 def load_templates(directory):
     """Load templates.
 
