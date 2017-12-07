@@ -132,9 +132,26 @@ def save_templates(directory, templates):
 
 
 def list_templates(directory):
-    # TODO add docstring.
+    """List template paths contained in the specified directory.
 
-    raise NotImplementedError()  # TODO complete.
+    Parameter:
+        directory: string
+            Directory from which to list the templates.
+
+    Return:
+        paths: list
+            List of template paths found in the specified directory.
+    """
+
+    if not os.path.isdir(directory):
+        message = "No such template directory: {}".format(directory)
+        raise OSError(message)
+
+    filenames = os.listdir(directory)
+    filenames.sort()
+    paths = [os.path.join(directory, filename) for filename in filenames]
+
+    return paths
 
 
 def load_template(path):
@@ -155,17 +172,11 @@ def load_templates(directory):
             Dictionary of templates.
     """
 
-    if not os.path.isdir(directory):
-        message = "No such template directory: {}".format(directory)
-        raise OSError(message)
-
-    filenames = os.listdir(directory)
-    filenames.sort()
+    paths = list_templates(directory)
 
     templates = {}
 
-    for k, filename in enumerate(filenames):
-        path = os.path.join(directory, filename)
+    for k, path in enumerate(paths):
         f = h5py.File(path, mode='r')
         channels = f['channels']
         waveforms = f['waveforms']
