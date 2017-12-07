@@ -155,9 +155,25 @@ def list_templates(directory):
 
 
 def load_template(path):
-    # TODO add docstring.
+    """Load template.
 
-    raise NotImplementedError()  # TODO complete.
+    Parameter:
+        path: string
+            Path from which to load the template.
+
+    Return:
+        template: tuple
+            Template. The first element of the tuple contains the support of the template (i.e. channels). The second
+            element contains the corresponding waveforms.
+    """
+
+    f = h5py.File(path, mode='r')
+    channels = f['channels']
+    waveforms = f['waveforms']
+    f.close()
+    template = (channels, waveforms)
+
+    return template
 
 
 def load_templates(directory):
@@ -174,15 +190,10 @@ def load_templates(directory):
 
     paths = list_templates(directory)
 
-    templates = {}
-
-    for k, path in enumerate(paths):
-        f = h5py.File(path, mode='r')
-        channels = f['channels']
-        waveforms = f['waveforms']
-        f.close()
-        template = (channels, waveforms)
-        templates[k] = template
+    templates = {
+        k: load_template(path)
+        for k, path in enumerate(paths)
+    }
 
     return templates
 
