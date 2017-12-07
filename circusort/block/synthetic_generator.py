@@ -78,6 +78,11 @@ class Synthetic_generator(block.Block):
         block.Block.__init__(self, **kwargs)
 
         if self.working_directory is None:
+            self.mode = 'default'
+        else:
+            self.mode = 'preconfigured'
+
+        if self.mode is 'default':
 
             # Save class parameters.
             self.cells_args = cells_args
@@ -101,7 +106,7 @@ class Synthetic_generator(block.Block):
                 with open(self.log_path, 'w') as log_file:
                     json.dump(log_kwargs, log_file, sort_keys=True, indent=4)
 
-        else:
+        elif self.mode is 'preconfigured':
 
             path = os.path.join(self.working_directory, "generation", "probe.prb")
             self.probe = io.load_probe(path, logger=self.log)
@@ -137,7 +142,7 @@ class Synthetic_generator(block.Block):
         self.nb_channels = self.probe.nb_channels
         self.fov = self.probe.field_of_view
 
-        if self.working_directory is None:
+        if self.mode is 'default':
 
             # Generate synthetic cells.
             self.cells = {}
@@ -158,7 +163,7 @@ class Synthetic_generator(block.Block):
                     cell_args.update(self.exec_kwargs(self.cells_args[c], self.cells_params))
                 self.cells[c] = Cell(**cell_args)
 
-        else:
+        elif self.mode is 'preconfigured':
 
             self.cells = io.load_cells(self.working_directory)
             self.nb_cells = len(self.cells)
@@ -180,123 +185,13 @@ class Synthetic_generator(block.Block):
         # # background threads in order to be able to stop the background thread.
         self.rpc_queue = Queue.Queue()
 
-        # # Define the target function of the background thread.
-        def syn_gen_target(rpc_queue, queue, nb_channels, probe, nb_samples, nb_cells, cells, hdf5_path):
-            """Synthetic data generation (background thread)"""
-
-            mu = 0.0  # uV  # noise mean
-            sigma = 4.0  # uV  # noise standard deviation
-            spike_trains_buffer_ante = {c: np.array([], dtype='int') for c in range(0, nb_cells)}
-            spike_trains_buffer_curr = {c: np.array([], dtype='int') for c in range(0, nb_cells)}
-            spike_trains_buffer_post = {c: np.array([], dtype='int') for c in range(0, nb_cells)}
-
-            synthetic_store = SyntheticStore(hdf5_path, 'w')
-
-            for c in range(0, nb_cells):
-
-                s, u = cells[c].get_waveform()
-
-                params = {
-                    'cell_id': c,
-                    'waveform/x': s,
-                    'waveform/y': u
-                }
-
-                synthetic_store.add(params)
-
-            # Generate spikes for the third part of this buffer.
-            chunk_number = 0
-            to_write = {}
-            frequency = 100
-
-            for c in range(0, nb_cells):
-                spike_trains_buffer_post[c] = cells[c].generate_spike_trains(chunk_number, nb_samples)
-                to_write[c] = {
-                    'cell_id': c,
-                    'x': [],
-                    'y': [],
-                    'z': [],
-                    'e': [],
-                    'r': [],
-                    'spike_times': [],
-                }
-
-            while rpc_queue.empty():  # check if main thread requires a stop
-                if not queue.full():  # limit memory consumption
-                    # 1. Generate noise.
-                    shape = (nb_samples, nb_channels)
-                    data = np.random.normal(mu, sigma, shape).astype(self.dtype)
-                    # 2. Get spike trains.
-                    spike_trains_buffer_ante = spike_trains_buffer_curr.copy()
-                    spike_trains_buffer_curr = spike_trains_buffer_post.copy()
-                    for c in range(0, nb_cells):
-                        spike_trains_buffer_post[c] = cells[c].generate_spike_trains(chunk_number + 1, nb_samples)
-
-                        # 3. Reconstruct signal from spike trains.
-
-                        # Get waveform.
-                        i, j, v = cells[c].get_waveforms(chunk_number, probe)
-                        # Get current spike train.
-                        spike_train = spike_trains_buffer_curr[c]
-                        # Add waveforms into the data.
-                        for t in spike_train:
-                            b = np.logical_and(0 <= t + i, t + i < nb_samples)
-                            data[t + i[b], j[b]] = data[t + i[b], j[b]] + v[b]
-                        # Get previous spike train.
-                        spike_train = spike_trains_buffer_ante[c] - nb_samples
-                        # Add waveforms into the data.
-                        for t in spike_train:
-                            b = np.logical_and(0 <= t + i, t + i < nb_samples)
-                            data[t + i[b], j[b]] = data[t + i[b], j[b]] + v[b]
-                        # Get post spike train.
-                        spike_train = spike_trains_buffer_post[c] + nb_samples
-                        # Add waveforms into the data.
-                        for t in spike_train:
-                            b = np.logical_and(0 <= t + i, t + i < nb_samples)
-                            data[t + i[b], j[b]] = data[t + i[b], j[b]] + v[b]
-
-                        # 4. Save spike trains in HDF5 file.
-
-                        spike_times = spike_trains_buffer_curr[c] + chunk_number * nb_samples
-                        # # TODO remove following lines.
-                        # if len(spike_times) > 0 and chunk_number < 50:
-                        #     print("{} + {} x {} = {}".format(spike_train, chunk_number, nb_samples, spike_times))
-
-                        to_write[c]['x'] += [cells[c].x(chunk_number)]
-                        to_write[c]['y'] += [cells[c].y(chunk_number)]
-                        to_write[c]['z'] += [cells[c].z(chunk_number)]
-                        to_write[c]['e'] += [cells[c].e(chunk_number, probe)]
-                        to_write[c]['r'] += [cells[c].r(chunk_number)]
-                        to_write[c]['spike_times'] += spike_times.tolist()
-
-                        if chunk_number % frequency == 0:
-                            synthetic_store.add(to_write[c])
-                            to_write[c] = {
-                                'cell_id': c,
-                                'x': [],
-                                'y': [],
-                                'z': [],
-                                'e': [],
-                                'r': [],
-                                'spike_times': [],
-                            }
-
-                    # Finally, send data to main thread and update chunk number.
-                    # data = np.transpose(data)
-                    queue.put(data)
-                    chunk_number += 1
-
-            # We write the remaining data for the cells
-            for c in range(0, nb_cells):
-                synthetic_store.add(to_write[c])
-
-            synthetic_store.close()
-
-            return
         # # Define background thread for data generation.
         args = (self.rpc_queue, self.queue, self.nb_channels, self.probe,
-                self.nb_samples, self.nb_cells, self.cells, self.hdf5_path)
-        self.syn_gen_thread = threading.Thread(target=syn_gen_target, args=args)
+                self.nb_samples, self.cells, self.hdf5_path)
+        if self.mode is 'default':
+            self.syn_gen_thread = threading.Thread(target=syn_gen_target, args=args)
+        else:
+            self.syn_gen_thread = threading.Thread(target=pre_syn_gen_target, args=args)
         self.syn_gen_thread.deamon = True
         # # Launch background thread for data generation.
         self.log.info("{n} launches background thread for data generation".format(n=self.name))
@@ -319,47 +214,20 @@ class Synthetic_generator(block.Block):
     def exec_kwargs(input_kwargs, input_params):
         """Convert input keyword arguments into output keyword arguments.
 
-        Parameter
-        ---------
-        input_kwargs: dict
-            Dictionary with the following keys: 'object', 'globals' and 'locals'.
+        Parameter:
+            input_kwargs: dict
+                Dictionary with the following keys: 'object', 'globals' and 'locals'.
 
-        Return
-        ------
-        output_kwargs: dict
-            Dictionary with the following keys: 'x', 'y', 'z' and 'r'.
+        Return:
+            output_kwargs: dict
+                Dictionary with the following keys: 'x', 'y', 'z' and 'r'.
         """
 
-        # Define object (i.e. string or code object).
-        # obj_key = 'object'
-        # assert obj_key in input_kwargs
-        # assert isinstance(input_kwargs[obj_key], (str, unicode)),
-        #                   "current type is {}".format(type(input_kwargs[obj_key]))
-        # obj = input_kwargs[obj_key]
-
-        # # Define global dictionary.
-        # glb_key = 'globals'
-        # if glb_key in input_kwargs:
-        #     glb = input_kwargs[glb_key]
-        # else:
-        #     glb = {}
         # Add numpy to global namespace.
         input_params['np'] = np
         input_params['numpy'] = np
 
-        # # Define local dictionary.
-        # loc_key = 'locals'
-        # if loc_key in input_kwargs:
-        #     loc = input_kwargs[loc_key]
-        # else:
-        #     loc = {}
-
-        # # Execute dynamically the Python code.
-        # exec(obj, glb, loc)
-
-        # # Retrieve its result.
-        # output_kwargs = loc['ans']
-
+        # TODO add comment.
         for key in input_kwargs.keys():
             if type(input_kwargs[key]) == unicode and key != 't':
                 input_kwargs[key] = eval("lambda t: %s" % input_kwargs[key], input_params)
@@ -599,3 +467,126 @@ class Cell(object):
         v = v.flatten()
 
         return i, j, v
+
+
+def syn_gen_target(rpc_queue, queue, nb_channels, probe, nb_samples, cells, hdf5_path):
+    """Synthetic data generation (background thread)."""
+    # TODO complete docstring.
+
+    mu = 0.0  # uV  # noise mean
+    sigma = 4.0  # uV  # noise standard deviation
+    nb_cells = len(cells)
+
+    spike_trains_buffer_ante = {c: np.array([], dtype='int') for c in range(0, nb_cells)}
+    spike_trains_buffer_curr = {c: np.array([], dtype='int') for c in range(0, nb_cells)}
+    spike_trains_buffer_post = {c: np.array([], dtype='int') for c in range(0, nb_cells)}
+
+    synthetic_store = SyntheticStore(hdf5_path, 'w')
+
+    for c in range(0, nb_cells):
+        s, u = cells[c].get_waveform()
+
+        params = {
+            'cell_id': c,
+            'waveform/x': s,
+            'waveform/y': u
+        }
+
+        synthetic_store.add(params)
+
+    # Generate spikes for the third part of this buffer.
+    chunk_number = 0
+    to_write = {}
+    frequency = 100
+
+    for c in range(0, nb_cells):
+        spike_trains_buffer_post[c] = cells[c].generate_spike_trains(chunk_number, nb_samples)
+        to_write[c] = {
+            'cell_id': c,
+            'x': [],
+            'y': [],
+            'z': [],
+            'e': [],
+            'r': [],
+            'spike_times': [],
+        }
+
+    while rpc_queue.empty():  # check if main thread requires a stop
+        if not queue.full():  # limit memory consumption
+            # 1. Generate noise.
+            shape = (nb_samples, nb_channels)
+            data = np.random.normal(mu, sigma, shape).astype(np.float32)
+            # 2. Get spike trains.
+            spike_trains_buffer_ante = spike_trains_buffer_curr.copy()
+            spike_trains_buffer_curr = spike_trains_buffer_post.copy()
+            for c in range(0, nb_cells):
+                spike_trains_buffer_post[c] = cells[c].generate_spike_trains(chunk_number + 1, nb_samples)
+
+                # 3. Reconstruct signal from spike trains.
+
+                # Get waveform.
+                i, j, v = cells[c].get_waveforms(chunk_number, probe)
+                # Get current spike train.
+                spike_train = spike_trains_buffer_curr[c]
+                # Add waveforms into the data.
+                for t in spike_train:
+                    b = np.logical_and(0 <= t + i, t + i < nb_samples)
+                    data[t + i[b], j[b]] = data[t + i[b], j[b]] + v[b]
+                # Get previous spike train.
+                spike_train = spike_trains_buffer_ante[c] - nb_samples
+                # Add waveforms into the data.
+                for t in spike_train:
+                    b = np.logical_and(0 <= t + i, t + i < nb_samples)
+                    data[t + i[b], j[b]] = data[t + i[b], j[b]] + v[b]
+                # Get post spike train.
+                spike_train = spike_trains_buffer_post[c] + nb_samples
+                # Add waveforms into the data.
+                for t in spike_train:
+                    b = np.logical_and(0 <= t + i, t + i < nb_samples)
+                    data[t + i[b], j[b]] = data[t + i[b], j[b]] + v[b]
+
+                # 4. Save spike trains in HDF5 file.
+
+                spike_times = spike_trains_buffer_curr[c] + chunk_number * nb_samples
+                # # TODO remove following lines.
+                # if len(spike_times) > 0 and chunk_number < 50:
+                #     print("{} + {} x {} = {}".format(spike_train, chunk_number, nb_samples, spike_times))
+
+                to_write[c]['x'] += [cells[c].x(chunk_number)]
+                to_write[c]['y'] += [cells[c].y(chunk_number)]
+                to_write[c]['z'] += [cells[c].z(chunk_number)]
+                to_write[c]['e'] += [cells[c].e(chunk_number, probe)]
+                to_write[c]['r'] += [cells[c].r(chunk_number)]
+                to_write[c]['spike_times'] += spike_times.tolist()
+
+                if chunk_number % frequency == 0:
+                    synthetic_store.add(to_write[c])
+                    to_write[c] = {
+                        'cell_id': c,
+                        'x': [],
+                        'y': [],
+                        'z': [],
+                        'e': [],
+                        'r': [],
+                        'spike_times': [],
+                    }
+
+            # Finally, send data to main thread and update chunk number.
+            # data = np.transpose(data)
+            queue.put(data)
+            chunk_number += 1
+
+    # We write the remaining data for the cells
+    for c in range(0, nb_cells):
+        synthetic_store.add(to_write[c])
+
+    synthetic_store.close()
+
+    return
+
+
+def pre_syn_gen_target(rpc_queue, queue, nb_channels, probe, nb_samples, cells, hdf5_path):
+    """Preconfigured synthetic data generation (background thread)."""
+    # TODO complete docstring.
+
+    raise NotImplementedError()  # TODO complete.
