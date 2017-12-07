@@ -1,68 +1,170 @@
+# -*- coding: utf-8 -*-
+
 import os
 import sys
 import logging
-import numpy
+import numpy as np
 
 
+def resolve_probe_path(path, logger=None):
+    """Resolve probe path.
 
-def resolve_probe_path(path):
-    '''Resolve probe path'''
+    Parameter:
+        path: string
+            Path to which the probe will be saved.
+    """
+    # TODO complete docstring.
 
-    path = os.path.expanduser(path)
+    # Define logger.
+    if logger is None:
+        logger = logging.getLogger(__name__)
 
-    if os.path.exists(path):
-        path = os.path.abspath(path)
-    else:
-        path = os.path.join("~", ".spyking-circus-ort", "probes", path)
+    if len(path) > 0 and path[0] is '~':
         path = os.path.expanduser(path)
+        if not os.path.isfile(path):
+            message = "No such probe file: {}".format(path)
+            logger.error(message)
+            sys.exit(1)
+    elif len(path) > 0 and path[0] is '/':
+        # TODO make this case compatible with Windows.
+        if not os.path.isfile(path):
+            message = "No such probe file: {}".format(path)
+            logger.error(message)
+            sys.exit(1)
+    else:
+        if os.path.isfile(os.path.abspath(path)):
+            path = os.path.abspath(path)
+        else:
+            path = os.path.join("~", ".spyking-circus-ort", "probes", path)
+            path = os.path.expanduser(path)
+            if not os.path.isfile(path):
+                message = "No such probe file: {}".format(path)
+                logger.error(message)
+                sys.exit(1)
 
     return path
 
 
+def generate_probe(nb_electrodes_width=4, nb_electrodes_height=4, interelectrode_distance=30.0):
+    """Generate probe
+
+    Parameters:
+        nb_electrodes_width: integer
+            Number of columns of electrodes. The default value is 4.
+        nb_electrodes_height: integer
+            Number of rows of electrodes. The default value is 4.
+        interelectrode_distance: float
+            Interelectrode distance [µm]. The default value is 30.0.
+
+    Return:
+        probe: Probe
+            Generated probe.
+    """
+
+    nb_electrodes = nb_electrodes_width * nb_electrodes_height
+
+    geometry = {}
+    x_offset = - 0.5 * float(nb_electrodes_width - 1) * interelectrode_distance
+    y_offset = - 0.5 * float(nb_electrodes_height - 1) * interelectrode_distance
+    for k in range(0, nb_electrodes):
+        x = float(k % nb_electrodes_width) * interelectrode_distance + x_offset  # µm
+        y = float(k / nb_electrodes_width) * interelectrode_distance + y_offset  # µm
+        geometry[k] = [x, y]
+
+    channel_group = {
+        'channels': list(range(nb_electrodes)),
+        'graph': [],
+        'geometry': geometry,
+    }
+
+    probe_kwargs = {
+        'total_nb_channels': nb_electrodes,
+        'radius': 250.0,  # µm
+        'channel_groups': {1: channel_group},
+    }
+
+    probe = Probe(**probe_kwargs)
+
+    return probe
+
+
+def save_probe(path, probe):
+    """Save probe to file.
+
+    Parameters:
+        path: string
+            Path to which the probe is saved.
+        probe: Probe
+            Probe object to be saved.
+    """
+
+    probe.save(path)
+
+    return
+
+
+def load_probe(path, radius=None, logger=None):
+    """Load probe from file.
+
+    Parameter:
+        path: string
+            Path to which the probe is saved.
+    """
+    # TODO complete docstring.
+
+    # Resolve path.
+    path = resolve_probe_path(path, logger=logger)
+
+    # Read probe.
+    probe_kwargs = {}
+    try:
+        with open(path, mode='r') as probe_file:
+            probe_text = probe_file.read()
+            exec(probe_text, probe_kwargs)
+            del probe_kwargs['__builtins__']
+    except Exception as exception:
+        message = "Something wrong with the syntax of the probe file:\n{}".format(str(exception))
+        logger.error(message)
+
+    required_keys = [
+        'channel_groups',
+        'total_nb_channels',
+        'radius',
+    ]
+    for key in required_keys:
+        message = "'{}' key is missing in the probe file {}".format(key, path)
+        assert key in probe_kwargs, logger.error(message)
+
+    if radius is not None:
+        probe_kwargs['radius'] = radius
+
+    probe = Probe(**probe_kwargs)
+
+    return probe
+
+
 class Probe(object):
-    '''
-    Open probe file.
+    """Open probe file."""
+    # TODO: complete docstring.
 
-    TODO: complete.
-    '''
-
-    def __init__(self, filename, radius=None, logger=None):
-
-        # Define logger.
-        if logger is None:
-            self.logger = logging.getLogger(__name__)
-        else:
-            self.logger = logger
-
-        # Resolve input filename.
-        self.path = resolve_probe_path(filename)
-        if not os.path.exists(self.path):
-            self.logger.error("The probe file %s does not exist" %self.path)
-            sys.exit(1)
+    def __init__(self, channel_groups=None, total_nb_channels=None, radius=None):
 
         self._edges = None
         self._nodes = None
 
-        probe = {}
-        try:
-            with open(self.path, 'r') as f:
-                probetext = f.read()
-                exec(probetext, probe)
-        except Exception as ex:
-            self.logger.error("Something wrong with the syntax of the probe file:\n" + str(ex))
+        if channel_groups is None:
+            raise ValueError("channel_groups is None")
+        else:
+            self.channel_groups = channel_groups
 
+        if total_nb_channels is None:
+            raise ValueError("total_nb_channels is None")
+        else:
+            self.total_nb_channels = total_nb_channels
 
-        assert probe.has_key('channel_groups') == True, logger.error("Something wrong with the syntax of the probe file")
-
-        self.channel_groups = probe['channel_groups']
-
-        key_flags = ['total_nb_channels', 'radius']
-        for key in key_flags:
-            if not probe.has_key(key):
-                self.logger.error("%s is missing in the probe file" %key)
-            setattr(self, key, probe[key])
-
-        if radius is not None:
+        if radius is None:
+            raise ValueError("radius is None")
+        else:
             self.radius = radius
 
     def _get_edges(self, i, channel_groups):
@@ -70,9 +172,9 @@ class Probe(object):
         pos_x, pos_y = channel_groups['geometry'][i]
         for c2 in channel_groups['channels']:
             pos_x2, pos_y2 = channel_groups['geometry'][c2]
-            if (((pos_x - pos_x2)**2 + (pos_y - pos_y2)**2) <= self.radius**2):
+            if ((pos_x - pos_x2)**2 + (pos_y - pos_y2)**2) <= self.radius**2:
                 edges += [c2]
-        return numpy.array(edges, dtype=numpy.int32)
+        return np.array(edges, dtype=np.int32)
 
     def get_nodes_and_edges(self):
         """
@@ -92,16 +194,15 @@ class Probe(object):
 
         """
 
-        edges  = {}
-        nodes  = []
+        edges = {}
+        nodes = []
 
         for key in self.channel_groups.keys():
             for i in self.channel_groups[key]['channels']:
                 edges[i] = self._get_edges(i, self.channel_groups[key])
-                nodes   += [i]
+                nodes += [i]
 
-        return numpy.sort(numpy.array(nodes, dtype=numpy.int32)), edges
-
+        return np.sort(np.array(nodes, dtype=np.int32)), edges
 
     @property
     def edges(self):
@@ -121,9 +222,9 @@ class Probe(object):
 
     @property
     def positions(self):
-        positions = numpy.zeros((2, 0), dtype=numpy.float32)
+        positions = np.zeros((2, 0), dtype=np.float32)
         for key in self.channel_groups.keys():
-            positions = numpy.hstack((positions, numpy.array(self.channel_groups[key]['geometry'].values()).T))
+            positions = np.hstack((positions, np.array(self.channel_groups[key]['geometry'].values()).T))
         return positions
 
     @property
@@ -144,24 +245,24 @@ class Probe(object):
             group = self.channel_groups[key]
             x.extend([group['geometry'][c][0] for c in group['channels']])
             y.extend([group['geometry'][c][1] for c in group['channels']])
-        x = numpy.array(x)
-        y = numpy.array(y)
+        x = np.array(x)
+        y = np.array(y)
         # Compute the distance between channels.
         d = float('Inf')
         for i in range(0, len(x)):
-            p_1 = numpy.array([x[i], y[i]])
+            p_1 = np.array([x[i], y[i]])
             for j in range(i + 1, len(x)):
-                p_2 = numpy.array([x[j], y[j]])
-                d = min(d, numpy.linalg.norm(p_2 - p_1))
+                p_2 = np.array([x[j], y[j]])
+                d = min(d, np.linalg.norm(p_2 - p_1))
         # Compute the field of view of the probe.
         fov = {
-            'x_min': numpy.amin(x),
-            'y_min': numpy.amin(y),
-            'x_max': numpy.amax(x),
-            'y_max': numpy.amax(y),
+            'x_min': np.amin(x),
+            'y_min': np.amin(y),
+            'x_max': np.amax(x),
+            'y_max': np.amax(y),
             'd': d,
-            'w': numpy.amax(x) - numpy.amin(x),
-            'h': numpy.amax(y) - numpy.amin(y),
+            'w': np.amax(x) - np.amin(x),
+            'h': np.amax(y) - np.amin(y),
         }
 
         return fov
@@ -172,7 +273,7 @@ class Probe(object):
             n += len(value)
         return n/float(len(self.edges.values()))
 
-    def get_channels_around(self, x, y, r):
+    def get_channels_around(self, x, y, r=None):
         """Get channel identifiers around a given point in space
 
         Parameters
@@ -181,25 +282,107 @@ class Probe(object):
             x-coordinate.
         y: float
             y-coordinate
-        r: float
-            Radius in um.
+        r: none | float (optional)
+            Radius in um. The default value is None.
 
         """
 
         channels = []
         distances = []
 
-        pos = numpy.array([x, y])
+        pos = np.array([x, y])
         for key in self.channel_groups.keys():
             channel_group = self.channel_groups[key]
             for channel in channel_group['channels']:
-                pos_c = numpy.array(channel_group['geometry'][channel])
-                d = numpy.linalg.norm(pos_c - pos)
-                if d < r:
+                pos_c = np.array(channel_group['geometry'][channel])
+                d = np.linalg.norm(pos_c - pos)
+                if r is None or d < r:
                     # Channel position is near given position.
                     channels += [channel]
-                    distances +=[d]
-        channels = numpy.array(channels, dtype='int')
-        distances = numpy.array(distances, dtype='float')
+                    distances += [d]
+        channels = np.array(channels, dtype='int')
+        distances = np.array(distances, dtype='float')
 
         return channels, distances
+
+    def save(self, path):
+        """Save probe to file.
+
+        Parameter:
+            path: string
+                Path to which the probe is saved.
+        """
+
+        # Make directories (if necessary).
+        directory = os.path.dirname(path)
+        if not os.path.isdir(directory):
+            os.makedirs(directory)
+
+        # Prepare lines to be saved.
+        lines = []
+        # Save total number of channels to probe file.
+        line = "total_nb_channels = {}\n".format(self.total_nb_channels)
+        lines.append(line)
+        # Save radius to probe file.
+        line = "radius = {}\n".format(self.radius)
+        lines.append(line)
+        # Save `channel_groups` to probe file.
+        line = "channel_groups = {\n"
+        lines.append(line)
+        for channel_group_id, channel_group in self.channel_groups.iteritems():
+            line = " {}: {{\n".format(channel_group_id)
+            lines.append(line)
+            line = "  'channels': {},\n".format(channel_group['channels'])
+            lines.append(line)
+            line = "  'graph': {},\n".format(channel_group['graph'])
+            lines.append(line)
+            line = "  'geometry': {\n"
+            lines.append(line)
+            for key, value in channel_group['geometry'].iteritems():
+                line = "   {}: {},\n".format(key, value)
+                lines.append(line)
+            line = "  },\n"
+            lines.append(line)
+            line = " },\n"
+            lines.append(line)
+        line = "}\n"
+        lines.append(line)
+        line = "\n"
+        lines.append(line)
+
+        # Open probe file.
+        probe_file = open(path, mode='w')
+
+        # Write lines to save.
+        probe_file.writelines(lines)
+
+        # Close probe file.
+        probe_file.close()
+
+        return
+
+    def get_nearest_electrode_distance(self, point):
+        """Get distance to nearest electrode.
+
+        Parameter:
+            point: tuple
+                Point coordinate (e.g. `(0.0, 1.0)`).
+
+        Return:
+            distance: float
+                Distance to nearest electrode.
+        """
+
+        x, y = point
+        _, distances = self.get_channels_around(x, y)
+        distance = np.min(distances)
+
+        return distance
+
+    def get_electrodes_around(self, point, radius):
+        # TODO add docstring.
+
+        x, y = point
+        electrodes, _ = self.get_channels_around(x, y, r=radius)
+
+        return electrodes

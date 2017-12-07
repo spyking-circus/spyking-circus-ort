@@ -1,21 +1,27 @@
-from .block import Block
 import tempfile
 import os
 
+from .block import Block
+
+
 class Writer(Block):
-    '''TODO add docstring'''
+    """Writer."""
+    # TODO add docstring
 
-    name   = "File writer"
+    name = "File writer"
 
-    params = {'data_path'  : None}
+    params = {
+        'data_path': None
+    }
 
     def __init__(self, **kwargs):
 
         Block.__init__(self, **kwargs)
         self.add_input('data')
 
-    def _get_temp_file(self):
-        tmp_file  = tempfile.NamedTemporaryFile()
+    @staticmethod
+    def _get_temp_file():
+        tmp_file = tempfile.NamedTemporaryFile()
         data_path = os.path.join(tempfile.gettempdir(), os.path.basename(tmp_file.name)) + ".dat"
         tmp_file.close()
         return data_path

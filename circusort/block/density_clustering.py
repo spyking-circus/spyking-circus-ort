@@ -3,11 +3,12 @@ import numpy as np
 # import time
 import scipy.interpolate
 
-from circusort.io.probe import Probe
+from circusort.io.probe import load_probe
 # from circusort.utils.algorithms import PCAEstimator
 # from circusort.utils.clustering import rho_estimation
 # from circusort.utils.clustering import density_based_clustering
 from circusort.utils.clustering import OnlineManager
+
 
 class Density_clustering(Block):
     """Density clustering
@@ -57,7 +58,7 @@ class Density_clustering(Block):
             error_msg = "{n}: the probe file must be specified!"
             self.log.error(error_msg.format(n=self.name))
         else:
-            self.probe = Probe(self.probe, radius=self.radius, logger=self.log)
+            self.probe = load_probe(self.probe, radius=self.radius, logger=self.log)
             self.log.info("{n} reads the probe layout".format(n=self.name))
         self.add_input('data')
         self.add_input('pcs')

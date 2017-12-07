@@ -1,8 +1,201 @@
+# -*- coding: utf-8 -*-
+
 import h5py
-import os
-from scipy.sparse import csc_matrix, hstack
 import numpy as np
+import os
+import sys
+
+from scipy.sparse import csc_matrix, hstack
+
 from circusort.io.utils import append_hdf5
+from circusort.io import generate_probe
+
+
+def generate_waveform(width=5.0e-3, amplitude=-80.0, sampling_rate=20e+3):
+    """Generate a waveform.
+
+    Parameters:
+        width: float (optional)
+            Temporal width [s]. The default value is 5.0e-3.
+        amplitude: float (optional)
+            Voltage amplitude [µV]. The default value is -80.0.
+        sampling_rate: float (optional)
+            Sampling rate [Hz]. The default value is 20e+3.
+
+    Return:
+        waveform: np.array
+            Generated waveform.
+    """
+
+    i_start = - int(width * sampling_rate / 2.0)
+    i_stop = + int(width * sampling_rate / 2.0)
+    steps = np.arange(i_start, i_stop + 1)
+    times = steps.astype('float32') / sampling_rate
+    waveform = - np.cos(times / (width / 2.0) * (1.5 * np.pi))
+    if np.amin(waveform) < - sys.float_info.epsilon:
+        waveform /= - np.amin(waveform)
+        waveform *= amplitude
+
+    return waveform
+
+
+def generate_templates(nb_templates=3, probe=None,
+                       centers=None, max_amps=None,
+                       radius=None, width=5.0e-3, sampling_rate=20e+3):
+    """Generate templates.
+
+    Parameters:
+        nb_templates: none | integer (optional)
+            Number of templates to generate. The default value is 3.
+        probe: none | circusort.io.Probe
+            Description of the probe (e.g. spatial layout). The default value is None.
+        centers: none | list (optional)
+            Coordinates of the centers (spatially) of the templates [µm]. The default value is None.
+        max_amps: none | float (optional)
+            Maximum amplitudes of the templates [µV]. The default value is None.
+        radius: none | float (optional)
+            Radius of the signal horizon [µm]. The default value is None.
+        width: float (optional)
+            Temporal width [s]. The default value is 5.0e-3.
+        sampling_rate: float (optional)
+            Sampling rate [Hz]. The default value is 20e+3.
+
+    Return:
+        templates: dictionary
+            Generated dictionary of templates.
+    """
+
+    if probe is None:
+        probe = generate_probe()
+
+    if centers is None:
+        centers = [(0.0, 0.0) for _ in range(0, nb_templates)]
+        # TODO generate 'good' random centers.
+
+    if max_amps is None:
+        max_amps = [-80.0 for _ in range(0, nb_templates)]
+        # TODO generate 'good' random maximum amplitudes.
+
+    if radius is None:
+        radius = probe.radius
+
+    nb_samples = 1 + 2 * int(width * sampling_rate / 2.0)
+
+    templates = {}
+    for k in range(0, nb_templates):
+        # Get distance to the nearest electrode.
+        center = centers[k]
+        nearest_electrode_distance = probe.get_nearest_electrode_distance(center)
+        # Get channels before signal horizon.
+        x, y = center
+        channels, distances = probe.get_channels_around(x, y, radius + nearest_electrode_distance)
+        # Declare waveforms.
+        nb_electrodes = len(channels)
+        shape = (nb_electrodes, nb_samples)
+        waveforms = np.zeros(shape, dtype=np.float)
+        # Initialize waveforms.
+        amplitude = max_amps[k]
+        waveform = generate_waveform(width=width, amplitude=amplitude, sampling_rate=sampling_rate)
+        for i, distance in enumerate(distances):
+            gain = (1.0 + distance / 100.0) ** -2.0
+            waveforms[i, :] = gain * waveform
+        # Store template.
+        template = (channels, waveforms)
+        templates[k] = template
+
+    return templates
+
+
+def save_templates(directory, templates):
+    """Save templates.
+
+    Parameters:
+        directory: string
+            Directory in which to save the templates.
+        templates: dictionary
+            Dictionary of templates.
+    """
+
+    if not os.path.isdir(directory):
+        os.makedirs(directory)
+
+    for k, template in templates.iteritems():
+        channels, waveforms = template
+        filename = "{}.h5".format(k)
+        path = os.path.join(directory, filename)
+        f = h5py.File(path, mode='w')
+        f.create_dataset('channels', shape=channels.shape, dtype=channels.dtype, data=channels)
+        f.create_dataset('waveforms', shape=waveforms.shape, dtype=waveforms.dtype, data=waveforms)
+        f.close()
+
+    return
+
+
+def list_templates(directory):
+    """List template paths contained in the specified directory.
+
+    Parameter:
+        directory: string
+            Directory from which to list the templates.
+
+    Return:
+        paths: list
+            List of template paths found in the specified directory.
+    """
+
+    if not os.path.isdir(directory):
+        message = "No such template directory: {}".format(directory)
+        raise OSError(message)
+
+    filenames = os.listdir(directory)
+    filenames.sort()
+    paths = [os.path.join(directory, filename) for filename in filenames]
+
+    return paths
+
+
+def load_template(path):
+    """Load template.
+
+    Parameter:
+        path: string
+            Path from which to load the template.
+
+    Return:
+        template: tuple
+            Template. The first element of the tuple contains the support of the template (i.e. channels). The second
+            element contains the corresponding waveforms.
+    """
+
+    f = h5py.File(path, mode='r')
+    channels = f['channels']
+    waveforms = f['waveforms']
+    f.close()
+    template = (channels, waveforms)
+
+    return template
+
+
+def load_templates(directory):
+    """Load templates.
+
+    Parameter:
+        directory: string
+            Directory from which to load the templates.
+
+    Return:
+        templates: dictionary
+            Dictionary of templates.
+    """
+
+    paths = list_templates(directory)
+
+    templates = {
+        k: load_template(path)
+        for k, path in enumerate(paths)
+    }
+
+    return templates
 
 
 class TemplateStore(object):
@@ -124,13 +317,13 @@ class TemplateStore(object):
                 result['templates'] = csc_matrix((self.h5_file['data'][:],
                                                   self.h5_file['indices'][:],
                                                   self.h5_file['indptr'][:]),
-                                                  shape=self.h5_file['shape'][:])
+                                                 shape=self.h5_file['shape'][:])
 
             if 'templates2' in variables:
                 result['templates2'] = csc_matrix((self.h5_file['data'][:],
                                                    self.h5_file['indices'][:],
                                                    self.h5_file['indptr'][:]),
-                                                   shape=self.h5_file['shape'][:])
+                                                  shape=self.h5_file['shape'][:])
         else:
 
             if not np.iterable(indices):
@@ -145,9 +338,9 @@ class TemplateStore(object):
 
             load_t1 = 'templates' in variables
             load_t2 = 'templates2' in variables
-            load_templates = load_t1 or load_t2
+            are_templates_to_load = load_t1 or load_t2
 
-            if load_templates:
+            if are_templates_to_load:
                 myshape = self.h5_file['shape'][0]
                 indptr = self.h5_file['indptr'][:]
 
@@ -157,17 +350,21 @@ class TemplateStore(object):
             if load_t2:
                 result['templates2'] = csc_matrix((myshape, 0), dtype=np.float32)
 
-            if load_templates:
+            if are_templates_to_load:
                 for item in indices:
                     mask = np.zeros(len(self.h5_file['data']), dtype=np.bool)
                     mask[indptr[item]:indptr[item+1]] = 1
                     n_data = indptr[item+1] - indptr[item]
                     if load_t1:
-                        temp = csc_matrix((self.h5_file['data'][mask], (self.h5_file['indices'][mask], np.zeros(n_data))), shape=(myshape, 1))
+                        temp = csc_matrix((self.h5_file['data'][mask],
+                                           (self.h5_file['indices'][mask], np.zeros(n_data))),
+                                          shape=(myshape, 1))
                         result['templates'] = hstack((result['templates'], temp), 'csc')
  
                     if load_t2:
-                        temp = csc_matrix((self.h5_file['data2'][mask], (self.h5_file['indices'][mask], np.zeros(n_data))), shape=(myshape, 1))
+                        temp = csc_matrix((self.h5_file['data2'][mask],
+                                           (self.h5_file['indices'][mask], np.zeros(n_data))),
+                                          shape=(myshape, 1))
                         result['templates2'] = hstack((result['templates2'], temp), 'csc')
 
         self.h5_file.close()
