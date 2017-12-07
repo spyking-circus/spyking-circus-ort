@@ -207,7 +207,7 @@ def pregenerator(working_directory=None, probe_path=None, template_directory=Non
     director.initialize()
     director.connect(generator.output, writer.input)
     director.start()
-    director.sleep(duration=60.0)  # TODO test if we can remove this line.
-    director.join()  # TODO test if it returns after the completion of the pregeneration.
+    director.sleep(duration=60.0)  # TODO add a duration parameter.
+    director.stop()
 
     return
