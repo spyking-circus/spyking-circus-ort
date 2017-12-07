@@ -82,9 +82,23 @@ def list_trains(directory):
 
 
 def load_train(path):
-    # TODO add docstring.
+    """Load train from path.
 
-    raise NotImplementedError()  # TODO complete.
+    Parameter:
+        path: string
+            Path from which to load the train.
+
+    Return:
+        train: numpy.array
+            Train. An array of spike times.
+    """
+
+    f = h5py.File(path, mode='r')
+    times = f['times']
+    f.close()
+    train = times
+
+    return train
 
 
 def load_trains(directory):
@@ -101,13 +115,9 @@ def load_trains(directory):
 
     paths = list_trains(directory)
 
-    trains = {}
-
-    for k, path in enumerate(paths):
-        f = h5py.File(path, mode='r')
-        times = f['times']
-        f.close()
-        train = times
-        trains[k] = train
+    trains = {
+        k: load_train(path)
+        for k, path in enumerate(paths)
+    }
 
     return trains
