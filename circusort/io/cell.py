@@ -14,7 +14,7 @@ def load_cells(working_directory=None):
 
     generation_directory = os.path.join(working_directory, "generation")
 
-    template_directory = os.path.join(generation_directory, "template")
+    template_directory = os.path.join(generation_directory, "templates")
     template_paths = list_templates(template_directory)
 
     train_directory = os.path.join(generation_directory, "trains")
