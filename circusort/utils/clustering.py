@@ -270,20 +270,20 @@ class OnlineManager(object):
 
         return to_be_merged
 
-    def _estimate_sigma(self):
-        if len(self.clusters) > 0:
-            sigma = 0
-            count = 0
-            for cluster in self.clusters.values():
-                if cluster.sigma > 0:
-                    sigma += cluster.sigma
-                    count += 1
-            if count > 0:
-                return sigma / count
-            else:
-                return np.inf
-        else:
-            return np.inf
+    # def _estimate_sigma(self):
+    #     if len(self.clusters) > 0:
+    #         sigma = 0
+    #         count = 0
+    #         for cluster in self.clusters.values():
+    #             if cluster.sigma > 0:
+    #                 sigma += cluster.sigma
+    #                 count += 1
+    #         if count > 0:
+    #             return sigma / count
+    #         else:
+    #             return np.inf
+    #     else:
+    #         return np.inf
 
     def _prune(self):
 

@@ -217,9 +217,9 @@ class Density_clustering(Block):
 
     def _init_data_structures(self):
 
-        self.raw_data = {}
+        self.raw_data  = {}
         self.templates = {}
-        self.managers = {}
+        self.managers  = {}
 
         for k in self.all_keys:
             self.templates[k] = {}
@@ -263,18 +263,14 @@ class Density_clustering(Block):
     def _prepare_templates(self, templates, key, channel):
 
         nb_templates = len(templates['amp'])
-        nb_elecs = len(self.probe.edges[channel])
+        nb_elecs     = len(self.probe.edges[channel])
 
         t1 = templates.pop('dat')
         t1 = t1.reshape(nb_templates, nb_elecs, self._spike_width_)
-        # t1 = t1.reshape(nb_templates, self._spike_width_, nb_elecs)
-        # t1 = np.transpose(t1, axes=(0, 2, 1))
 
         if self.two_components:
             t2 = templates.pop('two')
             t2 = t2.reshape(nb_templates, nb_elecs, self._spike_width_)
-            # t2 = t2.reshape(nb_templates, self._spike_width_, nb_elecs)
-            # t2 = np.transpose(t2, axes=(0, 2, 1))
 
         for count in xrange(nb_templates):
             t1[count], shift = self._center_template(t1[count], key)

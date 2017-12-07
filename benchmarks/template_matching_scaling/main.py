@@ -75,7 +75,7 @@ if args.init_temp_dict:
     }
 else:
     cluster_kwargs = {
-        'nb_waveforms': 100,  # i.e. precipitate clustering (template does not exist)
+        'nb_waveforms': 200,  # i.e. precipitate clustering (template does not exist)
     }
 updater_kwargs = {
     'data_path': os.path.join(tmp_dir, 'templates.h5'),
@@ -185,7 +185,7 @@ else:
     # Launch the Circus network.
 
     director.start()
-    director.sleep(duration=10.0+3.0*60.0)
+    director.sleep(duration=10.0+5.0*60.0)
     director.stop()
     # director.join()
 
