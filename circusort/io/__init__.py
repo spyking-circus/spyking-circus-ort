@@ -8,3 +8,4 @@ from .parse import parse_parameters
 from .probe import generate_probe, save_probe, load_probe
 from .trains import generate_trains, save_trains, load_trains
 from .template import generate_templates, save_templates, load_templates
+from .cell import load_cells

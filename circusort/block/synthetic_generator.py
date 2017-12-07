@@ -164,7 +164,22 @@ class Synthetic_generator(block.Block):
             self.cells = {}
             # Cell(x=None, y=None, z=None, r=None, s=0.0, t='default', sr=20.0e+3, rp=20.0e-3, nn=100.0, hf_dist=45.0, a_dist=1.0):
 
-            # TODO complete.
+            self.cells = io.load_cells(self.working_directory)
+
+            # TODO define cells according to the configuration specified in the working directory.
+            # TODO load templates.
+            # TODO load global spike trains.
+            # TODO discard all the other parameters.
+            # TODO   add the position parameters (i.e. x, y, and z coordinate)?
+            # TODO     discard the position parameters?
+            # TODO   discard firing rate parameter?
+            # TODO   background thread generate trains chunk by chunk based on the firing rate parameters.
+            # TODO     we need to generate trains chunk by chunk based on the global trains.
+            # TODO   discard parameter for the temporal shift of the first spike (i.e. s)?
+            # TODO   discard parameter for cell type (i.e. t)?
+            # TODO   discard parameter for sampling rate (i.e. sr)?
+            # TODO   discard parameter for refractory period (i.e. rp)?
+            # TODO   discard other parameters (i.e. nn, hf_dist, a_dist)?
 
             raise NotImplementedError()
 
@@ -269,7 +284,7 @@ class Synthetic_generator(block.Block):
 
                         to_write[c]['x'] += [cells[c].x(chunk_number)]
                         to_write[c]['y'] += [cells[c].y(chunk_number)]
-                        to_write[c]['z'] += [cells[c].y(chunk_number)]
+                        to_write[c]['z'] += [cells[c].z(chunk_number)]
                         to_write[c]['e'] += [cells[c].e(chunk_number, probe)]
                         to_write[c]['r'] += [cells[c].r(chunk_number)]
                         to_write[c]['spike_times'] += spike_times.tolist()
