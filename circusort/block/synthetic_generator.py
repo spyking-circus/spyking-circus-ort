@@ -576,7 +576,7 @@ def syn_gen_target(rpc_queue, queue, nb_channels, probe, nb_samples, cells, hdf5
             queue.put(data)
             chunk_number += 1
 
-    # We write the remaining data for the cells
+    # We write the remaining data for the cells.
     for c in range(0, nb_cells):
         synthetic_store.add(to_write[c])
 
@@ -589,4 +589,22 @@ def pre_syn_gen_target(rpc_queue, queue, nb_channels, probe, nb_samples, cells, 
     """Preconfigured synthetic data generation (background thread)."""
     # TODO complete docstring.
 
-    raise NotImplementedError()  # TODO complete.
+    mu = 0.0  # µV  # noise mean
+    sigma = 4.0  # µV  # noise standard deviation
+    chunk_number = 0
+
+    while rpc_queue.empty():  # check if main thread requires a stop
+        if not queue.full():  # limit memory consumption
+            # a. Generate some gaussian noise.
+            shape = (nb_samples, nb_channels)
+            data = np.random.normal(loc=mu, scale=sigma, size=shape)
+            data = data.astype(np.float32)
+
+            # TODO complete (i.e. inject waveforms).
+
+            # y. Send data to main thread.
+            queue.put(data)
+            # z. Update chunk number.
+            chunk_number += 1
+
+    return
