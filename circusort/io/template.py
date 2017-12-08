@@ -168,8 +168,8 @@ def load_template(path):
     """
 
     f = h5py.File(path, mode='r')
-    channels = f['channels']
-    waveforms = f['waveforms']
+    channels = f.get('channels').value
+    waveforms = f.get('waveforms').value
     f.close()
     template = (channels, waveforms)
 
