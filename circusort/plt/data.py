@@ -62,7 +62,7 @@ def plot_data(path, dtype='uint16', nb_channels=1, sampling_rate=20e+3,
         # Plot a single channel.
         plt.subplots()
         y = data[:, 0]
-        plt.plot(x, y)
+        plt.plot(x, y, color='C0')
         plt.xlabel("time (s)")
         plt.ylabel("voltage (arb. unit)")
     else:
@@ -73,7 +73,7 @@ def plot_data(path, dtype='uint16', nb_channels=1, sampling_rate=20e+3,
         for j in range(0, data.shape[1]):
             y_offset = float(j)
             y = y_scale * data[:, j] + y_offset
-            plt.plot(x, y)
+            plt.plot(x, y, color='C0')
         # TODO add scale bar.
         locations = list(range(0, nb_selected_channels))
         labels = [str(channel) for channel in channels]
