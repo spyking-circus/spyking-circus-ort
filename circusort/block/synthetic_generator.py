@@ -187,7 +187,7 @@ class Synthetic_generator(block.Block):
 
         # # Define background thread for data generation.
         args = (self.rpc_queue, self.queue, self.nb_channels, self.probe,
-                self.nb_samples, self.cells, self.hdf5_path)
+                self.nb_samples, self.sampling_rate, self.cells, self.hdf5_path)
         if self.mode is 'default':
             self.syn_gen_thread = threading.Thread(target=syn_gen_target, args=args)
         else:
@@ -469,7 +469,7 @@ class Cell(object):
         return i, j, v
 
 
-def syn_gen_target(rpc_queue, queue, nb_channels, probe, nb_samples, cells, hdf5_path):
+def syn_gen_target(rpc_queue, queue, nb_channels, probe, nb_samples, sampling_rate, cells, hdf5_path):
     """Synthetic data generation (background thread)."""
     # TODO complete docstring.
 
@@ -585,12 +585,13 @@ def syn_gen_target(rpc_queue, queue, nb_channels, probe, nb_samples, cells, hdf5
     return
 
 
-def pre_syn_gen_target(rpc_queue, queue, nb_channels, probe, nb_samples, cells, hdf5_path):
+def pre_syn_gen_target(rpc_queue, queue, nb_channels, probe, nb_samples, sampling_rate, cells, hdf5_path):
     """Preconfigured synthetic data generation (background thread)."""
     # TODO complete docstring.
 
     mu = 0.0  # µV  # noise mean
     sigma = 4.0  # µV  # noise standard deviation
+    chunk_width = float(nb_samples) / sampling_rate * 1e+3  # ms  # chunk width
     chunk_number = 0
 
     while rpc_queue.empty():  # check if main thread requires a stop
@@ -599,12 +600,21 @@ def pre_syn_gen_target(rpc_queue, queue, nb_channels, probe, nb_samples, cells, 
             shape = (nb_samples, nb_channels)
             data = np.random.normal(loc=mu, scale=sigma, size=shape)
             data = data.astype(np.float32)
-
-            # TODO complete (i.e. inject waveforms).
-
-            # y. Send data to main thread.
+            # b. Inject waveforms.
+            for cell in cells.itervalues():
+                # Collect subtrain with spike events which fall inside the current chunk.
+                subtrain = cell.get_chunk_subtrain(chunk_number, chunk_width=chunk_width)
+                # Retrieve the template to inject.
+                i_ref, j, v = cell.get_template()
+                # Inject the template to the correct spatiotemporal locations.
+                for t in subtrain:
+                    k = int(t * sampling_rate)
+                    i = i_ref + k
+                    m = np.logical_and(0 <= i, i < nb_samples)
+                    data[i[m], j[m]] = data[i[m], j[m]] + v[m]
+            # c. Send data to main thread.
             queue.put(data)
-            # z. Update chunk number.
+            # d. Update chunk number.
             chunk_number += 1
 
     return
