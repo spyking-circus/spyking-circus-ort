@@ -167,6 +167,7 @@ class Synthetic_generator(block.Block):
 
             self.cells = io.load_cells(self.working_directory)
             self.nb_cells = len(self.cells)
+            self.dtype = 'int16'  # TODO set default data type to 16 bit signed (or unsigned) integer.
 
         # Configure the data output of this block.
         self.output.configure(dtype=self.dtype, shape=(self.nb_samples, self.nb_channels))
@@ -586,20 +587,33 @@ def syn_gen_target(rpc_queue, queue, nb_channels, probe, nb_samples, sampling_ra
 
 
 def pre_syn_gen_target(rpc_queue, queue, nb_channels, probe, nb_samples, sampling_rate, cells, hdf5_path):
-    """Preconfigured synthetic data generation (background thread)."""
+    """Preconfigured synthetic data generation (background thread).
+
+    Parameters:
+        rpc_queue: Queue.Queue
+        queue: Queue.Queue
+        nb_channels: integer
+        probe: circusort.obj.Probe
+        nb_samples: integer
+        sampling_rate: float
+        cells: dictionary
+        hdf5_path: string
+    """
     # TODO complete docstring.
 
     mu = 0.0  # µV  # noise mean
     sigma = 4.0  # µV  # noise standard deviation
     chunk_width = float(nb_samples) / sampling_rate * 1e+3  # ms  # chunk width
     chunk_number = 0
+    quantum_width = 0.1042  # µV / AD
+    dtype = np.int16  # output data type
+    dtype_info = np.iinfo(dtype)
 
     while rpc_queue.empty():  # check if main thread requires a stop
         if not queue.full():  # limit memory consumption
             # a. Generate some gaussian noise.
             shape = (nb_samples, nb_channels)
             data = np.random.normal(loc=mu, scale=sigma, size=shape)
-            data = data.astype(np.float32)
             # b. Inject waveforms.
             for cell in cells.itervalues():
                 # Collect subtrain with spike events which fall inside the current chunk.
@@ -612,9 +626,15 @@ def pre_syn_gen_target(rpc_queue, queue, nb_channels, probe, nb_samples, samplin
                     i = i_ref + k
                     m = np.logical_and(0 <= i, i < nb_samples)
                     data[i[m], j[m]] = data[i[m], j[m]] + v[m]
-            # c. Send data to main thread.
+            # c. Quantize the data.
+            data = data / quantum_width
+            data = np.round(data)
+            data[data < dtype_info.min] = dtype_info.min
+            data[data > dtype_info.max] = dtype_info.max
+            data = data.astype(dtype)
+            # d. Send data to main thread.
             queue.put(data)
-            # d. Update chunk number.
+            # e. Update chunk number.
             chunk_number += 1
 
     return
