@@ -94,7 +94,7 @@ def load_train(path):
     """
 
     f = h5py.File(path, mode='r')
-    times = f['times']
+    times = f.get('times').value
     f.close()
     train = times
 

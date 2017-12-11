@@ -11,14 +11,14 @@ from circusort.io.utils import append_hdf5
 from circusort.io import generate_probe
 
 
-def generate_waveform(width=5.0e-3, amplitude=-80.0, sampling_rate=20e+3):
+def generate_waveform(width=5.0e-3, amplitude=80.0, sampling_rate=20e+3):
     """Generate a waveform.
 
     Parameters:
         width: float (optional)
             Temporal width [s]. The default value is 5.0e-3.
         amplitude: float (optional)
-            Voltage amplitude [µV]. The default value is -80.0.
+            Voltage amplitude [µV]. The default value is 80.0.
         sampling_rate: float (optional)
             Sampling rate [Hz]. The default value is 20e+3.
 
@@ -32,15 +32,51 @@ def generate_waveform(width=5.0e-3, amplitude=-80.0, sampling_rate=20e+3):
     steps = np.arange(i_start, i_stop + 1)
     times = steps.astype('float32') / sampling_rate
     waveform = - np.cos(times / (width / 2.0) * (1.5 * np.pi))
-    if np.amin(waveform) < - sys.float_info.epsilon:
-        waveform /= - np.amin(waveform)
+    gaussian = np.exp(- (times / (width / 4.0)) ** 2.0)
+    waveform = np.multiply(waveform, gaussian)
+    if np.min(waveform) < - sys.float_info.epsilon:
+        waveform /= np.abs(np.min(waveform))
         waveform *= amplitude
 
     return waveform
 
 
+def generate_positions(nb_cells, probe):
+    """Generate the positions of the cells.
+
+    Parameters:
+        nb_cells: integer
+            The number of cells.
+        probe: circusort.obj.Probe
+            The probe.
+    """
+
+    fov = probe.field_of_view
+    x_min = fov['x_min']
+    x_max = fov['x_max']
+    y_min = fov['y_min']
+    y_max = fov['y_max']
+
+    positions = []
+    for _ in range(0, nb_cells):
+        x = np.random.uniform(x_min, x_max)
+        y = np.random.uniform(y_min, y_max)
+        position = (x, y)
+        positions.append(position)
+
+    return positions
+
+
+def generate_amplitudes(nb_cells):
+    """Generate the amplitudes of the cells."""
+
+    amplitudes = np.random.normal(80.0, scale=2.5, size=nb_cells)
+
+    return amplitudes
+
+
 def generate_templates(nb_templates=3, probe=None,
-                       centers=None, max_amps=None,
+                       positions=None, max_amps=None,
                        radius=None, width=5.0e-3, sampling_rate=20e+3):
     """Generate templates.
 
@@ -49,8 +85,8 @@ def generate_templates(nb_templates=3, probe=None,
             Number of templates to generate. The default value is 3.
         probe: none | circusort.io.Probe
             Description of the probe (e.g. spatial layout). The default value is None.
-        centers: none | list (optional)
-            Coordinates of the centers (spatially) of the templates [µm]. The default value is None.
+        positions: none | list (optional)
+            Coordinates of position of the centers (spatially) of the templates [µm]. The default value is None.
         max_amps: none | float (optional)
             Maximum amplitudes of the templates [µV]. The default value is None.
         radius: none | float (optional)
@@ -68,13 +104,11 @@ def generate_templates(nb_templates=3, probe=None,
     if probe is None:
         probe = generate_probe()
 
-    if centers is None:
-        centers = [(0.0, 0.0) for _ in range(0, nb_templates)]
-        # TODO generate 'good' random centers.
+    if positions is None:
+        positions = generate_positions(nb_templates, probe)
 
     if max_amps is None:
-        max_amps = [-80.0 for _ in range(0, nb_templates)]
-        # TODO generate 'good' random maximum amplitudes.
+        max_amps = generate_amplitudes(nb_templates)
 
     if radius is None:
         radius = probe.radius
@@ -84,10 +118,10 @@ def generate_templates(nb_templates=3, probe=None,
     templates = {}
     for k in range(0, nb_templates):
         # Get distance to the nearest electrode.
-        center = centers[k]
-        nearest_electrode_distance = probe.get_nearest_electrode_distance(center)
+        position = positions[k]
+        nearest_electrode_distance = probe.get_nearest_electrode_distance(position)
         # Get channels before signal horizon.
-        x, y = center
+        x, y = position
         channels, distances = probe.get_channels_around(x, y, radius + nearest_electrode_distance)
         # Declare waveforms.
         nb_electrodes = len(channels)
@@ -97,7 +131,7 @@ def generate_templates(nb_templates=3, probe=None,
         amplitude = max_amps[k]
         waveform = generate_waveform(width=width, amplitude=amplitude, sampling_rate=sampling_rate)
         for i, distance in enumerate(distances):
-            gain = (1.0 + distance / 100.0) ** -2.0
+            gain = (1.0 + distance / 40.0) ** -2.0
             waveforms[i, :] = gain * waveform
         # Store template.
         template = (channels, waveforms)
@@ -168,8 +202,8 @@ def load_template(path):
     """
 
     f = h5py.File(path, mode='r')
-    channels = f['channels']
-    waveforms = f['waveforms']
+    channels = f.get('channels').value
+    waveforms = f.get('waveforms').value
     f.close()
     template = (channels, waveforms)
 
