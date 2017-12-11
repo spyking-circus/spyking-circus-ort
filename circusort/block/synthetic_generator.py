@@ -621,7 +621,7 @@ def pre_syn_gen_target(rpc_queue, queue, nb_channels, nb_samples_per_chunk, samp
     data_width = duration * sampling_rate  # data width
     nb_samples = int(data_width)
     nb_chunks = nb_samples // nb_samples_per_chunk
-    nb_samples_last_chunk = nb_samples_per_chunk % nb_samples_per_chunk
+    nb_samples_last_chunk = nb_samples % nb_samples_per_chunk
     quantum_width = 0.1042  # µV / AD
     dtype = np.int16  # output data type
     dtype_info = np.iinfo(dtype)
@@ -674,15 +674,19 @@ def pre_syn_gen_target(rpc_queue, queue, nb_channels, nb_samples_per_chunk, samp
                         i = i_ref + k
                         m = np.logical_and(0 <= i, i < nb_samples_last_chunk)
                         data[i[m], j[m]] = data[i[m], j[m]] + v[m]
-                # c. Quantize the data.
+                # c. Add trailing zeros.
+                shape = (nb_samples_per_chunk - nb_samples_last_chunk, nb_channels)
+                zeros = np.zeros(shape)
+                data = np.concatenate((data, zeros))
+                # d. Quantize the data.
                 data = data / quantum_width
                 data = np.round(data)
                 data[data < dtype_info.min] = dtype_info.min
                 data[data > dtype_info.max] = dtype_info.max
                 data = data.astype(dtype)
-                # d. Send data to main thread.
+                # e. Send data to main thread.
                 queue.put(data)
-                # e. Update chunk number.
+                # f. Update chunk number.
                 chunk_number += 1
 
     # Send the signal for the end of the stream.
