@@ -207,7 +207,7 @@ def pregenerator(working_directory=None, probe_path=None, template_directory=Non
     director.initialize()
     director.connect(generator.output, writer.input)
     director.start()
-    director.sleep(duration=60.0)  # TODO add a duration parameter.
+    director.join()
     director.stop()
 
     return
