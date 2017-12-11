@@ -1,8 +1,7 @@
-from .block import Block
-import os
-import numpy
-from circusort.io.generate import synthetic_grid
+# -*- coding: utf-8 -*-
 
+from .block import Block
+import numpy as np
 
 
 class Reader(Block):
@@ -15,8 +14,6 @@ class Reader(Block):
         nb_channels: integer
         nb_samples: integer
         sampling_rate:
-        data:
-        shape: tuple
 
     See also:
         circusort.block.Block
@@ -53,20 +50,38 @@ class Reader(Block):
         Block.__init__(self, **kwargs)
         self.add_output('data')
 
+        self.output_dtype = 'float32'
+        self.quantum_size = 0.1042  # µV / AD
+        self.quantum_offset = float(np.iinfo('int16').min)
+
     def _initialize(self):
         """Initialization of the processing block."""
 
-        self.data  = numpy.memmap(self.data_path, dtype=self.dtype, mode='r')
+        self.data  = np.memmap(self.data_path, dtype=self.dtype, mode='r')
         self.shape = (self.data.size/self.nb_channels, self.nb_channels)
         self.data  = None
-        self.output.configure(dtype=self.dtype, shape=(self.nb_samples, self.nb_channels))
+        self.output.configure(dtype=self.output_dtype, shape=(self.nb_samples, self.nb_channels))
 
         return
 
     def _process(self):
         """Process one buffer of data."""
 
-        self.data = numpy.memmap(self.data_path, dtype=self.dtype, mode='r', shape=self.shape)
+        # Read data from the file on disk.
+        self.data = np.memmap(self.data_path, dtype=self.dtype, mode='r', shape=self.shape)
+
+        # Dequantize data.
+        if self.dtype == 'float32':
+            pass
+        elif self.dtype == 'int16':
+            self.data = self.data.astype(self.output_dtype)
+            self.data *= self.quantum_size
+        elif self.dtype == 'uint16':
+            self.data = self.data.astype(self.output_dtype)
+            self.data += self.quantum_offset
+            self.data *= self.quantum_size
+        else:
+            self.data = self.data.astype(self.output_dtype)
 
         i_min = self.nb_samples * self.counter
         i_max = self.nb_samples * (self.counter + 1)
