@@ -25,6 +25,9 @@
     the global trains
     - [x] Move code from `io.pregenerate` to `net.pregenerator`
     - [x] Use 16 bit signed (or unsigned) integer to generate data
+- [ ] Correct the main script in `main.py`
+  - [x] Add a reader block (i.e. read pregenerated data)
+  - [ ] Correct the part of the code to analyse the results
 - [ ] Move the utils from `utils.py` to `circusort`'s core
 - [ ] Explain how to use a non-empty initial template dictionary (in the
 README)
