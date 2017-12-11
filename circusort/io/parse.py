@@ -1,18 +1,19 @@
 import argparse
+import ConfigParser as configparser
 import os
 
 
 def parse_parameters():
     # TODO add docstring.
 
-    # 1. Parse command line
+    # 1. Parse command line.
     parser = argparse.ArgumentParser()
     parser.add_argument('--wd', dest='working_directory', action='store')
     # TODO add arguments?
     args = parser.parse_args()
     input_params = vars(args)
 
-    # 2. Define/check working directory (if necessary)
+    # 2. Define/check working directory (if necessary).
     working_directory = input_params['working_directory']
     if working_directory is None:
         input_params['working_directory'] = os.getcwd()
@@ -23,22 +24,16 @@ def parse_parameters():
             os.makedirs(working_directory)
         input_params['working_directory'] = working_directory
 
-    # 2. Parse the local parameter file
+    # 2. Parse the local parameter file.
     working_directory = input_params['working_directory']
-    filename = get_parameter_filename(working_directory)
-    if filename is None:
-        local_params = {}
-    else:
-        local_params = parse_parameter_file(filename)
+    path = find_parameters_path(working_directory)
+    local_params = parse_parameters_file(path) if path is not None else {}
 
-    # 3. Parse the global parameter file
+    # 3. Parse the global parameter file.
     parameter_directory = os.path.join("~", ".spyking-circus-ort")
     parameter_directory = os.path.expanduser(parameter_directory)
-    filename = get_parameter_filename(parameter_directory)
-    if filename is None:
-        global_params = {}
-    else:
-        global_params = parse_parameter_file(filename)
+    path = find_parameters_path(parameter_directory)
+    global_params = parse_parameters_file(path) if path is not None else {}
 
     # 4. Fusion input, local and global parameters.
     params = {}
@@ -49,32 +44,72 @@ def parse_parameters():
     return params
 
 
-def get_parameter_filename(path):
+def find_parameters_path(directory):
     # TODO add docstring
 
-    parameter_filenames = [
-        "config.txt",
-        "config.params",
+    parameters_filenames = [
+        "parameters.txt",
     ]
 
-    if not os.path.exists(path):
-        os.makedirs(path)
-    
-    names = os.listdir(path)
+    if not os.path.exists(directory):
+        path = None
+    else:
+        names = os.listdir(directory)
+        path = None
+        for filename in parameters_filenames:
+            if filename in names:
+                path = os.path.join(directory, filename)
+                break
 
-    parameter_filename = None
-    for filename in parameter_filenames:
-        if filename in names:
-            parameter_filename = filename
-            break
-
-    return parameter_filename
+    return path
 
 
-def parse_parameter_file(path):
-    # TODO add docstring.
+def parse_parameters_file(path):
+    """Parse a parameters file from disk.
 
+    Parameter:
+        path: string
+            The path to the file from which to parse the parameters.
+    """
+
+    # Read parameters file from disk.
+    parser = configparser.ConfigParser()
+    parser.read(path)
+
+    # Remove comments at the end of each line.
+    for section in parser.sections():
+        for option in parser.options(section):
+            value = parser.get(section, option)  # get value
+            words = value.split('#')  # split value and end line comment
+            word = words[0]  # keep value
+            value = word.strip()  # remove leading and trailing characters
+            parser.set(section, option, value)  # set value
+
+
+    # Data types of the configuration values.
+    types = {
+        'generation': {
+            'duration': 'float',
+        },
+    }
+
+    # From ConfigParser to dictionary.
     params = {}
-    # TODO complete.
+    for section in parser.sections():
+        params[section] = {}
+        for option in parser.options(section):
+            type_ = types[section][option]
+            if type_ == 'boolean':
+                value = parser.getboolean(section, option)
+            elif type_ == 'integer':
+                value = parser.getint(section, option)
+            elif type_ == 'float':
+                value = parser.getfloat(section, option)
+            elif type_ == 'string':
+                value = parser.get(section, option)
+            else:
+                message = "Unknown type {}".format(type_)
+                raise ValueError(message)
+            params[section][option] = value
 
     return params
