@@ -264,7 +264,7 @@ def pregenerator(working_directory=None, probe_path=None, template_directory=Non
     data_path = os.path.join(working_directory, "data.raw")
     director = create_director(host=host)
     manager = director.create_manager(host=host)
-    generator = manager.create_block('synthetic_generator', working_directory=working_directory)
+    generator = manager.create_block('synthetic_generator', working_directory=working_directory, is_realistic=False)
     writer = manager.create_block('writer', data_path=data_path)
     director.initialize()
     director.connect(generator.output, writer.input)
