@@ -15,7 +15,7 @@ class Cell(object):
             The chunk subtrains.
     """
 
-    def __init__(self, template, train):
+    def __init__(self, template, train, position):
         """Initialization.
 
         Parameters:
@@ -23,10 +23,13 @@ class Cell(object):
                 The template of the cell.
             train: numpy.ndarray
                 The spike train of the cell.
+            position: numpy.ndarray
+                The position of the cell.
         """
 
         self.template = template
         self.train = train
+        self.position = position
 
         self.chunk_width = None
         self.subtrains = None

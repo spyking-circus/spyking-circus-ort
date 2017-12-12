@@ -4,41 +4,41 @@ from circusort import io
 from circusort.base import create_director
 
 
-def find_or_generate_probe(probe_path=None, working_directory=None):
+def find_or_generate_probe(path=None, directory=None):
     """Find or generate probe to use during the pregeneration.
 
     Parameters:
-        probe_path: none | string (optional)
+        path: none | string (optional)
             Path to the probe file. The default value is None.
-        working_directory: none | string (optional)
-            Path to the working directory. The default value is None.
+        directory: none | string (optional)
+            Path to the probe directory. The default value is None.
 
     Return:
         probe: circusort.io.Probe
             Found or generated probe.
     """
 
-    if probe_path is None:
-        if working_directory is None:
-            working_directory = os.path.join("~", ".spyking-circus-ort")
-            working_directory = os.path.expanduser(working_directory)
-        # Check if there is a probe file in the working directory.
-        probe_path = os.path.join(working_directory, "configuration", "generation", "probe.prb")
+    if path is None:
+        if directory is None:
+            directory = os.path.join("~", ".spyking-circus-ort", "probes")
+            directory = os.path.expanduser(directory)
+        # Check if there is a probe file in the directory.
+        path = os.path.join(directory, "probe.prb")
         # TODO check if there is any .prb file not only a probe.prb file.
-        if os.path.isfile(probe_path):
+        if os.path.isfile(path):
             # Load the probe.
-            probe = io.load_probe(probe_path)
+            probe = io.load_probe(path)
         else:
             # Generate the probe.
             probe = io.generate_probe()
     else:
         # Check if the probe file exists.
-        if os.path.isfile(probe_path):
+        if os.path.isfile(path):
             # Load the probe.
-            probe = io.load_probe(probe_path)
+            probe = io.load_probe(path)
         else:
             # Raise an error.
-            message = "No such probe file: {}".format(probe_path)
+            message = "No such probe file: {}".format(path)
             raise OSError(message)
 
     return probe
@@ -182,33 +182,27 @@ def save_parameters(working_directory, parameters):
     return
 
 
-def pregenerator(working_directory=None, probe_path=None, template_directory=None,
-                 train_directory=None, parameters_path=None):
+def pregenerator(working_directory=None, probe_path=None, parameters_path=None):
     """Pregenerate synthetic signal.
 
     Parameters:
         working_directory: none | string (optional)
         probe_path: none | string (optional)
-        template_directory: none | string (optional)
-        train_directory: none | string (optional)
         parameters_path: none | string (optional)
     """
     # TODO complete docstring.
 
-    # Define generation directory.
+    # Define configuration and generation directory.
+    configuration_directory = os.path.join(working_directory, "configuration")
     generation_directory = os.path.join(working_directory, "generation")
 
     # Retrieve probe.
-    probe = find_or_generate_probe(probe_path, working_directory)
+    probe = find_or_generate_probe(probe_path, configuration_directory)
     io.save_probe(generation_directory, probe)
 
-    # Retrieve templates.
-    templates = find_or_generate_templates(template_directory, probe, working_directory)
-    io.save_templates(generation_directory, templates, mode='by cells')
-
-    # Retrieve trains.
-    trains = find_or_generate_trains(train_directory, working_directory)
-    io.save_trains(generation_directory, trains, mode='by cells')
+    # Retrieve cells.
+    cells = io.get_cells(configuration_directory, probe=probe)
+    io.save_cells(generation_directory, cells, mode='by cells')
 
     # Retrieve parameters.
     parameters = find_or_generate_parameters(parameters_path, working_directory)
