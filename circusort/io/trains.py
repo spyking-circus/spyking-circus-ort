@@ -35,7 +35,7 @@ def generate_trains(nb_trains=3, duration=60.0, rate=1.0):
     return trains
 
 
-def save_trains(directory, trains):
+def save_trains(directory, trains, mode='default'):
     """Save trains to files.
 
     Parameters:
@@ -43,17 +43,48 @@ def save_trains(directory, trains):
             Directory in which to save the trains.
         trains: dictionary
             Dictionary of trains.
+        mode: string (optional)
+            The mode to use to save the trains. Either 'default', 'by trains' or 'by cells'.
     """
 
     if not os.path.isdir(directory):
         os.makedirs(directory)
 
-    for k, times in trains.iteritems():
-        filename = "{}.h5".format(k)
-        path = os.path.join(directory, filename)
-        f = h5py.File(path, mode='w')
-        f.create_dataset('times', shape=times.shape, dtype=times.dtype, data=times)
-        f.close()
+    if mode == 'default':
+
+        # TODO complete.
+        raise NotImplementedError()
+
+    elif mode == 'by trains':
+
+        train_directory = os.path.join(directory, "trains")
+        if not os.path.isdir(train_directory):
+            os.makedirs(train_directory)
+        for k, train in trains.iteritems():
+            times = train
+            filename = "{}.h5".format(k)
+            path = os.path.join(train_directory, filename)
+            f = h5py.File(path, mode='w')
+            f.create_dataset('times', shape=times.shape, dtype=times.dtype, data=times)
+            f.close()
+
+    elif mode == 'by cells':
+
+        for k, train in trains.iteritems():
+            times = train
+            cell_directory = os.path.join(directory, "cells", "{}".format(k))
+            if not os.path.isdir(cell_directory):
+                os.makedirs(cell_directory)
+            filename = "train.h5".format(k)
+            path = os.path.join(cell_directory, filename)
+            f = h5py.File(path, mode='w')
+            f.create_dataset('times', shape=times.shape, dtype=times.dtype, data=times)
+            f.close()
+
+    else:
+
+        message = "Unknown mode value: {}".format(mode)
+        raise ValueError(message)
 
     return
 

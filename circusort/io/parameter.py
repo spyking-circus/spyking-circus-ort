@@ -10,7 +10,6 @@ default_parameters = odict([
         ('sampling rate', ('float', 20000.0, "Hz  # Number of sampling times per second.")),
         ('buffer width', ('integer', 1024, "Number of sampling times per buffer.")),
         ('dtype', ('string', 'int16', "Data type.")),
-        ('nb cells', ('integer', 3, "Number of cells.")),
     ])),
 ])
 

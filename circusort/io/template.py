@@ -140,7 +140,7 @@ def generate_templates(nb_templates=3, probe=None,
     return templates
 
 
-def save_templates(directory, templates):
+def save_templates(directory, templates, mode='default'):
     """Save templates.
 
     Parameters:
@@ -148,19 +148,50 @@ def save_templates(directory, templates):
             Directory in which to save the templates.
         templates: dictionary
             Dictionary of templates.
+        mode: string (optional)
+            The mode to use to save the templates. Either 'default', 'by templates' or 'by cells'.
     """
 
     if not os.path.isdir(directory):
         os.makedirs(directory)
 
-    for k, template in templates.iteritems():
-        channels, waveforms = template
-        filename = "{}.h5".format(k)
-        path = os.path.join(directory, filename)
-        f = h5py.File(path, mode='w')
-        f.create_dataset('channels', shape=channels.shape, dtype=channels.dtype, data=channels)
-        f.create_dataset('waveforms', shape=waveforms.shape, dtype=waveforms.dtype, data=waveforms)
-        f.close()
+    if mode == 'default':
+
+        # TODO complete.
+        raise NotImplementedError()
+
+    elif mode == 'by templates':
+
+        template_directory = os.path.join(directory, templates)
+        if not os.path.isdir(template_directory):
+            os.makedirs(directory)
+        for k, template in templates.iteritems():
+            channels, waveforms = template
+            filename = "{}.h5".format(k)
+            path = os.path.join(template_directory, filename)
+            f = h5py.File(path, mode='w')
+            f.create_dataset('channels', shape=channels.shape, dtype=channels.dtype, data=channels)
+            f.create_dataset('waveforms', shape=waveforms.shape, dtype=waveforms.dtype, data=waveforms)
+            f.close()
+
+    elif mode == 'by cells':
+
+        for k, template in templates.iteritems():
+            channels, waveforms = template
+            cell_directory = os.path.join(directory, "cells", "{}".format(k))
+            if not os.path.isdir(cell_directory):
+                os.makedirs(cell_directory)
+            filename = "template.h5"
+            path = os.path.join(cell_directory, filename)
+            f = h5py.File(path, mode='w')
+            f.create_dataset('channels', shape=channels.shape, dtype=channels.dtype, data=channels)
+            f.create_dataset('waveforms', shape=waveforms.shape, dtype=waveforms.dtype, data=waveforms)
+            f.close()
+
+    else:
+
+        message = "Unknown mode value: {}".format(mode)
+        raise ValueError(message)
 
     return
 

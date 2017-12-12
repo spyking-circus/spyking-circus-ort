@@ -44,22 +44,6 @@ def find_or_generate_probe(probe_path=None, working_directory=None):
     return probe
 
 
-def save_probe(working_directory, probe):
-    """Save probe to use during the pregeneration.
-
-    Parameters:
-        working_directory: string
-            Path to the working directory in which to save the probe.
-        probe: circusort.io.Probe
-            Probe.
-    """
-
-    probe_path = os.path.join(working_directory, "generation", "probe.prb")
-    io.save_probe(probe_path, probe)
-
-    return
-
-
 def find_or_generate_templates(template_directory=None, probe=None, working_directory=None):
     """Find or generate templates to use during the pregeneration.
 
@@ -102,22 +86,6 @@ def find_or_generate_templates(template_directory=None, probe=None, working_dire
     return templates
 
 
-def save_templates(working_directory, templates):
-    """Save templates to use during the pregeneration.
-
-    Parameters:
-        working_directory: string
-            Path to the working directory in which to save the templates.
-        templates: dictionary
-            Dictionary of templates to save.
-    """
-
-    template_directory = os.path.join(working_directory, "generation", "templates")
-    io.save_templates(template_directory, templates)
-
-    return
-
-
 def find_or_generate_trains(train_directory=None, working_directory=None):
     """Find or generate trains to use during the pregeneration.
 
@@ -156,22 +124,6 @@ def find_or_generate_trains(train_directory=None, working_directory=None):
             raise OSError(message)
 
     return trains
-
-
-def save_trains(working_directory, trains):
-    """Save trains to use during the pregeneration.
-
-    Parameters:
-        working_directory: string
-            Path to the working directory in which to save the trains.
-        trains: dictionary
-            Dictionary of trains to save.
-    """
-
-    train_directory = os.path.join(working_directory, "generation", "trains")
-    io.save_trains(train_directory, trains)
-
-    return
 
 
 def find_or_generate_parameters(path=None, working_directory=None):
@@ -243,17 +195,20 @@ def pregenerator(working_directory=None, probe_path=None, template_directory=Non
     """
     # TODO complete docstring.
 
+    # Define generation directory.
+    generation_directory = os.path.join(working_directory, "generation")
+
     # Retrieve probe.
     probe = find_or_generate_probe(probe_path, working_directory)
-    save_probe(working_directory, probe)
+    io.save_probe(generation_directory, probe)
 
     # Retrieve templates.
     templates = find_or_generate_templates(template_directory, probe, working_directory)
-    save_templates(working_directory, templates)
+    io.save_templates(generation_directory, templates, mode='by cells')
 
     # Retrieve trains.
     trains = find_or_generate_trains(train_directory, working_directory)
-    save_trains(working_directory, trains)
+    io.save_trains(generation_directory, trains, mode='by cells')
 
     # Retrieve parameters.
     parameters = find_or_generate_parameters(parameters_path, working_directory)
