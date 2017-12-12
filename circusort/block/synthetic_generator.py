@@ -51,6 +51,8 @@ class Synthetic_generator(block.Block):
         log_path: string (optional)
         seed: integer (optional)
             Seed for random generation. The default value is 42.
+        is_realistic: boolean (optional)
+            Send output buffers so that the sampling rate is verified. The default value is True.
 
     Output:
         data
@@ -70,6 +72,7 @@ class Synthetic_generator(block.Block):
         'hdf5_path': None,
         'log_path': None,
         'seed': 42,
+        'is_realistic': True,
     }
 
     def __init__(self, cells_args=None, cells_params=None, **kwargs):
@@ -173,7 +176,8 @@ class Synthetic_generator(block.Block):
 
         elif self.mode == 'preconfigured':
 
-            self.cells = io.load_cells(self.working_directory)
+            generation_directory = os.path.join(self.working_directory, "generation")
+            self.cells = io.load_cells(generation_directory, mode='by cells')
             self.nb_cells = len(self.cells)
             self.dtype = 'int16'  # TODO set default data type to 16 bit signed (or unsigned) integer.
 
@@ -211,6 +215,7 @@ class Synthetic_generator(block.Block):
         return
 
     def _process(self):
+        """Process one buffer of data."""
 
         # Get data from background thread.
         data = self.queue.get()
@@ -219,8 +224,9 @@ class Synthetic_generator(block.Block):
             # Stop processing block.
             self.stop_pending = True
         else:
-            # Simulate duration between two data acquisitions.
-            time.sleep(float(self.nb_samples) / self.sampling_rate)
+            if self.is_realistic:
+                # Simulate duration between two data acquisitions.
+                time.sleep(float(self.nb_samples) / self.sampling_rate)
             # Send data.
             self.output.send(data)
 

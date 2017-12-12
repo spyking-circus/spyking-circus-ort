@@ -10,7 +10,6 @@ default_parameters = odict([
         ('sampling rate', ('float', 20000.0, "Hz  # Number of sampling times per second.")),
         ('buffer width', ('integer', 1024, "Number of sampling times per buffer.")),
         ('dtype', ('string', 'int16', "Data type.")),
-        ('nb cells', ('integer', 3, "Number of cells.")),
     ])),
 ])
 
@@ -72,12 +71,18 @@ def save_parameters(path, parameters):
     return
 
 
-def load_parameters(path):
+def load_parameters(path, defaults=None):
     """Load parameters from a file saved on disk.
 
     Parameter:
         path: string
             The path to the file from which to load the parameters.
+        defaults: collections.OrderedDict
+            The default value of the parameters.
+
+    Return:
+        parameters: dictionary
+            The loaded parameters.
     """
 
     # Normalize and check path.
@@ -100,12 +105,16 @@ def load_parameters(path):
             value = word.strip()  # remove leading and trailing characters
             parser.set(section, option, value)  # set value
 
+    # Define defaults.
+    if defaults is None:
+        defaults = default_parameters
+
     # From ConfigParser to dictionary.
     parameters = {}
     for section in parser.sections():
         parameters[section] = {}
         for option in parser.options(section):
-            type_, _, _ = default_parameters[section][option]
+            type_, _, _ = defaults[section][option]
             if type_ == 'boolean':
                 value = parser.getboolean(section, option)
             elif type_ == 'integer':

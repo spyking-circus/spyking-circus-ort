@@ -313,10 +313,17 @@ class Probe(object):
                 Path to which the probe is saved.
         """
 
-        # Make directories (if necessary).
-        directory = os.path.dirname(path)
-        if not os.path.isdir(directory):
-            os.makedirs(directory)
+        # Normalize path.
+        path = os.path.expanduser(path)
+        path = os.path.abspath(path)
+
+        # Handle mode.
+        if path[-4:] == ".prb":
+            pass
+        else:
+            if not os.path.isdir(path):
+                os.makedirs(path)
+            path = os.path.join(path, "probe.prb")
 
         # Prepare lines to be saved.
         lines = []
