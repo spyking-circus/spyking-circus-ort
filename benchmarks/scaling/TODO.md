@@ -16,14 +16,19 @@
     - [x] Implement method to load some trains
   - [ ] Load cells from the `generation` directory
   - [ ] Add position parameters (time dependent) to the generated cells
-  - [ ] Generate the signal (i.e. raw data)
+  - [x] Generate the signal (i.e. raw data)
     - [x] ~~Add gaussian noise to the signal~~
-    - [ ] ~~Add template waveforms to the signal~~
-    - [ ] Use the `synthetic_generator` and `writer` block to generate
+    - [x] ~~Add template waveforms to the signal~~
+    - [x] Use the `synthetic_generator` and `writer` block to generate
     the signal
-    - [ ] Let background thread generate trains chunk by chunk based on
-    the global trains.
-  - [x] Move code from `io.pregenerate` to `net.pregenerator`
+    - [x] Let background thread generate trains chunk by chunk based on
+    the global trains
+    - [x] Move code from `io.pregenerate` to `net.pregenerator`
+    - [x] Use 16 bit signed (or unsigned) integer to generate data
+  - [x] Pregenerate signal precisely for a given duration
+- [ ] Correct the main script in `main.py`
+  - [x] Add a reader block (i.e. read pregenerated data)
+  - [ ] Correct the part of the code to analyse the results
 - [ ] Move the utils from `utils.py` to `circusort`'s core
 - [ ] Explain how to use a non-empty initial template dictionary (in the
 README)

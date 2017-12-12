@@ -23,7 +23,7 @@ def find_or_generate_probe(probe_path=None, working_directory=None):
             working_directory = os.path.join("~", ".spyking-circus-ort")
             working_directory = os.path.expanduser(working_directory)
         # Check if there is a probe file in the working directory.
-        probe_path = os.path.join(working_directory, "config", "generation", "probe.prb")
+        probe_path = os.path.join(working_directory, "configuration", "generation", "probe.prb")
         # TODO check if there is any .prb file not only a probe.prb file.
         if os.path.isfile(probe_path):
             # Load the probe.
@@ -82,7 +82,7 @@ def find_or_generate_templates(template_directory=None, probe=None, working_dire
             working_directory = os.path.join("~", ".spyking-circus-ort")
             working_directory = os.path.expanduser(working_directory)
         # Check if there is a template directory in the working directory.
-        template_directory = os.path.join(working_directory, "config", "generation", "templates")
+        template_directory = os.path.join(working_directory, "configuration", "generation", "templates")
         if os.path.isdir(template_directory):
             # Load the templates.
             templates = io.load_templates(template_directory)
@@ -138,7 +138,7 @@ def find_or_generate_trains(train_directory=None, working_directory=None):
             working_directory = os.path.join("~", ".spyking-circus-ort")
             working_directory = os.path.expanduser(working_directory)
         # Check if there is a train directory in the working directory.
-        train_directory = os.path.join(working_directory, "config", "generation", "trains")
+        train_directory = os.path.join(working_directory, "configuration", "generation", "trains")
         if os.path.isdir(train_directory):
             # Load the trains.
             trains = io.load_trains(train_directory)
@@ -174,7 +174,64 @@ def save_trains(working_directory, trains):
     return
 
 
-def pregenerator(working_directory=None, probe_path=None, template_directory=None, train_directory=None):
+def find_or_generate_parameters(path=None, working_directory=None):
+    """Find or generate parameters to use during the generation.
+
+    Parameters:
+        path: none | string (optional)
+            Path to the parameters file. The default value is None.
+        working_directory: none | string (optional)
+            Path to the working directory. The default value is None.
+
+    Return:
+        parameters: dictionary
+            Found or generated parameters.
+    """
+
+    if path is None:
+        if working_directory is None:
+            working_directory = os.path.join("~", ".spyking-circus-ort")
+            working_directory = os.path.expanduser(working_directory)
+        # Check if there is a parameters file in the working directory.
+        path = os.path.join(working_directory, "configuration", "generation", "parameters.txt")
+        # TODO check if there is any other file not only a "parameters.txt" file.
+        if os.path.isfile(path):
+            # Load the parameters.
+            parameters = io.load_parameters(path)
+        else:
+            # Generate the parameters.
+            parameters = io.generate_parameters()
+    else:
+        # Check if the parameters file exists.
+        if os.path.isfile(path):
+            # Load the parameters.
+            parameters = io.load_parameters(path)
+        else:
+            # Raise an error.
+            message = "No such parameters file: {}".format(path)
+            raise OSError(message)
+
+    return parameters
+
+
+def save_parameters(working_directory, parameters):
+    """Save parameters to use during the generation.
+
+    Parameters:
+        working_directory: string
+            Path to the working directory in which to save the parameters file.
+        parameters: dictionary
+            Parameters to save.
+    """
+
+    path = os.path.join(working_directory, "generation", "parameters.txt")
+    io.save_parameters(path, parameters)
+
+    return
+
+
+def pregenerator(working_directory=None, probe_path=None, template_directory=None,
+                 train_directory=None, parameters_path=None):
     """Pregenerate synthetic signal.
 
     Parameters:
@@ -182,6 +239,7 @@ def pregenerator(working_directory=None, probe_path=None, template_directory=Non
         probe_path: none | string (optional)
         template_directory: none | string (optional)
         train_directory: none | string (optional)
+        parameters_path: none | string (optional)
     """
     # TODO complete docstring.
 
@@ -197,6 +255,10 @@ def pregenerator(working_directory=None, probe_path=None, template_directory=Non
     trains = find_or_generate_trains(train_directory, working_directory)
     save_trains(working_directory, trains)
 
+    # Retrieve parameters.
+    parameters = find_or_generate_parameters(parameters_path, working_directory)
+    save_parameters(working_directory, parameters)
+
     # Generate signal.
     host = '127.0.0.1'  # TODO correct IP address? & transform into a keyword argument?
     data_path = os.path.join(working_directory, "data.raw")
@@ -207,7 +269,7 @@ def pregenerator(working_directory=None, probe_path=None, template_directory=Non
     director.initialize()
     director.connect(generator.output, writer.input)
     director.start()
-    director.sleep(duration=60.0)  # TODO add a duration parameter.
+    director.join()
     director.stop()
 
     return

@@ -82,7 +82,7 @@ class Synthetic_generator(block.Block):
         else:
             self.mode = 'preconfigured'
 
-        if self.mode is 'default':
+        if self.mode == 'default':
 
             # Save class parameters.
             self.cells_args = cells_args
@@ -106,10 +106,18 @@ class Synthetic_generator(block.Block):
                 with open(self.log_path, 'w') as log_file:
                     json.dump(log_kwargs, log_file, sort_keys=True, indent=4)
 
-        elif self.mode is 'preconfigured':
+        elif self.mode == 'preconfigured':
 
-            path = os.path.join(self.working_directory, "generation", "probe.prb")
-            self.probe = io.load_probe(path, logger=self.log)
+            generation_directory = os.path.join(self.working_directory, "generation")
+            parameters_path = os.path.join(generation_directory, "parameters.txt")
+            parameters = io.load_parameters(parameters_path)
+            # TODO get rid of the following try ... except ...
+            try:
+                self.duration = parameters['generation']['duration']
+            except KeyError:
+                self.duration = 60.0  # s
+            probe_path = os.path.join(generation_directory, "probe.prb")
+            self.probe = io.load_probe(probe_path, logger=self.log)
 
         # Add data output.
         self.add_output('data')
@@ -142,7 +150,7 @@ class Synthetic_generator(block.Block):
         self.nb_channels = self.probe.nb_channels
         self.fov = self.probe.field_of_view
 
-        if self.mode is 'default':
+        if self.mode == 'default':
 
             # Generate synthetic cells.
             self.cells = {}
@@ -163,10 +171,11 @@ class Synthetic_generator(block.Block):
                     cell_args.update(self.exec_kwargs(self.cells_args[c], self.cells_params))
                 self.cells[c] = Cell(**cell_args)
 
-        elif self.mode is 'preconfigured':
+        elif self.mode == 'preconfigured':
 
             self.cells = io.load_cells(self.working_directory)
             self.nb_cells = len(self.cells)
+            self.dtype = 'int16'  # TODO set default data type to 16 bit signed (or unsigned) integer.
 
         # Configure the data output of this block.
         self.output.configure(dtype=self.dtype, shape=(self.nb_samples, self.nb_channels))
@@ -186,11 +195,13 @@ class Synthetic_generator(block.Block):
         self.rpc_queue = Queue.Queue()
 
         # # Define background thread for data generation.
-        args = (self.rpc_queue, self.queue, self.nb_channels, self.probe,
-                self.nb_samples, self.sampling_rate, self.cells, self.hdf5_path)
-        if self.mode is 'default':
+        if self.mode == 'default':
+            args = (self.rpc_queue, self.queue, self.nb_channels, self.probe,
+                    self.nb_samples, self.cells, self.hdf5_path)
             self.syn_gen_thread = threading.Thread(target=syn_gen_target, args=args)
-        else:
+        elif self.mode == 'preconfigured':
+            args = (self.rpc_queue, self.queue, self.nb_channels, self.nb_samples,
+                    self.sampling_rate, self.duration, self.cells)
             self.syn_gen_thread = threading.Thread(target=pre_syn_gen_target, args=args)
         self.syn_gen_thread.deamon = True
         # # Launch background thread for data generation.
@@ -203,10 +214,15 @@ class Synthetic_generator(block.Block):
 
         # Get data from background thread.
         data = self.queue.get()
-        # Simulate duration between two data acquisitions.
-        time.sleep(float(self.nb_samples) / self.sampling_rate)
-        # Send data.
-        self.output.send(data)
+
+        if data == 'EOS':
+            # Stop processing block.
+            self.stop_pending = True
+        else:
+            # Simulate duration between two data acquisitions.
+            time.sleep(float(self.nb_samples) / self.sampling_rate)
+            # Send data.
+            self.output.send(data)
 
         return
 
@@ -469,7 +485,7 @@ class Cell(object):
         return i, j, v
 
 
-def syn_gen_target(rpc_queue, queue, nb_channels, probe, nb_samples, sampling_rate, cells, hdf5_path):
+def syn_gen_target(rpc_queue, queue, nb_channels, probe, nb_samples, cells, hdf5_path):
     """Synthetic data generation (background thread)."""
     # TODO complete docstring.
 
@@ -585,21 +601,37 @@ def syn_gen_target(rpc_queue, queue, nb_channels, probe, nb_samples, sampling_ra
     return
 
 
-def pre_syn_gen_target(rpc_queue, queue, nb_channels, probe, nb_samples, sampling_rate, cells, hdf5_path):
-    """Preconfigured synthetic data generation (background thread)."""
+def pre_syn_gen_target(rpc_queue, queue, nb_channels, nb_samples_per_chunk, sampling_rate, duration, cells):
+    """Preconfigured synthetic data generation (background thread).
+
+    Parameters:
+        rpc_queue: Queue.Queue
+        queue: Queue.Queue
+        nb_channels: integer
+        nb_samples_per_chunk: integer
+        sampling_rate: float
+        duration: float
+        cells: dictionary
+    """
     # TODO complete docstring.
 
     mu = 0.0  # µV  # noise mean
     sigma = 4.0  # µV  # noise standard deviation
-    chunk_width = float(nb_samples) / sampling_rate * 1e+3  # ms  # chunk width
-    chunk_number = 0
+    chunk_width = float(nb_samples_per_chunk) / sampling_rate * 1e+3  # ms  # chunk width
+    data_width = duration * sampling_rate  # data width
+    nb_samples = int(data_width)
+    nb_chunks = nb_samples // nb_samples_per_chunk
+    nb_samples_last_chunk = nb_samples % nb_samples_per_chunk
+    quantum_width = 0.1042  # µV / AD
+    dtype = np.int16  # output data type
+    dtype_info = np.iinfo(dtype)
 
-    while rpc_queue.empty():  # check if main thread requires a stop
+    chunk_number = 0
+    while chunk_number < nb_chunks:
         if not queue.full():  # limit memory consumption
             # a. Generate some gaussian noise.
-            shape = (nb_samples, nb_channels)
+            shape = (nb_samples_per_chunk, nb_channels)
             data = np.random.normal(loc=mu, scale=sigma, size=shape)
-            data = data.astype(np.float32)
             # b. Inject waveforms.
             for cell in cells.itervalues():
                 # Collect subtrain with spike events which fall inside the current chunk.
@@ -610,11 +642,54 @@ def pre_syn_gen_target(rpc_queue, queue, nb_channels, probe, nb_samples, samplin
                 for t in subtrain:
                     k = int(t * sampling_rate)
                     i = i_ref + k
-                    m = np.logical_and(0 <= i, i < nb_samples)
+                    m = np.logical_and(0 <= i, i < nb_samples_per_chunk)
                     data[i[m], j[m]] = data[i[m], j[m]] + v[m]
-            # c. Send data to main thread.
+            # c. Quantize the data.
+            data = data / quantum_width
+            data = np.round(data)
+            data[data < dtype_info.min] = dtype_info.min
+            data[data > dtype_info.max] = dtype_info.max
+            data = data.astype(dtype)
+            # d. Send data to main thread.
             queue.put(data)
-            # d. Update chunk number.
+            # e. Update chunk number.
             chunk_number += 1
+
+    # Manage last (partial) chunk (if necessary).
+    if nb_samples_last_chunk > 0:
+        while chunk_number == nb_chunks:
+            if not queue.full():  # limit memory consumption
+                # a. Generate some gaussian noise.
+                shape = (nb_samples_last_chunk, nb_channels)
+                data = np.random.normal(loc=mu, scale=sigma, size=shape)
+                # b. Inject waveforms.
+                for cell in cells.itervalues():
+                    # Collect subtrain with spike events which fall inside the current chunk.
+                    subtrain = cell.get_chunk_subtrain(chunk_number, chunk_width=chunk_width)
+                    # Retrieve the template to inject.
+                    i_ref, j, v = cell.get_template()
+                    # Inject the template to the correct spatiotemporal locations.
+                    for t in subtrain:
+                        k = int(t * sampling_rate)
+                        i = i_ref + k
+                        m = np.logical_and(0 <= i, i < nb_samples_last_chunk)
+                        data[i[m], j[m]] = data[i[m], j[m]] + v[m]
+                # c. Add trailing zeros.
+                shape = (nb_samples_per_chunk - nb_samples_last_chunk, nb_channels)
+                zeros = np.zeros(shape)
+                data = np.concatenate((data, zeros))
+                # d. Quantize the data.
+                data = data / quantum_width
+                data = np.round(data)
+                data[data < dtype_info.min] = dtype_info.min
+                data[data > dtype_info.max] = dtype_info.max
+                data = data.astype(dtype)
+                # e. Send data to main thread.
+                queue.put(data)
+                # f. Update chunk number.
+                chunk_number += 1
+
+    # Send the signal for the end of the stream.
+    queue.put('EOS')
 
     return
