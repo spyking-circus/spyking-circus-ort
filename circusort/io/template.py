@@ -252,12 +252,13 @@ class TemplateComponent(object):
 
     def to_sparse(self, method='csc', flatten=False):
         data = self.to_dense()
-        if flatten:
-            data = data.flatten()[:, None]
-
         if method is 'csc':
+            if flatten:
+                data = data.flatten()[:, None]
             return scipy.sparse.csc_matrix(data, dtype=np.float32)
         elif method is 'csr':
+            if flatten:
+                data = data.flatten()[None, :]
             return scipy.sparse.csr_matrix(data, dtype=np.float32)
 
     def to_dense(self):

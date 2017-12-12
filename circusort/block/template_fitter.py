@@ -5,18 +5,13 @@ import os
 from scipy.sparse import csr_matrix, vstack
 
 from circusort.io.template import TemplateStore
-
+from circusort.utils.overlaps import OverlapsDictionary
 
 class Template_fitter(Block):
     """Template fitter
 
     Attributes:
-        spike_width: float (optional)
-            Spike width in time [ms]. the default value is 5.0.
-        sampling_rate: float (optional)
-            Sampling rate [Hz]. The default value is 20e+3.
-        two_components: boolean (optional)
-            The default value is False.
+
         init_path: none | string (optional)
             Path to the location used to load templates to initialize the
             dictionary of templates. If equal to None, this dictionary will
@@ -27,9 +22,6 @@ class Template_fitter(Block):
     name = "Template fitter"
 
     params = {
-        'spike_width': 5.0,
-        'sampling_rate': 20000,
-        'two_components': False,
         'init_path': None,
         'with_rejected_times': False,
     }
@@ -44,22 +36,9 @@ class Template_fitter(Block):
 
     def _initialize(self):
 
-        self.space_explo = 0.5
-        self.nb_chances = 3
-        self._spike_width_ = int(self.sampling_rate * self.spike_width * 1e-3)
+        self.space_explo    = 0.5
+        self.nb_chances     = 3
         self.template_store = None
-        self.norms = np.zeros(0, dtype=np.float32)
-        self.amplitudes = np.zeros((0, 2), dtype=np.float32)
-        self.templates = None
-        self.variables = ['norms', 'templates', 'amplitudes']
-        if self.two_components:
-            self.norms2 = np.zeros(0, dtype=np.float32)
-            self.variables += ['norms2', 'templates2']
-
-        if np.mod(self._spike_width_, 2) == 0:
-            self._spike_width_ += 1
-        self._width = (self._spike_width_ - 1) // 2
-        self._overlap_size = 2 * self._spike_width_ - 1
 
         if self.init_path is not None:
             self.init_path = os.path.expanduser(self.init_path)
@@ -86,53 +65,29 @@ class Template_fitter(Block):
 
         assert self.template_store is None
 
-        self.template_store = TemplateStore(self.init_path,
-                                            mode='r',
-                                            two_components=self.two_components)
-        nb_templates = self.template_store.nb_templates
-        indices = [i for i in range(nb_templates)]
-        data = self.template_store.get(indices=indices,
-                                       variables=self.variables)
-        self.norms = np.concatenate((self.norms, data.pop('norms')))
-        self.amplitudes = np.vstack((self.amplitudes, data.pop('amplitudes')))
-        self.templates = vstack((data.pop('templates').T,), 'csr')
-        if self.two_components:
-            self.norms2 = np.concatenate((self.norms2, data.pop('norms2')))
-            self.templates = vstack((self.templates, data.pop('templates2').T), 'csr')
-        self.overlaps = {}
+        self.template_store = TemplateStore(self.init_path, mode='r')
+        self.overlaps_store = OverlapsDictionary(self.template_store) 
 
         info_msg = "{} is initialized with {} templates from {}"
-        self.log.info(info_msg.format(self.name, nb_templates, self.init_path))
+        self.log.info(info_msg.format(self.name, self.overlaps_store.nb_templates, self.init_path))
 
         return
 
     @property
     def nb_channels(self):
-
         return self.inputs['data'].shape[1]
 
     @property
     def nb_samples(self):
-
         return self.inputs['data'].shape[0]
 
     @property
     def nb_templates(self):
-
-        if self.two_components:
-            return self.templates.shape[0] / 2
-        else:
-            return self.templates.shape[0]
+        return self.overlaps_store.nb_templates
 
     def _guess_output_endpoints(self):
 
-        self._nb_elements = self.nb_channels * self._spike_width_
-        if self.templates is None:
-            self.templates = csr_matrix((0, self._nb_elements), dtype=np.float32)
         self.slice_indices = np.zeros(0, dtype=np.int32)
-        self.all_cols = np.arange(self.nb_channels * self._spike_width_)
-        self.all_delays = np.arange(1, self._spike_width_ + 1)
-
         temp_window = np.arange(-self._width, self._width + 1)
         for idx in range(self.nb_channels):
             buffer_size = 2 * self.nb_samples
@@ -187,50 +142,6 @@ class Template_fitter(Block):
 
         return
 
-    def _update_overlaps(self, sources):
-
-        sources = np.array(sources, dtype=np.int32)
-
-        if self.two_components:
-            sources = np.concatenate((sources, sources + self.nb_templates))
-
-        selection = list(set(sources).difference(self.overlaps.keys()))
-
-        if len(selection) > 0:
-
-            tmp_loc_c1 = self.templates[selection]
-            tmp_loc_c2 = self.templates
-
-            all_x = np.zeros(0, dtype=np.int32)
-            all_y = np.zeros(0, dtype=np.int32)
-            all_data = np.zeros(0, dtype=np.float32)
-
-            for idelay in self.all_delays:
-                scols = np.where(self.all_cols % self._spike_width_ < idelay)[0]
-                tmp_1 = tmp_loc_c1[:, scols]
-                scols = np.where(self.all_cols % self._spike_width_ >= (self._spike_width_ - idelay))[0]
-                tmp_2 = tmp_loc_c2[:, scols]
-                data = tmp_1.dot(tmp_2.T).toarray()
-
-                dx, dy = data.nonzero()
-                data = data[data.nonzero()].ravel()
-
-                all_x = np.concatenate((all_x, dx * self.templates.shape[0] + dy))
-                all_y = np.concatenate((all_y, (idelay - 1) * np.ones(len(dx), dtype=np.int32)))
-                all_data = np.concatenate((all_data, data))
-
-                if idelay < self._spike_width_:
-                    all_x = np.concatenate((all_x, dy * len(selection) + dx))
-                    all_y = np.concatenate((all_y, (2 * self._spike_width_ - idelay - 1) * np.ones(len(dx), dtype=np.int32)))
-                    all_data = np.concatenate((all_data, data))
-
-            shape = (self.templates.shape[0] * len(selection), self._overlap_size)
-            overlaps = csr_matrix((all_data, (all_x, all_y)), shape=shape)
-
-            for count, c in enumerate(selection):
-                self.overlaps[c] = overlaps[count * self.templates.shape[0]:(count + 1) * self.templates.shape[0]]
-
-        return
 
     def _extract_waveforms(self, peak_time_steps):
         """Extract waveforms from buffer
@@ -316,7 +227,7 @@ class Template_fitter(Block):
                         # # TODO use this definition of `is_neighbor` instead of the other.
                         # is_neighbor = np.abs(peaks - peak_index) <= 2 * self._width
                         # Update the overlapping matrix.
-                        self._update_overlaps(np.array([best_template_index]))
+                        self.overlaps_store.update_overlaps(np.array([best_template_index]))
                         # Update scalar products.
                         # TODO simplify the following 11 lines.
                         tmp = np.dot(np.ones((1, 1), dtype=np.int32), np.reshape(peaks, (1, nb_peaks)))
@@ -325,15 +236,15 @@ class Template_fitter(Block):
                         ytmp = tmp[0, is_neighbor[0, :]] + 2 * self._width
                         indices = np.zeros((self._overlap_size, len(ytmp)), dtype=np.int32)
                         indices[ytmp, np.arange(len(ytmp))] = 1
-                        tmp1 = self.overlaps[best_template_index].multiply(-best_amplitude).dot(indices)
+                        tmp1 = self.overlaps_store[best_template_index].multiply(-best_amplitude).dot(indices)
                         scalar_products[:, is_neighbor[0, :]] += tmp1
                         if self.two_components:
-                            tmp2 = self.overlaps[best_template_index + self.nb_templates].multiply(-best_amplitude_2).dot(indices)
+                            tmp2 = self.overlaps_store[best_template_index + self.nb_templates].multiply(-best_amplitude_2).dot(indices)
                             scalar_products[:, is_neighbor[0, :]] += tmp2
                         # Add matching to the result.
                         self.r['spike_times'] = np.concatenate((self.r['spike_times'], [peak_time_step]))
-                        self.r['amplitudes'] = np.concatenate((self.r['amplitudes'], [best_amplitude_]))
-                        self.r['templates'] = np.concatenate((self.r['templates'], [best_template_index]))
+                        self.r['amplitudes']  = np.concatenate((self.r['amplitudes'], [best_amplitude_]))
+                        self.r['templates']   = np.concatenate((self.r['templates'], [best_template_index]))
                         # Mark current matching as tried.
                         mask[best_template_index, peak_index] = 0
                     else:
@@ -404,31 +315,22 @@ class Template_fitter(Block):
         else:
             self.x[:self.nb_samples, :] = self.x[self.nb_samples:, :]
             self.x[self.nb_samples:, :] = self.inputs['data'].receive()
+        
         if self.is_active:
             peaks = self.inputs['peaks'].receive()
         else:
             peaks = self.inputs['peaks'].receive(blocking=False)
+
         updater = self.inputs['updater'].receive(blocking=False)
 
         if updater is not None:
 
             # Create the template dictionary if necessary.
             if self.template_store is None:
-                self.template_store = TemplateStore(updater['templates_file'], 'r', self.two_components)
+                self.template_store = TemplateStore(updater['templates_file'], 'r')
+                self.overlaps_store = OverlapsDictionary(self.template_store)
 
-            # Retrieve data associated to new and updated templates.
-            data = self.template_store.get(updater['indices'], variables=self.variables)
-
-            # Add new and updated templates to the dictionary.
-            self.norms = np.concatenate((self.norms, data.pop('norms')))
-            self.amplitudes = np.vstack((self.amplitudes, data.pop('amplitudes')))
-            self.templates = vstack((self.templates, data.pop('templates').T), 'csr')
-            if self.two_components:
-                self.norms2 = np.concatenate((self.norms2, data.pop('norms2')))
-                self.templates = vstack((self.templates, data.pop('templates2').T), 'csr')
-
-            # Reinitialize overlapping matrix for recomputation.
-            self.overlaps = {}
+            self.overlaps_store.update(updater['indices'])
 
         if peaks is not None:
 

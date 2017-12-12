@@ -13,11 +13,9 @@ class Template_updater(Block):
     """Template updater
 
     Attributes:
-        spike_width: float (optional)
         probe_file: string (optional)
-        radius: None (optional)
-        sampling_rate: float (optional)
         cc_merge: float (optional)
+        cc_mixture: float (optional)
         data_path: string (optional)
     """
     # TODO complete docstring.
@@ -25,12 +23,10 @@ class Template_updater(Block):
     name = "Template updater"
 
     params = {
-        'spike_width': 5.,  # ms
-        'probe_file': None,
-        'radius': None,  # um
-        'sampling_rate': 20000,  # Hz
-        'cc_merge': 0.95,
-        'data_path': None,
+        'probe_file' : None,
+        'cc_merge'   : 0.95,
+        'cc_mixture' : 0.95,
+        'data_path'  : None,
     }
 
     def __init__(self, **kwargs):
@@ -64,7 +60,7 @@ class Template_updater(Block):
         
         # Create object to handle templates.
         self.template_store      = TemplateStore(self.data_path, self.probe_file, mode='w')
-        self.template_dictionary = TemplateDictionary(self.template_store, thr_merging=self.cc_merge, logger=self.log)
+        self.template_dictionary = TemplateDictionary(self.template_store, cc_merge=self.cc_merge, cc_mixture=self.cc_mixture)
 
         # Log path.
         info_msg = "{} records templates into {}"
@@ -115,8 +111,6 @@ class Template_updater(Block):
                     self.two_components = data.has_key('two')
 
             templates = self._data_to_templates(data)
-            #indices = self.template_store.add(templates)
-            #self.log.debug('{n} saved templates {k}'.format(n=self.name, k=indices))
             accepted, nb_duplicates, nb_mixtures = self.template_dictionary.add(templates)
 
             if nb_duplicates > 0:
@@ -126,6 +120,6 @@ class Template_updater(Block):
             if len(accepted) > 0:
                 self.log.debug('{n} accepted {t} templates'.format(n=self.name, t=len(accepted)))
 
-            self.log.debug('{n} saved templates {k}'.format(n=self.name, k=accepted))
-            #self.output.send({'templates_file' : self.template_store.file_name, 'indices' : accepted})
+            #self.log.debug('{n} saved templates {k}'.format(n=self.name, k=accepted))
+            self.output.send({'templates_file' : self.template_store.file_name, 'indices' : accepted})
         return
