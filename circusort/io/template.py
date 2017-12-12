@@ -253,7 +253,7 @@ class TemplateComponent(object):
     def to_sparse(self, method='csc', flatten=False):
         data = self.to_dense()
         if flatten:
-            data = data.flatten()[None, :]
+            data = data.flatten()[:, None]
 
         if method is 'csc':
             return scipy.sparse.csc_matrix(data, dtype=np.float32)
@@ -295,13 +295,17 @@ class Template(object):
         if self.two_components:
             self.second_component.normalize()
 
+    @property
+    def temporal_width(self):
+        return self.first_component.temporal_width
+
 class TemplateStore(object):
 
     def __init__(self, file_name, probe_file=None, mode='r+'):
 
         self.file_name      = os.path.abspath(file_name)
         self.mode           = mode
-        self._index         = 0
+        self._index         = -1
         self.h5_file        = h5py.File(self.file_name, self.mode)
         self._mappings      = None
         self._nb_channels   = None
@@ -319,6 +323,7 @@ class TemplateStore(object):
             self.h5_file.create_dataset('indices', data=np.zeros(0, dtype=np.int32), chunks=True, maxshape=(None, ))
             self.h5_file.create_dataset('times', data=np.zeros(0, dtype=np.int32), chunks=True, maxshape=(None, ))
             self.h5_file.create_dataset('channels', data=np.zeros(0, dtype=np.int32), chunks=True, maxshape=(None, ))
+            self.h5_file.flush()
 
         if mode == 'r+':
             indices = self.h5_file['indices'][:]
@@ -335,6 +340,10 @@ class TemplateStore(object):
 
     def __len__(self):
         return self.nb_templates
+
+    @property
+    def indices(self):
+        return self.h5_file['indices'][:]
 
     @property
     def next_index(self):
@@ -366,7 +375,7 @@ class TemplateStore(object):
             return self._2_components
 
     def is_in_store(self, index):
-        if index in self.h5_file['indices']:
+        if index in self.indices:
             return True
         else:
             return False
@@ -375,6 +384,9 @@ class TemplateStore(object):
 
         assert self.mode in ['w', 'r+']
         indices = []
+
+        if not np.iterable(templates):
+            templates = [templates]
 
         for t in templates:
             
@@ -393,28 +405,29 @@ class TemplateStore(object):
             append_hdf5(self.h5_file['channels'], np.array([t.channel], dtype=np.int32))
             indices += [gidx]
 
+        self.h5_file.flush()
         return indices
 
     @property
     def nb_templates(self):
-        return len(self.h5_file['indices'])
+        return len(self.h5_file['indices'][:])
 
-    def get(self, indices=None):
+    def get(self, elements=None):
 
-        if indices is None:
-            indices = self.h5_file['indices'][:]
+        if elements is None:
+            elements = self.h5_file['indices'][:]
 
-        if not np.iterable(indices):
-            indices = [indices]
+        if not np.iterable(elements):
+            elements = [elements]
 
         result   = {}
         indices  = self.h5_file['indices'][:]
         channels = self.h5_file['channels'][:]
         times    = self.h5_file['times'][:]
 
-        for index in indices:
-
-            self.is_in_store(index)
+        for index in elements:
+            
+            assert self.is_in_store(index)
             idx_pos = np.where(indices == index)[0]
 
             result[index] = {}
@@ -453,7 +466,7 @@ class TemplateStore(object):
             self.h5_file['channels'] = np.delete(channels, to_remove)
             self.h5_file['indices']  = np.delete(indices, to_remove)
             self.h5_file['times']    = np.delete(times, to_remove)
-
+        self.h5_file.flush()
 
     def close(self):
 

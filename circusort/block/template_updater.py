@@ -43,6 +43,7 @@ class Template_updater(Block):
             self.log.info('{n} reads the probe layout'.format(n=self.name))
         self.add_input('templates')
         self.add_output('updater', 'dict')
+        self.two_components = None
 
     def __del__(self):
         self.template_store.close()
@@ -55,15 +56,15 @@ class Template_updater(Block):
         else:
             self.data_path = os.path.expanduser(self.data_path)
             self.data_path = os.path.abspath(self.data_path)
+
         # Create the corresponding directory if it does not exist.
         data_directory, _ = os.path.split(self.data_path)
         if not os.path.exists(data_directory):
             os.makedirs(data_directory)
         
         # Create object to handle templates.
-        self.two_components = None
-        self.template_store = TemplateStore(self.data_path, self.probe_file, mode='w')
-        #self.template_dictionary = TemplateDictionary(self.template_store, cc_merge)
+        self.template_store      = TemplateStore(self.data_path, self.probe_file, mode='w')
+        self.template_dictionary = TemplateDictionary(self.template_store, thr_merging=self.cc_merge, logger=self.log)
 
         # Log path.
         info_msg = "{} records templates into {}"
@@ -72,7 +73,6 @@ class Template_updater(Block):
         return
 
     def _get_tmp_path(self):
-
         tmp_directory = tempfile.gettempdir()
         tmp_basename  = 'templates.h5'
         tmp_path      = os.path.join(tmp_directory, tmp_basename)
@@ -92,14 +92,15 @@ class Template_updater(Block):
                 if self.two_components:
                     templates2 = np.array(data['two'][key][channel]).astype(np.float32)
 
-                for count in xrange(len(templates)):
-                    self.log.debug('{n} received {s} {t} templates from electrode {k}'.format(n=self.name, s=len(templates), t=key, k=channel))
-                    
+                for count in xrange(len(templates)):                    
                     first_component = TemplateComponent(templates[count], amplitudes[count][0], self.template_store.mappings[ichannel], self.nb_channels)
                     if self.two_components:
                         second_component = TemplateComponent(templates2[count], amplitudes[count][1], self.template_store.mappings[ichannel], self.nb_channels)
 
                     all_templates += [Template(first_component, ichannel, second_component, creation_time=int(data['offset']))]
+    
+                if len(templates) > 0:
+                    self.log.debug('{n} received {s} {t} templates from electrode {k}'.format(n=self.name, s=len(templates), t=key, k=channel))
 
         return all_templates
 
@@ -113,9 +114,18 @@ class Template_updater(Block):
                 if self.two_components is None:
                     self.two_components = data.has_key('two')
 
-                templates = self._data_to_templates(data)
-                indices   = self.template_dictionary.add(templates)
-                #self.template_store.add(templates)
+            templates = self._data_to_templates(data)
+            #indices = self.template_store.add(templates)
+            #self.log.debug('{n} saved templates {k}'.format(n=self.name, k=indices))
+            accepted, nb_duplicates, nb_mixtures = self.template_dictionary.add(templates)
 
-                #self.output.send({'templates_file' : self.template_store.file_name, 'indices' : indices})
+            if nb_duplicates > 0:
+                self.log.debug('{n} rejected {s} duplicated templates'.format(n=self.name, s=nb_duplicates))
+            if nb_mixtures > 0:
+                self.log.debug('{n} rejected {s} composite templates'.format(n=self.name, s=nb_mixtures))
+            if len(accepted) > 0:
+                self.log.debug('{n} accepted {t} templates'.format(n=self.name, t=len(accepted)))
+
+            self.log.debug('{n} saved templates {k}'.format(n=self.name, k=accepted))
+            #self.output.send({'templates_file' : self.template_store.file_name, 'indices' : accepted})
         return
