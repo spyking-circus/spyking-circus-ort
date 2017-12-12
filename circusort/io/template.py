@@ -4,9 +4,11 @@ import h5py
 import numpy as np
 import os
 import sys
+import scipy
 
-from scipy.sparse import csc_matrix, hstack
-
+from scipy.sparse import csc_matrix, csr_matrix, hstack
+import numpy as np
+from circusort.io.probe import load_probe
 from circusort.io.utils import append_hdf5
 from circusort.io import generate_probe
 
@@ -232,188 +234,227 @@ def load_templates(directory):
     return templates
 
 
-class TemplateStore(object):
+class TemplateComponent(object):
 
-    variables = [
-        'norms',
-        'templates',
-        'amplitudes',
-        'channels',
-        'times',
-    ]
-
-    def __init__(self, file_name, initialized=False, mode='w',
-                 two_components=False, N_t=None):
-
-        self.file_name = os.path.abspath(file_name)
-        self.initialized = initialized
-        self.mode = mode
-        self.two_components = two_components
-        self._spike_width = N_t
-
-        if self.two_components:
-            self.variables += ['norms2', 'templates2']
-        self.h5_file = None
+    def __init__(self, waveforms, amplitude, indices, nb_channels):
+        self.waveforms   = waveforms
+        self.amplitude   = amplitude
+        self.indices     = indices
+        self.nb_channels = nb_channels
 
     @property
-    def width(self):
+    def norm(self):
+        return np.sqrt(np.sum(self.waveforms**2)/(self.nb_channels * self.temporal_width))
 
-        self.h5_file = h5py.File(self.file_name, 'r')
-        res = self.h5_file['N_t'][0]
-        self.h5_file.close() 
+    @property
+    def temporal_width(self):
+        return self.waveforms.shape[1]
 
-        return res
+    def to_sparse(self, method='csc', flatten=False):
+        data = self.to_dense()
+        if flatten:
+            data = data.flatten()[None, :]
 
-    def add(self, data):
+        if method is 'csc':
+            return scipy.sparse.csc_matrix(data, dtype=np.float32)
+        elif method is 'csr':
+            return scipy.sparse.csr_matrix(data, dtype=np.float32)
 
-        norms = data['norms']
-        templates = data['templates']
-        amplitudes = data['amplitudes']
-        channels = data['channels']
-        times = data['times']
+    def to_dense(self):
+        result = np.zeros((self.nb_channels, self.temporal_width), dtype=np.float32)
+        for count, index in enumerate(self.indices):
+            result[index] = self.waveforms[count]
+        return result
 
-        if self.two_components:
-            norms2 = data['norms2']
-            templates2 = data['templates2']
+    def normalize(self):
+        self.waveforms /= self.norm
 
-        if not self.initialized:
-            self.h5_file = h5py.File(self.file_name, self.mode)
 
-            self.h5_file.create_dataset('norms', data=norms, chunks=True, maxshape=(None,))
-            self.h5_file.create_dataset('channels', data=channels, chunks=True, maxshape=(None,))
-            self.h5_file.create_dataset('amplitudes', data=amplitudes, chunks=True, maxshape=(None, 2))
-            self.h5_file.create_dataset('times', data=times, chunks=True, maxshape=(None, ))
+class Template(object):
 
-            if self.two_components:
-                self.h5_file.create_dataset('norms2', data=norms2, chunks=True, maxshape=(None,))
-                self.h5_file.create_dataset('data2', data=templates2.data, chunks=True, maxshape=(None, ))
+    def __init__(self, first_component, channel, second_component=False, creation_time=0):
 
-            self.h5_file.create_dataset('data', data=templates.data, chunks=True, maxshape=(None,))
-            self.h5_file.create_dataset('indptr', data=templates.indptr, chunks=True, maxshape=(None, ))
-            self.h5_file.create_dataset('indices', data=templates.indices, chunks=True, maxshape=(None, ))
-            self.h5_file.create_dataset('shape', data=templates.shape, chunks=True)
+        self.first_component  = first_component
+        self.channel          = channel
+        self.second_component = second_component
+        self.creation_time    = creation_time
 
-            if self._spike_width is not None:
-                self.h5_file.create_dataset('N_t', data=np.array([self._spike_width]))
+    @property
+    def two_components(self):
+        return self.second_component is not None  
 
-            self.initialized = True
-            self.h5_file.close()
-
+    @property
+    def amplitudes(self):
+        if self.two_components: 
+            return np.array([self.first_component.amplitude, self.second_component.amplitude], dtype=np.float32)
         else:
+            return np.array([self.first_component.amplitude], dtype=np.float32)
+
+    def normalize(self):
+        self.first_component.normalize()
+        if self.two_components:
+            self.second_component.normalize()
+
+class TemplateStore(object):
+
+    def __init__(self, file_name, probe_file=None, mode='r+'):
+
+        self.file_name      = os.path.abspath(file_name)
+        self.mode           = mode
+        self._index         = 0
+        self.h5_file        = h5py.File(self.file_name, self.mode)
+        self._mappings      = None
+        self._nb_channels   = None
+        self._2_components  = None
+
+        if self.mode == 'w':
+            assert probe_file is not None
+            self.probe        = load_probe(probe_file)
+            self._mappings    = {}
+            self._nb_channels = self.probe.nb_channels
+            for channel, indices in self.probe.edges.items():
+                indices = self.probe.edges[channel]
+                self.h5_file.create_dataset('mapping/%d' %channel, data=indices, chunks=True, maxshape=(None, ))
+                self._mappings[channel] = indices
+            self.h5_file.create_dataset('indices', data=np.zeros(0, dtype=np.int32), chunks=True, maxshape=(None, ))
+            self.h5_file.create_dataset('times', data=np.zeros(0, dtype=np.int32), chunks=True, maxshape=(None, ))
+            self.h5_file.create_dataset('channels', data=np.zeros(0, dtype=np.int32), chunks=True, maxshape=(None, ))
+
+        if mode == 'r+':
+            indices = self.h5_file['indices'][:]
+            self._index = indices.max()
+
+    def __iter__(self, index):
+        indices = self.h5_file['indices'][:]
+        for i in indices:
+            yield self[i]
+
+    def __getitem__(self, index):
+        indices = self.h5_file['indices'][:]
+        return self.get(indices[index])
+
+    def __len__(self):
+        return self.nb_templates
+
+    @property
+    def next_index(self):
+        self._index += 1
+        return self._index
+
+    @property
+    def mappings(self):
+        if self._mappings is None:
+            self._mappings = {}
+            for key, value in self.h5_file['mapping'].items():
+                self._mappings[int(key)] = value[:]
+        return self._mappings
+
+    @property
+    def nb_channels(self):
+        if self._nb_channels is None:
+            self._nb_channels = len(self.h5_file['mapping'])
+        return self._nb_channels
+
+    @property
+    def two_components(self):
+        if self._2_components is not None:
+            return self._2_components
+        else:
+            indices = self.h5_file['indices'][:]
+            if len(indices) > 0:
+                self._2_components = '2' in self.h5_file['waveforms/%d' %indices[0]]
+            return self._2_components
+
+    def is_in_store(self, index):
+        if index in self.h5_file['indices']:
+            return True
+        else:
+            return False
     
-            self.h5_file = h5py.File(self.file_name, 'r+')
-            append_hdf5(self.h5_file['norms'], norms)
-            append_hdf5(self.h5_file['amplitudes'], amplitudes)
-            append_hdf5(self.h5_file['channels'], channels)
-            append_hdf5(self.h5_file['times'], times)
-            self.h5_file['shape'][1] = len(self.h5_file['norms'])
-            if self.two_components:
-                append_hdf5(self.h5_file['norms2'], norms2)
-                append_hdf5(self.h5_file['data2'], templates2.data)
-            append_hdf5(self.h5_file['data'], templates.data)
-            append_hdf5(self.h5_file['indices'], templates.indices)
-            to_write = templates.indptr[1:] + self.h5_file['indptr'][-1]
-            append_hdf5(self.h5_file['indptr'], to_write)
-            self.h5_file.close()
+    def add(self, templates):
+
+        assert self.mode in ['w', 'r+']
+        indices = []
+
+        for t in templates:
+            
+            assert isinstance(t, Template)
+            gidx = self.next_index
+
+            self.h5_file.create_dataset('waveforms/%d/1' %gidx, data=t.first_component.waveforms, chunks=True)
+            self.h5_file.create_dataset('amplitudes/%d' %gidx, data=t.amplitudes)
+
+            if t.second_component is not None:
+                self._2_components = True
+                self.h5_file.create_dataset('waveforms/%d/2' %gidx, data=t.second_component.waveforms, chunks=True)
+
+            append_hdf5(self.h5_file['times'], np.array([t.creation_time], dtype=np.int32))
+            append_hdf5(self.h5_file['indices'], np.array([gidx], dtype=np.int32))
+            append_hdf5(self.h5_file['channels'], np.array([t.channel], dtype=np.int32))
+            indices += [gidx]
+
+        return indices
 
     @property
     def nb_templates(self):
-        self.h5_file = h5py.File(self.file_name, 'r')
-        res = len(self.h5_file['amplitudes'])
-        self.h5_file.close()
-        return res
+        return len(self.h5_file['indices'])
 
-    @property
-    def nnz(self):
-        self.h5_file = h5py.File(self.file_name, 'r')
-        res = len(self.h5_file['data'])
-        self.h5_file.close()
-        return res
-
-    def get(self, indices=None, variables=None):
-
-        result = {}
-
-        if variables is None:
-            variables = self.variables
-        elif not isinstance(variables, list):
-            variables = [variables]
-
-        self.h5_file = h5py.File(self.file_name, 'r')
+    def get(self, indices=None):
 
         if indices is None:
+            indices = self.h5_file['indices'][:]
 
-            for var in ['norms', 'amplitudes', 'channels', 'times', 'norms2']:
-                if var in variables:
-                    result[var] = self.h5_file[var][:]
+        if not np.iterable(indices):
+            indices = [indices]
 
-            if 'templates' in variables:
-                result['templates'] = csc_matrix((self.h5_file['data'][:],
-                                                  self.h5_file['indices'][:],
-                                                  self.h5_file['indptr'][:]),
-                                                 shape=self.h5_file['shape'][:])
+        result   = {}
+        indices  = self.h5_file['indices'][:]
+        channels = self.h5_file['channels'][:]
+        times    = self.h5_file['times'][:]
 
-            if 'templates2' in variables:
-                result['templates2'] = csc_matrix((self.h5_file['data'][:],
-                                                   self.h5_file['indices'][:],
-                                                   self.h5_file['indptr'][:]),
-                                                  shape=self.h5_file['shape'][:])
-        else:
+        for index in indices:
 
-            if not np.iterable(indices):
-                indices = [indices]
+            self.is_in_store(index)
+            idx_pos = np.where(indices == index)[0]
 
-            for var in ['norms', 'channels', 'times', 'norms2']:
-                if var in variables:
-                    result[var] = self.h5_file[var][indices]
+            result[index] = {}
 
-            if 'amplitudes' in variables:
-                result['amplitudes'] = self.h5_file['amplitudes'][indices, :]
+            waveforms = self.h5_file['waveforms/%d/1' %index][:]
+            if self.two_components:
+                waveforms2 = self.h5_file['waveforms/%d/2' %index][:]
 
-            load_t1 = 'templates' in variables
-            load_t2 = 'templates2' in variables
-            are_templates_to_load = load_t1 or load_t2
+            amplitudes = self.h5_file['amplitudes/%d' %index][:]
+            second_component = None
 
-            if are_templates_to_load:
-                myshape = self.h5_file['shape'][0]
-                indptr = self.h5_file['indptr'][:]
+            channel         = channels[idx_pos][0]
+            first_component = TemplateComponent(waveforms, amplitudes[0], self.mappings[channel], self.nb_channels)
+            if self.two_components:
+                second_component = TemplateComponent(waveforms2, amplitudes[1], self.mappings[channel], self.nb_channels)
 
-            if load_t1:
-                result['templates'] = csc_matrix((myshape, 0), dtype=np.float32)
-
-            if load_t2:
-                result['templates2'] = csc_matrix((myshape, 0), dtype=np.float32)
-
-            if are_templates_to_load:
-                for item in indices:
-                    mask = np.zeros(len(self.h5_file['data']), dtype=np.bool)
-                    mask[indptr[item]:indptr[item+1]] = 1
-                    n_data = indptr[item+1] - indptr[item]
-                    if load_t1:
-                        temp = csc_matrix((self.h5_file['data'][mask],
-                                           (self.h5_file['indices'][mask], np.zeros(n_data))),
-                                          shape=(myshape, 1))
-                        result['templates'] = hstack((result['templates'], temp), 'csc')
- 
-                    if load_t2:
-                        temp = csc_matrix((self.h5_file['data2'][mask],
-                                           (self.h5_file['indices'][mask], np.zeros(n_data))),
-                                          shape=(myshape, 1))
-                        result['templates2'] = hstack((result['templates2'], temp), 'csc')
-
-        self.h5_file.close()
+            result[index] = Template(first_component, channel, second_component, creation_time=int(times[idx_pos]))
 
         return result
         
-    def remove(self, index):
+    def remove(self, indices):
 
-        raise NotImplementedError()
+        if not np.iterable(indices):
+            indices = [indices]
+
+        for index in indices:
+
+            self.is_in_store(index)
+            self.h5_file.pop('waveforms/%d' %index)
+            # self.h5_file.pop('norms/%d' %index)
+            self.h5_file.pop('amplitudes/%d' %index)
+            channels = self.h5_file.pop('channels')
+            times    = self.h5_file.pop('times')
+            indices  = self.h5_file.pop('indices')
+            to_remove = np.where(indices == index)[0]
+            self.h5_file['channels'] = np.delete(channels, to_remove)
+            self.h5_file['indices']  = np.delete(indices, to_remove)
+            self.h5_file['times']    = np.delete(times, to_remove)
+
 
     def close(self):
 
-        try:
-            self.h5_file.close()
-        except Exception:
-            pass
-
-        return
+        self.h5_file.close()

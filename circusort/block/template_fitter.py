@@ -87,10 +87,8 @@ class Template_fitter(Block):
         assert self.template_store is None
 
         self.template_store = TemplateStore(self.init_path,
-                                            initialized=True,
                                             mode='r',
-                                            two_components=self.two_components,
-                                            N_t=self._spike_width_)
+                                            two_components=self.two_components)
         nb_templates = self.template_store.nb_templates
         indices = [i for i in range(nb_templates)]
         data = self.template_store.get(indices=indices,

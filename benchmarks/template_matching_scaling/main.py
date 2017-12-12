@@ -75,7 +75,7 @@ if args.init_temp_dict:
     }
 else:
     cluster_kwargs = {
-        'nb_waveforms': 200,  # i.e. precipitate clustering (template does not exist)
+        'nb_waveforms': 100,  # i.e. precipitate clustering (template does not exist)
     }
 updater_kwargs = {
     'data_path': os.path.join(tmp_dir, 'templates.h5'),
@@ -144,17 +144,17 @@ else:
                                    log_level=DEBUG,
                                    **cluster_kwargs)
     updater = manager.create_block('template_updater',
-                                   probe=probe_path,
+                                   probe_file=probe_path,
                                    nb_channels=16,
                                    log_level=INFO,
                                    **updater_kwargs)
-    fitter = manager.create_block('template_fitter',
-                                  two_components=True,
-                                  log_level=INFO,
-                                  **fitter_kwargs)
-    spike_writer = manager.create_block('spike_writer',
-                                        log_level=DEBUG,
-                                        **spike_writer_kwargs)
+    # fitter = manager.create_block('template_fitter',
+    #                               two_components=True,
+    #                               log_level=INFO,
+    #                               **fitter_kwargs)
+    # spike_writer = manager.create_block('spike_writer',
+    #                                     log_level=DEBUG,
+    #                                     **spike_writer_kwargs)
 
     # Initialize the elements of the Circus network.
 
@@ -168,19 +168,19 @@ else:
                                         peak_detector.get_input('data'),
                                         cluster.get_input('data'),
                                         pca.get_input('data'),
-                                        fitter.get_input('data'),
+#                                        fitter.get_input('data'),
                                         signal_writer.input])
     director.connect(mad_estimator.output, [peak_detector.get_input('mads'),
                                             cluster.get_input('mads'),
                                             mad_writer.input])
     director.connect(peak_detector.get_output('peaks'), [pca.get_input('peaks'),
                                                          cluster.get_input('peaks'),
-                                                         fitter.get_input('peaks'),
+    #                                                     fitter.get_input('peaks'),
                                                          peak_writer.input])
     director.connect(pca.get_output('pcs'), cluster.get_input('pcs'))
     director.connect(cluster.get_output('templates'), updater.get_input('templates'))
-    director.connect(updater.get_output('updater'), fitter.get_input('updater'))
-    director.connect(fitter.output, spike_writer.input)
+    #director.connect(updater.get_output('updater'), fitter.get_input('updater'))
+    #director.connect(fitter.output, spike_writer.input)
 
     # Launch the Circus network.
 
