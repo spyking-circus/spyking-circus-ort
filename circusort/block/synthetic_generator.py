@@ -108,15 +108,15 @@ class Synthetic_generator(block.Block):
 
         elif self.mode == 'preconfigured':
 
-            configuration_directory = os.path.join(self.working_directory, "configuration")
-            parameters_path = io.find_parameters_path(configuration_directory)
-            if parameters_path is not None:
-                parameters = io.parse_parameters_file(parameters_path)
-                try:
-                    self.duration = parameters['generation']['duration']
-                except KeyError:
-                    self.duration = 60.0  # s
-            probe_path = os.path.join(self.working_directory, "generation", "probe.prb")
+            generation_directory = os.path.join(self.working_directory, "generation")
+            parameters_path = os.path.join(generation_directory, "parameters.txt")
+            parameters = io.load_parameters(parameters_path)
+            # TODO get rid of the following try ... except ...
+            try:
+                self.duration = parameters['generation']['duration']
+            except KeyError:
+                self.duration = 60.0  # s
+            probe_path = os.path.join(generation_directory, "probe.prb")
             self.probe = io.load_probe(probe_path, logger=self.log)
 
         # Add data output.
