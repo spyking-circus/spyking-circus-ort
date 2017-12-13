@@ -42,9 +42,6 @@ class Template_updater(Block):
         self.add_output('updater', 'dict')
         self.two_components = None
 
-    def __del__(self):
-        self.template_store.close()
-
     def _initialize(self):
         
         # Initialize path to save the templates.

@@ -328,7 +328,7 @@ class TemplateStore(object):
             indices       = self.h5_file['indices'][:]
             if len(indices) > 0:
                 self._index = indices.max()
-                
+
             self.mappings = {}
             for key, value in self.h5_file['mapping'].items():
                 self.mappings[int(key)] = value[:]
@@ -384,7 +384,7 @@ class TemplateStore(object):
         else:
             assert self.nb_templates > 0
             template = self.__getitem__(0)
-            self._temporal_width = template[template.keys()[0]].temporal_width
+            self._temporal_width = template[0].temporal_width
             return self._temporal_width
 
     def is_in_store(self, index):
@@ -433,9 +433,12 @@ class TemplateStore(object):
             elements = self.h5_file['indices'][:]
 
         if not np.iterable(elements):
-            elements = [elements]
+            singleton = True
+            elements  = [elements]
+        else:
+            singleton = False
 
-        result   = {}
+        result   = []
         indices  = self.h5_file['indices'][:]
         channels = self.h5_file['channels'][:]
         times    = self.h5_file['times'][:]
@@ -445,23 +448,23 @@ class TemplateStore(object):
             assert index in indices
 
             idx_pos       = np.where(indices == index)[0]
-            result[index] = {}
 
             waveforms = self.h5_file['waveforms/%d/1' %index][:]
             if self.two_components:
                 waveforms2 = self.h5_file['waveforms/%d/2' %index][:]
 
-            amplitudes = self.h5_file['amplitudes/%d' %index][:]
+            amplitudes       = self.h5_file['amplitudes/%d' %index][:]
             second_component = None
-
-            channel         = channels[idx_pos][0]
-            first_component = TemplateComponent(waveforms, self.mappings[channel], self.nb_channels, amplitudes)
+            channel          = channels[idx_pos][0]
+            first_component  = TemplateComponent(waveforms, self.mappings[channel], self.nb_channels, amplitudes)
             if self.two_components:
                 second_component = TemplateComponent(waveforms2, self.mappings[channel], self.nb_channels)
 
-            result[index] = Template(first_component, channel, second_component, creation_time=int(times[idx_pos]))
+            result += [Template(first_component, channel, second_component, creation_time=int(times[idx_pos]))]
 
         self._close()
+        if singleton and len(result) == 1:
+            result = result[0]
 
         return result
         

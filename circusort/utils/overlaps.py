@@ -144,7 +144,6 @@ class OverlapsDictionary(object):
 
         self.update(self.template_store.indices)
 
-
     def get_overlaps(self, index, component='first_component'):
         if self.overlaps[component].has_key(index):
             return self.overlaps[component][index]
@@ -159,7 +158,6 @@ class OverlapsDictionary(object):
             return self.overlaps[component][index]
 
     def _get_overlaps(self, template, target):
-        
         
         all_x    = np.zeros(0, dtype=np.int32)
         all_y    = np.zeros(0, dtype=np.int32)
@@ -184,7 +182,7 @@ class OverlapsDictionary(object):
                 all_y = np.concatenate((all_y, (2 * self._spike_width - idelay - 1) * np.ones(len(dx), dtype=np.int32)))
                 all_data = np.concatenate((all_data, data))
 
-        shape    = (target.shape[0] * template.shape[0], self._overlap_size)
+        shape = (target.shape[0] * template.shape[0], self._overlap_size)
         return csr_matrix((all_data, (all_x, all_y)), shape=shape)
 
     def clear_overlaps(self):
