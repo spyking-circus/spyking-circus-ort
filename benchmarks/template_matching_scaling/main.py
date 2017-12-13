@@ -150,7 +150,7 @@ else:
                                    **updater_kwargs)
     fitter = manager.create_block('template_fitter',
                                   two_components=True,
-                                  log_level=DEBUG,
+                                  log_level=INFO,
                                   **fitter_kwargs)
     spike_writer = manager.create_block('spike_writer',
                                         log_level=DEBUG,
