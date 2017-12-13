@@ -33,6 +33,32 @@ def save_position(path, position):
     return
 
 
+def list_positions(directory):
+    """List position paths contained in the specified directory.
+
+    Parameter:
+        directory: string
+            Directory from which to list the positions.
+
+    Return:
+        paths: list
+            List of position paths found in the specified directory.
+    """
+
+    if not os.path.isdir(directory):
+        message = "No such position directory: {}".format(directory)
+        raise OSError(message)
+
+    filenames = os.listdir(directory)
+    filenames.sort()
+    paths = [
+        os.path.join(directory, filename)
+        for filename in filenames
+    ]
+
+    return paths
+
+
 def load_position(path):
     """Load position from file.
 

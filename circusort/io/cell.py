@@ -1,9 +1,9 @@
 import os
 
 from .parameter import get_cell_parameters
-from .template import generate_template, save_template, list_templates, load_template, get_template
-from .trains import generate_train, save_train, list_trains, load_train, get_train
-from .position import generate_position, save_position, load_position, get_position
+from .template import generate_template, list_templates, load_template, get_template
+from .trains import generate_train, list_trains, load_train, get_train
+from .position import generate_position, list_positions, load_position, get_position
 from ..obj.cell import Cell
 
 
@@ -42,23 +42,6 @@ def save_cells(directory, cells, mode='default'):
         cells_directory = os.path.join(directory, "cells")
         for k, cell in cells.iteritems():
             cell_directory = os.path.join(cells_directory, "{}".format(k))
-            # TODO remove the following commented lines.
-            # if not os.path.isdir(cell_directory):
-            #     os.makedirs(cell_directory)
-            # # Save the parameters of the cell.
-            # # TODO complete.
-            # # Save the template of the cell.
-            # template_path = os.path.join(cell_directory, "template.h5")
-            # template = cell.template
-            # save_template(template_path, template)
-            # # Save the train of the cell.
-            # train_path = os.path.join(cell_directory, "train.h5")
-            # train = cell.train
-            # save_train(train_path, train)
-            # # Save the position of the cell.
-            # position_path = os.path.join(cell_directory, "position.h5")
-            # position = cell.position
-            # save_position(position_path, position)
             cell.save(cell_directory)
 
     else:
@@ -125,15 +108,27 @@ def load_cells(directory=None, mode='default'):
             raise OSError(message)
         train_paths = list_trains(train_directory)
 
+        position_directory = os.path.join(directory, "positions")
+        if not os.path.isdir(position_directory):
+            message = "No such positions directory: {}".format(position_directory)
+            raise OSError(message)
+        position_paths = list_positions(position_directory)
+
         string = "Different number of templates and trains between {} and {}"
         message = string.format(template_directory, train_directory)
         assert len(template_paths) == len(train_paths), message
 
+        string = "Different number of templates and positions between {} and {}"
+        message = string.format(template_directory, position_directory)
+        assert len(template_paths) == len(position_paths), message
+
+        nb_cells = len(template_paths)
         cells = {}
-        for k, (template_path, train_path) in enumerate(zip(template_paths, train_paths)):
-            template = load_template(template_path)
-            train = load_train(train_path)
-            cell = Cell(template, train)
+        for k in range(0, nb_cells):
+            template = load_template(template_paths[k])
+            train = load_train(train_paths[k])
+            position = load_position(position_paths[k])
+            cell = Cell(template, train, position)
             cells[k] = cell
 
     elif mode == 'by cells':

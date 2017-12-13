@@ -1,8 +1,6 @@
 import numpy as np
 import os
 
-from collections import OrderedDict as odict
-
 from .parameter.cell import CellParameters
 
 
