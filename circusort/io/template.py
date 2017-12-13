@@ -384,7 +384,7 @@ class TemplateStore(object):
         else:
             assert self.nb_templates > 0
             template = self.__getitem__(0)
-            self._temporal_width = template[0].temporal_width
+            self._temporal_width = template.temporal_width
             return self._temporal_width
 
     def is_in_store(self, index):

@@ -241,7 +241,8 @@ class Template_fitter(Block):
 
                         tmp1 = self.overlaps_store.get_overlaps(best_template_index, 'first_component').multiply(-best_amplitude).dot(indices)
                         scalar_products[:, is_neighbor[0, :]] += tmp1
-                        if self.two_components:
+
+                        if self.overlaps_store.two_components:
                             tmp2 = self.overlaps_store.get_overlaps(best_template_index, 'second_component').multiply(-best_amplitude_2).dot(indices)
                             scalar_products[:, is_neighbor[0, :]] += tmp2
                         

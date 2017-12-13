@@ -201,7 +201,7 @@ class OverlapsDictionary(object):
 
         templates = self.template_store.get(indices)
 
-        for key, t in templates.items():
+        for t in templates:
 
             # Add new and updated templates to the dictionary.
             self.norms['1'] = np.concatenate((self.norms['1'], [t.first_component.norm]))

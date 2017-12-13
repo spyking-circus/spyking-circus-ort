@@ -14,6 +14,7 @@ class Template_updater(Block):
 
     Attributes:
         probe_file: string (optional)
+        radius: float (optional)
         cc_merge: float (optional)
         cc_mixture: float (optional)
         data_path: string (optional)
@@ -87,9 +88,9 @@ class Template_updater(Block):
                     templates2 = np.array(data['two'][key][channel]).astype(np.float32)
 
                 for count in xrange(len(templates)):                    
-                    first_component = TemplateComponent(templates[count], self.template_store.mappings[ichannel], self.nb_channels, amplitudes[count])
+                    first_component = TemplateComponent(templates[count], self.template_store.mappings[ichannel], self.template_store.nb_channels, amplitudes[count])
                     if self.two_components:
-                        second_component = TemplateComponent(templates2[count], self.template_store.mappings[ichannel], self.nb_channels)
+                        second_component = TemplateComponent(templates2[count], self.template_store.mappings[ichannel], self.template_store.nb_channels)
 
                     all_templates += [Template(first_component, ichannel, second_component, creation_time=int(data['offset']))]
 

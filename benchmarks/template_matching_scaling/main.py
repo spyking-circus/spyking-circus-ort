@@ -145,11 +145,9 @@ else:
                                    **cluster_kwargs)
     updater = manager.create_block('template_updater',
                                    probe_file=probe_path,
-                                   nb_channels=16,
                                    log_level=DEBUG,
                                    **updater_kwargs)
     fitter = manager.create_block('template_fitter',
-                                  two_components=True,
                                   log_level=INFO,
                                   **fitter_kwargs)
     spike_writer = manager.create_block('spike_writer',
