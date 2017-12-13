@@ -1,6 +1,10 @@
 import numpy as np
 import os
 
+from collections import OrderedDict as odict
+
+from .parameter.cell import CellParameters
+
 
 class Cell(object):
     """Cell model.
@@ -31,6 +35,8 @@ class Cell(object):
         self.template = template
         self.train = train
         self.position = position
+
+        self.parameters = CellParameters()
 
         self.chunk_width = None
         self.subtrains = None
@@ -114,22 +120,30 @@ class Cell(object):
         if not os.path.isdir(directory):
             os.makedirs(directory)
 
-        # Save the parameters of the cell.
-        # TODO complete.
-
         # Save the template of the cell.
         template_path = os.path.join(directory, "template.h5")
+        self.parameters.add('template', 'path', template_path)
+        self.parameters.add('template', 'mode', 'default')
         template = self.template
         template.save(template_path)
 
         # Save the train of the cell.
         train_path = os.path.join(directory, "train.h5")
+        self.parameters.add('train', 'path', train_path)
+        self.parameters.add('train', 'mode', 'default')
         train = self.train
         train.save(train_path)
 
         # Save the position of the cell.
         position_path = os.path.join(directory, "position.h5")
+        self.parameters.add('position', 'path', position_path)
+        self.parameters.add('position', 'mode', 'default')
         position = self.position
         position.save(position_path)
+
+        # Save the parameters of the cell.
+        parameters_path = os.path.join(directory, "parameters.txt")
+        parameters = self.parameters
+        parameters.save(parameters_path)
 
         return
