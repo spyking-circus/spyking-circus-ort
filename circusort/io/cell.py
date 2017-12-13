@@ -42,22 +42,24 @@ def save_cells(directory, cells, mode='default'):
         cells_directory = os.path.join(directory, "cells")
         for k, cell in cells.iteritems():
             cell_directory = os.path.join(cells_directory, "{}".format(k))
-            if not os.path.isdir(cell_directory):
-                os.makedirs(cell_directory)
-            # Save the parameters of the cell.
-            # TODO complete.
-            # Save the template of the cell.
-            template_path = os.path.join(cell_directory, "template.h5")
-            template = cell.template
-            save_template(template_path, template)
-            # Save the train of the cell.
-            train_path = os.path.join(cell_directory, "train.h5")
-            train = cell.train
-            save_train(train_path, train)
-            # Save the position of the cell.
-            position_path = os.path.join(cell_directory, "position.h5")
-            position = cell.position
-            save_position(position_path, position)
+            # TODO remove the following commented lines.
+            # if not os.path.isdir(cell_directory):
+            #     os.makedirs(cell_directory)
+            # # Save the parameters of the cell.
+            # # TODO complete.
+            # # Save the template of the cell.
+            # template_path = os.path.join(cell_directory, "template.h5")
+            # template = cell.template
+            # save_template(template_path, template)
+            # # Save the train of the cell.
+            # train_path = os.path.join(cell_directory, "train.h5")
+            # train = cell.train
+            # save_train(train_path, train)
+            # # Save the position of the cell.
+            # position_path = os.path.join(cell_directory, "position.h5")
+            # position = cell.position
+            # save_position(position_path, position)
+            cell.save(cell_directory)
 
     else:
 

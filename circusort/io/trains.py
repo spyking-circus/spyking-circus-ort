@@ -2,6 +2,8 @@ import h5py
 import numpy as np
 import os
 
+from ..obj import Train
+
 
 def generate_train(duration=60.0, rate=1.0, **kwargs):
     """Generate train.
@@ -17,18 +19,18 @@ def generate_train(duration=60.0, rate=1.0, **kwargs):
             Generated train.
     """
 
-    _ = kwargs
-
+    _ = kwargs  # Discard additional parameters.
     scale = 1.0 / rate
-    time = 0.0
-    train = []
-    while time < duration:
-        size = int((duration - time) * rate) + 1
+    ref_time = 0.0
+    times = []
+    while ref_time < duration:
+        size = int((duration - ref_time) * rate) + 1
         intervals = np.random.exponential(scale=scale, size=size)
-        times = time + np.cumsum(intervals)
-        train.append(times[times < duration])
-        time = times[-1]
-    train = np.concatenate(train)
+        times_ = ref_time + np.cumsum(intervals)
+        times.append(times_[times_ < duration])
+        ref_time = times_[-1]
+    times = np.concatenate(times)
+    train = Train(times)
 
     return train
 
@@ -51,11 +53,10 @@ def generate_trains(nb_trains=3, duration=60.0, rate=1.0):
 
     # TODO integrate a refractory period.
 
-    trains = {}
-
-    for k in range(0, nb_trains):
-        train = generate_train(duration=duration, rate=rate)
-        trains[k] = train
+    trains = {
+        k: generate_train(duration=duration, rate=rate)
+        for k in range(0, nb_trains)
+    }
 
     return trains
 
@@ -70,11 +71,7 @@ def save_train(path, train):
             The train to save.
     """
 
-    times = train
-
-    f = h5py.File(path, mode='w')
-    f.create_dataset('times', shape=times.shape, dtype=times.dtype, data=times)
-    f.close()
+    train.save(path)
 
     return
 
@@ -165,7 +162,7 @@ def load_train(path):
     f = h5py.File(path, mode='r')
     times = f.get('times').value
     f.close()
-    train = times
+    train = Train(times)
 
     return train
 
@@ -208,13 +205,13 @@ def get_train(path=None, **kwargs):
     """
 
     if path is None:
-        template = generate_train(**kwargs)
+        train = generate_train(**kwargs)
     elif not os.path.isfile(path):
-        template = generate_train(**kwargs)
+        train = generate_train(**kwargs)
     else:
         try:
-            template = load_train(path)
+            train = load_train(path)
         except OSError:
-            template = generate_train(**kwargs)
+            train = generate_train(**kwargs)
 
-    return template
+    return train

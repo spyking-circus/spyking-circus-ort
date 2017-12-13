@@ -2,6 +2,8 @@ import h5py
 import numpy as np
 import os
 
+from ..obj import Position
+
 
 def generate_position(**kwargs):
     """Generate position."""
@@ -11,7 +13,7 @@ def generate_position(**kwargs):
     _ = kwargs
     x = np.array([0.0])
     y = np.array([0.0])
-    position = (x, y)
+    position = Position(x, y)
 
     return position
 
@@ -26,12 +28,7 @@ def save_position(path, position):
             The position to save.
     """
 
-    x, y = position
-
-    file_ = h5py.File(path, mode='w')
-    file_.create_dataset('x', shape=x.shape, dtype=x.dtype, data=x)
-    file_.create_dataset('y', shape=y.shape, dtype=y.dtype, data=y)
-    file_.close()
+    position.save(path)
 
     return
 
@@ -53,7 +50,7 @@ def load_position(path):
     y = file_.get('y').value
     file_.close()
 
-    position = (x, y)
+    position = Position(x, y)
 
     return position
 
