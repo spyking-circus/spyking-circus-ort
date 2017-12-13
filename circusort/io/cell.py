@@ -1,6 +1,6 @@
 import os
 
-from .parameter import get_cell_parameters
+from .parameter import load_cell_parameters, get_cell_parameters
 from .template import generate_template, list_templates, load_template, get_template
 from .trains import generate_train, list_trains, load_train, get_train
 from .position import generate_position, list_positions, load_position, get_position
@@ -76,6 +76,35 @@ def list_cells(directory):
     return directories
 
 
+def load_cell(directory):
+    """Load cell from the specified directory.
+
+    Parameter:
+        directory: string
+            The path to the directory from which to load the cell.
+
+    Return:
+        cell: circusort.obj.Cell
+            The loaded cell.
+    """
+
+    # Get parameters.
+    path = os.path.join(directory, "parameters.txt")
+    parameters = load_cell_parameters(path)
+    # Load template.
+    path = os.path.join(directory, "template.h5")
+    template = load_template(path)
+    # Load train.
+    path = os.path.join(directory, "train.h5")
+    train = load_train(path)
+    # Load position.
+    path = os.path.join(directory, "position.h5")
+    position = load_position(path)
+    cell = Cell(template, train, position, parameters=parameters)
+
+    return cell
+
+
 def load_cells(directory=None, mode='default'):
     """Load cells from the specified directory.
 
@@ -89,10 +118,6 @@ def load_cells(directory=None, mode='default'):
         cells: dictionary
             Dictionary of loaded cells.
     """
-
-    if not os.path.isdir(directory):
-        message = "No such directory: {}".format(directory)
-        raise OSError(message)
 
     if mode == 'default':
 
@@ -138,16 +163,10 @@ def load_cells(directory=None, mode='default'):
             message = "No such cells directory: {}".format(directory)
             raise OSError(message)
         cell_directories = list_cells(cells_directory)
-        cells = {}
-        for k, cell_directory in enumerate(cell_directories):
-            template_path = os.path.join(cell_directory, "template.h5")
-            template = load_template(template_path)
-            train_path = os.path.join(cell_directory, "train.h5")
-            train = load_train(train_path)
-            position_path = os.path.join(cell_directory, "position.h5")
-            position = load_position(position_path)
-            cell = Cell(template, train, position)
-            cells[k] = cell
+        cells = {
+            k: load_cell(cell_directory)
+            for k, cell_directory in enumerate(cell_directories)
+        }
 
     else:
 
@@ -170,21 +189,21 @@ def get_cell(directory=None, **kwargs):
     """
 
     path = os.path.join(directory, "parameters.txt")
-    cell_parameters = get_cell_parameters(path)
+    parameters = get_cell_parameters(path)
 
     template_parameters = kwargs.copy()
-    template_parameters.update(cell_parameters['template'])
+    template_parameters.update(parameters['template'])
     template = get_template(**template_parameters)
 
     train_parameters = kwargs.copy()
-    train_parameters.update(cell_parameters['train'])
+    train_parameters.update(parameters['train'])
     train = get_train(**train_parameters)
 
     position_parameters = kwargs.copy()
-    position_parameters.update(cell_parameters['position'])
+    position_parameters.update(parameters['position'])
     position = get_position(**position_parameters)
 
-    cell = Cell(template, train, position)
+    cell = Cell(template, train, position, parameters=parameters)
 
     return cell
 

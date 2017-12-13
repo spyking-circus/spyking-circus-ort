@@ -113,7 +113,7 @@ class Synthetic_generator(block.Block):
 
             generation_directory = os.path.join(self.working_directory, "generation")
             parameters_path = os.path.join(generation_directory, "parameters.txt")
-            parameters = io.load_parameters(parameters_path)
+            parameters = io.get_data_parameters(parameters_path)
             # TODO get rid of the following try ... except ...
             try:
                 self.duration = parameters['generation']['duration']

@@ -1,40 +1,44 @@
 import numpy as np
 import os
 
-from .parameter.cell import CellParameters
+from circusort.obj.parameter import Parameters
 
 
 class Cell(object):
     """Cell model.
 
     Attributes:
-        template: tuple
+        template: circusort.obj.Template
             The template of the cell.
-        train: numpy.ndarray
+        train: circusort.obj.Train
             The spike train of the cell.
+        position: circusort.obj.Position
+            The position of the cells.
         chunk_width: float
             The width of the chunks used to bin the train into chunk subtrains [s].
         subtrains: dictionary
             The chunk subtrains.
     """
 
-    def __init__(self, template, train, position):
+    def __init__(self, template, train, position, parameters=None):
         """Initialization.
 
         Parameters:
-            template: tuple
+            template: circusort.obj.Template
                 The template of the cell.
-            train: numpy.ndarray
+            train: circusort.obj.Train
                 The spike train of the cell.
-            position: numpy.ndarray
+            position: circusort.obj.Position
                 The position of the cell.
+            parameters: circusort.obj.CellParameters
+                The parameters of the cell.
         """
 
         self.template = template
         self.train = train
         self.position = position
 
-        self.parameters = CellParameters()
+        self.parameters = Parameters() if parameters is None else parameters
 
         self.chunk_width = None
         self.subtrains = None

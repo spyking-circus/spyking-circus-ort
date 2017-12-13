@@ -3,6 +3,8 @@ import os
 
 from collections import OrderedDict as odict
 
+from circusort.obj.parameter import Parameters
+
 
 default_parameters = odict([
     ('generation', odict([
@@ -71,14 +73,14 @@ def save_parameters(path, parameters):
     return
 
 
-def load_parameters(path, defaults=None):
+def load_parameters(path, types=None):
     """Load parameters from a file saved on disk.
 
     Parameter:
         path: string
             The path to the file from which to load the parameters.
-        defaults: collections.OrderedDict
-            The default value of the parameters.
+        types: none | dictionary
+            The default types of the parameters. The default value is None.
 
     Return:
         parameters: dictionary
@@ -97,35 +99,70 @@ def load_parameters(path, defaults=None):
     parser.read(path)
 
     # Remove comments at the end of each line.
-    for section in parser.sections():
-        for option in parser.options(section):
-            value = parser.get(section, option)  # get value
+    for section_name in parser.sections():
+        for option_name in parser.options(section_name):
+            value = parser.get(section_name, option_name)  # get value
             words = value.split('#')  # split value and end line comment
             word = words[0]  # keep value
             value = word.strip()  # remove leading and trailing characters
-            parser.set(section, option, value)  # set value
-
-    # Define defaults.
-    if defaults is None:
-        defaults = default_parameters
+            parser.set(section_name, option_name, value)  # set value
 
     # From ConfigParser to dictionary.
-    parameters = {}
-    for section in parser.sections():
-        parameters[section] = {}
-        for option in parser.options(section):
-            type_, _, _ = defaults[section][option]
+    parameters = []
+    for section_name in parser.sections():
+        section = []
+        for option_name in parser.options(section_name):
+            if types is None:
+                type_ = 'string'
+            else:
+                type_ = types[section_name][option_name]
             if type_ == 'boolean':
-                value = parser.getboolean(section, option)
+                value = parser.getboolean(section_name, option_name)
             elif type_ == 'integer':
-                value = parser.getint(section, option)
+                value = parser.getint(section_name, option_name)
             elif type_ == 'float':
-                value = parser.getfloat(section, option)
+                value = parser.getfloat(section_name, option_name)
             elif type_ == 'string':
-                value = parser.get(section, option)
+                value = parser.get(section_name, option_name)
             else:
                 message = "Unknown type {}".format(type_)
                 raise ValueError(message)
-            parameters[section][option] = value
+            section.append((option_name, value))
+        parameters.append((section_name, section))
+
+    # Instantiate object.
+    parameters = Parameters(parameters)
+
+    return parameters
+
+
+def get_parameters(path=None, types=None):
+    """Get parameters from path.
+
+    Parameter:
+        path: none | string
+            The path to the file from which to load the parameters. The default value is None.
+        types: none | dictionary
+            The default types of the parameters. The default value is None.
+
+    Return:
+        parameters: dictionary
+            The loaded parameters.
+    """
+
+    if path is None:
+        parameters = Parameters()
+    elif isinstance(path, (str, unicode)):
+        path = os.path.expanduser(path)
+        path = os.path.abspath(path)
+        if os.path.isfile(path):
+            try:
+                parameters = load_parameters(path, types=types)
+            except (IOError, ValueError):
+                parameters = Parameters()
+        else:
+            parameters = Parameters()
+    else:
+        parameters = Parameters()
 
     return parameters

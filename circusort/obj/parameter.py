@@ -2,27 +2,58 @@ import os
 
 from collections import OrderedDict as odict
 
-from .base import Parameters
 
-
-class CellParameters(Parameters):
+def to_ordered_dictionary(list_):
     # TODO add docstring.
 
-    def __init__(self):
+    dict_ = odict()
+    for (section_name, section) in list_:
+        dict_[section_name] = {}
+        for (option_name, value) in section:
+            dict_[section_name][option_name] = value
+
+    return dict_
+
+
+class Parameters(object):
+    # TODO add docstring.
+
+    def __init__(self, parameters=None, mode='default'):
         # TODO add docstring.
 
-        Parameters.__init__(self)
+        if mode == 'default':
+            if parameters is None:
+                parameters = []
+            self.parameters = to_ordered_dictionary(parameters)
+        else:
+            message = "Unknown mode value: {}".format(mode)
+            raise ValueError(message)
 
-        self.parameters = odict([
-            ('template', odict()),
-            ('train', odict()),
-            ('position', odict()),
-        ])
+    def __getitem__(self, key):
+        # TODO add docstring.
+
+        value = self.parameters.__getitem__(key)
+
+        return value
+
+    def __setitem__(self, key, value):
+        # TODO add docstring.
+
+        self.parameters.__setitem__(key, value)
+
+        return
 
     def add(self, section, option, value):
         # TODO add docstring.
 
         self.parameters[section][option] = value
+
+        return
+
+    def update(self, parameters):
+        # TODO add docstring.
+
+        self.parameters.update(parameters.parameters)
 
         return
 
