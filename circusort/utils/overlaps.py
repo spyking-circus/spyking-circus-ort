@@ -22,8 +22,8 @@ class TemplateDictionary(object):
         self._nb_elements    = self.nb_channels * template.temporal_width
         self._delays         = np.arange(1, template.temporal_width + 1)
         self._spike_width    = template.temporal_width
-        self._rows           = np.arange(self.nb_channels * self._spike_width)
-        self.first_component = scipy.sparse.csr_matrix((self._nb_elements, 0), dtype=np.float32)
+        self._cols           = np.arange(self.nb_channels * self._spike_width).astype(np.int32)
+        self.first_component = scipy.sparse.csc_matrix((0, self._nb_elements), dtype=np.float32)
 
         if self.cc_merge is not None:
             self.cc_merge *= self._nb_elements
@@ -69,20 +69,20 @@ class TemplateDictionary(object):
         tmp_loc_c2 = self.first_component
 
         for idelay in self._delays:
-            srows    = np.where(self._rows % self._spike_width < idelay)[0]
-            tmp_1    = tmp_loc_c1[srows]
-            srows    = np.where(self._rows % self._spike_width >= (self._spike_width - idelay))[0]
-            tmp_2    = tmp_loc_c2[srows]
-            data     = tmp_1.T.dot(tmp_2)
+            scols    = np.where(self._cols % self._spike_width < idelay)[0]
+            tmp_1    = tmp_loc_c1[:, scols]
+            scols    = np.where(self._cols % self._spike_width >= (self._spike_width - idelay))[0]
+            tmp_2    = tmp_loc_c2[:, scols]
+            data     = tmp_1.dot(tmp_2.T)
             if np.any(data.data >= self.cc_merge):
                 return True
 
             if idelay < self._spike_width:
-                srows    = np.where(self._rows % self._spike_width < idelay)[0]
-                tmp_1    = tmp_loc_c2[srows]
-                srows    = np.where(self._rows % self._spike_width >= (self._spike_width - idelay))[0]
-                tmp_2    = tmp_loc_c1[srows]
-                data     = tmp_1.T.dot(tmp_2)
+                scols    = np.where(self._cols % self._spike_width < idelay)[0]
+                tmp_1    = tmp_loc_c2[:, scols]
+                scols    = np.where(self._cols % self._spike_width >= (self._spike_width - idelay))[0]
+                tmp_2    = tmp_loc_c1[:, scols]
+                data     = tmp_1.dot(tmp_2.T)
                 if np.any(data.data >= self.cc_merge):
                     return True
         return False
@@ -94,7 +94,7 @@ class TemplateDictionary(object):
 
     def _add_template(self, template, csc_template):
         
-        self.first_component = scipy.sparse.hstack((self.first_component, csc_template))
+        self.first_component = scipy.sparse.vstack((self.first_component, csc_template), 'csc')
         return self.template_store.add(template)
 
 
@@ -132,7 +132,7 @@ class OverlapsDictionary(object):
         self._spike_width    = self.template_store.temporal_width
         self._nb_elements    = self.nb_channels * self.temporal_width
         self._delays         = np.arange(1, self.temporal_width + 1)
-        self._cols           = np.arange(self.nb_channels * self._temporal_width)
+        self._cols           = np.arange(self.nb_channels * self._temporal_width).astype(np.int32)
         self._overlap_size   = 2 * self._spike_width + 1
         self.first_component = scipy.sparse.csr_matrix((0, self._nb_elements), dtype=np.float32)
         self.norms           = {'1' : np.zeros(0, dtype=np.float32)}
