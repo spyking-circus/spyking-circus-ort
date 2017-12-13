@@ -90,12 +90,12 @@ class Template_updater(Block):
                     templates2 = np.array(data['two'][key][channel]).astype(np.float32)
 
                 for count in xrange(len(templates)):                    
-                    first_component = TemplateComponent(templates[count], amplitudes[count][0], self.template_store.mappings[ichannel], self.nb_channels)
+                    first_component = TemplateComponent(templates[count], self.template_store.mappings[ichannel], self.nb_channels, amplitudes[count])
                     if self.two_components:
-                        second_component = TemplateComponent(templates2[count], amplitudes[count][1], self.template_store.mappings[ichannel], self.nb_channels)
+                        second_component = TemplateComponent(templates2[count], self.template_store.mappings[ichannel], self.nb_channels)
 
                     all_templates += [Template(first_component, ichannel, second_component, creation_time=int(data['offset']))]
-    
+
                 if len(templates) > 0:
                     self.log.debug('{n} received {s} {t} templates from electrode {k}'.format(n=self.name, s=len(templates), t=key, k=channel))
 

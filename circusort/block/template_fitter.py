@@ -38,7 +38,7 @@ class Template_fitter(Block):
 
         self.space_explo    = 0.5
         self.nb_chances     = 3
-        self.template_store = None
+        self.overlaps_store = None
 
         if self.init_path is not None:
             self.init_path = os.path.expanduser(self.init_path)
@@ -79,22 +79,26 @@ class Template_fitter(Block):
 
     @property
     def nb_templates(self):
-        return self.overlaps_store.nb_templates
+        if self.overlaps_store is not None:
+            return self.overlaps_store.nb_templates
+        else:
+            return 0
 
     def _guess_output_endpoints(self):
-        self.slice_indices = np.zeros(0, dtype=np.int32)
+        return
         
     def _init_temp_window(self):
-        temp_window = np.arange(-self.overlaps_store.temporal_width, self.overlaps_store.temporal_width + 1)
+        self.slice_indices = np.zeros(0, dtype=np.int32)
+        self._width = (self.overlaps_store.temporal_width - 1) // 2
+        temp_window = np.arange(-self._width, self._width + 1)
+        buffer_size = 2 * self.nb_samples
         for idx in range(self.nb_channels):
-            buffer_size = 2 * self.nb_samples
             self.slice_indices = np.concatenate((self.slice_indices, idx * buffer_size + temp_window))
-        return
 
     def _is_valid(self, peak_step):
 
-        i_min = self.overlaps_store.temporal_width
-        i_max = self.nb_samples - self.overlaps_store.temporal_width
+        i_min = self._width
+        i_max = self.nb_samples - self._width
         is_valid = (i_min <= peak_step) & (peak_step < i_max)
 
         return is_valid
@@ -166,8 +170,8 @@ class Template_fitter(Block):
         self._reset_result()
 
         # Compute the number of peaks in the current chunk.
-        p_min = 1 * self.nb_samples - self.overlaps_store.temporal_width  # start index of the work area
-        p_max = 2 * self.nb_samples - self.overlaps_store.temporal_width  # end index of the work area
+        p_min = 1 * self.nb_samples - self._width  # start index of the work area
+        p_max = 2 * self.nb_samples - self._width  # end index of the work area
         is_in_work_area = np.logical_and(p_min <= self.p, self.p < p_max)
         nb_peaks = np.count_nonzero(is_in_work_area)
         peaks = self.p[is_in_work_area]
@@ -177,14 +181,16 @@ class Template_fitter(Block):
 
             # Extract waveforms from buffer.
             waveforms = self._extract_waveforms(peaks)
+
             # Compute the scalar products between waveforms and templates.
-            scalar_products = self.templates.dot(waveforms)
+            scalar_products = self.overlaps_store.dot(waveforms)
+
             # Initialize the failure counter of each peak.
             nb_failures = np.zeros(nb_peaks, dtype=np.int32)
             # Initialize the matching matrix.
-            mask = np.ones((self.nb_templates, nb_peaks), dtype=np.int32)
+            mask = np.ones((self.overlaps_store.nb_templates, nb_peaks), dtype=np.int32)
             # Filter scalar products of the first component of each template.
-            sub_b = scalar_products[:self.nb_templates, :]
+            sub_b = scalar_products[:self.overlaps_store.nb_templates, :]
 
             # TODO rewrite condition according to the 3 last lines of the nested while loop.
             # while not np.all(nb_failures == self.max_nb_trials):
@@ -205,39 +211,40 @@ class Template_fitter(Block):
 
                     # Compute the best amplitude.
                     best_amplitude = sub_b[best_template_index, peak_index] / self.overlaps_store._nb_elements
-                    if self.two_components:
+                    if self.overlaps_store.two_components:
                         best_amplitude_2 = scalar_products[best_template_index + self.nb_templates, peak_index] / self.overlaps_store._nb_elements
                     
                     # Compute the best normalized amplitude.
-                    best_amplitude_ = best_amplitude / np.take(self.norms, best_template_index)
-                    if self.two_components:
-                        best_amplitude_2_ = best_amplitude_2 / np.take(self.norms2, best_template_index)
+                    best_amplitude_ = best_amplitude / self.overlaps_store.norms['1'][best_template_index]
+                    if self.overlaps_store.two_components:
+                        best_amplitude_2_ = best_amplitude_2 / self.overlaps_store.norms['2'][best_template_index]
 
                     # Verify amplitude constraint.
-                    a_min = self.amplitudes[best_template_index, 0]
-                    a_max = self.amplitudes[best_template_index, 1]
+                    a_min = self.overlaps_store.amplitudes[best_template_index, 0]
+                    a_max = self.overlaps_store.amplitudes[best_template_index, 1]
+
                     if (a_min <= best_amplitude_) & (best_amplitude_ <= a_max):
                         # Keep the matching.
                         peak_time_step = peaks[peak_index]
                         # # Compute the neighboring peaks.
                         # # TODO use this definition of `is_neighbor` instead of the other.
-                        # is_neighbor = np.abs(peaks - peak_index) <= 2 * self.overlaps_store.temporal_width
-                        # Update the overlapping matrix.
-                        
-                        self.overlaps_store.update_overlaps(np.array([best_template_index]))
+                        # is_neighbor = np.abs(peaks - peak_index) <= 2 * self._width
+
                         # Update scalar products.
                         # TODO simplify the following 11 lines.
                         tmp = np.dot(np.ones((1, 1), dtype=np.int32), np.reshape(peaks, (1, nb_peaks)))
                         tmp -= np.array([[peak_time_step]])
-                        is_neighbor = np.abs(tmp) <= 2 * self.overlaps_store.temporal_width
-                        ytmp = tmp[0, is_neighbor[0, :]] + 2 * self.overlaps_store.temporal_width
-                        indices = np.zeros((self._overlap_size, len(ytmp)), dtype=np.int32)
+                        is_neighbor = np.abs(tmp) <= 2 * self._width
+                        ytmp = tmp[0, is_neighbor[0, :]] + 2 * self._width
+                        indices = np.zeros((self.overlaps_store._overlap_size, len(ytmp)), dtype=np.int32)
                         indices[ytmp, np.arange(len(ytmp))] = 1
-                        tmp1 = self.overlaps_store[best_template_index].multiply(-best_amplitude).dot(indices)
+
+                        tmp1 = self.overlaps_store.get_overlaps(best_template_index, 'first_component').multiply(-best_amplitude).dot(indices)
                         scalar_products[:, is_neighbor[0, :]] += tmp1
                         if self.two_components:
-                            tmp2 = self.overlaps_store[best_template_index + self.nb_templates].multiply(-best_amplitude_2).dot(indices)
+                            tmp2 = self.overlaps_store.get_overlaps(best_template_index, 'second_component').multiply(-best_amplitude_2).dot(indices)
                             scalar_products[:, is_neighbor[0, :]] += tmp2
+                        
                         # Add matching to the result.
                         self.r['spike_times'] = np.concatenate((self.r['spike_times'], [peak_time_step]))
                         self.r['amplitudes']  = np.concatenate((self.r['amplitudes'], [best_amplitude_]))
@@ -323,11 +330,13 @@ class Template_fitter(Block):
         if updater is not None:
 
             # Create the template dictionary if necessary.
-            if self.template_store is None:
+            if self.overlaps_store is None:
                 self.template_store = TemplateStore(updater['templates_file'], 'r')
                 self.overlaps_store = OverlapsDictionary(self.template_store)
+                self._init_temp_window()
 
             self.overlaps_store.update(updater['indices'])
+            self.overlaps_store.clear_overlaps()
 
         if peaks is not None:
 
