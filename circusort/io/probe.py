@@ -46,32 +46,32 @@ def resolve_probe_path(path, logger=None):
     return path
 
 
-def generate_probe(nb_electrodes_width=4, nb_electrodes_height=4, interelectrode_distance=30.0, **kwargs):
-    """Generate probe
+def generate_mea_probe(nb_columns=4, nb_rows=4, interelectrode_distance=30.0, **kwargs):
+    """Generate a multielectrode array probe.
 
     Parameters:
-        nb_electrodes_width: integer
+        nb_columns: integer
             Number of columns of electrodes. The default value is 4.
-        nb_electrodes_height: integer
+        nb_rows: integer
             Number of rows of electrodes. The default value is 4.
         interelectrode_distance: float
             Interelectrode distance [µm]. The default value is 30.0.
 
     Return:
         probe: Probe
-            Generated probe.
+            Generated multielectrode array probe.
     """
 
     _ = kwargs  # Discard additional keyword arguments.
 
-    nb_electrodes = nb_electrodes_width * nb_electrodes_height
+    nb_electrodes = nb_columns * nb_rows
 
     geometry = {}
-    x_offset = - 0.5 * float(nb_electrodes_width - 1) * interelectrode_distance
-    y_offset = - 0.5 * float(nb_electrodes_height - 1) * interelectrode_distance
+    x_offset = - 0.5 * float(nb_columns - 1) * interelectrode_distance
+    y_offset = - 0.5 * float(nb_rows - 1) * interelectrode_distance
     for k in range(0, nb_electrodes):
-        x = float(k % nb_electrodes_width) * interelectrode_distance + x_offset  # µm
-        y = float(k / nb_electrodes_width) * interelectrode_distance + y_offset  # µm
+        x = float(k % nb_columns) * interelectrode_distance + x_offset  # µm
+        y = float(k / nb_columns) * interelectrode_distance + y_offset  # µm
         geometry[k] = [x, y]
 
     channel_group = {
@@ -91,6 +91,41 @@ def generate_probe(nb_electrodes_width=4, nb_electrodes_height=4, interelectrode
     return probe
 
 
+def generate_silicon_probe(**kwargs):
+    """Generate a multielectrode array probe."""
+
+    _ = kwargs  # Discard additional keyword arguments.
+
+    raise NotImplementedError()  # TODO complete.
+
+
+def generate_probe(mode='default', **kwargs):
+    """Generate a probe.
+
+    Parameter:
+        mode: string
+            The mode to use to generate the probe. Either 'default', 'mea' or 'silicon'. The default value is 'default'.
+
+    Return:
+        probe: circusort.obj.Probe
+            The generated probe.
+
+    See also:
+        circusort.io.probe.generate_mea_probe
+        circusort.io.probe.generate_silicon_probe
+    """
+
+    if mode in ['default', 'mea']:
+        probe = generate_mea_probe(**kwargs)
+    elif mode in ['silicon']:
+        probe = generate_silicon_probe(**kwargs)
+    else:
+        message = "Unknown mode value: {}".format(mode)
+        raise ValueError(message)
+
+    return probe
+
+
 def save_probe(path, probe):
     """Save probe to file.
 
@@ -106,14 +141,23 @@ def save_probe(path, probe):
     return
 
 
-def load_probe(path, radius=None, logger=None):
+def load_probe(path, radius=None, logger=None, **kwargs):
     """Load probe from file.
 
     Parameter:
         path: string
-            Path to which the probe is saved.
+            The path from which to load the probe.
+        radius: none | float
+            The radius of the signal horizon to associate to the probe. The default value is None.
+        logger: none | logging.Logger
+            The logger to use while loading the probe.
+
+    Return:
+        probe: circusort.obj.Probe
+            The loaded probe.
     """
-    # TODO complete docstring.
+
+    _ = kwargs  # Discard additional keyword arguments.
 
     # Resolve path.
     path = resolve_probe_path(path, logger=logger)
@@ -147,7 +191,20 @@ def load_probe(path, radius=None, logger=None):
 
 
 def get_probe(path=None, **kwargs):
-    # TODO add docstring.
+    """Get probe from path.
+
+    Parameter:
+        path: string
+            The path to use to get the probe.
+
+    Return:
+        probe: circusort.obj.Probe
+            The probe to get.
+
+    See also:
+        circusort.io.load_probe
+        circusort.io.generate_probe
+    """
 
     if isinstance(path, (str, unicode)):
         path = os.path.expanduser(path)
@@ -156,7 +213,7 @@ def get_probe(path=None, **kwargs):
             path = os.path.join(path, "probe.prb")
         if os.path.isfile(path):
             # TODO add try ... except ...
-            probe = load_probe(path)
+            probe = load_probe(path, **kwargs)
         else:
             probe = generate_probe(**kwargs)
     else:

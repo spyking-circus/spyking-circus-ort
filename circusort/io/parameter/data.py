@@ -11,7 +11,7 @@ default_types = {
     'probe': {
         'mode': 'string',
         'nb_rows': 'integer',
-        'nb_columns': 'float',
+        'nb_columns': 'integer',
         'interelectrode_distance': 'float',
     },
     'cells': {

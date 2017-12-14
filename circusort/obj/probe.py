@@ -5,54 +5,52 @@ import os
 
 
 class Probe(object):
-    """Open probe file."""
+    """Open probe file.
+
+    Attributes:
+        channel_groups: dictionary
+        total_nb_channels: integer
+        radius: float
+    """
     # TODO: complete docstring.
 
-    def __init__(self, channel_groups=None, total_nb_channels=None, radius=None):
+    def __init__(self, channel_groups, total_nb_channels, radius):
+        """Initialization.
+
+        Parameters:
+            channel_groups: dictionary
+            total_nb_channels: integer
+            radius: float
+        """
+
+        self.channel_groups = channel_groups
+        self.total_nb_channels = total_nb_channels
+        self.radius = radius
 
         self._edges = None
         self._nodes = None
 
-        if channel_groups is None:
-            raise ValueError("channel_groups is None")
-        else:
-            self.channel_groups = channel_groups
-
-        if total_nb_channels is None:
-            raise ValueError("total_nb_channels is None")
-        else:
-            self.total_nb_channels = total_nb_channels
-
-        if radius is None:
-            raise ValueError("radius is None")
-        else:
-            self.radius = radius
-
     def _get_edges(self, i, channel_groups):
+        # TODO add docstring.
+
         edges = []
         pos_x, pos_y = channel_groups['geometry'][i]
         for c2 in channel_groups['channels']:
             pos_x2, pos_y2 = channel_groups['geometry'][c2]
             if ((pos_x - pos_x2)**2 + (pos_y - pos_y2)**2) <= self.radius**2:
                 edges += [c2]
+
         return np.array(edges, dtype=np.int32)
 
     def get_nodes_and_edges(self):
-        """
-        Retrieve the topology of the probe.
+        """Retrieve the topology of the probe.
 
-        Other parameters
-        ----------------
-        radius : integer
-
-        Returns
-        -------
-        nodes : ndarray of integers
-            Array of channel ids retrieved from the description of the probe.
-        edges : dictionary
-            Dictionary which link each channel id to the ids of the channels whose
-            distance is less or equal than radius.
-
+        Returns:
+            nodes: numpy.ndarray
+                Array of channel ids retrieved from the description of the probe.
+            edges: dictionary
+                Dictionary which link each channel id to the ids of the channels whose distance is less or equal than
+                radius.
         """
 
         edges = {}
@@ -90,13 +88,11 @@ class Probe(object):
 
     @property
     def field_of_view(self):
-        """
-        Field_of_view of the probe.
+        """Field_of_view of the probe.
 
-        return
-        ------
-        fov: dict
-            Field of view of the probe.
+        Return:
+            fov: dictionary
+                Field of view of the probe.
         """
 
         # Collect the x-coordinate and y-coordinate of each channel.
@@ -135,17 +131,21 @@ class Probe(object):
         return n/float(len(self.edges.values()))
 
     def get_channels_around(self, x, y, r=None):
-        """Get channel identifiers around a given point in space
+        """Get channel identifiers around a given point in space.
 
-        Parameters
-        ----------
-        x: float
-            x-coordinate.
-        y: float
-            y-coordinate
-        r: none | float (optional)
-            Radius [µm]. The default value is None.
+        Parameters:
+            x: float
+                x-coordinate.
+            y: float
+                y-coordinate
+            r: none | float (optional)
+                Radius [µm]. The default value is None.
 
+        Returns:
+            channels: numpy.ndarray
+                The channels in the neighborhood of the given point.
+            distances: numpy.ndarray
+                The distances between each channel and the given point.
         """
 
         channels = []
@@ -245,7 +245,19 @@ class Probe(object):
         return distance
 
     def get_electrodes_around(self, point, radius):
-        # TODO add docstring.
+        """Get the electrodes in the neighborhood of a given point.
+
+        Parameters:
+            point: tuple
+                The given point.
+            radius: float
+                The radius to use to define the neighborhood disc.
+
+        Return:
+            electrodes: numpy.ndarray
+                The electrodes in the neighborhood of the given point.
+        """
+        # TODO complete docstring.
 
         x, y = point
         electrodes, _ = self.get_channels_around(x, y, r=radius)
