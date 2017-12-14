@@ -45,7 +45,7 @@ def resolve_probe_path(path, logger=None):
     return path
 
 
-def generate_probe(nb_electrodes_width=4, nb_electrodes_height=4, interelectrode_distance=30.0):
+def generate_probe(nb_electrodes_width=4, nb_electrodes_height=4, interelectrode_distance=30.0, **kwargs):
     """Generate probe
 
     Parameters:
@@ -60,6 +60,8 @@ def generate_probe(nb_electrodes_width=4, nb_electrodes_height=4, interelectrode
         probe: Probe
             Generated probe.
     """
+
+    _ = kwargs  # Discard additional keyword arguments.
 
     nb_electrodes = nb_electrodes_width * nb_electrodes_height
 
@@ -139,6 +141,25 @@ def load_probe(path, radius=None, logger=None):
         probe_kwargs['radius'] = radius
 
     probe = Probe(**probe_kwargs)
+
+    return probe
+
+
+def get_probe(path=None, **kwargs):
+    # TODO add docstring.
+
+    if isinstance(path, (str, unicode)):
+        path = os.path.expanduser(path)
+        path = os.path.abspath(path)
+        if os.path.isdir(path):
+            path = os.path.join(path, "probe.prb")
+        if os.path.isfile(path):
+            # TODO add try ... except ...
+            probe = load_probe(path)
+        else:
+            probe = generate_probe(**kwargs)
+    else:
+        probe = generate_probe(**kwargs)
 
     return probe
 
@@ -318,12 +339,11 @@ class Probe(object):
         path = os.path.abspath(path)
 
         # Handle mode.
-        if path[-4:] == ".prb":
-            pass
-        else:
-            if not os.path.isdir(path):
-                os.makedirs(path)
+        if path[-4:] != ".prb":
             path = os.path.join(path, "probe.prb")
+        directory = os.path.dirname(path)
+        if not os.path.isdir(directory):
+            os.makedirs(directory)
 
         # Prepare lines to be saved.
         lines = []
@@ -359,10 +379,8 @@ class Probe(object):
 
         # Open probe file.
         probe_file = open(path, mode='w')
-
         # Write lines to save.
         probe_file.writelines(lines)
-
         # Close probe file.
         probe_file.close()
 

@@ -1,12 +1,12 @@
 import os
 
-from collections import OrderedDict as odict
+from collections import OrderedDict
 
 
 def to_ordered_dictionary(list_):
     # TODO add docstring.
 
-    dict_ = odict()
+    dict_ = OrderedDict()
     for (section_name, section) in list_:
         dict_[section_name] = {}
         for (option_name, value) in section:
@@ -32,7 +32,7 @@ class Parameters(object):
     def __getitem__(self, key):
         # TODO add docstring.
 
-        value = self.parameters.__getitem__(key)
+        value = self.parameters.get(key, OrderedDict())
 
         return value
 
@@ -42,6 +42,20 @@ class Parameters(object):
         self.parameters.__setitem__(key, value)
 
         return
+
+    def __contains__(self, key):
+        # TODO add docstring.
+
+        is_contained = key in self.parameters
+
+        return is_contained
+
+    def __iter__(self):
+        # TODO add docstring.
+
+        iterator = self.parameters.iterkeys()
+
+        return iterator
 
     def add(self, section, option, value):
         # TODO add docstring.

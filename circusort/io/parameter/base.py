@@ -1,13 +1,13 @@
-import ConfigParser as configparser
+import ConfigParser
 import os
 
-from collections import OrderedDict as odict
+from collections import OrderedDict
 
 from circusort.obj.parameter import Parameters
 
 
-default_parameters = odict([
-    ('generation', odict([
+default_parameters = OrderedDict([
+    ('generation', OrderedDict([
         ('duration', ('float', 60.0, "s  # Duration of the signal.")),
         ('sampling rate', ('float', 20000.0, "Hz  # Number of sampling times per second.")),
         ('buffer width', ('integer', 1024, "Number of sampling times per buffer.")),
@@ -16,15 +16,15 @@ default_parameters = odict([
 ])
 
 
-def generate_parameters():
+def generate_parameters(types=None):
     """Generate the parameters to use during the generation."""
+    # TODO complete docstring.
 
-    parameters = {}
-    for section in default_parameters.iterkeys():
-        parameters[section] = {}
-        for option in default_parameters[section].iterkeys():
-            _, value, _ = default_parameters[section][option]
-            parameters[section][option] = value
+    parameters = [
+        (section, OrderedDict())
+        for section in types.iterkeys()
+    ]
+    parameters = Parameters(parameters)
 
     return parameters
 
@@ -39,6 +39,12 @@ def save_parameters(path, parameters):
             The parameters to save.
     """
 
+    # TODO add a keyword argument for comments.
+
+    # Complete path (if necessary).
+    if path[-4:] != ".txt":
+        path = os.path.join(path, "parameters.txt")
+
     # Make directories (if necessary).
     directory = os.path.dirname(path)
     if not os.path.isdir(directory):
@@ -46,17 +52,14 @@ def save_parameters(path, parameters):
 
     # Prepare lines to be saved.
     lines = []
-    for section in default_parameters.iterkeys():
+    for section in parameters:
         line = "[{}]\n".format(section)
         lines.append(line)
-        for option in default_parameters[section].iterkeys():
-            if section in parameters and option in parameters[section]:
+        for option in parameters[section]:
+            if option != 'current directory':
                 value = parameters[section][option]
-                _, _, comment = default_parameters[section][option]
-            else:
-                _, value, comment = default_parameters[section][option]
-            line = "{} = {}  # {}\n".format(option, value, comment)
-            lines.append(line)
+                line = "{} = {}\n".format(option, value)
+                lines.append(line)
         line = "\n"
         lines.append(line)
     if not lines:
@@ -90,12 +93,17 @@ def load_parameters(path, types=None):
     # Normalize and check path.
     path = os.path.expanduser(path)
     path = os.path.abspath(path)
+    if os.path.isdir(path):
+        path = os.path.join(path, "parameters.txt")
     if not os.path.isfile(path):
         message = "No such parameters file: {}".format(path)
         raise IOError(message)
 
+    # Define working directory.
+    current_directory = os.path.dirname(path)
+
     # Read parameters file from disk.
-    parser = configparser.ConfigParser()
+    parser = ConfigParser.ConfigParser()
     parser.read(path)
 
     # Remove comments at the end of each line.
@@ -110,7 +118,7 @@ def load_parameters(path, types=None):
     # From ConfigParser to dictionary.
     parameters = []
     for section_name in parser.sections():
-        section = []
+        section = [('current directory', current_directory)]
         for option_name in parser.options(section_name):
             if types is None:
                 type_ = 'string'
@@ -150,19 +158,19 @@ def get_parameters(path=None, types=None):
             The loaded parameters.
     """
 
-    if path is None:
-        parameters = Parameters()
-    elif isinstance(path, (str, unicode)):
+    if isinstance(path, (str, unicode)):
         path = os.path.expanduser(path)
         path = os.path.abspath(path)
+        if os.path.isdir(path):
+            path = os.path.join(path, "parameters.txt")
         if os.path.isfile(path):
             try:
                 parameters = load_parameters(path, types=types)
             except (IOError, ValueError):
-                parameters = Parameters()
+                parameters = generate_parameters(types=types)
         else:
-            parameters = Parameters()
+            parameters = generate_parameters(types=types)
     else:
-        parameters = Parameters()
+        parameters = generate_parameters(types=types)
 
     return parameters

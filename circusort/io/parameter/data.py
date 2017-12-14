@@ -2,12 +2,21 @@ from circusort.io.parameter import load_parameters, get_parameters
 
 
 default_types = {
-    'generation': {
+    'general': {
         'duration': 'float',
-        'sampling rate': 'float',
-        'buffer width': 'integer',
+        'sampling_rate': 'float',
+        'buffer_width': 'integer',
         'dtype': 'string',
-    }
+    },
+    'probe': {
+        'mode': 'string',
+        'nb_rows': 'integer',
+        'nb_columns': 'float',
+        'interelectrode_distance': 'float',
+    },
+    'cells': {
+        'mode': 'string',
+    },
 }
 
 

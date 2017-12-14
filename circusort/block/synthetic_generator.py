@@ -116,7 +116,7 @@ class Synthetic_generator(block.Block):
             parameters = io.get_data_parameters(parameters_path)
             # TODO get rid of the following try ... except ...
             try:
-                self.duration = parameters['generation']['duration']
+                self.duration = parameters['general']['duration']
             except KeyError:
                 self.duration = 60.0  # s
             probe_path = os.path.join(generation_directory, "probe.prb")

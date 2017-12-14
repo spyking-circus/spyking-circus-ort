@@ -7,16 +7,23 @@ from .position import generate_position, list_positions, load_position, get_posi
 from ..obj.cell import Cell
 
 
-def generate_cells(nb_cells=3):
+def generate_cell(**kwargs):
     # TODO add docstring.
 
-    cells = {}
-    for k in range(0, nb_cells):
-        template = generate_template()
-        train = generate_train()
-        position = generate_position()
-        cell = Cell(template, train, position)
-        cells[k] = cell
+    template = generate_template(**kwargs)
+    train = generate_train(**kwargs)
+    position = generate_position(**kwargs)
+    cell = Cell(template, train, position)
+
+    return cell
+
+def generate_cells(nb_cells=3, **kwargs):
+    # TODO add docstring.
+
+    cells = {
+        k: generate_cell(**kwargs)
+        for k in range(0, nb_cells)
+    }
 
     return cells
 
@@ -30,19 +37,20 @@ def save_cells(directory, cells, mode='default'):
         cells: dictionary
             Dictionary of cells to save.
         mode: string (optional)
-            The mode to use to save the cells. Either 'default' or 'by cells'. The default value is 'default'.
+            The mode to use to save the cells. Either 'default', 'by cells' or 'by components'. The default value is
+            'default'.
     """
 
-    if mode == 'default':
-
-        raise NotImplementedError()  # TODO complete.
-
-    elif mode == 'by cells':
+    if mode == 'default' or mode == 'by cells':
 
         cells_directory = os.path.join(directory, "cells")
         for k, cell in cells.iteritems():
             cell_directory = os.path.join(cells_directory, "{}".format(k))
             cell.save(cell_directory)
+
+    elif mode == 'by components':
+
+        raise NotImplementedError()  # TODO complete.
 
     else:
 
@@ -220,9 +228,7 @@ def get_cells(directory=None, **kwargs):
             Cells.
     """
 
-    if directory is None:
-        cells = generate_cells()
-    else:
+    if isinstance(directory, (str, unicode)):
         # TODO check if there is a parameter file.
         # TODO load this parameter file.
         # parameters_path = os.path.join(directory, "parameters.txt")
@@ -237,17 +243,15 @@ def get_cells(directory=None, **kwargs):
             # List the cell directories.
             cell_directories = list_cells(cells_directory)
             if not cell_directories:
-                # TODO generate cells with the parameters from the directory.
-                pass
+                cells = generate_cells(**kwargs)
             else:
                 cells = {
                     k: get_cell(directory=cell_directory, **kwargs)
                     for k, cell_directory in enumerate(cell_directories)
                 }
         else:
-            # TODO generate cells with the parameters from the directory.
-            # Raise an error.
-            message = "No such cells directory: {}".format(cells_directory)
-            raise OSError(message)
+            cells = generate_cells(**kwargs)
+    else:
+        cells = generate_cells(**kwargs)
 
     return cells

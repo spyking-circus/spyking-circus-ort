@@ -1,7 +1,7 @@
 import numpy as np
 import os
 
-from circusort.obj.parameter import Parameters
+from circusort.io.parameter import get_cell_parameters
 
 
 class Cell(object):
@@ -38,7 +38,7 @@ class Cell(object):
         self.train = train
         self.position = position
 
-        self.parameters = Parameters() if parameters is None else parameters
+        self.parameters = get_cell_parameters() if parameters is None else parameters
 
         self.chunk_width = None
         self.subtrains = None
