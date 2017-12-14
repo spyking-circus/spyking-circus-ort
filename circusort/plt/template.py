@@ -7,64 +7,85 @@ import sys
 
 from circusort.io.template import TemplateStore, TemplateComponent, Template
 
-
-def plot_template(template_store, probe_file, templates, components=['first'], output=None):
+def plot_templates(template_store, indices=None, component='first', output=None, x_bar=1.0, y_bar=20.0, show_scale_bar=True):
     """Plot template from template store.
 
     Parameters:
         template_store: string
             The path of the template store to be used when loading the data.
-        templates: none | list (optional)
-            The templates to be used when loading the data. If is None then all the channels will be used. The default
+        indices: none | list (optional)
+            The indices to be used when loading the data. If is None then all the channels will be used. The default
             value is None.
-        components: first | second | both
-            The components that should be displayed
+        component: string 
+            can be first | second | both 
         output: none | string (optional)
             The path to be used to save the figure. If is None then display the figure and block until the figure
             have been closed. The default value is None.
+        show_scale_bar : boolean
+            If we want to display the scale bar. default is True
+        x_bar: float
+            x-scale bar length (in ms). The default value is 1.0.
+        y_bar: float
+            y-scale bar length (in µV). The default value is 20.0.
     """
 
     # Expand user's home directory (if necessary).
     template_store = TemplateStore(os.path.expanduser(template_store))
-    probe          = load_probe(os.path.expanduser(probe_file))
+    probe = template_store.probe
 
-    # Define the channels to be used when loading the data (if necessary).
-    if templates is None:
-        templates = template_store.indices
+    assert component in ['first', 'second', 'both']
 
-    templates = template_store.get(templates)
-    for t in templates:
-        t.first_component
+    # Define the indices to be used when loading the data (if necessary).
+    if indices is None:
+        indices = template_store.indices
 
+    templates = template_store.get(indices)
 
-    # Plot the figure.
-    x = np.linspace(i_min, i_max, num=nb_samples, endpoint=False) / sampling_rate
     plt.style.use('seaborn-paper')
-    if nb_selected_channels == 1:
-        # Plot a single channel.
-        plt.subplots()
-        y = data[:, 0]
-        plt.plot(x, y, color='C0')
-        plt.xlabel("time (s)")
-        plt.ylabel("voltage (arb. unit)")
-    else:
-        # Plot multiple channels.
-        plt.subplots()
-        y_spread = np.max(np.abs(data))
-        y_scale = 0.5 / y_spread if y_spread > sys.float_info.epsilon else 1.0
-        for j in range(0, data.shape[1]):
-            y_offset = float(j)
-            y = y_scale * data[:, j] + y_offset
-            plt.plot(x, y, color='C0')
-        # TODO add scale bar.
-        locations = list(range(0, nb_selected_channels))
-        labels = [str(channel) for channel in channels]
-        plt.yticks(locations, labels)
-        plt.xlabel("time (s)")
-        plt.ylabel("channel")
+    plt.subplots()
+    scl = 0.9 * (probe.field_of_view['d'] / 2.0)
+    # Plot the generated template.
+    x_scl = scl
 
+    if component is 'first':
+        data_1 = []
+        for t in templates:
+            data_1 += [t.first_component.to_dense()]
+        y_scl = scl * (1.0 / np.max(np.abs(data_1)))
+    elif component is 'second':
+        data_2 = []
+        for t in templates:
+            data_2 = [t.second_component.to_dense()]
+        y_scl = scl * (1.0 / np.max(np.abs(data_2)))
+    elif component is 'both':
+        data_1 = []
+        data_2 = []
+        for t in templates:
+            data_1 += [t.first_component.to_dense()]
+            data_2 += [t.second_component.to_dense()]
+        y_scl = scl * (1.0 / max(np.max(np.abs(data_1)), np.max(np.abs(data_2))))
 
-    plt.title("{}".format(path))
+    for count, i in enumerate(indices):
+        color = 'C{}'.format(i)
+        for k in range(0, probe.nb_channels):
+            x_prb, y_prb = probe.positions[:, k]
+            x = x_prb + x_scl * np.linspace(-1.0, +1.0, num=t.temporal_width)
+            if component in ['first', 'both']:
+                y = y_prb + y_scl * data_1[count][k, :]
+            if component in ['second', 'both']:
+                y = y_prb + y_scl * data_2[count][k, :]
+            plt.plot(x, y, c=color)
+    # Plot scale bars.
+    x_bar_ = x_scl * (x_bar * 1e-3 * 20e+3) / (float(template_store.temporal_width) / 2.0)
+    if show_scale_bar:
+        plt.plot([0.0, x_bar_], 2 * [0.0], c='black')
+        plt.annotate(u"{} ms".format(x_bar), xy=(x_bar_, 0.0))
+        y_bar_ = y_scl * y_bar
+        plt.plot(2 * [0.0], [0.0, y_bar_], c='black')
+        plt.annotate(u"{} µV".format(y_bar), xy=(0.0, y_bar_))
+    plt.xlabel(u"x (µm)")
+    plt.ylabel(u"y (µm)")
+    plt.axis('scaled')
     plt.tight_layout()
     if output is None:
         plt.show()

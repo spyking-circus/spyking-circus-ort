@@ -323,6 +323,7 @@ class TemplateStore(object):
             self.h5_file.create_dataset('indices', data=np.zeros(0, dtype=np.int32), chunks=True, maxshape=(None, ))
             self.h5_file.create_dataset('times', data=np.zeros(0, dtype=np.int32), chunks=True, maxshape=(None, ))
             self.h5_file.create_dataset('channels', data=np.zeros(0, dtype=np.int32), chunks=True, maxshape=(None, ))
+            self.h5_file.attrs['probe_file'] = os.path.abspath(os.path.expanduser(probe_file))
 
         elif self.mode in ['r', 'r+']:
             indices       = self.h5_file['indices'][:]
@@ -336,6 +337,8 @@ class TemplateStore(object):
             if self._index >= 0:
                 self._2_components = '2' in self.h5_file['waveforms/%d' %self._index]
         
+            self.probe = load_probe(self.h5_file.attrs['probe_file'])
+
         self.nb_channels = len(self.mappings)
         self._close()
         

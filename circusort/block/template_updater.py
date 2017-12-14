@@ -27,7 +27,7 @@ class Template_updater(Block):
         'probe_file' : None,
         'radius'     : None,
         'cc_merge'   : 0.95,
-        'cc_mixture' : 0.95,
+        'cc_mixture' : None,
         'data_path'  : None,
     }
 
