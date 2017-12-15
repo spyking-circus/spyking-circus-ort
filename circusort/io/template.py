@@ -12,6 +12,9 @@ from circusort.io.probe import load_probe
 from circusort.io.utils import append_hdf5
 from circusort.io import generate_probe
 
+from circusort.obj.template import Template
+from circusort.obj.position import Position
+
 
 def generate_waveform(width=5.0e-3, amplitude=80.0, sampling_rate=20e+3):
     """Generate a waveform.
@@ -77,6 +80,66 @@ def generate_amplitudes(nb_cells):
     return amplitudes
 
 
+def generate_template(probe=None, position=(0.0, 0.0), amplitude=80.0, radius=None,
+                      width=5.0e-3, sampling_rate=20e+3, mode='default', **kwargs):
+    """Generate a template.
+
+    Parameters:
+        probe: circusort.obj.Probe
+            Description of the probe (e.g. spatial layout).
+        position: tuple (optional)
+            Coordinates of position of the center (spatially) of the template [µm]. The default value is (0.0, 0.0).
+        amplitude: float (optional)
+            Maximum amplitude of the template [µV]. The default value is 80.0.
+        radius: none | float (optional)
+            Radius of the signal horizon [µm]. The default value is None.
+        width: float (optional)
+            Temporal width [s]. The default value is 5.0e-3.
+        sampling_rate: float (optional)
+            Sampling rate [Hz]. The default value is 20e+3.
+        mode: string (optional)
+            Mode of generation. The default value is 'default'.
+
+    Return:
+        template: tuple
+            Generated template.
+    """
+
+    assert probe is not None
+    if isinstance(position, Position):
+        position = position.get_initial_position()
+    radius = probe.radius if radius is None else radius
+    _ = kwargs
+
+    if mode == 'default':
+
+        # Compute the number of sampling times.
+        nb_samples = 1 + 2 * int(width * sampling_rate / 2.0)
+        # Get distance to the nearest electrode.
+        nearest_electrode_distance = probe.get_nearest_electrode_distance(position)
+        # Get channels before signal horizon.
+        x, y = position
+        channels, distances = probe.get_channels_around(x, y, radius + nearest_electrode_distance)
+        # Declare waveforms.
+        nb_electrodes = len(channels)
+        shape = (nb_electrodes, nb_samples)
+        waveforms = np.zeros(shape, dtype=np.float)
+        # Initialize waveforms.
+        waveform = generate_waveform(width=width, amplitude=amplitude, sampling_rate=sampling_rate)
+        for i, distance in enumerate(distances):
+            gain = (1.0 + distance / 40.0) ** -2.0
+            waveforms[i, :] = gain * waveform
+        # Define template.
+        template = Template(channels, waveforms)
+
+    else:
+
+        message = "Unknown mode value: {}".format(mode)
+        raise ValueError(message)
+
+    return template
+
+
 def generate_templates(nb_templates=3, probe=None,
                        positions=None, max_amps=None,
                        radius=None, width=5.0e-3, sampling_rate=20e+3):
@@ -115,34 +178,33 @@ def generate_templates(nb_templates=3, probe=None,
     if radius is None:
         radius = probe.radius
 
-    nb_samples = 1 + 2 * int(width * sampling_rate / 2.0)
-
     templates = {}
     for k in range(0, nb_templates):
-        # Get distance to the nearest electrode.
         position = positions[k]
-        nearest_electrode_distance = probe.get_nearest_electrode_distance(position)
-        # Get channels before signal horizon.
-        x, y = position
-        channels, distances = probe.get_channels_around(x, y, radius + nearest_electrode_distance)
-        # Declare waveforms.
-        nb_electrodes = len(channels)
-        shape = (nb_electrodes, nb_samples)
-        waveforms = np.zeros(shape, dtype=np.float)
-        # Initialize waveforms.
         amplitude = max_amps[k]
-        waveform = generate_waveform(width=width, amplitude=amplitude, sampling_rate=sampling_rate)
-        for i, distance in enumerate(distances):
-            gain = (1.0 + distance / 40.0) ** -2.0
-            waveforms[i, :] = gain * waveform
-        # Store template.
-        template = (channels, waveforms)
+        template = generate_template(probe=probe, position=position, amplitude=amplitude,
+                                     radius=radius, width=width, sampling_rate=sampling_rate)
         templates[k] = template
 
     return templates
 
 
-def save_templates(directory, templates):
+def save_template(path, template):
+    """Save template to file.
+
+    Parameters:
+        path: string
+            The path to file in which to save the template.
+        template: tuple
+            The template to save.
+    """
+
+    template.save(path)
+
+    return
+
+
+def save_templates(directory, templates, mode='default'):
     """Save templates.
 
     Parameters:
@@ -150,19 +212,41 @@ def save_templates(directory, templates):
             Directory in which to save the templates.
         templates: dictionary
             Dictionary of templates.
+        mode: string (optional)
+            The mode to use to save the templates. Either 'default', 'by templates' or 'by cells'.
     """
 
     if not os.path.isdir(directory):
         os.makedirs(directory)
 
-    for k, template in templates.iteritems():
-        channels, waveforms = template
-        filename = "{}.h5".format(k)
-        path = os.path.join(directory, filename)
-        f = h5py.File(path, mode='w')
-        f.create_dataset('channels', shape=channels.shape, dtype=channels.dtype, data=channels)
-        f.create_dataset('waveforms', shape=waveforms.shape, dtype=waveforms.dtype, data=waveforms)
-        f.close()
+    if mode == 'default':
+
+        raise NotImplementedError()  # TODO complete.
+
+    elif mode == 'by templates':
+
+        template_directory = os.path.join(directory, "templates")
+        if not os.path.isdir(template_directory):
+            os.makedirs(directory)
+        for k, template in templates.iteritems():
+            filename = "{}.h5".format(k)
+            path = os.path.join(template_directory, filename)
+            save_template(path, template)
+
+    elif mode == 'by cells':
+
+        for k, template in templates.iteritems():
+            cell_directory = os.path.join(directory, "cells", "{}".format(k))
+            if not os.path.isdir(cell_directory):
+                os.makedirs(cell_directory)
+            filename = "template.h5"
+            path = os.path.join(cell_directory, filename)
+            save_template(path, template)
+
+    else:
+
+        message = "Unknown mode value: {}".format(mode)
+        raise ValueError(message)
 
     return
 
@@ -203,11 +287,17 @@ def load_template(path):
             element contains the corresponding waveforms.
     """
 
+    path = os.path.expanduser(path)
+    path = os.path.abspath(path)
+    if not os.path.isfile(path):
+        message = "No such template file: {}".format(path)
+        raise OSError(message)
+
     f = h5py.File(path, mode='r')
     channels = f.get('channels').value
     waveforms = f.get('waveforms').value
     f.close()
-    template = (channels, waveforms)
+    template = Template(channels, waveforms)
 
     return template
 
@@ -223,6 +313,12 @@ def load_templates(directory):
         templates: dictionary
             Dictionary of templates.
     """
+
+    directory = os.path.expanduser(directory)
+    directory = os.path.abspath(directory)
+    if not os.path.isdir(directory):
+        message = "No such template directory: {}".format(directory)
+        raise OSError(message)
 
     paths = list_templates(directory)
 
