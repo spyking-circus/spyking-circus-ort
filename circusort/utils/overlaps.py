@@ -17,6 +17,8 @@ class TemplateDictionary(object):
         self.first_component = None
         self.cc_merge        = cc_merge
         self.cc_mixture      = cc_mixture
+        self._duplicates     = None
+        self._mixtures       = None
 
     def _init_from_template(self, template):
         self._nb_elements    = self.nb_channels * template.temporal_width
@@ -25,6 +27,12 @@ class TemplateDictionary(object):
         self._overlap_size   = 2 * self._spike_width - 1
         self._cols           = np.arange(self.nb_channels * self._spike_width).astype(np.int32)
         self.first_component = scipy.sparse.csc_matrix((0, self._nb_elements), dtype=np.float32)
+        self._scols          = {'left' : {}, 'right' : {}}
+
+        for idelay in self._delays:
+            self._scols['left'][idelay]  = np.where(self._cols % self._spike_width < idelay)[0]
+            self._scols['right'][idelay] = np.where(self._cols % self._spike_width >= (self._spike_width - idelay))[0]
+
 
         if self.cc_merge is not None:
             self.cc_merge *= self._nb_elements
@@ -32,9 +40,71 @@ class TemplateDictionary(object):
         if self.cc_mixture is not None:
             self.cc_mixture *= self._nb_elements
 
+
+    def __len__(self):
+        return self.first_component.shape[0]
+
+    def __str__(self):
+        string = """
+        Template dictionary with {m} templates
+        rejected as duplicates: {l}
+        rejected as mixtures  : {k}
+        """.format(m=self.nb_templates, l=self.nb_duplicates, k=self.nb_mixtures)
+        return string
+
+    def __iter__(self, index):
+        for i in self.first_component:
+            yield self[i]
+
+    def __getitem__(self, index):
+        return self.first_component[index]
+
+    def __len__(self):
+        return self.nb_templates
+
     @property
     def nb_templates(self):
         return self.first_component.shape[0]
+
+    @property
+    def nb_mixtures(self):
+        if self._mixtures is None:
+            return 0
+        else:
+            return np.sum([len(value) for value in self._mixtures.items()])
+
+    @property
+    def nb_duplicates(self):
+        if self._duplicates is None:
+            return 0
+        else:
+            return np.sum([len(value) for value in self._duplicates.items()])
+
+    def _add_duplicates(self, template):
+        if self._duplicates is None:
+            self._duplicates = {}
+
+        if self._duplicates.has_key(template.channel):
+            self._duplicates[template.channel] += [template.creation_time]
+        else:
+            self._duplicates[template.channel] = [template.creation_time]
+
+    def _add_mixtures(self, template):
+        if self._mixtures is None:
+            self._mixtures = {}
+
+        if self._mixtures.has_key(template.channel):
+            self._mixtures[template.channel] += [template.creation_time]
+        else:
+            self._mixtures[template.channel] = [template.creation_time]
+
+    def _add_template(self, template, csc_template):
+        self.first_component = scipy.sparse.vstack((self.first_component, csc_template), 'csc')
+        return self.template_store.add(template)
+
+    def _remove_template(self, template, index):
+        pass
+
 
     def add(self, templates):
 
@@ -55,9 +125,11 @@ class TemplateDictionary(object):
 
             if is_present:
                 nb_duplicates += 1
+                self._add_duplicates(t)
 
             if is_mixture:
-                nb_mixtures   += 1
+                nb_mixtures += 1
+                self._add_mixture(t)
 
             if not is_present and not is_mixture:
                 accepted += self._add_template(t, csc_template)
@@ -71,19 +143,15 @@ class TemplateDictionary(object):
             return False
 
         for idelay in self._delays:
-            scols    = np.where(self._cols % self._spike_width < idelay)[0]
-            tmp_1    = csc_template[:, scols]
-            scols    = np.where(self._cols % self._spike_width >= (self._spike_width - idelay))[0]
-            tmp_2    = self.first_component[:, scols]
+            tmp_1    = csc_template[:, self._scols['left'][idelay]]
+            tmp_2    = self.first_component[:, self._scols['right'][idelay]]
             data     = tmp_1.dot(tmp_2.T)
             if np.any(data.data >= self.cc_merge):
                 return True
 
             if idelay < self._spike_width:
-                scols    = np.where(self._cols % self._spike_width < idelay)[0]
-                tmp_1    = self.first_component[:, scols]
-                scols    = np.where(self._cols % self._spike_width >= (self._spike_width - idelay))[0]
-                tmp_2    = csc_template[:, scols]
+                tmp_1    = self.first_component[:, self._scols['left'][idelay]]
+                tmp_2    = csc_template[:, self._scols['right'][idelay]]
                 data     = tmp_1.dot(tmp_2.T)
                 if np.any(data.data >= self.cc_merge):
                     return True
@@ -99,10 +167,8 @@ class TemplateDictionary(object):
         all_data = np.zeros(0, dtype=np.float32)
 
         for idelay in self._delays:
-            scols    = np.where(self._cols % self._spike_width < idelay)[0]
-            tmp_1    = csc_template[:, scols]
-            scols    = np.where(self._cols % self._spike_width >= (self._spike_width - idelay))[0]
-            tmp_2    = self.first_component[:, scols]
+            tmp_1    = csc_template[:, self._scols['left'][idelay]]
+            tmp_2    = self.first_component[:, self._scols['right'][idelay]]
             data     = tmp_1.dot(tmp_2.T)
             dx, dy   = data.nonzero()
             all_x    = np.concatenate((all_x, dx * self.nb_templates + dy))
@@ -129,11 +195,6 @@ class TemplateDictionary(object):
 
         return False
 
-    def _add_template(self, template, csc_template):
-        
-        self.first_component = scipy.sparse.vstack((self.first_component, csc_template), 'csc')
-        return self.template_store.add(template)
-
 
 
 class OverlapsDictionary(object):
@@ -144,7 +205,26 @@ class OverlapsDictionary(object):
         self.nb_channels     = self.template_store.nb_channels
         self._temporal_width = None
         self.overlaps        = {'first_component' : {}}
-        self._init_from_template_store()
+        self._spike_width    = self.template_store.temporal_width
+        self._nb_elements    = self.nb_channels * self.temporal_width
+        self._delays         = np.arange(1, self.temporal_width + 1)
+        self._cols           = np.arange(self.nb_channels * self._temporal_width).astype(np.int32)
+        self._overlap_size   = 2 * self._spike_width - 1
+        self.first_component = scipy.sparse.csc_matrix((0, self._nb_elements), dtype=np.float32)
+        self.norms           = {'1' : np.zeros(0, dtype=np.float32)}
+        self.amplitudes      = np.zeros((0, 2), dtype=np.float32)
+        self._scols          = {'left' : {}, 'right' : {}}
+
+        if self.two_components:
+            self.second_component = scipy.sparse.csc_matrix((0, self._nb_elements), dtype=np.float32)
+            self.norms['2']       = np.zeros(0, dtype=np.float32)
+            self.overlaps['second_component'] = {}
+
+        for idelay in self._delays:
+            self._scols['left'][idelay]  = np.where(self._cols % self._spike_width < idelay)[0]
+            self._scols['right'][idelay] = np.where(self._cols % self._spike_width >= (self._spike_width - idelay))[0]
+
+        self.update(self.template_store.indices)
 
     @property
     def temporal_width(self):
@@ -163,23 +243,7 @@ class OverlapsDictionary(object):
 
     @property
     def nb_templates(self):
-        return self.first_component.shape[0]
-
-    def _init_from_template_store(self):
-        self._spike_width    = self.template_store.temporal_width
-        self._nb_elements    = self.nb_channels * self.temporal_width
-        self._delays         = np.arange(1, self.temporal_width + 1)
-        self._cols           = np.arange(self.nb_channels * self._temporal_width).astype(np.int32)
-        self._overlap_size   = 2 * self._spike_width - 1
-        self.first_component = scipy.sparse.csc_matrix((0, self._nb_elements), dtype=np.float32)
-        self.norms           = {'1' : np.zeros(0, dtype=np.float32)}
-        self.amplitudes      = np.zeros((0, 2), dtype=np.float32)
-        if self.two_components:
-            self.second_component = scipy.sparse.csc_matrix((0, self._nb_elements), dtype=np.float32)
-            self.norms['2']       = np.zeros(0, dtype=np.float32)
-            self.overlaps['second_component'] = {}
-
-        self.update(self.template_store.indices)
+        return self.first_component.shape[0]        
 
     def get_overlaps(self, index, component='first_component'):
         if self.overlaps[component].has_key(index):
@@ -201,22 +265,22 @@ class OverlapsDictionary(object):
         all_data = np.zeros(0, dtype=np.float32)
 
         for idelay in self._delays:
-            scols = np.where(self._cols % self._spike_width < idelay)[0]
-            tmp_1 = template[:, scols]
-            scols = np.where(self._cols % self._spike_width >= (self._spike_width - idelay))[0]
-            tmp_2 = target[:, scols]
-            data  = tmp_1.dot(tmp_2.T).toarray()
+            tmp_1 = template[:, self._scols['left'][idelay]]
+            tmp_2 = target[:, self._scols['right'][idelay]]
+            data  = tmp_1.dot(tmp_2.T)
 
-            dx, dy = data.nonzero()
-            data = data[data.nonzero()].ravel()
-
-            all_x = np.concatenate((all_x, dx * target.shape[0] + dy))
-            all_y = np.concatenate((all_y, (idelay - 1) * np.ones(len(dx), dtype=np.int32)))
+            dx, dy   = data.nonzero()
+            data     = data.toarray().ravel()
+            dd       = data.nonzero()[0].astype(np.int32)
+            data     = np.take(data, dd)
+            ones     = np.ones(len(dx), dtype=np.int32)
+            all_x    = np.concatenate((all_x, dx * target.shape[0] + dy))
+            all_y    = np.concatenate((all_y, (idelay - 1) * ones))
             all_data = np.concatenate((all_data, data))
 
             if idelay < self._spike_width:
                 all_x = np.concatenate((all_x, dy * template.shape[0] + dx))
-                all_y = np.concatenate((all_y, (2 * self._spike_width - idelay - 1) * np.ones(len(dx), dtype=np.int32)))
+                all_y = np.concatenate((all_y, (2 * self._spike_width - idelay - 1) * ones))
                 all_data = np.concatenate((all_data, data))
 
         shape = (target.shape[0] * template.shape[0], self._overlap_size)

@@ -11,8 +11,8 @@ def plot_templates(template_store, indices=None, component='first', output=None,
     """Plot template from template store.
 
     Parameters:
-        template_store: string
-            The path of the template store to be used when loading the data.
+        template_store: string or TemplateStore object
+            The path or the template store to be used when loading the data.
         indices: none | list (optional)
             The indices to be used when loading the data. If is None then all the channels will be used. The default
             value is None.
@@ -121,20 +121,22 @@ def plot_templates_on_channels(template_store, channels, component='first', outp
 def plot_templates_history(template_store, output=None):
 
     # Expand user's home directory (if necessary).
-    template_store = TemplateStore(os.path.expanduser(template_store))
-    probe     = template_store.probe
-    indices   = template_store.indices
-    templates = template_store.get(indices)
+    if not isinstance(template_store, TemplateStore):
+        template_store = TemplateStore(os.path.expanduser(template_store))
+
+    probe          = template_store.probe
+    indices        = template_store.indices
+    templates      = template_store.get(indices)
 
     plt.style.use('seaborn-paper')
     plt.subplots()
 
     for count, t in enumerate(templates):
         color = 'C{}'.format(indices[count])
-        plt.plot([t.creation_time, t.creation_time], [0, 1], c=color)
+        plt.scatter([t.creation_time], [indices[count]], c=color, marker='|')
 
     plt.xlabel(u"Time [step]")
-    plt.ylabel(u"Label")
+    plt.ylabel(u"Indices")
     #plt.axis('scaled')
     plt.tight_layout()
     if output is None:
