@@ -30,7 +30,9 @@ def plot_templates(template_store, indices=None, component='first', output=None,
     """
 
     # Expand user's home directory (if necessary).
-    template_store = TemplateStore(os.path.expanduser(template_store))
+    if not isinstance(template_store, TemplateStore):
+        template_store = TemplateStore(os.path.expanduser(template_store))
+    
     probe = template_store.probe
 
     assert component in ['first', 'second', 'both']
@@ -38,6 +40,11 @@ def plot_templates(template_store, indices=None, component='first', output=None,
     # Define the indices to be used when loading the data (if necessary).
     if indices is None:
         indices = template_store.indices
+
+    if not np.iterable(indices):
+        indices = [indices]
+    
+    assert len(indices) > 0
 
     templates = template_store.get(indices)
 
@@ -91,8 +98,25 @@ def plot_templates(template_store, indices=None, component='first', output=None,
         plt.show()
     else:
         plt.savefig(output)
-
     return
+
+
+def plot_templates_on_channels(template_store, channels, component='first', output=None, x_bar=1.0, y_bar=20.0, show_scale_bar=True):
+
+    # Expand user's home directory (if necessary).
+    if not isinstance(template_store, TemplateStore):
+        template_store = TemplateStore(os.path.expanduser(template_store))
+    
+    if not np.iterable(channels):
+        channels = [channels]
+
+    indices = []
+    for channel in channels:
+        if template_store.templates_per_channels.has_key(channel):
+            indices += template_store.templates_per_channels[channel]
+
+    plot_templates(template_store, indices, component, output, x_bar, y_bar, show_scale_bar)
+
 
 def plot_templates_history(template_store, output=None):
 

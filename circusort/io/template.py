@@ -366,11 +366,10 @@ class TemplateStore(object):
     def __len__(self):
         return self.nb_templates
 
-    def _add_template_channel(self, t, index):
+    def _add_template_channel(self, channel, index):
         if self._channels is None:
             self._channels = {}
 
-        channel = t.channel
         if self._channels.has_key(channel):
             self._channels[channel] += [index]
         else:
@@ -381,36 +380,36 @@ class TemplateStore(object):
         if self._channels is not None:
             return self._channels
         else:
-            for index, t in zip(self.indices, self.get()):
-                self._add_template_channel(t, index)
+            for channel, index in zip(self.channels, self.indices):
+                self._add_template_channel(channel, index)
             return self._channels
 
     @property
     def first_creation(self):
-        if self._first_creation is not None:
-            return self._first_creation
-        else:
-            self._first_creation = np.inf
-            for t in self.get():
-                if (t.creation_time < self.first_creation):
-                    self._first_creation = t.creation_time
-            return self._first_creation
+        return self.times.min()
 
     @property
     def last_creation(self):
-        if self._last_creation is not None:
-            return self._last_creation
-        else:
-            self._last_creation = 0
-            for t in self.get():
-                if (t.creation_time > self.last_creation):
-                    self.last_creation = t.creation_time
-            return self.last_creation
+        return self.times.max()
 
     @property
     def indices(self):
         self._open(mode='r')
         data = self.h5_file['indices'][:]
+        self._close()
+        return data
+
+    @property
+    def channels(self):
+        self._open(mode='r')
+        data = self.h5_file['channels'][:]
+        self._close()
+        return data
+
+    @property
+    def times(self):
+        self._open(mode='r')
+        data = self.h5_file['times'][:]
         self._close()
         return data
 
@@ -456,10 +455,9 @@ class TemplateStore(object):
 
     def slice_templates_by_creation_time(self, start=0, stop=np.inf):
         result = []
-        for t in self.get():
-            if (t.creation_time > start) and (t.creation_time < stop):
-                result += [t]
-        return result
+        times  = self.times
+        result = np.where((times > start) & (times <= stop))[0]
+        return self.get(result)
 
     def is_in_store(self, index):
         if index in self.indices:
@@ -491,7 +489,7 @@ class TemplateStore(object):
                 self._2_components = True
                 self.h5_file.create_dataset('waveforms/%d/2' %gidx, data=t.second_component.waveforms, chunks=True)
 
-            self._add_template_channel(template, gidx)
+            self._add_template_channel(t.channel, gidx)
 
             append_hdf5(self.h5_file['times'], np.array([t.creation_time], dtype=np.int32))
             append_hdf5(self.h5_file['indices'], np.array([gidx], dtype=np.int32))
