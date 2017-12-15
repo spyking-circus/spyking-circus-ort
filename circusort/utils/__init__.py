@@ -1,3 +1,6 @@
+from .path import normalize_path
+
+
 def append_hdf5(dataset, data):
     '''Append 1D-array to a HDF5 dataset.
 

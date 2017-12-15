@@ -10,6 +10,9 @@ from scipy.sparse import csc_matrix, hstack
 from circusort.io.utils import append_hdf5
 from circusort.io import generate_probe
 
+from circusort.obj.template import Template
+from circusort.obj.position import Position
+
 
 def generate_waveform(width=5.0e-3, amplitude=80.0, sampling_rate=20e+3):
     """Generate a waveform.
@@ -101,6 +104,8 @@ def generate_template(probe=None, position=(0.0, 0.0), amplitude=80.0, radius=No
     """
 
     assert probe is not None
+    if isinstance(position, Position):
+        position = position.get_initial_position()
     radius = probe.radius if radius is None else radius
     _ = kwargs
 
@@ -123,7 +128,7 @@ def generate_template(probe=None, position=(0.0, 0.0), amplitude=80.0, radius=No
             gain = (1.0 + distance / 40.0) ** -2.0
             waveforms[i, :] = gain * waveform
         # Define template.
-        template = (channels, waveforms)
+        template = Template(channels, waveforms)
 
     else:
 
@@ -183,7 +188,7 @@ def generate_templates(nb_templates=3, probe=None,
 
 
 def save_template(path, template):
-    """Save template.
+    """Save template to file.
 
     Parameters:
         path: string
@@ -192,12 +197,7 @@ def save_template(path, template):
             The template to save.
     """
 
-    channels, waveforms = template
-
-    file_ = h5py.File(path, mode='w')
-    file_.create_dataset('channels', shape=channels.shape, dtype=channels.dtype, data=channels)
-    file_.create_dataset('waveforms', shape=waveforms.shape, dtype=waveforms.dtype, data=waveforms)
-    file_.close()
+    template.save(path)
 
     return
 
@@ -295,7 +295,7 @@ def load_template(path):
     channels = f.get('channels').value
     waveforms = f.get('waveforms').value
     f.close()
-    template = (channels, waveforms)
+    template = Template(channels, waveforms)
 
     return template
 

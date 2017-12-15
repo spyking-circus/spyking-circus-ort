@@ -2,6 +2,8 @@ import h5py
 import numpy as np
 import os
 
+from ..obj import Train
+
 
 def generate_train(duration=60.0, rate=1.0, **kwargs):
     """Generate train.
@@ -17,45 +19,58 @@ def generate_train(duration=60.0, rate=1.0, **kwargs):
             Generated train.
     """
 
-    _ = kwargs
+    if isinstance(rate, float):
+        rate = lambda t: rate
+    elif isinstance(rate, (str, unicode)):
+        rate = eval("lambda t: {}".format(rate), kwargs)
+    else:
+        message = "Unknown rate type: {}".format(type(rate))
+        raise TypeError(message)
+    _ = kwargs  # Discard additional parameters.
 
-    scale = 1.0 / rate
-    time = 0.0
-    train = []
-    while time < duration:
-        size = int((duration - time) * rate) + 1
+    ref_time = 0.0
+    times = []
+    while ref_time < duration:
+        # TODO check the following line.
+        scale = 1.0 / rate(ref_time)
+        # TODO remove the following line.
+        # size = int((duration - ref_time) * rate(ref_time)) + 1
+        size = 1
         intervals = np.random.exponential(scale=scale, size=size)
-        times = time + np.cumsum(intervals)
-        train.append(times[times < duration])
-        time = times[-1]
-    train = np.concatenate(train)
+        times_ = ref_time + np.cumsum(intervals)
+        times.append(times_[times_ < duration])
+        ref_time = times_[-1]
+    times = np.concatenate(times)
+    train = Train(times)
 
     return train
 
+# TODO implement generate_poisson_train.
+# TODO implement generate_refractory_poisson_train.
+# TODO adapt generate_train.
 
-def generate_trains(nb_trains=3, duration=60.0, rate=1.0):
+
+def generate_trains(nb_trains=3, **kwargs):
     """Generate trains.
 
     Parameters:
         nb_trains: integer (optional)
             Number of trains. The default value is 3.
-        duration: float (optional)
-            Train duration [s]. The default value is 60.0.
-        rate: float (optional)
-            Spike rate [Hz]. The default value is 1.0.
 
     Return:
         trains: dictionary
             Generated trains.
+
+    See also:
+        circusort.io.generate_train
     """
 
     # TODO integrate a refractory period.
 
-    trains = {}
-
-    for k in range(0, nb_trains):
-        train = generate_train(duration=duration, rate=rate)
-        trains[k] = train
+    trains = {
+        k: generate_train(**kwargs)
+        for k in range(0, nb_trains)
+    }
 
     return trains
 
@@ -70,11 +85,7 @@ def save_train(path, train):
             The train to save.
     """
 
-    times = train
-
-    f = h5py.File(path, mode='w')
-    f.create_dataset('times', shape=times.shape, dtype=times.dtype, data=times)
-    f.close()
+    train.save(path)
 
     return
 
@@ -150,7 +161,7 @@ def list_trains(directory):
     return paths
 
 
-def load_train(path):
+def load_train(path, **kwargs):
     """Load train from path.
 
     Parameter:
@@ -162,15 +173,22 @@ def load_train(path):
             Train. An array of spike times.
     """
 
+    _ = kwargs  # Discard additional keyword arguments.
+
+    path = os.path.expanduser(path)
+    path = os.path.abspath(path)
+    if os.path.isdir(path):
+        path = os.path.join(path, "train.h5")
+
     f = h5py.File(path, mode='r')
     times = f.get('times').value
     f.close()
-    train = times
+    train = Train(times)
 
     return train
 
 
-def load_trains(directory):
+def load_trains(directory, **kwargs):
     """Load trains from files.
 
     Parameter:
@@ -181,6 +199,8 @@ def load_trains(directory):
         trains: dictionary
             Dictionary of trains.
     """
+
+    _ = kwargs  # Discard additional keyword arguments.
 
     paths = list_trains(directory)
 
@@ -204,17 +224,15 @@ def get_train(path=None, **kwargs):
             The train to get.
 
     See also:
-        circusort.io.generate_train (for additional parameters)
+        circusort.io.generate_train
     """
 
-    if path is None:
-        template = generate_train(**kwargs)
-    elif not os.path.isfile(path):
-        template = generate_train(**kwargs)
-    else:
+    if isinstance(path, (str, unicode)):
         try:
-            template = load_train(path)
+            train = load_train(path, **kwargs)
         except OSError:
-            template = generate_train(**kwargs)
+            train = generate_train(**kwargs)
+    else:
+        train = generate_train(**kwargs)
 
-    return template
+    return train

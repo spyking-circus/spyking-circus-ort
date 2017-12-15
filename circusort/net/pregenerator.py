@@ -192,21 +192,26 @@ def pregenerator(working_directory=None, probe_path=None, parameters_path=None):
     """
     # TODO complete docstring.
 
-    # Define configuration and generation directory.
+    # Define the paths to the configuration and generation directories.
     configuration_directory = os.path.join(working_directory, "configuration")
     generation_directory = os.path.join(working_directory, "generation")
 
-    # Retrieve probe.
-    probe = find_or_generate_probe(probe_path, configuration_directory)
-    io.save_probe(generation_directory, probe)
+    # Get parameters.
+    parameters = io.get_data_parameters(configuration_directory)
 
-    # Retrieve cells.
-    cells = io.get_cells(configuration_directory, probe=probe)
-    io.save_cells(generation_directory, cells, mode='by cells')
+    probe = io.get_probe(**parameters['probe'])
+    probe.save(generation_directory)
+    probe.plot(generation_directory)
+    # TODO update the parameters of the probe.
+    # parameters['probe'] = probe.get_parameters()
 
-    # Retrieve parameters.
-    parameters = find_or_generate_parameters(parameters_path, working_directory)
-    save_parameters(working_directory, parameters)
+    cells = io.get_cells(probe=probe, **parameters['cells'])
+    io.save_cells(generation_directory, cells)
+    # TODO update the parameters of the cells.
+    # parameters['cells'] = cells.get_parameters()
+
+    # Save parameters.
+    parameters.save(generation_directory)
 
     # Generate signal.
     host = '127.0.0.1'  # TODO correct IP address? & transform into a keyword argument?
