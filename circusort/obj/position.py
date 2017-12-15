@@ -40,7 +40,7 @@ class Position(object):
 
         return position
 
-    def plot(self, output=None, **kwargs):
+    def plot(self, output=None, probe=None, fig=None, ax=None, **kwargs):
         # TODO add docstring.
 
         _ = kwargs  # Discard additional keyword arguments.
@@ -52,28 +52,35 @@ class Position(object):
         y_min = np.amin(y) - 10.0
         y_max = np.amax(y) + 10.0
 
-        if output is not None:
+        if output is not None and ax is None:
             plt.ioff()
 
-        fig, ax = plt.subplots()
-        ax.set_aspect('equal')
-        ax.set_xlim(x_min, x_max)
-        ax.set_ylim(y_min, y_max)
-        ax.scatter(x, y)  # TODO control the radius of the somas of the cells.
-        ax.set_xlabel(u"x (µm)")
-        ax.set_ylabel(u"y (µm)")
-        ax.set_title(u"Position")
-        fig.tight_layout()
-        if output is None:
-            plt.show()
+        if ax is None:
+            _, ax = plt.subplots()
+        if probe is None:
+            ax.set_aspect('equal')
+            ax.set_xlim(x_min, x_max)
+            ax.set_ylim(y_min, y_max)
+            ax.scatter(x, y, color='C0')  # TODO control the radius of the somas of the cells.
+            ax.set_xlabel(u"x (µm)")
+            ax.set_ylabel(u"y (µm)")
         else:
+            probe.plot(ax=ax)
+            ax.scatter(x, y, color='C1')  # TODO control the radius of the somas of the cells.
+        ax.set_title(u"Position")
+
+        if fig is not None and output is None:
+            plt.tight_layout()
+            plt.show()
+        elif fig is not None and output is not None:
             path = normalize_path(output)
             if path[-4:] != ".pdf":
                 path = os.path.join(path, "position.pdf")
             directory = os.path.dirname(path)
             if not os.path.isdir(directory):
                 os.makedirs(directory)
-            fig.savefig(path)
+            plt.tight_layout()
+            plt.savefig(path)
 
         return
 
