@@ -178,8 +178,7 @@ class Cell(object):
 
         return
 
-    def plot_rate(self, output=None, t_min=0.0, t_max=10.0, fig=None, ax=None, **kwargs):
-        # TODO add docstring.
+    def _plot_rate(self, ax, t_min=0.0, t_max=10.0, **kwargs):
 
         rate = self.parameters['train']['rate']
         if isinstance(rate, float):
@@ -194,30 +193,39 @@ class Cell(object):
         x = np.linspace(t_min, t_max, num=1000)
         y = rate(x)
 
-        if output is not None and ax is None:
-            plt.ioff()
-
-        if ax is None:
-            fig, ax = plt.subplots()
-
-        ax.plot(x, y, color='C0')
+        ax.plot(x, y)
         ax.set_xlim(t_min, t_max)
         ax.set_xlabel(u"time (s)")
         ax.set_ylabel(u"rate (Hz)")
         ax.set_title(u"Rate")
 
-        if fig is not None and output is None:
-            plt.tight_layout()
-            plt.show()
-        elif fig is not None and output is not None:
-            path = normalize_path(output)
-            if path[-4:] != ".pdf":
-                path = os.path.join(path, "parameters_rate.pdf")
-            directory = os.path.dirname(path)
-            if not os.path.isdir(directory):
-                os.makedirs(directory)
-            plt.tight_layout()
-            plt.savefig(path)
+        return
+
+    def plot_rate(self, output=None, ax=None, **kwargs):
+        # TODO add docstring.
+
+        if output is not None and ax is None:
+            plt.ioff()
+
+        if ax is None:
+            fig = plt.figure()
+            gs = gds.GridSpec(1, 1)
+            ax_ = plt.subplot(gs[0])
+            self._plot_rate(ax_, **kwargs)
+            gs.tight_layout(fig)
+            if output is None:
+                plt.show()
+            else:
+                path = normalize_path(output)
+                if path[-4:] != ".pdf":
+                    path = os.path.join(path, "parameters_rate.pdf")
+                directory = os.path.dirname(path)
+                if not os.path.isdir(directory):
+                    os.makedirs(directory)
+                plt.tight_layout()
+                plt.savefig(path)
+        else:
+            self._plot_rate(ax, **kwargs)
 
         return
 
