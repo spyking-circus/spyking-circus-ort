@@ -93,3 +93,27 @@ def plot_templates(template_store, indices=None, component='first', output=None,
         plt.savefig(output)
 
     return
+
+def plot_templates_history(template_store, output=None):
+
+    # Expand user's home directory (if necessary).
+    template_store = TemplateStore(os.path.expanduser(template_store))
+    probe     = template_store.probe
+    indices   = template_store.indices
+    templates = template_store.get(indices)
+
+    plt.style.use('seaborn-paper')
+    plt.subplots()
+
+    for count, t in enumerate(templates):
+        color = 'C{}'.format(indices[count])
+        plt.plot([t.creation_time, t.creation_time], [0, 1], c=color)
+
+    plt.xlabel(u"Time [step]")
+    plt.ylabel(u"Label")
+    #plt.axis('scaled')
+    plt.tight_layout()
+    if output is None:
+        plt.show()
+    else:
+        plt.savefig(output)

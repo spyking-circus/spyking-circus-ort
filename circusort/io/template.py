@@ -303,19 +303,23 @@ class TemplateStore(object):
     def __init__(self, file_name, probe_file=None, mode='r+'):
 
         self.file_name       = os.path.abspath(file_name)
+        self.probe_file      = probe_file
         self.mode            = mode
         self._index          = -1
         self.mappings        = {}
         self._2_components   = False
         self._temporal_width = None
         self.h5_file         = None
+        self._first_creation = None
+        self._last_creation  = None
+        self._channels       = None
         
         self._open(self.mode)
 
         if self.mode in ['w']:
             
             assert probe_file is not None
-            self.probe        = load_probe(probe_file)
+            self.probe        = load_probe(self.probe_file)
             for channel, indices in self.probe.edges.items():
                 indices = self.probe.edges[channel]
                 self.h5_file.create_dataset('mapping/%d' %channel, data=indices, chunks=True, maxshape=(None, ))
@@ -337,11 +341,21 @@ class TemplateStore(object):
             if self._index >= 0:
                 self._2_components = '2' in self.h5_file['waveforms/%d' %self._index]
         
-            self.probe = load_probe(self.h5_file.attrs['probe_file'])
+            self.probe_file = self.h5_file.attrs['probe_file']
+            self.probe      = load_probe(self.probe_file)
 
         self.nb_channels = len(self.mappings)
         self._close()
         
+    def __str__(self):
+        string = """
+        Template store with {m} templates
+        two_components : {l}
+        temporal_width : {k}
+        probe_file     : {p}
+        """.format(m=len(self.indices), l=self.two_components, k=self.temporal_width, p=self.probe_file)
+        return string
+
     def __iter__(self, index):
         for i in self.indices:
             yield self[i]
@@ -351,6 +365,47 @@ class TemplateStore(object):
 
     def __len__(self):
         return self.nb_templates
+
+    def _add_template_channel(self, t, index):
+        if self._channels is None:
+            self._channels = {}
+
+        channel = t.channel
+        if self._channels.has_key(channel):
+            self._channels[channel] += [index]
+        else:
+            self._channels[channel] = [index]
+
+    @property
+    def templates_per_channels(self):
+        if self._channels is not None:
+            return self._channels
+        else:
+            for index, t in zip(self.indices, self.get()):
+                self._add_template_channel(t, index)
+            return self._channels
+
+    @property
+    def first_creation(self):
+        if self._first_creation is not None:
+            return self._first_creation
+        else:
+            self._first_creation = np.inf
+            for t in self.get():
+                if (t.creation_time < self.first_creation):
+                    self._first_creation = t.creation_time
+            return self._first_creation
+
+    @property
+    def last_creation(self):
+        if self._last_creation is not None:
+            return self._last_creation
+        else:
+            self._last_creation = 0
+            for t in self.get():
+                if (t.creation_time > self.last_creation):
+                    self.last_creation = t.creation_time
+            return self.last_creation
 
     @property
     def indices(self):
@@ -390,6 +445,22 @@ class TemplateStore(object):
             self._temporal_width = template.temporal_width
             return self._temporal_width
 
+    def slice_templates_by_channel(self, channels):
+        if not np.iterable(channels):
+            channels = [channels]
+        result = []
+        for t in self.get():
+            if t.channel in [channels]:
+                result += [t]
+        return result
+
+    def slice_templates_by_creation_time(self, start=0, stop=np.inf):
+        result = []
+        for t in self.get():
+            if (t.creation_time > start) and (t.creation_time < stop):
+                result += [t]
+        return result
+
     def is_in_store(self, index):
         if index in self.indices:
             return True
@@ -419,6 +490,8 @@ class TemplateStore(object):
             if t.second_component is not None:
                 self._2_components = True
                 self.h5_file.create_dataset('waveforms/%d/2' %gidx, data=t.second_component.waveforms, chunks=True)
+
+            self._add_template_channel(template, gidx)
 
             append_hdf5(self.h5_file['times'], np.array([t.creation_time], dtype=np.int32))
             append_hdf5(self.h5_file['indices'], np.array([gidx], dtype=np.int32))
