@@ -164,9 +164,8 @@ class Cell(object):
             path = normalize_path(output)
             if os.path.isdir(path):
                 self.position.plot(output=path, **kwargs)
-                # TODO uncomment the following line.
-                # self.train.plot(output=path, **kwargs)
-                # self.template.plot(output=path, **kwargs)
+                self.train.plot(output=path, **kwargs)
+                self.template.plot(output=path, **kwargs)
             else:
                 raise NotImplementedError()  # TODO complete.
 
