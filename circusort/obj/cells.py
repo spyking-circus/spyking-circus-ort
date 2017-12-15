@@ -1,4 +1,7 @@
+import os
+
 from circusort.io.parameter.cells import get_cells_parameters
+from circusort.utils.path import normalize_path
 
 
 class Cells(object):
@@ -44,3 +47,35 @@ class Cells(object):
         nb_cells = len(self.cells)
 
         return nb_cells
+
+    def save(self, path, mode='default', **kwargs):
+        """Save cells to files.
+
+        Parameters:
+            path: string
+                The path to the directory in which to save the cells.
+            cells: dictionary
+                Dictionary of cells to save.
+            mode: string (optional)
+                The mode to use to save the cells. Either 'default', 'by cells' or 'by components'. The default value is
+                'default'.
+        """
+
+        if mode == 'default' or mode == 'by cells':
+
+            path = normalize_path(path, **kwargs)
+            cells_directory = os.path.join(path, "cells")
+            for k, cell in self.iteritems():
+                cell_directory = os.path.join(cells_directory, "{}".format(k))
+                cell.save(cell_directory)
+
+        elif mode == 'by components':
+
+            raise NotImplementedError()  # TODO complete.
+
+        else:
+
+            message = "Unknown mode value: {}".format(mode)
+            raise ValueError(message)
+
+        return

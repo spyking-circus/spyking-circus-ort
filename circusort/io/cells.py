@@ -22,34 +22,17 @@ def generate_cells(nb_cells=3, **kwargs):
     return cells
 
 
-def save_cells(directory, cells, mode='default'):
+def save_cells(directory, cells, **kwargs):
     """Save cells to files.
 
     Parameters:
-        directory: string
-            Directory in which to save the cells.
-        cells: dictionary
-            Dictionary of cells to save.
-        mode: string (optional)
-            The mode to use to save the cells. Either 'default', 'by cells' or 'by components'. The default value is
-            'default'.
+        path: string
+            The path to the directory in which to save the cells.
+        cells: circusort.obj.Cells
+            The cells to save.
     """
 
-    if mode == 'default' or mode == 'by cells':
-
-        cells_directory = os.path.join(directory, "cells")
-        for k, cell in cells.iteritems():
-            cell_directory = os.path.join(cells_directory, "{}".format(k))
-            cell.save(cell_directory)
-
-    elif mode == 'by components':
-
-        raise NotImplementedError()  # TODO complete.
-
-    else:
-
-        message = "Unknown mode value: {}".format(mode)
-        raise ValueError(message)
+    cells.save(directory, **kwargs)
 
     return
 
@@ -128,6 +111,7 @@ def load_cells(path=None, mode='default', **kwargs):
             position = load_position(position_paths[k])
             cell = Cell(template, train, position)
             cells[k] = cell
+        cells = Cells(cells)
 
     elif mode in ['default', 'by cells']:
 
