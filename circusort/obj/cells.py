@@ -79,3 +79,17 @@ class Cells(object):
             raise ValueError(message)
 
         return
+
+    def plot(self, output=None, **kwargs):
+        # TODO add docstring.
+
+        if output is None:
+            raise NotImplementedError()  # TODO complete.
+        else:
+            path = normalize_path(output, **kwargs)
+            cells_directory = os.path.join(path, "cells")
+            for k, cell in self.iteritems():
+                cell_directory = os.path.join(cells_directory, "{}".format(k))
+                cell.plot(output=cell_directory, **kwargs)
+
+        return

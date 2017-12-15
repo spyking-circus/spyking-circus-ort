@@ -265,12 +265,11 @@ class Probe(object):
         if path is not None:
             plt.ioff()
 
-        plt.style.use('seaborn-paper')
         fig, ax = plt.subplots()
         ax.set_aspect('equal')
-        ax.scatter(x, y)  # TODO control the radius of the electrodes.
         ax.set_xlim(x_min, x_max)
         ax.set_ylim(y_min, y_max)
+        ax.scatter(x, y)  # TODO control the radius of the electrodes.
         ax.set_xlabel(u"x (µm)")
         ax.set_ylabel(u"y (µm)")
         ax.set_title(u"Spatial layout of the electrodes")

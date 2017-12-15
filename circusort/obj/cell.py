@@ -1,7 +1,9 @@
+import matplotlib.pyplot as plt
 import numpy as np
 import os
 
 from circusort.io.parameter import get_cell_parameters
+from circusort.utils.path import normalize_path
 
 
 class Cell(object):
@@ -147,5 +149,26 @@ class Cell(object):
         parameters_path = os.path.join(directory, "parameters.txt")
         parameters = self.parameters
         parameters.save(parameters_path)
+
+        return
+
+    def plot(self, output=None, **kwargs):
+        # TODO add docstring.
+
+        if output is None:
+
+            raise NotImplementedError()  # TODO complete.
+
+        else:
+
+            path = normalize_path(output)
+            if os.path.isdir(path):
+                self.position.plot(output=path, **kwargs)
+                # TODO uncomment the following line.
+                # self.train.plot(output=path, **kwargs)
+                # self.template.plot(output=path, **kwargs)
+            else:
+                raise NotImplementedError()  # TODO complete.
+
 
         return
