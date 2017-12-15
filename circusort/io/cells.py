@@ -128,7 +128,7 @@ def load_cells(path=None, mode='default', **kwargs):
             k: get_cell(directory=cell_directory, **kwargs)
             for k, cell_directory in enumerate(cell_directories)
         }
-        cells = Cells(cells)
+        cells = Cells(cells, parameters=parameters)
 
     else:
 

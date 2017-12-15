@@ -65,6 +65,7 @@ class Cells(object):
 
             path = normalize_path(path, **kwargs)
             cells_directory = os.path.join(path, "cells")
+            self.parameters.save(cells_directory, **kwargs)
             for k, cell in self.iteritems():
                 cell_directory = os.path.join(cells_directory, "{}".format(k))
                 cell.save(cell_directory)
@@ -88,6 +89,8 @@ class Cells(object):
         else:
             path = normalize_path(output, **kwargs)
             cells_directory = os.path.join(path, "cells")
+            parameters = get_cells_parameters(cells_directory)
+            kwargs.update(parameters['general'])
             for k, cell in self.iteritems():
                 cell_directory = os.path.join(cells_directory, "{}".format(k))
                 cell.plot(output=cell_directory, **kwargs)

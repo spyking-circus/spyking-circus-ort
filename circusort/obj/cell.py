@@ -1,3 +1,6 @@
+# -*- coding: utf-8 -*-
+
+import matplotlib.gridspec as gds
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -163,11 +166,192 @@ class Cell(object):
 
             path = normalize_path(output)
             if os.path.isdir(path):
+                if 'rate' in self.parameters['train']:
+                    self.plot_rate(output=path, **kwargs)
+                if 'x' in self.parameters['position'] and 'y' in self.parameters['position']:
+                    self.plot_position(output=path, **kwargs)
                 self.position.plot(output=path, **kwargs)
                 self.train.plot(output=path, **kwargs)
                 self.template.plot(output=path, **kwargs)
             else:
                 raise NotImplementedError()  # TODO complete.
 
+        return
+
+    def plot_rate(self, output=None, t_min=0.0, t_max=10.0, fig=None, ax=None, **kwargs):
+        # TODO add docstring.
+
+        rate = self.parameters['train']['rate']
+        if isinstance(rate, float):
+            rate = eval("lambda t: {}".format(rate))
+        elif isinstance(rate, (str, unicode)):
+            rate = eval("lambda t: {}".format(rate), kwargs)
+        else:
+            message = "Unknown rate type: {}".format(type(rate))
+            raise TypeError(message)
+        rate = np.vectorize(rate)
+
+        x = np.linspace(t_min, t_max, num=1000)
+        y = rate(x)
+
+        if output is not None and ax is None:
+            plt.ioff()
+
+        if ax is None:
+            fig, ax = plt.subplots()
+
+        ax.plot(x, y, color='C0')
+        ax.set_xlim(t_min, t_max)
+        ax.set_xlabel(u"time (s)")
+        ax.set_ylabel(u"rate (Hz)")
+        ax.set_title(u"Rate")
+
+        if fig is not None and output is None:
+            plt.tight_layout()
+            plt.show()
+        elif fig is not None and output is not None:
+            path = normalize_path(output)
+            if path[-4:] != ".pdf":
+                path = os.path.join(path, "parameters_rate.pdf")
+            directory = os.path.dirname(path)
+            if not os.path.isdir(directory):
+                os.makedirs(directory)
+            plt.tight_layout()
+            plt.savefig(path)
+
+        return
+
+    def _plot_position(self, ax, **kwargs):
+        # TODO add docstring.
+
+        self.plot_x_position(ax=ax[0], **kwargs)
+        self.plot_y_position(ax=ax[1], **kwargs)
+
+        return
+
+    def plot_position(self, output=None, ax=None, **kwargs):
+        # TODO add docstring.
+
+        if output is not None and ax is None:
+            plt.ioff()
+
+        if ax is None:
+            fig = plt.figure()
+            gs = gds.GridSpec(2, 1)
+            ax_ = [plt.subplot(gs[i]) for i in [0, 1]]
+            self._plot_position(ax_, **kwargs)
+            gs.tight_layout(fig)
+            if output is None:
+                plt.show()
+            else:
+                path = normalize_path(output)
+                if path[-4:] != ".pdf":
+                    path = os.path.join(path, "parameters_position.pdf")
+                directory = os.path.dirname(path)
+                if not os.path.isdir(directory):
+                    os.makedirs(directory)
+                plt.savefig(path)
+        else:
+            self._plot_position(ax, **kwargs)
+
+        return
+
+    def _plot_x_position(self, ax, t_min=0.0, t_max=10.0, **kwargs):
+
+        x = self.parameters['position']['x']
+        if isinstance(x, float):
+            x = eval("lambda t: {}".format(x))
+        elif isinstance(x, (str, unicode)):
+            x = eval("lambda t: {}".format(x), kwargs)
+        else:
+            message = "Unknown x type: {}".format(type(x))
+            raise TypeError(message)
+        x = np.vectorize(x)
+
+        t = np.linspace(t_min, t_max, num=1000)
+        x = x(t)
+
+        ax.plot(t, x, color='C0')
+        ax.set_xlim(t_min, t_max)
+        ax.set_xlabel(u"time (s)")
+        ax.set_ylabel(u"x (µm)")
+        ax.set_title(u"x-coordinate")
+
+        return
+
+    def plot_x_position(self, output=None, ax=None, **kwargs):
+        # TODO add docstring.
+
+        if output is not None and ax is None:
+            plt.ioff()
+
+        if ax is None:
+            fig = plt.figure()
+            gs = gds.GridSpec(1, 1)
+            ax_ = plt.subplot(gs[0])
+            self._plot_x_position(ax_, **kwargs)
+            gs.tight_layout(fig)
+            if output is None:
+                plt.show()
+            else:
+                path = normalize_path(output)
+                if path[-4:] != ".pdf":
+                    path = os.path.join(path, "parameters_x_position.pdf")
+                directory = os.path.dirname(path)
+                if not os.path.isdir(directory):
+                    os.makedirs(directory)
+                plt.savefig(path)
+        else:
+            self._plot_x_position(ax, **kwargs)
+
+        return
+
+    def _plot_y_position(self, ax, t_min=0.0, t_max=10.0, **kwargs):
+
+        y = self.parameters['position']['y']
+        if isinstance(y, float):
+            y = eval("lambda t: {}".format(y))
+        elif isinstance(y, (str, unicode)):
+            y = eval("lambda t: {}".format(y), kwargs)
+        else:
+            message = "Unknown y type: {}".format(type(y))
+            raise TypeError(message)
+        y = np.vectorize(y)
+
+        t = np.linspace(t_min, t_max, num=1000)
+        y = y(t)
+
+        ax.plot(t, y, color='C1')
+        ax.set_xlim(t_min, t_max)
+        ax.set_xlabel(u"time (s)")
+        ax.set_ylabel(u"y (µm)")
+        ax.set_title(u"y-coordinate")
+
+        return
+
+    def plot_y_position(self, output=None, ax=None, **kwargs):
+        # TODO add docstring.
+
+        if output is not None and ax is None:
+            plt.ioff()
+
+        if ax is None:
+            fig = plt.figure()
+            gs = gds.GridSpec(1, 1)
+            ax_ = plt.subplot(gs[0])
+            self._plot_y_position(ax_, **kwargs)
+            gs.tight_layout(fig)
+            if output is None:
+                plt.show()
+            else:
+                path = normalize_path(output)
+                if path[-4:] != ".pdf":
+                    path = os.path.join(path, "parameters_y_position.pdf")
+                directory = os.path.dirname(path)
+                if not os.path.isdir(directory):
+                    os.makedirs(directory)
+                plt.savefig(path)
+        else:
+            self._plot_y_position(ax, **kwargs)
 
         return
