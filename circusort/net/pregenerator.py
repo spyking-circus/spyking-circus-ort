@@ -210,7 +210,7 @@ def pregenerator(working_directory=None, probe_path=None, parameters_path=None):
     # parameters['cells'] = cells.get_parameters()
 
     # Save parameters.
-    io.save_parameters(generation_directory, parameters)
+    parameters.save(generation_directory)
 
     # Generate signal.
     host = '127.0.0.1'  # TODO correct IP address? & transform into a keyword argument?

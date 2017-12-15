@@ -10,7 +10,8 @@ from scipy.sparse import csc_matrix, hstack
 from circusort.io.utils import append_hdf5
 from circusort.io import generate_probe
 
-from ..obj import Template
+from circusort.obj.template import Template
+from circusort.obj.position import Position
 
 
 def generate_waveform(width=5.0e-3, amplitude=80.0, sampling_rate=20e+3):
@@ -103,6 +104,8 @@ def generate_template(probe=None, position=(0.0, 0.0), amplitude=80.0, radius=No
     """
 
     assert probe is not None
+    if isinstance(position, Position):
+        position = position.get_initial_position()
     radius = probe.radius if radius is None else radius
     _ = kwargs
 

@@ -23,4 +23,12 @@ class Train(object):
 
         return
 
+    @property
+    def nb_times(self):
+        # TODO add docstring.
+
+        nb_times = self.times.size
+
+        return nb_times
+
     # TODO complete.

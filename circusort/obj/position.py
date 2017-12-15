@@ -25,4 +25,12 @@ class Position(object):
 
         return
 
+    def get_initial_position(self):
+
+        x = self.x[0]
+        y = self.y[0]
+        position = (x, y)
+
+        return position
+
     # TODO complete.

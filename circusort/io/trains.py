@@ -19,12 +19,23 @@ def generate_train(duration=60.0, rate=1.0, **kwargs):
             Generated train.
     """
 
+    if isinstance(rate, float):
+        rate = lambda t: rate
+    elif isinstance(rate, (str, unicode)):
+        rate = eval("lambda t: {}".format(rate), kwargs)
+    else:
+        message = "Unknown rate type: {}".format(type(rate))
+        raise TypeError(message)
     _ = kwargs  # Discard additional parameters.
-    scale = 1.0 / rate
+
     ref_time = 0.0
     times = []
     while ref_time < duration:
-        size = int((duration - ref_time) * rate) + 1
+        # TODO check the following line.
+        scale = 1.0 / rate(ref_time)
+        # TODO remove the following line.
+        # size = int((duration - ref_time) * rate(ref_time)) + 1
+        size = 1
         intervals = np.random.exponential(scale=scale, size=size)
         times_ = ref_time + np.cumsum(intervals)
         times.append(times_[times_ < duration])
@@ -34,27 +45,30 @@ def generate_train(duration=60.0, rate=1.0, **kwargs):
 
     return train
 
+# TODO implement generate_poisson_train.
+# TODO implement generate_refractory_poisson_train.
+# TODO adapt generate_train.
 
-def generate_trains(nb_trains=3, duration=60.0, rate=1.0):
+
+def generate_trains(nb_trains=3, **kwargs):
     """Generate trains.
 
     Parameters:
         nb_trains: integer (optional)
             Number of trains. The default value is 3.
-        duration: float (optional)
-            Train duration [s]. The default value is 60.0.
-        rate: float (optional)
-            Spike rate [Hz]. The default value is 1.0.
 
     Return:
         trains: dictionary
             Generated trains.
+
+    See also:
+        circusort.io.generate_train
     """
 
     # TODO integrate a refractory period.
 
     trains = {
-        k: generate_train(duration=duration, rate=rate)
+        k: generate_train(**kwargs)
         for k in range(0, nb_trains)
     }
 
@@ -147,7 +161,7 @@ def list_trains(directory):
     return paths
 
 
-def load_train(path):
+def load_train(path, **kwargs):
     """Load train from path.
 
     Parameter:
@@ -159,6 +173,13 @@ def load_train(path):
             Train. An array of spike times.
     """
 
+    _ = kwargs  # Discard additional keyword arguments.
+
+    path = os.path.expanduser(path)
+    path = os.path.abspath(path)
+    if os.path.isdir(path):
+        path = os.path.join(path, "train.h5")
+
     f = h5py.File(path, mode='r')
     times = f.get('times').value
     f.close()
@@ -167,7 +188,7 @@ def load_train(path):
     return train
 
 
-def load_trains(directory):
+def load_trains(directory, **kwargs):
     """Load trains from files.
 
     Parameter:
@@ -178,6 +199,8 @@ def load_trains(directory):
         trains: dictionary
             Dictionary of trains.
     """
+
+    _ = kwargs  # Discard additional keyword arguments.
 
     paths = list_trains(directory)
 
@@ -201,17 +224,15 @@ def get_train(path=None, **kwargs):
             The train to get.
 
     See also:
-        circusort.io.generate_train (for additional parameters)
+        circusort.io.generate_train
     """
 
-    if path is None:
-        train = generate_train(**kwargs)
-    elif not os.path.isfile(path):
-        train = generate_train(**kwargs)
-    else:
+    if isinstance(path, (str, unicode)):
         try:
-            train = load_train(path)
+            train = load_train(path, **kwargs)
         except OSError:
             train = generate_train(**kwargs)
+    else:
+        train = generate_train(**kwargs)
 
     return train

@@ -2,6 +2,8 @@ import os
 
 from collections import OrderedDict
 
+from circusort.utils.path import normalize_path
+
 
 def to_ordered_dictionary(list_):
     # TODO add docstring.
@@ -71,12 +73,15 @@ class Parameters(object):
 
         return
 
-    def save(self, path):
+    def save(self, path, **kwargs):
         # TODO add docstring.
 
         # Normalize path.
-        path = os.path.expanduser(path)
-        path = os.path.abspath(path)
+        path = normalize_path(path, **kwargs)
+
+        # Complete path (if necessary).
+        if path[-4:] != ".txt":
+            path = os.path.join(path, "parameters.txt")
 
         # Make directory (if necessary).
         directory = os.path.dirname(path)
@@ -89,9 +94,10 @@ class Parameters(object):
             line = "[{}]\n".format(section)
             lines.append(line)
             for option in self.parameters[section].iterkeys():
-                value = self.parameters[section][option]
-                line = "{} = {}\n".format(option, value)
-                lines.append(line)
+                if option != 'current_directory' and not self._is_general(section, option):
+                    value = self.parameters[section][option]
+                    line = "{} = {}\n".format(option, value)
+                    lines.append(line)
             line = "\n"
             lines.append(line)
 
@@ -103,3 +109,12 @@ class Parameters(object):
         file_.close()
 
         return
+
+    def _is_general(self, section, option):
+
+        is_general = section != 'general' \
+                     and 'general' in self.parameters \
+                     and option in self.parameters['general'] \
+                     and self.parameters['general'][option] == self.parameters[section][option]
+
+        return is_general

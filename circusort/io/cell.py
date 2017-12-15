@@ -1,10 +1,11 @@
 import os
 
-from .parameter import load_cell_parameters, get_cell_parameters
+from circusort.io.parameter.cell import load_cell_parameters, get_cell_parameters, get_cells_parameters
 from .template import generate_template, list_templates, load_template, get_template
 from .trains import generate_train, list_trains, load_train, get_train
 from .position import generate_position, list_positions, load_position, get_position
 from ..obj.cell import Cell
+from circusort.utils import normalize_path
 
 
 def generate_cell(**kwargs):
@@ -16,6 +17,7 @@ def generate_cell(**kwargs):
     cell = Cell(template, train, position)
 
     return cell
+
 
 def generate_cells(nb_cells=3, **kwargs):
     # TODO add docstring.
@@ -193,15 +195,15 @@ def get_cell(directory=None, **kwargs):
 
     Return:
         cell: circusort.obj.Cell
-            Cell.
+            The cell to get.
+
+    See also:
+        circusort.io.get_template
+        circusort.io.get_train
+        circusort.io.get_position
     """
 
-    path = os.path.join(directory, "parameters.txt")
-    parameters = get_cell_parameters(path)
-
-    template_parameters = kwargs.copy()
-    template_parameters.update(parameters['template'])
-    template = get_template(**template_parameters)
+    parameters = get_cell_parameters(directory)
 
     train_parameters = kwargs.copy()
     train_parameters.update(parameters['train'])
@@ -209,39 +211,41 @@ def get_cell(directory=None, **kwargs):
 
     position_parameters = kwargs.copy()
     position_parameters.update(parameters['position'])
-    position = get_position(**position_parameters)
+    position = get_position(train=train, **position_parameters)
+
+    template_parameters = kwargs.copy()
+    template_parameters.update(parameters['template'])
+    template = get_template(position=position, **template_parameters)
 
     cell = Cell(template, train, position, parameters=parameters)
 
     return cell
 
 
-def get_cells(directory=None, **kwargs):
+def get_cells(path=None, **kwargs):
     """Get cells to use during the generation.
 
     Parameter:
-        directory: none | string (optional)
+        path: none | string (optional)
             The path to the directory in which to look for the cells.
 
     Return:
         cells: dictionary
-            Cells.
+            The cells to get.
+
+    See also:
+        circusort.io.generate_cells
+        circusort.io.get_cell
     """
 
-    if isinstance(directory, (str, unicode)):
-        # TODO check if there is a parameter file.
-        # TODO load this parameter file.
-        # parameters_path = os.path.join(directory, "parameters.txt")
-        # parameters = get_parameters(parameters_path)
-        cells_directory = os.path.join(directory, "cells")
-        # Check if the cells directory exists.
-        if os.path.isdir(cells_directory):
-            # TODO check if there is a parameter file.
-            # TODO load this parameter file.
-            # parameters_path = os.path.join(cells_directory, "parameters.txt")
-            # parameters = get_parameters(parameters_path)
-            # List the cell directories.
-            cell_directories = list_cells(cells_directory)
+    if isinstance(path, (str, unicode)):
+        path = normalize_path(path, **kwargs)
+        if path[-6:] != "/cells":
+            path = os.path.join(path, "cells")
+        if os.path.isdir(path):
+            parameters = get_cells_parameters(path)
+            kwargs.update(parameters['general'])
+            cell_directories = list_cells(path)
             if not cell_directories:
                 cells = generate_cells(**kwargs)
             else:

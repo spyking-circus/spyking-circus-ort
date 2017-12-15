@@ -4,6 +4,7 @@ import os
 from collections import OrderedDict
 
 from circusort.obj.parameter import Parameters
+from circusort.utils.path import normalize_path
 
 
 default_parameters = OrderedDict([
@@ -56,7 +57,8 @@ def save_parameters(path, parameters):
         line = "[{}]\n".format(section)
         lines.append(line)
         for option in parameters[section]:
-            if option != 'current directory':
+            if option != 'current_directory' and not _is_general(parameters, section, option):
+                print(option)
                 value = parameters[section][option]
                 line = "{} = {}\n".format(option, value)
                 lines.append(line)
@@ -76,7 +78,17 @@ def save_parameters(path, parameters):
     return
 
 
-def load_parameters(path, types=None):
+def _is_general(parameters, section, option):
+
+    is_general = section != 'general'\
+                 and 'general' in parameters\
+                 and option in parameters['general']\
+                 and parameters['general'][option] == parameters[section][option]
+
+    return is_general
+
+
+def load_parameters(path, types=None, default_type='string'):
     """Load parameters from a file saved on disk.
 
     Parameter:
@@ -118,24 +130,10 @@ def load_parameters(path, types=None):
     # From ConfigParser to dictionary.
     parameters = []
     for section_name in parser.sections():
-        section = [('current directory', current_directory)]
-        for option_name in parser.options(section_name):
-            if types is None:
-                type_ = 'string'
-            else:
-                type_ = types[section_name][option_name]
-            if type_ == 'boolean':
-                value = parser.getboolean(section_name, option_name)
-            elif type_ == 'integer':
-                value = parser.getint(section_name, option_name)
-            elif type_ == 'float':
-                value = parser.getfloat(section_name, option_name)
-            elif type_ == 'string':
-                value = parser.get(section_name, option_name)
-            else:
-                message = "Unknown type {}".format(type_)
-                raise ValueError(message)
-            section.append((option_name, value))
+        section = [('current_directory', current_directory)]
+        if section_name != 'general' and 'general' in parser.sections():
+            section.extend(_collect_options(parser, 'general', types=types, default_type=default_type))
+        section.extend(_collect_options(parser, section_name, types=types, default_type=default_type))
         parameters.append((section_name, section))
 
     # Instantiate object.
@@ -144,7 +142,31 @@ def load_parameters(path, types=None):
     return parameters
 
 
-def get_parameters(path=None, types=None):
+def _collect_options(parser, section_name, types=None, default_type='string'):
+
+    options = []
+    for option_name in parser.options(section_name):
+        if types is None or section_name not in types or option_name not in types[section_name]:
+            type_ = default_type
+        else:
+            type_ = types[section_name][option_name]
+        if type_ == 'boolean':
+            value = parser.getboolean(section_name, option_name)
+        elif type_ == 'integer':
+            value = parser.getint(section_name, option_name)
+        elif type_ == 'float':
+            value = parser.getfloat(section_name, option_name)
+        elif type_ == 'string':
+            value = parser.get(section_name, option_name)
+        else:
+            message = "Unknown type {}".format(type_)
+            raise ValueError(message)
+        options.append((option_name, value))
+
+    return options
+
+
+def get_parameters(path=None, types=None, default_type='string', **kwargs):
     """Get parameters from path.
 
     Parameter:
@@ -159,13 +181,12 @@ def get_parameters(path=None, types=None):
     """
 
     if isinstance(path, (str, unicode)):
-        path = os.path.expanduser(path)
-        path = os.path.abspath(path)
+        path = normalize_path(path, **kwargs)
         if os.path.isdir(path):
             path = os.path.join(path, "parameters.txt")
         if os.path.isfile(path):
             try:
-                parameters = load_parameters(path, types=types)
+                parameters = load_parameters(path, types=types, default_type=default_type)
             except (IOError, ValueError):
                 parameters = generate_parameters(types=types)
         else:
