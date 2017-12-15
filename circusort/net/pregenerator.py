@@ -206,7 +206,8 @@ def pregenerator(working_directory=None, probe_path=None, parameters_path=None):
     # parameters['probe'] = probe.get_parameters()
 
     cells = io.get_cells(probe=probe, **parameters['cells'])
-    io.save_cells(generation_directory, cells)
+    cells.save(generation_directory)
+    cells.plot(generation_directory, probe=probe)
     # TODO update the parameters of the cells.
     # parameters['cells'] = cells.get_parameters()
 

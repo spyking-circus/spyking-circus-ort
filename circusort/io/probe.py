@@ -212,8 +212,10 @@ def get_probe(path=None, **kwargs):
         if os.path.isdir(path):
             path = os.path.join(path, "probe.prb")
         if os.path.isfile(path):
-            # TODO add try ... except ...
-            probe = load_probe(path, **kwargs)
+            try:
+                probe = load_probe(path, **kwargs)
+            except IOError:
+                probe = generate_probe(**kwargs)
         else:
             probe = generate_probe(**kwargs)
     else:

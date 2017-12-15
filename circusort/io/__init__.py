@@ -10,4 +10,5 @@ from .trains import generate_trains, save_trains, list_trains, load_train, load_
 from .template import generate_templates, save_templates, list_templates, load_template, load_templates, get_template
 from .position import generate_position, save_position, get_position
 from .parameter import *
-from .cell import generate_cells, save_cells, list_cells, load_cells, get_cells
+from .cell import generate_cell, load_cell, get_cell
+from .cells import generate_cells, save_cells, list_cells, load_cells, get_cells

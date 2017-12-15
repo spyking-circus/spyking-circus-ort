@@ -1,4 +1,9 @@
 import h5py
+import matplotlib.pyplot as plt
+import numpy as np
+import os
+
+from circusort.utils.path import normalize_path
 
 
 class Template(object):
@@ -22,6 +27,42 @@ class Template(object):
         file_.create_dataset('channels', shape=self.channels.shape, dtype=self.channels.dtype, data=self.channels)
         file_.create_dataset('waveforms', shape=self.waveforms.shape, dtype=self.waveforms.dtype, data=self.waveforms)
         file_.close()
+
+        return
+
+    def plot(self, output=None, **kwargs):
+        # TODO add docstring.
+
+        _ = kwargs  # Discard additional keyword arguments.
+
+        nb_channels, nb_samples = self.waveforms.shape
+        x = np.arange(0, nb_samples)
+        x_min = 0
+        x_max = nb_samples
+
+        if output is not None:
+            plt.ioff()
+
+        fig, ax = plt.subplots()
+        ax.set_xlim(x_min, x_max)
+        for k in range(0, nb_channels):
+            y = self.waveforms[k, :]
+            ax.plot(x, y)
+        ax.set_xlabel(u"time (arb. unit)")
+        ax.set_ylabel(u"voltage (arb. unit)")
+        ax.set_title(u"Template")
+        fig.tight_layout()
+
+        if output is None:
+            plt.show()
+        else:
+            path = normalize_path(output)
+            if path[-4:] != ".pdf":
+                path = os.path.join(path, "template.pdf")
+            directory = os.path.dirname(path)
+            if not os.path.isdir(directory):
+                os.makedirs(directory)
+            fig.savefig(path)
 
         return
 
