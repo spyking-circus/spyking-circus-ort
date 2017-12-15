@@ -200,7 +200,8 @@ def pregenerator(working_directory=None, probe_path=None, parameters_path=None):
     parameters = io.get_data_parameters(configuration_directory)
 
     probe = io.get_probe(**parameters['probe'])
-    io.save_probe(generation_directory, probe)
+    probe.save(generation_directory)
+    probe.plot(generation_directory)
     # TODO update the parameters of the probe.
     # parameters['probe'] = probe.get_parameters()
 

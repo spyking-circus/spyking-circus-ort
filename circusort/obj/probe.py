@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import matplotlib.pyplot as plt
 import numpy as np
 import os
 
@@ -12,7 +13,7 @@ class Probe(object):
         total_nb_channels: integer
         radius: float
     """
-    # TODO: complete docstring.
+    # TODO complete docstring.
 
     def __init__(self, channel_groups, total_nb_channels, radius):
         """Initialization.
@@ -22,6 +23,7 @@ class Probe(object):
             total_nb_channels: integer
             radius: float
         """
+        # TODO complete docstring.
 
         self.channel_groups = channel_groups
         self.total_nb_channels = total_nb_channels
@@ -62,6 +64,30 @@ class Probe(object):
                 nodes += [i]
 
         return np.sort(np.array(nodes, dtype=np.int32)), edges
+
+    @property
+    def x(self):
+
+        x = []
+        for channel_group in self.channel_groups.itervalues():
+            for channel in channel_group['channels']:
+                x_, _ = channel_group['geometry'][channel]
+                x.append(x_)
+        x = np.array(x)
+
+        return x
+
+    @property
+    def y(self):
+
+        y = []
+        for channel_group in self.channel_groups.itervalues():
+            for channel in channel_group['channels']:
+                _, y_ = channel_group['geometry'][channel]
+                y.append(y_)
+        y = np.array(y)
+
+        return y
 
     @property
     def edges(self):
@@ -218,11 +244,50 @@ class Probe(object):
         lines.append(line)
 
         # Open probe file.
-        probe_file = open(path, mode='w')
+        file_ = open(path, mode='w')
         # Write lines to save.
-        probe_file.writelines(lines)
+        file_.writelines(lines)
         # Close probe file.
-        probe_file.close()
+        file_.close()
+
+        return
+
+    def plot(self, path=None):
+        # TODO add docstring.
+
+        x = self.x
+        y = self.y
+        x_min = np.amin(x) - 10.0
+        x_max = np.amax(x) + 10.0
+        y_min = np.amin(y) - 10.0
+        y_max = np.amax(y) + 10.0
+
+        plt.style.use('seaborn-paper')
+        fig, ax = plt.subplots()
+        ax.set_aspect('equal')
+        ax.scatter(x, y)  # TODO control the radius of the electrodes.
+        ax.set_xlim(x_min, x_max)
+        ax.set_ylim(y_min, y_max)
+        ax.set_xlabel(u"x (µm)")
+        ax.set_ylabel(u"y (µm)")
+        ax.set_title(u"Spatial layout of the electrodes")
+        fig.tight_layout()
+
+        if path is None:
+            plt.show()
+        else:
+            # Normalize path.
+            path = os.path.expanduser(path)
+            path = os.path.abspath(path)
+
+            # Handle mode.
+            if path[-4:] != ".pdf":
+                path = os.path.join(path, "probe.pdf")
+            directory = os.path.dirname(path)
+            if not os.path.isdir(directory):
+                os.makedirs(directory)
+
+            fig.savefig(path)
 
         return
 
