@@ -1,7 +1,7 @@
 import os
 
 from circusort.io.parameter.cell import load_cell_parameters, get_cell_parameters, get_cells_parameters
-from .template import generate_template, list_templates, load_template, get_template
+from .template import generate_template, list_templates, load_template
 from .trains import generate_train, list_trains, load_train, get_train
 from .position import generate_position, list_positions, load_position, get_position
 from ..obj.cell import Cell

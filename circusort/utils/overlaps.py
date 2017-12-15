@@ -33,7 +33,6 @@ class TemplateDictionary(object):
             self._scols['left'][idelay]  = np.where(self._cols % self._spike_width < idelay)[0]
             self._scols['right'][idelay] = np.where(self._cols % self._spike_width >= (self._spike_width - idelay))[0]
 
-
         if self.cc_merge is not None:
             self.cc_merge *= self._nb_elements
 
@@ -143,16 +142,16 @@ class TemplateDictionary(object):
             return False
 
         for idelay in self._delays:
-            tmp_1    = csc_template[:, self._scols['left'][idelay]]
-            tmp_2    = self.first_component[:, self._scols['right'][idelay]]
-            data     = tmp_1.dot(tmp_2.T)
+            tmp_1 = csc_template[:, self._scols['left'][idelay]]
+            tmp_2 = self.first_component[:, self._scols['right'][idelay]]
+            data  = tmp_1.dot(tmp_2.T)
             if np.any(data.data >= self.cc_merge):
                 return True
 
             if idelay < self._spike_width:
-                tmp_1    = self.first_component[:, self._scols['left'][idelay]]
-                tmp_2    = csc_template[:, self._scols['right'][idelay]]
-                data     = tmp_1.dot(tmp_2.T)
+                tmp_1 = csc_template[:, self._scols['right'][idelay]]
+                tmp_2 = self.first_component[:, self._scols['left'][idelay]]
+                data  = tmp_1.dot(tmp_2.T)
                 if np.any(data.data >= self.cc_merge):
                     return True
         return False
@@ -171,13 +170,19 @@ class TemplateDictionary(object):
             tmp_2    = self.first_component[:, self._scols['right'][idelay]]
             data     = tmp_1.dot(tmp_2.T)
             dx, dy   = data.nonzero()
+            ones     = np.ones(len(dx), dtype=np.int32)
             all_x    = np.concatenate((all_x, dx * self.nb_templates + dy))
-            all_y    = np.concatenate((all_y, (idelay - 1) * np.ones(len(dx), dtype=np.int32)))
+            all_y    = np.concatenate((all_y, (idelay - 1) * ones))
             all_data = np.concatenate((all_data, data.data))
 
             if idelay < self._spike_width:
-                all_x    = np.concatenate((all_x, dy + dx))
-                all_y    = np.concatenate((all_y, (2 * self._spike_width - idelay - 1) * np.ones(len(dx), dtype=np.int32)))
+                tmp_1    = csc_template[:, self._scols['right'][idelay]]
+                tmp_2    = self.first_component[:, self._scols['left'][idelay]]
+                data     = tmp_1.dot(tmp_2.T)
+                dx, dy   = data.nonzero()
+                ones     = np.ones(len(dx), dtype=np.int32)
+                all_x    = np.concatenate((all_x, dx * self.nb_templates + dy))
+                all_y    = np.concatenate((all_y, (self._overlap_size - idelay) * ones))
                 all_data = np.concatenate((all_data, data.data))
 
         shape     = (self.nb_templates, self._overlap_size)
@@ -265,23 +270,24 @@ class OverlapsDictionary(object):
         all_data = np.zeros(0, dtype=np.float32)
 
         for idelay in self._delays:
-            tmp_1 = template[:, self._scols['left'][idelay]]
-            tmp_2 = target[:, self._scols['right'][idelay]]
-            data  = tmp_1.dot(tmp_2.T)
-
+            tmp_1    = template[:, self._scols['left'][idelay]]
+            tmp_2    = target[:, self._scols['right'][idelay]]
+            data     = tmp_1.dot(tmp_2.T)
             dx, dy   = data.nonzero()
-            data     = data.toarray().ravel()
-            dd       = data.nonzero()[0].astype(np.int32)
-            data     = np.take(data, dd)
             ones     = np.ones(len(dx), dtype=np.int32)
             all_x    = np.concatenate((all_x, dx * target.shape[0] + dy))
             all_y    = np.concatenate((all_y, (idelay - 1) * ones))
-            all_data = np.concatenate((all_data, data))
+            all_data = np.concatenate((all_data, data.data))
 
             if idelay < self._spike_width:
-                all_x = np.concatenate((all_x, dy * template.shape[0] + dx))
-                all_y = np.concatenate((all_y, (2 * self._spike_width - idelay - 1) * ones))
-                all_data = np.concatenate((all_data, data))
+                tmp_1    = template[:, self._scols['right'][idelay]]
+                tmp_2    = target[:, self._scols['left'][idelay]]
+                data     = tmp_1.dot(tmp_2.T)
+                dx, dy   = data.nonzero()
+                ones     = np.ones(len(dx), dtype=np.int32)
+                all_x    = np.concatenate((all_x, dx * target.shape[0] + dy))
+                all_y    = np.concatenate((all_y, (self._overlap_size - idelay) * ones))
+                all_data = np.concatenate((all_data, data.data))
 
         shape = (target.shape[0] * template.shape[0], self._overlap_size)
         return csr_matrix((all_data, (all_x, all_y)), shape=shape)
