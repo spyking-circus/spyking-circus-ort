@@ -262,6 +262,9 @@ class Probe(object):
         y_min = np.amin(y) - 10.0
         y_max = np.amax(y) + 10.0
 
+        if path is not None:
+            plt.ioff()
+
         plt.style.use('seaborn-paper')
         fig, ax = plt.subplots()
         ax.set_aspect('equal')
