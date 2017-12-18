@@ -64,11 +64,11 @@ class Train(object):
         if ax is None:
             fig = plt.figure()
             gs = gds.GridSpec(1, 1)
-            ax_ = plt.subplot(gs[0])
+            ax_ = fig.add_subplot(gs[0])
             self._plot(ax_, **kwargs)
             gs.tight_layout(fig)
             if output is None:
-                plt.show()
+                fig.show()
             else:
                 path = normalize_path(output)
                 if path[-4:] != ".pdf":
