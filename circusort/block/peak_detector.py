@@ -1,4 +1,3 @@
-from .block import Block
 import numpy as np
 
 from .block import Block
