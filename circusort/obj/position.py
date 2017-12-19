@@ -10,10 +10,12 @@ from circusort.utils.path import normalize_path
 
 
 class Position(object):
-    # TODO add docstring.
+    """The position of a cell through time."""
+    # TODO complete docstring.
 
     def __init__(self, x, y):
-        # TODO add docstring.
+        """Initialization."""
+        # TODO complete docstring.
 
         self.x = x
         self.y = y
@@ -26,10 +28,9 @@ class Position(object):
                 The path to the file in which to save the position.
         """
 
-        file_ = h5py.File(path, mode='w')
-        file_.create_dataset('x', shape=self.x.shape, dtype=self.x.dtype, data=self.x)
-        file_.create_dataset('y', shape=self.y.shape, dtype=self.y.dtype, data=self.y)
-        file_.close()
+        with h5py.File(path, mode='w') as file_:
+            file_.create_dataset('x', shape=self.x.shape, dtype=self.x.dtype, data=self.x)
+            file_.create_dataset('y', shape=self.y.shape, dtype=self.y.dtype, data=self.y)
 
         return
 
@@ -94,5 +95,3 @@ class Position(object):
             self._plot(ax, set_ax=set_ax, **kwargs)
 
         return
-
-    # TODO complete.

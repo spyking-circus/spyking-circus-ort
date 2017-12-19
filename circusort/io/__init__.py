@@ -12,3 +12,4 @@ from .position import generate_position, save_position, get_position
 from .parameter import *
 from .cell import generate_cell, load_cell, get_cell
 from .cells import generate_cells, save_cells, list_cells, load_cells, get_cells
+from .spikes import load_spikes

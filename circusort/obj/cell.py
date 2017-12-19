@@ -17,7 +17,9 @@ class Cell(object):
             The template of the cell.
         train: circusort.obj.Train
             The spike train of the cell.
-        position: circusort.obj.Position
+        amplitude: none | circusort.obj.Amplitude
+            The amplitude of the cells.
+        position: none | circusort.obj.Position
             The position of the cells.
         chunk_width: float
             The width of the chunks used to bin the train into chunk subtrains [s].
@@ -25,7 +27,7 @@ class Cell(object):
             The chunk subtrains.
     """
 
-    def __init__(self, template, train, position, parameters=None):
+    def __init__(self, template, train, amplitude=None, position=None, parameters=None):
         """Initialization.
 
         Parameters:
@@ -33,14 +35,17 @@ class Cell(object):
                 The template of the cell.
             train: circusort.obj.Train
                 The spike train of the cell.
-            position: circusort.obj.Position
-                The position of the cell.
-            parameters: circusort.obj.CellParameters
-                The parameters of the cell.
+            amplitude: none | circusort.obj.Amplitude (optional)
+                The amplitude of the cell. The default value is None.
+            position: none | circusort.obj.Position (optional)
+                The position of the cell. The default value is None.
+            parameters: none | circusort.obj.CellParameters (optional)
+                The parameters of the cell. The default value is None.
         """
 
         self.template = template
         self.train = train
+        self.amplitude = amplitude
         self.position = position
 
         self.parameters = get_cell_parameters() if parameters is None else parameters
@@ -141,12 +146,21 @@ class Cell(object):
         train = self.train
         train.save(train_path)
 
-        # Save the position of the cell.
-        position_path = os.path.join(directory, "position.h5")
-        self.parameters.add('position', 'path', position_path)
-        self.parameters.add('position', 'mode', 'default')
-        position = self.position
-        position.save(position_path)
+        # Save the amplitude of the cell (if necessary).
+        if self.amplitude is not None:
+            amplitude_path = os.path.join(directory, "amplitude.h5")
+            self.parameters.add('amplitude', 'path', amplitude_path)
+            self.parameters.add('amplitude', 'mode', 'default')
+            amplitude = self.amplitude
+            amplitude.save(amplitude_path)
+
+        # Save the position of the cell (if necessary).
+        if self.position is not None:
+            position_path = os.path.join(directory, "position.h5")
+            self.parameters.add('position', 'path', position_path)
+            self.parameters.add('position', 'mode', 'default')
+            position = self.position
+            position.save(position_path)
 
         # Save the parameters of the cell.
         parameters_path = os.path.join(directory, "parameters.txt")
@@ -170,7 +184,10 @@ class Cell(object):
                     self.plot_rate(output=path, **kwargs)
                 if 'x' in self.parameters['position'] and 'y' in self.parameters['position']:
                     self.plot_position(output=path, **kwargs)
-                self.position.plot(output=path, **kwargs)
+                if self.amplitude is not None:
+                    self.amplitude.plot(output=path, **kwargs)
+                if self.position is not None:
+                    self.position.plot(output=path, **kwargs)
                 self.train.plot(output=path, **kwargs)
                 self.template.plot(output=path, **kwargs)
             else:
