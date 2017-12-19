@@ -46,7 +46,8 @@ mad_writer_kwargs = {
     'name': 'mads',
 }
 peak_writer_kwargs = {
-    'neg_peaks': os.path.join(directory, "peaks.raw"),
+    'data_path': os.path.join(directory, "peaks.h5"),
+    'sampling_rate': sampling_rate,
 }
 if args.init_temp_dict:
     cluster_kwargs = {
