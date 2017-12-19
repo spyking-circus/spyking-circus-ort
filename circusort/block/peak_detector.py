@@ -129,7 +129,7 @@ class Peak_detector(Block):
         ind = np.add(np.where(e)[0], self.nb_samples - 1)
         # Remove edges < minimum peak height.
         if self.mph is not None:
-            self.e[ind, i] = (x[ind] >= self.threshold_factor * self.mph[i])
+            self.e[ind, i] = (x[ind] >= self.threshold_factor * self.mph[0, i])
             ind = ind[self.e[ind, i]]
         # Remove peak - neighbors < threshold
         if threshold > 0.0:

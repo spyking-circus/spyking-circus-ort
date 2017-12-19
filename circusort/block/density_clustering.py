@@ -385,7 +385,7 @@ class Density_clustering(Block):
 
                     for channel in self.channels:
 
-                        threshold = self.threshold_factor * self.thresholds[channel]
+                        threshold = self.threshold_factor * self.thresholds[0, channel]
                         self.managers[key][channel].set_physical_threshold(threshold)
 
                         if len(self.raw_data[key][channel]) >= self.nb_waveforms and not self.managers[key][channel].is_ready:

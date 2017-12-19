@@ -42,7 +42,8 @@ signal_writer_kwargs = {
     'data_path': os.path.join(directory, "signal.raw"),
 }
 mad_writer_kwargs = {
-    'data_path': os.path.join(directory, "mad.raw"),
+    'data_path': os.path.join(directory, "mads.h5"),
+    'name': 'mads',
 }
 peak_writer_kwargs = {
     'neg_peaks': os.path.join(directory, "peaks.raw"),
@@ -150,10 +151,8 @@ else:
 
     # Launch the Circus network.
     director.start()
-    # TODO remove the two following lines.
-    # director.sleep(duration=10.0+1.0*60.0)
-    # director.stop()
     director.join()
+    director.destroy()
 
 
 # # Analyze the results.
