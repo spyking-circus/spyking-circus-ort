@@ -7,10 +7,18 @@ from circusort.utils.path import normalize_path
 
 
 class Template(object):
-    # TODO add docstring
+    """The template of a cell."""
+    # TODO complete docstring
 
     def __init__(self, channels, waveforms):
-        # TODO add docstring.
+        """Initialization.
+
+        Parameters:
+            channels: numpy.ndarray
+                The channels which define the support of the template. An array of shape (nb_channels,).
+            waveforms: numpy.ndarray
+                The waveforms of the template. An array of shape: (nb_channels, nb_samples).
+        """
 
         self.channels = channels
         self.waveforms = waveforms
