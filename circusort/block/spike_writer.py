@@ -1,13 +1,17 @@
-from .block import Block
-import tempfile
+import h5py
+import numpy as np
 import os
-import numpy
+import tempfile
+
+from circusort.block.block import Block
 
 
 class Spike_writer(Block):
     """Spike writer block.
 
     Attributes:
+        data_path: string
+            The path to the HDF5 file to use to write the data.
         spike_times: string
             Path to the location where spike times will be saved.
         amplitudes: string
@@ -20,6 +24,8 @@ class Spike_writer(Block):
             Path to the location where rejected amplitudes will be saved.
         directory: string
             Path to the location where spike attributes will be saved.
+        sampling_rate: float
+            The sampling rate to use to convert timestamps into times.
 
     """
     # TODO complete docstring.
@@ -27,18 +33,28 @@ class Spike_writer(Block):
     name = "Spike writer"
 
     params = {
+        'data_path': None,
         'spike_times': None,
         'amplitudes': None,
         'templates': None,
         'rejected_times': None,
         'rejected_amplitudes': None,
         'directory': None,
+        'sampling_rate': None,
     }
 
     def __init__(self, **kwargs):
 
         Block.__init__(self, **kwargs)
         self.add_input('spikes')
+
+        self.data_path = None if self.data_path is None else self.data_path
+        self.sampling_rate = self.sampling_rate if isinstance(self.sampling_rate, float) else 20e+3  # Hz
+
+        if self.data_path is None:
+            self._mode = 'raw'
+        else:
+            self._mode = 'hdf5'
 
     def _get_temp_file(self, basename=None):
 
@@ -59,14 +75,16 @@ class Spike_writer(Block):
 
     def _initialize(self):
 
-        self.recorded_data = {}
-        self.data_file = {}
-
-        self._initialize_data_file('spike_times', self.spike_times)
-        self._initialize_data_file('amplitudes', self.amplitudes)
-        self._initialize_data_file('templates', self.templates)
-        self._initialize_data_file('rejected_times', self.rejected_times)
-        self._initialize_data_file('rejected_amplitudes', self.rejected_amplitudes)
+        if self._mode == 'raw':
+            self.recorded_data = {}
+            self.data_file = {}
+            self._initialize_data_file('spike_times', self.spike_times)
+            self._initialize_data_file('amplitudes', self.amplitudes)
+            self._initialize_data_file('templates', self.templates)
+            self._initialize_data_file('rejected_times', self.rejected_times)
+            self._initialize_data_file('rejected_amplitudes', self.rejected_amplitudes)
+        elif self._mode == 'hdf5':
+            self._h5_file = h5py.File(self.data_path, mode='w', swmr=True)
 
         return
 
@@ -86,33 +104,69 @@ class Spike_writer(Block):
 
         batch = self.input.receive()
 
-        if self.input.structure == 'array':
-            self.log.error('{n} can only write spike dictionaries'.format(n=self.name))
-        elif self.input.structure == 'dict':
+        if self.input.structure == 'dict':
+
             offset = batch.pop('offset')
-            for key in batch:
-                if key in ['spike_times']:
-                    to_write = numpy.array(batch[key]).astype(numpy.int32)
-                    to_write += offset
-                elif key in ['templates']:
-                    to_write = numpy.array(batch[key]).astype(numpy.int32)
-                elif key in ['amplitudes']:
-                    to_write = numpy.array(batch[key]).astype(numpy.float32)
-                elif key in ['rejected_times']:
-                    to_write = numpy.array(batch[key]).astype(numpy.int32)
-                    to_write += offset
-                elif key in ['rejected_amplitudes']:
-                    to_write = numpy.array(batch[key]).astype(numpy.float32)
-                else:
-                    raise KeyError(key)
-                self.data_file[key].write(to_write)
-                self.data_file[key].flush()
+            if self._mode == 'raw':
+                for key in batch:
+                    if key in ['spike_times']:
+                        to_write = np.array(batch[key]).astype(np.int32)
+                        to_write += offset
+                    elif key in ['templates']:
+                        to_write = np.array(batch[key]).astype(np.int32)
+                    elif key in ['amplitudes']:
+                        to_write = np.array(batch[key]).astype(np.float32)
+                    elif key in ['rejected_times']:
+                        to_write = np.array(batch[key]).astype(np.int32)
+                        to_write += offset
+                    elif key in ['rejected_amplitudes']:
+                        to_write = np.array(batch[key]).astype(np.float32)
+                    else:
+                        raise KeyError(key)
+                    self.data_file[key].write(to_write)
+                    self.data_file[key].flush()
+            elif self._mode == 'hdf5':
+                for key in batch:
+                    dataset_name = key
+                    if key == 'spike_times':
+                        dataset_name = 'times'
+                        times = [float(timestamp + offset) / self.sampling_rate for timestamp in batch[key]]
+                        data = np.array(times, dtype=np.float32)
+                    elif key == 'templates':
+                        data = np.array(batch[key], dtype=np.int16)
+                    elif key == 'amplitudes':
+                        data = np.array(batch[key], dtype=np.float32)
+                    elif key == 'rejected_times':
+                        rejected_times = [float(timestamp + offset) / self.sampling_rate for timestamp in batch[key]]
+                        data = np.array(rejected_times, dtype=np.float32)
+                    elif key == 'rejected_amplitudes':
+                        data = np.array(batch[key], dtype=np.float32)
+                    else:
+                        data = None
+                    if data is None or data.size == 0:
+                        pass
+                    elif dataset_name in self._h5_file:
+                        dataset = self._h5_file[dataset_name]
+                        shape = dataset.shape
+                        shape_ = (shape[0] + data.shape[0],)
+                        dataset.resize(shape_)
+                        dataset[shape[0]:] = data
+                        dataset.flush()
+                    else:
+                        dataset = self._h5_file.create_dataset(dataset_name, data=data, chunks=True, maxshape=(None,))
+                        dataset.flush()
+
         else:
-            self.log.error("{n} can't write {s}".format(n=self.name, s=self.input.structure))
+
+            message = "{} can only write spike dictionaries".format(self.name)
+            self.log.error(message)
 
         return
 
     def __del__(self):
 
-        for file in self.data_file.values():
-            file.close()
+        if self._mode == 'raw':
+            for file in self.data_file.values():
+                file.close()
+        elif self._mode == 'hdf5':
+            self._h5_file.close()

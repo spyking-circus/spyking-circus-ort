@@ -316,37 +316,43 @@ class Density_clustering(Block):
     def _process(self):
 
         batch = self.inputs['data'].receive()
-        peaks = self.inputs['peaks'].receive(blocking=False)
+        if self.is_active:
+            peaks = self.inputs['peaks'].receive()
+        else:
+            peaks = self.inputs['peaks'].receive(blocking=False)
         self.thresholds = self.inputs['mads'].receive(blocking=False)
 
         if self.receive_pcs:
             self.pcs = self.inputs['pcs'].receive(blocking=False)
 
-        if self.pcs is not None:
+        if self.pcs is not None:  # (i.e. we have already received some principal components).
 
-            if self.receive_pcs:
+            if self.receive_pcs:  # (i.e. we need to initialize the block with the principal components).
                 info_msg = "{} receives the PCA matrices"
                 self.log.info(info_msg.format(self.name_and_counter))
                 self.receive_pcs = False
                 self._init_data_structures()
 
-            if (peaks is not None) and (self.thresholds is not None):
+            if (peaks is not None) and (self.thresholds is not None):  # (i.e. if we receive some peaks and MADs)
 
                 self.to_reset = []
 
+                # Synchronize the reception of the peaks with the reception of the data.
                 while not self._sync_buffer(peaks, self.nb_samples):
                     peaks = self.inputs['peaks'].receive()
 
+                # Set active mode (i.e. use a blocking reception for the peaks).
                 if not self.is_active:
                     self._set_active_mode()
 
-                offset = peaks.pop('offset')
+                # Retrieve peaks from received buffer.
+                _ = peaks.pop('offset')
                 all_peaks = self._get_all_valid_peaks(peaks)
 
                 for key in self.sign_peaks:
 
-                    # # TODO remove the 2 following lines.
-                    #self.log.debug("{} processes {}/{} peaks".format(self.name, len(all_peaks[key]), nb_peaks))
+                    # # TODO remove the following line.
+                    # self.log.debug("{} processes {} {} peaks".format(self.name, len(all_peaks[key]), key))
                     peak_indices = np.random.permutation(np.arange(len(all_peaks[key])))
                     peak_values  = np.take(all_peaks[key], peak_indices)
 
@@ -373,7 +379,7 @@ class Density_clustering(Block):
 
                     for channel in self.channels:
 
-                        threshold = self.threshold_factor * self.thresholds[channel]
+                        threshold = self.threshold_factor * self.thresholds[0, channel]
                         self.managers[key][channel].set_physical_threshold(threshold)
 
                         if len(self.raw_data[key][channel]) >= self.nb_waveforms and not self.managers[key][channel].is_ready:
@@ -391,7 +397,6 @@ class Density_clustering(Block):
                         #     self.log.debug("key:{}, channel:{}, test:{} >=? {}".format(key, channel, len(self.raw_data[key][channel]), self.nb_waveforms))
 
                 if len(self.to_reset) > 0:
-                    # TODO remove the following line.
                     self.templates['offset'] = self.counter * self.nb_samples
                     self.outputs['templates'].send(self.templates)
                     for key, channel in self.to_reset:

@@ -56,8 +56,6 @@ class Cells(object):
         Parameters:
             path: string
                 The path to the directory in which to save the cells.
-            cells: dictionary
-                Dictionary of cells to save.
             mode: string (optional)
                 The mode to use to save the cells. Either 'default', 'by cells' or 'by components'. The default value is
                 'default'.
@@ -95,6 +93,7 @@ class Cells(object):
             kwargs.update(parameters['general'])
             self.plot_rates(output=cells_directory, **kwargs)
             self.plot_trains(output=cells_directory, **kwargs)
+            self.plot_positions(output=cells_directory, **kwargs)
             for k, cell in self.iteritems():
                 cell_directory = os.path.join(cells_directory, "{}".format(k))
                 cell.plot(output=cell_directory, **kwargs)
@@ -105,6 +104,7 @@ class Cells(object):
 
         for k, cell in self.iteritems():
             cell.plot_rate(ax=ax, **kwargs)
+        ax.set_title(u"Rates")
 
         return
 
@@ -117,11 +117,11 @@ class Cells(object):
         if ax is None:
             fig = plt.figure()
             gs = gds.GridSpec(1, 1)
-            ax_ = plt.subplot(gs[0])
+            ax_ = fig.add_subplot(gs[0])
             self._plot_rates(ax_, **kwargs)
             gs.tight_layout(fig)
             if output is None:
-                plt.show()
+                fig.show()
             else:
                 path = normalize_path(output)
                 if path[-4:] != ".pdf":
@@ -129,7 +129,7 @@ class Cells(object):
                 directory = os.path.dirname(path)
                 if not os.path.isdir(directory):
                     os.makedirs(directory)
-                plt.savefig(path)
+                fig.savefig(path)
         else:
             self._plot_rates(ax, **kwargs)
 
@@ -139,8 +139,9 @@ class Cells(object):
 
         for k, cell in self.iteritems():
             cell.train.plot(ax=ax, offset=k, **kwargs)
-        ax.set_yticks([ i for i in range(0, self.nb_cells)])
+        ax.set_yticks([i for i in range(0, self.nb_cells)])
         ax.set_yticklabels([str(k) for k in range(0, self.nb_cells)])
+        ax.set_title(u"Trains")
 
         return
 
@@ -153,11 +154,11 @@ class Cells(object):
         if ax is None:
             fig = plt.figure()
             gs = gds.GridSpec(1, 1)
-            ax_ = plt.subplot(gs[0])
+            ax_ = fig.add_subplot(gs[0])
             self._plot_trains(ax_, **kwargs)
             gs.tight_layout(fig)
             if output is None:
-                plt.show()
+                fig.show()
             else:
                 path = normalize_path(output)
                 if path[-4:] != ".pdf":
@@ -165,8 +166,46 @@ class Cells(object):
                 directory = os.path.dirname(path)
                 if not os.path.isdir(directory):
                     os.makedirs(directory)
-                plt.savefig(path)
+                fig.savefig(path)
         else:
             self._plot_trains(ax, **kwargs)
+
+        return
+
+    def _plot_positions(self, ax, probe=None, **kwargs):
+        # TODO add docstring.
+
+        if probe is not None:
+            probe.plot(ax=ax, **kwargs)
+        for k, cell in self.iteritems():
+            cell.position.plot(ax=ax, set_ax=False, **kwargs)
+        ax.set_title(u"Positions")
+
+        return
+
+    def plot_positions(self, output=None, ax=None, **kwargs):
+        # TODO add docstring.
+
+        if output is not None and ax is None:
+            plt.ioff()
+
+        if ax is None:
+            fig = plt.figure()
+            gs = gds.GridSpec(1, 1)
+            ax_ = fig.add_subplot(gs[0])
+            self._plot_positions(ax_, **kwargs)
+            gs.tight_layout(fig)
+            if output is None:
+                fig.show()
+            else:
+                path = normalize_path(output)
+                if path[-4:] != ".pdf":
+                    path = os.path.join(path, "parameters_positions.pdf")
+                directory = os.path.dirname(path)
+                if not os.path.isdir(directory):
+                    os.makedirs(directory)
+                fig.savefig(path)
+        else:
+            self._plot_positions(ax, **kwargs)
 
         return

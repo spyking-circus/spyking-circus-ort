@@ -10,7 +10,8 @@ import circusort
 # Parse command line.
 # TODO check the following lines.
 parser = argparse.ArgumentParser()
-parser.add_argument('--no-generation', dest='skip_generation', action='store_true')
+parser.add_argument('--no-realism', dest='is_realistic', action='store_false', default=True)
+parser.add_argument('--no-sorting', dest='skip_sorting', action='store_true', default=False)
 parser.add_argument('--init-temp-dict', dest='init_temp_dict', action='store_true')
 args = parser.parse_args()
 
@@ -20,36 +21,20 @@ host = '127.0.0.1'  # i.e. run the test locally
 nb_channels = 16
 nb_samples = 1024
 sampling_rate = 20e+3  # Hz
-# TODO remove the following commented lines.
-# r = {
-#     0: "r_ref*(t<t_a)+0.25*r_ref*(t_a<=t)*(t<t_b)+0.8*r_ref*(t_b<=t)*(t<t_d)+0.6*r_ref*(t_d<=t)",
-#     1: "r_ref*(t<t_a)+0.50*r_ref*(t_a<=t)*(t<t_b)+0.3*r_ref*(t_b<=t)*(t<t_c)+0.4*r_ref*(t_c<=t)",
-#     2: "r_ref*(t<t_a)+0.75*r_ref*(t_a<=t)*(t<t_b)+0.4*r_ref*(t_b<=t)*(t<t_d)+0.7*r_ref*(t_d<=t)",
-# }
-# def define_cell_obj(k):
-#     cell_obj = {
-#         'x': 'x_{}'.format(k),
-#         'y': 'y_{}'.format(k),
-#         'r': r[k],
-#         't': 'default',
-#     }
-#     return cell_obj
-# cells_args = [define_cell_obj(k) for k in range(0, 3)]
-# cells_params = {
-#     'x_0': +50.0, 'y_0': +50.0,
-#     'x_1': -50.0, 'y_1': +50.0,
-#     'x_2': -50.0, 'y_2': -50.0,
-#     'r_ref': sampling_rate / float(nb_samples),  # firing rate  # Hz
-#     't_a': 2 * 60 * 20,
-#     't_b': 5 * 60 * 20,
-#     't_c': 7 * 60 * 20,
-#     't_d': 8 * 60 * 20,
-# }
+
 directory = os.path.join("~", ".spyking-circus-ort", "benchmarks", "scaling")
 directory = os.path.expanduser(directory)
-if not os.path.exists(directory):
-    os.makedirs(directory)
-probe_path = os.path.join(directory, "generation", "probe.prb")
+if not os.path.isdir(directory):
+    message = "Directory does not exist: {}".format(directory)
+    raise OSError(message)
+generation_directory = os.path.join(directory, "generation")
+probe_path = os.path.join(generation_directory, "probe.prb")
+if not os.path.isfile(probe_path):
+    message = "File does not exist: {}".format(directory)
+    raise OSError(message)
+sorting_directory = os.path.join(directory, "sorting")
+if not os.path.isdir(sorting_directory):
+    os.makedirs(sorting_directory)
 
 
 # Define keyword arguments.
@@ -59,15 +44,18 @@ reader_kwargs = {
     'nb_channels': nb_channels,
     'nb_samples': nb_samples,
     'sampling_rate': sampling_rate,
+    'is_realistic': args.is_realistic,
 }
 signal_writer_kwargs = {
-    'data_path': os.path.join(directory, "signal.raw"),
+    'data_path': os.path.join(sorting_directory, "data_filtered.raw"),
 }
 mad_writer_kwargs = {
-    'data_path': os.path.join(directory, "mad.raw"),
+    'data_path': os.path.join(sorting_directory, "mads.h5"),
+    'name': 'mads',
 }
 peak_writer_kwargs = {
-    'neg_peaks': os.path.join(directory, "peaks.raw"),
+    'data_path': os.path.join(sorting_directory, "peaks.h5"),
+    'sampling_rate': sampling_rate,
 }
 if args.init_temp_dict:
     cluster_kwargs = {
@@ -78,27 +66,25 @@ else:
         'nb_waveforms': 100,  # i.e. precipitate clustering (template does not exist)
     }
 updater_kwargs = {
-    'data_path': os.path.join(directory, "templates.h5"),
+    'data_path': os.path.join(sorting_directory, "templates.h5"),
 }
 if args.init_temp_dict:
     fitter_kwargs = {
+        # TODO correct the following line.
         'init_path': os.path.join(directory, "initial_templates.h5"),
         'with_rejected_times': True,
     }
 else:
     fitter_kwargs = {}
 spike_writer_kwargs = {
-    'spike_times': os.path.join(directory, "spike_times.raw"),
-    'templates': os.path.join(directory, "templates.raw"),
-    'amplitudes': os.path.join(directory, "amplitudes.raw"),
-    'rejected_times': os.path.join(directory, "rejected_times.raw"),
-    'rejected_amplitudes': os.path.join(directory, "rejected_amplitudes.raw"),
+    'data_path': os.path.join(sorting_directory, "spikes.h5"),
+    'sampling_rate': sampling_rate,
 }
 
 
-if args.skip_generation:
+if args.skip_sorting:
 
-    print("Warning: generation skipped.")
+    print("Warning: sorting skipped.")
 
 else:
 
@@ -172,9 +158,8 @@ else:
 
     # Launch the Circus network.
     director.start()
-    director.sleep(duration=10.0+1.0*60.0)
-    director.stop()
-    # director.join()
+    director.join()
+    director.destroy()
 
 
 # # Analyze the results.
