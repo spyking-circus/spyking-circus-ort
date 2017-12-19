@@ -91,8 +91,6 @@ class Writer(Block):
             self.recorded_keys = {}
         elif self.mode == 'hdf5':
             self._h5_file = h5py.File(self.data_path, mode='w', swmr=True)
-            # TODO use/remove the following line?
-            # self._h5_file = h5py.File(self.data_path, mode='w', libver='latest', swmr=True)
         else:
             message = "Unknown mode value: {}".format(self.mode)
             raise ValueError(message)

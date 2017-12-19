@@ -39,7 +39,7 @@ reader_kwargs = {
     'is_realistic': args.is_realistic,
 }
 signal_writer_kwargs = {
-    'data_path': os.path.join(directory, "signal.raw"),
+    'data_path': os.path.join(directory, "data_filtered.raw"),
 }
 mad_writer_kwargs = {
     'data_path': os.path.join(directory, "mads.h5"),
@@ -68,11 +68,8 @@ if args.init_temp_dict:
 else:
     fitter_kwargs = {}
 spike_writer_kwargs = {
-    'spike_times': os.path.join(directory, "spike_times.raw"),
-    'templates': os.path.join(directory, "templates.raw"),
-    'amplitudes': os.path.join(directory, "amplitudes.raw"),
-    'rejected_times': os.path.join(directory, "rejected_times.raw"),
-    'rejected_amplitudes': os.path.join(directory, "rejected_amplitudes.raw"),
+    'data_path': os.path.join(directory, "spikes.h5"),
+    'sampling_rate': sampling_rate,
 }
 
 
