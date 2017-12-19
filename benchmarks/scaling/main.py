@@ -24,9 +24,17 @@ sampling_rate = 20e+3  # Hz
 
 directory = os.path.join("~", ".spyking-circus-ort", "benchmarks", "scaling")
 directory = os.path.expanduser(directory)
-if not os.path.exists(directory):
-    os.makedirs(directory)
-probe_path = os.path.join(directory, "generation", "probe.prb")
+if not os.path.isdir(directory):
+    message = "Directory does not exist: {}".format(directory)
+    raise OSError(message)
+generation_directory = os.path.join(directory, "generation")
+probe_path = os.path.join(generation_directory, "probe.prb")
+if not os.path.isfile(probe_path):
+    message = "File does not exist: {}".format(directory)
+    raise OSError(message)
+sorting_directory = os.path.join(directory, "sorting")
+if not os.path.isdir(sorting_directory):
+    os.makedirs(sorting_directory)
 
 
 # Define keyword arguments.
@@ -39,14 +47,14 @@ reader_kwargs = {
     'is_realistic': args.is_realistic,
 }
 signal_writer_kwargs = {
-    'data_path': os.path.join(directory, "data_filtered.raw"),
+    'data_path': os.path.join(sorting_directory, "data_filtered.raw"),
 }
 mad_writer_kwargs = {
-    'data_path': os.path.join(directory, "mads.h5"),
+    'data_path': os.path.join(sorting_directory, "mads.h5"),
     'name': 'mads',
 }
 peak_writer_kwargs = {
-    'data_path': os.path.join(directory, "peaks.h5"),
+    'data_path': os.path.join(sorting_directory, "peaks.h5"),
     'sampling_rate': sampling_rate,
 }
 if args.init_temp_dict:
@@ -58,17 +66,18 @@ else:
         'nb_waveforms': 100,  # i.e. precipitate clustering (template does not exist)
     }
 updater_kwargs = {
-    'data_path': os.path.join(directory, "templates.h5"),
+    'data_path': os.path.join(sorting_directory, "templates.h5"),
 }
 if args.init_temp_dict:
     fitter_kwargs = {
+        # TODO correct the following line.
         'init_path': os.path.join(directory, "initial_templates.h5"),
         'with_rejected_times': True,
     }
 else:
     fitter_kwargs = {}
 spike_writer_kwargs = {
-    'data_path': os.path.join(directory, "spikes.h5"),
+    'data_path': os.path.join(sorting_directory, "spikes.h5"),
     'sampling_rate': sampling_rate,
 }
 
