@@ -1,7 +1,7 @@
 import numpy as np
 
 from circusort.utils.template import compute_template_similarity
-from circusort.utils.train import compute_train_similarity, compute_dip_strength
+from circusort.utils.train import compute_train_similarity, compute_pic_strength
 
 
 def find_matching(source_cells, sink_cells, **kwargs):
@@ -29,14 +29,14 @@ def find_matching(source_cells, sink_cells, **kwargs):
             similarity = compute_train_similarity(source_train, sink_train)
             train_similarities[i, j] = similarity
 
-    # Compute the matrix of dip strengths.
-    dip_strengths = np.zeros(shape)
+    # Compute the matrix of pic strengths.
+    pic_strengths = np.zeros(shape)
     for i, source_cell in enumerate(source_cells):
         source_train = source_cell.train.slice(**kwargs)
         for j, sink_cell in enumerate(sink_cells):
             sink_train = sink_cell.train.slice(**kwargs)
-            strength = compute_dip_strength(source_train, sink_train)
-            dip_strengths[i, j] = strength
+            strength = compute_pic_strength(source_train, sink_train)
+            pic_strengths[i, j] = strength
 
     # TODO remove the following temporary lines.
     import matplotlib.pyplot as plt
@@ -44,7 +44,7 @@ def find_matching(source_cells, sink_cells, **kwargs):
     _, ax = plt.subplots(1, 3)
     ax[0].imshow(template_similarities)
     ax[1].imshow(train_similarities)
-    ax[2].imshow(dip_strengths)
+    ax[2].imshow(pic_strengths)
     from circusort.utils.train import compute_correlation, compute_reverted_correlation
     fig, ax = plt.subplots(3, 3, sharex='all', sharey='all')
     for i in range(0, 3):

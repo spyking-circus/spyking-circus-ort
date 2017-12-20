@@ -76,14 +76,14 @@ def compute_train_similarity(source_train, sink_train, t_min=None, t_max=None, *
     return similarity
 
 
-def compute_dip_strength(source_train, sink_train, lag_min=-100e-3, lag_max=+100e-3,
+def compute_pic_strength(source_train, sink_train, lag_min=-100e-3, lag_max=+100e-3,
                          tau_min=-2.5e-3, tau_max=+2.5e-3, **kwargs):
     # TODO add docstring.
 
     _, correlations = compute_correlation(source_train, sink_train,
-                                         lag_min=lag_min, lag_max=lag_max, **kwargs)
+                                         lag_min=tau_min, lag_max=tau_max, **kwargs)
     _, correlations_ = compute_correlation(source_train, sink_train.reverse(),
-                                          lag_min=tau_min, lag_max=tau_max, **kwargs)
+                                          lag_min=lag_min, lag_max=lag_max, **kwargs)
     c = np.mean(correlations)
     c_ = np.mean(correlations_)
     strength = (c - c_) / (c + c_)
