@@ -2,7 +2,25 @@ import numpy as np
 
 
 def compute_correlation(source_train, sink_train, bin_size=1e-3, lag_min=-100e-3, lag_max=+100e-3, **kwargs):
-    # TODO add docstring.
+    """Compute the cross-correlogram between two spike trains.
+
+    Parameters:
+        source_train: circusort.obj.Train
+            The spike train to use as reference.
+        sink_train: circusort.obj.Train
+            The spike train to compare to the spike train of reference.
+        bin_size: float (optional)
+            The size of the bin to use [s]. The default value is 1e-3.
+        lag_min: float (optional)
+            The minimum of the lag window of interest [s]. The default value is -100e-3.
+        lag_max: float (optional)
+            The maximum of the lag window of interest [s]. The default value is +100e-3.
+    Returns:
+        lags: numpy.ndarray
+            The lag values for each bin of the cross-correlogram. An array of shape: (nb_bins,).
+        correlations: numpy.ndarray
+            The correlation values for each bin of the cross-correlogram. An array of shape: (nb_bins,).
+    """
 
     _ = kwargs  # Discard additional keyword arguments.
 
@@ -54,10 +72,25 @@ def compute_correlation(source_train, sink_train, bin_size=1e-3, lag_min=-100e-3
     return lags, correlations
 
 
-def compute_reverted_correlation(source_train, sink_train, **kwargs):
+def compute_reversed_correlation(source_train, sink_train, **kwargs):
+    """Compute the reversed cross-correlogram between two spike trains.
 
-    assert source_train.t_min == sink_train.t_min
-    assert source_train.t_max == sink_train.t_max
+    Parameters:
+        source_train: circusort.obj.Train
+            The spike train to use as reference.
+        sink_train: circusort.obj.Train
+            The spike train to reverse and compare to the spike train of reference.
+    Returns:
+        lags: numpy.ndarray
+            The lag values for each bin of the cross-correlogram. An array of shape: (nb_bins,).
+        correlations: numpy.ndarray
+            The correlation values for each bin of the cross-correlogram. An array of shape: (nb_bins,).
+    See also:
+        circusort.utils.train.compute_correlation
+    """
+
+    assert source_train.t_min == sink_train.t_min, "{} != {}".format(source_train.t_min, sink_train.t_min)
+    assert source_train.t_max == sink_train.t_max, "{} != {}".format(source_train.t_max, sink_train.t_max)
 
     reverted_sink_train = sink_train.reverse()
     lags, correlations = compute_correlation(source_train, reverted_sink_train, **kwargs)
@@ -66,7 +99,23 @@ def compute_reverted_correlation(source_train, sink_train, **kwargs):
 
 
 def compute_train_similarity(source_train, sink_train, t_min=None, t_max=None, **kwargs):
-    # TODO add docstring.
+    """Compute the similarity between two spike trains.
+
+    Parameters:
+        source_train: circusort.obj.Train
+            The spike train to use as reference.
+        sink_train: circusort.obj.Train
+            The spike train to compare to the spike train of reference.
+        t_min: none | float
+            The minimum of the time window of interest. The default value is None.
+        t_max: none | float
+            The maximum of the time window of interest. The default value is None.
+    Return:
+        similarity: float
+            The similarity between the two spike trains as the maximum correlation between them.
+    See also:
+        circusort.utils.train.compute_correlation
+    """
 
     source_train = source_train.slice(t_min=t_min, t_max=t_max)
     sink_train = sink_train.slice(t_min=t_min, t_max=t_max)
@@ -78,12 +127,37 @@ def compute_train_similarity(source_train, sink_train, t_min=None, t_max=None, *
 
 def compute_pic_strength(source_train, sink_train, lag_min=-100e-3, lag_max=+100e-3,
                          tau_min=-2.5e-3, tau_max=+2.5e-3, **kwargs):
-    # TODO add docstring.
+    """Compute the strength of the pic of correlation between two spike trains around 0.0 ms lag.
+
+    Parameters:
+        source_train: circusort.obj.Train
+            The spike train to use as reference.
+        sink_train: circusort.obj.Train
+            The spike train to compare to the spike train of reference.
+        lag_min: float (optional)
+            The minimum of the lag window of interest to estimate the baseline correlation [s]. The default value is
+            -100e-3.
+        lag_max: float (optional)
+            The maximum of the lag window of interest to estimate the baseline correlation [s]. The default value is
+            +100e-3.
+        tau_min: float (optional)
+            The minimum of the lag window of interest to estimate the pic of correlation [s]. The default value is
+            -2.5e-3.
+        tau_max: float (optional)
+            The maximum of the lag window of interest to estimate the pic of correlation [s]. The default value is
+            +2.5e-3.
+    Return:
+        strength: float
+            The strength of the pic of correlation between the two spike trains around 0.0 ms lag.
+    See also:
+        circusort.utils.train.compute_correlation
+        circusort.utils.train.compute_reversed_correlation
+    """
 
     _, correlations = compute_correlation(source_train, sink_train,
-                                         lag_min=tau_min, lag_max=tau_max, **kwargs)
-    _, correlations_ = compute_correlation(source_train, sink_train.reverse(),
-                                          lag_min=lag_min, lag_max=lag_max, **kwargs)
+                                          lag_min=tau_min, lag_max=tau_max, **kwargs)
+    _, correlations_ = compute_reversed_correlation(source_train, sink_train,
+                                                    lag_min=lag_min, lag_max=lag_max, **kwargs)
     c = np.mean(correlations)
     c_ = np.mean(correlations_)
     strength = (c - c_) / (c + c_)

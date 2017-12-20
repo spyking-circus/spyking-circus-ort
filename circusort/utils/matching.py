@@ -45,7 +45,7 @@ def find_matching(source_cells, sink_cells, **kwargs):
     ax[0].imshow(template_similarities)
     ax[1].imshow(train_similarities)
     ax[2].imshow(pic_strengths)
-    from circusort.utils.train import compute_correlation, compute_reverted_correlation
+    from circusort.utils.train import compute_correlation, compute_reversed_correlation
     fig, ax = plt.subplots(3, 3, sharex='all', sharey='all')
     for i in range(0, 3):
         for j in range(0, 3):
@@ -53,7 +53,7 @@ def find_matching(source_cells, sink_cells, **kwargs):
             sink_train = sink_cells[j].train.slice(**kwargs)
             lag, correlation = compute_correlation(source_train, sink_train, **kwargs)
             ax[i, j].plot(lag, correlation)
-            lag, correlation = compute_reverted_correlation(source_train, sink_train, **kwargs)
+            lag, correlation = compute_reversed_correlation(source_train, sink_train, **kwargs)
             ax[i, j].plot(lag, correlation)
     fig.tight_layout()
     plt.show()
