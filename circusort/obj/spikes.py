@@ -8,22 +8,49 @@ from circusort.obj.amplitude import Amplitude
 
 
 class Spikes(object):
-    # TODO add docstring.
+    """The spikes resulting from the sorting.
+
+    Attributes:
+        times: numpy.ndarray
+            The spike times. An array of shape: (nb_spikes,).
+        templates: numpy.ndarray
+            The unit (i.e. template) identifiers of each spike. An array of shape: (nb_spikes,).
+        amplitudes: numpy.ndarray
+            The amplitudes of each spike. An array of shape: (nb_spikes,).
+    """
 
     def __init__(self, times, templates, amplitudes):
-        # TODO add docstring.
+        """Initialization.
+
+        Parameters:
+            times: numpy.ndarray
+                The spike times. An array of shape: (nb_spikes,).
+            templates: numpy.ndarray
+                The unit (i.e. template) identifiers of each spike. An array of shape: (nb_spikes,).
+            amplitudes: numpy.ndarray
+                The amplitudes of each spike. An array of shape: (nb_spikes,).
+        """
 
         self.times = times
         self.templates = templates
         self.amplitudes = amplitudes
 
     @property
-    def unit_identifiers(self):
+    def units(self):
+        # TODO add docstring.
 
         # TODO correct the following line (i.e. use the number of units instead).
-        unit_identifiers = np.unique(self.templates)
+        units = np.unique(self.templates)
 
-        return unit_identifiers
+        return units
+
+    @property
+    def nb_units(self):
+        # TODO add docstring.
+
+        nb_units = self.units.size
+
+        return nb_units
 
     def get_unit(self, k):
         """Get one unit (i.e. cell) given an identifier.
@@ -58,11 +85,63 @@ class Spikes(object):
 
         cells = {
             k: self.get_unit(k)
-            for k in self.unit_identifiers
+            for k in self.units
         }
         cells = Cells(cells)
 
         return cells
+
+    def get_time_step(self, selection=None):
+        """Get time steps.
+
+        Parameter:
+            selection: none | integer | list (optional)
+                Unit index or indices. The default value is None.
+        Return:
+            times: numpy.ndarray
+                The spike times to get. An array of shape (nb_spikes,).
+        """
+
+        if selection is None:
+            times = self.times
+        elif isinstance(selection, (int, np.int32)):
+            is_selected = np.array([e == selection for e in self.templates])
+            times = self.times[is_selected]
+        elif isinstance(selection, list):
+            is_selected = np.array([e in selection for e in self.templates])
+            times = self.times[is_selected]
+        else:
+            string = "Can't use {} ({}) as a selection."
+            message = string.format(selection, type(selection))
+            raise NotImplementedError(message)
+
+        return times
+
+    def get_amplitudes(self, selection=None):
+        """Get amplitudes.
+
+        Parameter:
+            selection: none | integer | list (optional)
+                Unit index or indices. The default value is None.
+        Return:
+            amplitudes: numpy.ndarray
+                The amplitudes to get.
+        """
+
+        if selection is None:
+            amplitudes = self.amplitudes
+        elif isinstance(selection, (int, np.int32)):
+            is_selected = np.array([e == selection for e in self.templates])
+            amplitudes = self.amplitudes[is_selected]
+        elif isinstance(selection, list):
+            is_selected = np.array([e in selection for e in self.templates])
+            amplitudes = self.times[is_selected]
+        else:
+            string = "Can't use {} ({}) as a selection."
+            message = string.format(selection, type(selection))
+            raise NotImplementedError(message)
+
+        return amplitudes
 
     def save(self, path):
         # TODO add docstring.

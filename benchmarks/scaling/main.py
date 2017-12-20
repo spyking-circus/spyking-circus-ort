@@ -162,6 +162,14 @@ else:
     director.destroy()
 
 
+spikes = circusort.io.load_spikes(spike_writer_kwargs['data_path'])
+sorted_cells = spikes.to_units()
+sorted_cells.save(sorting_directory)
+
+generated_cells = circusort.io.load_cells(generation_directory)
+
+matching = circusort.utils.find_matching(sorted_cells, generated_cells, t_min=220.0, t_max=300.0)
+
 # # Analyze the results.
 #
 # ans = utils.Results(generator_kwargs, raw_signal_writer_kwargs, signal_writer_kwargs,

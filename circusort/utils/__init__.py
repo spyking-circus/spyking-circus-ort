@@ -1,21 +1,5 @@
+from .base import *
 from .path import normalize_path
-
-
-def append_hdf5(dataset, data):
-    '''Append 1D-array to a HDF5 dataset.
-
-    Parameters
-    ----------
-    dataset: ?
-        HDF5 dataset.
-    data: numpy.ndarray
-        1D-array.
-    '''
-
-    old_size = len(dataset)
-    new_size = old_size + len(data)
-    new_shape = (new_size,)
-    dataset.resize(new_shape)
-    dataset[old_size:new_size] = data
-
-    return
+from .matching import find_matching
+from .template import compute_template_similarity
+from .train import compute_train_similarity, compute_dip_strength

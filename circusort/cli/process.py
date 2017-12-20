@@ -1,7 +1,7 @@
 import json
 import zmq
 
-from circusort.base import utils
+from circusort.utils.base import get_log
 from circusort.base.proxy import Proxy
 from circusort.block.block import Block
 
@@ -17,7 +17,7 @@ class Process(object):
         if log_address is None:
             raise NotImplementedError()
             # TODO remove
-        self.logger = utils.get_log(log_address, name=__name__)
+        self.logger = get_log(log_address, name=__name__)
 
         # TODO find proper space to define following class
         class Encoder(json.JSONEncoder):

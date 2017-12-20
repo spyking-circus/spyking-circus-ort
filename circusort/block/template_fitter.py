@@ -371,6 +371,13 @@ class Template_fitter(Block):
                                                                      self.r['rejected_amplitudes'][is_in_result]))
                 self.r['rejected_times'] = self.r['rejected_times'][~is_in_result] - self.nb_samples
                 self.r['rejected_amplitudes'] = self.r['rejected_amplitudes'][~is_in_result]
+            indices = np.argsort(self.result['spike_times'])
+            for key in ['spike_times', 'amplitudes', 'templates']:
+                self.result[key] = self.result[key][indices]
+            if self.with_rejected_times:
+                indices = np.argsort(self.result['rejected_times'])
+                for key in ['rejected_times', 'rejected_amplitudes']:
+                    self.result[key] = self.result[key][indices]
 
             # Log fitting result.
             nb_spike_times = len(self.result['spike_times'])

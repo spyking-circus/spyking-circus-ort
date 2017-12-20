@@ -1,6 +1,7 @@
-from circusort.base import utils
-from circusort.base.process import Process
 import logging
+
+from circusort.utils.base import get_log
+from circusort.base.process import Process
 
 
 class Manager(object):
@@ -20,7 +21,7 @@ class Manager(object):
         self.name = name or "Manager"
         if self.log_address is None:
             raise NotImplementedError("no logger address")
-        self.log = utils.get_log(self.log_address, name=__name__, log_level=self.log_level)
+        self.log = get_log(self.log_address, name=__name__, log_level=self.log_level)
         self.log.info("{d} is created".format(d=str(self)))
 
     def create_block(self, block_type, name=None, log_level=None, **kwargs):

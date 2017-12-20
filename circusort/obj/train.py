@@ -15,6 +15,35 @@ class Train(object):
 
         self.times = times
 
+    @property
+    def nb_times(self):
+        # TODO add docstring.
+
+        nb_times = self.times.size
+
+        return nb_times
+
+    def reverse(self):
+        # TODO add docstring.
+
+        # TODO improve method with two additional attributes: start_time and end_time.
+        times = np.max(self.times) + np.random.uniform(0.0, np.min(self.times)) - self.times
+        train = Train(times)
+
+        return train
+
+    def slice(self, t_min=None, t_max=None):
+        # TODO add docstring.
+
+        times = self.times
+        if isinstance(t_min, float):
+            times = times[t_min <= times]
+        if isinstance(t_max, float):
+            times = times[times <= t_max]
+        train = Train(times)
+
+        return train
+
     def save(self, path):
         """Save train to file.
 
@@ -28,14 +57,6 @@ class Train(object):
         file_.close()
 
         return
-
-    @property
-    def nb_times(self):
-        # TODO add docstring.
-
-        nb_times = self.times.size
-
-        return nb_times
 
     def _plot(self, ax, t_min=0.0, t_max=10.0, offset=0, **kwargs):
 
