@@ -3,4 +3,6 @@ def compute_template_similarity(source_template, sink_template):
 
     similarity = 0.0
 
+    # TODO complete.
+
     return similarity
