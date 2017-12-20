@@ -1,10 +1,9 @@
-from .block import Block
-
 import numpy as np
 import os
 from scipy.sparse import csr_matrix, vstack
 
-from circusort.io.template import TemplateStore
+from circusort.block.block import Block
+from circusort.obj.template_store import TemplateStore
 
 
 class Template_fitter(Block):

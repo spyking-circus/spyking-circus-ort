@@ -5,7 +5,7 @@ import pylab
 import matplotlib
 import scipy
 from circusort import io
-from circusort.io.template import TemplateStore
+from circusort.obj import TemplateStore
 from circusort.io.synthetic import SyntheticStore
 from circusort.block.synthetic_generator import Cell
 import matplotlib.colors as colors
