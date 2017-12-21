@@ -75,7 +75,7 @@ if args.init_temp_dict:
     }
 else:
     cluster_kwargs = {
-        'nb_waveforms': 200,  # i.e. precipitate clustering (template does not exist)
+        'nb_waveforms': 100,  # i.e. precipitate clustering (template does not exist)
     }
 updater_kwargs = {
     'data_path': os.path.join(tmp_dir, 'templates.h5'),
@@ -114,46 +114,44 @@ else:
                                      log_level=DEBUG,
                                      **generator_kwargs)
     raw_signal_writer = manager.create_block('writer',
-                                             log_level=DEBUG,
+                                             log_level=INFO,
                                              **raw_signal_writer_kwargs)
     filtering = manager.create_block('filter',
                                      cut_off=100.0,
-                                     log_level=DEBUG)
+                                     log_level=INFO)
     signal_writer = manager.create_block('writer',
-                                         log_level=DEBUG,
+                                         log_level=INFO,
                                          **signal_writer_kwargs)
     mad_estimator = manager.create_block('mad_estimator',
-                                         log_level=DEBUG, 
+                                         log_level=INFO,
                                          time_constant=10)
     mad_writer = manager.create_block('writer',
-                                      log_level=DEBUG,
+                                      log_level=INFO,
                                       **mad_writer_kwargs)
     peak_detector = manager.create_block('peak_detector',
                                          threshold_factor=7.0,
-                                         log_level=DEBUG)
+                                         log_level=INFO)
     peak_writer = manager.create_block('peak_writer',
                                        log_level=INFO,
                                        **peak_writer_kwargs)
     pca = manager.create_block('pca',
                                nb_waveforms=2000,
-                               log_level=DEBUG)
+                               log_level=INFO)
     cluster = manager.create_block('density_clustering',
                                    threshold_factor=7.0,
                                    probe=probe_path,
                                    two_components=True,
-                                   log_level=DEBUG,
+                                   log_level=INFO,
                                    **cluster_kwargs)
     updater = manager.create_block('template_updater',
-                                   probe=probe_path,
-                                   nb_channels=16,
-                                   log_level=INFO,
+                                   probe_file=probe_path,
+                                   log_level=DEBUG,
                                    **updater_kwargs)
     fitter = manager.create_block('template_fitter',
-                                  two_components=True,
                                   log_level=INFO,
                                   **fitter_kwargs)
     spike_writer = manager.create_block('spike_writer',
-                                        log_level=DEBUG,
+                                        log_level=INFO,
                                         **spike_writer_kwargs)
 
     # Initialize the elements of the Circus network.

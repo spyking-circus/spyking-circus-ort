@@ -141,9 +141,11 @@ class OnlineManager(object):
 
         sub_data = np.dot(sub_data, self.loc_pca)
         rhos, dist, _ = rho_estimation(sub_data)
-        if len(rhos) > 0:
-            rhos = -rhos + rhos.max()
-            n_min = np.maximum(self.abs_n_min, int(self.n_min*len(data)))
+        if len(rhos) == 1:
+            labels, c = np.array([0]), np.array([0])
+        elif len(rhos) > 1:
+            rhos      = -rhos + rhos.max()
+            n_min     = np.maximum(self.abs_n_min, int(self.n_min*len(data)))
             labels, c = density_based_clustering(rhos, dist, n_min=n_min)
         else:
             labels, c = np.array([]), np.array([])
@@ -434,7 +436,9 @@ class OnlineManager(object):
         centers       = self._get_centers('dense')
         centers_full  = self._get_centers_full('dense')
         rhos, dist, _ = rho_estimation(centers)
-        if len(rhos) > 0:
+        if len(rhos) == 1:
+            labels, c = np.array([0]), np.array([0])
+        elif len(rhos) > 1:
             rhos = -rhos + rhos.max()
             labels, c = density_based_clustering(rhos, dist, n_min=None)
         else:
@@ -518,11 +522,10 @@ def fit_rho_delta(xdata, ydata, smart_select=False, max_clusters=10):
 
 def rho_estimation(data, mratio=0.01):
 
-    N = len(data)
-    rho = np.zeros(N, dtype=np.float32)
-        
-    dist = scipy.spatial.distance.pdist(data, 'euclidean').astype(np.float32)
+    N    = len(data)
+    rho  = np.zeros(N, dtype=np.float32)
     didx = lambda i, j: i*N + j - i*(i+1)//2 - i - 1
+    dist = scipy.spatial.distance.pdist(data, 'euclidean').astype(np.float32)
     nb_selec = max(5, int(mratio*N))
 
     for i in xrange(N):

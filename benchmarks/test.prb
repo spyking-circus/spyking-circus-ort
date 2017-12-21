@@ -1,0 +1,15 @@
+
+total_nb_channels = 4
+radius            = 2
+channel_groups    = {}
+
+def get_geometry(channels):
+    res = {}
+    for count, c in enumerate(channels):
+        res[c] = [count, count]
+    return res
+
+channel_groups[0]             = {}
+channel_groups[0]["channels"] = range(total_nb_channels)
+channel_groups[0]["geometry"] = get_geometry(range(total_nb_channels))
+channel_groups[0]["graph"]    = []
