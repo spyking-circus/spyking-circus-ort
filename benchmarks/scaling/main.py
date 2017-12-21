@@ -161,6 +161,19 @@ else:
     director.join()
     director.destroy()
 
+# TODO load data_filtered.raw?
+# TODO load mads.h5?
+# TODO load templates.h5?
+templates = circusort.io.load_templates(updater_kwargs['data_path'])
+# TODO save initial_template.h5?
+# TODO load initial_template.h5?
+spikes = circusort.io.load_spikes(spike_writer_kwargs['data_path'])
+sorted_cells = spikes.to_units()
+sorted_cells.save(sorting_directory)
+
+generated_cells = circusort.io.load_cells(generation_directory)
+
+matching = circusort.utils.find_matching(sorted_cells, generated_cells, t_min=220.0, t_max=300.0)
 
 # # Analyze the results.
 #

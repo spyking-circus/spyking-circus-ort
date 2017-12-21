@@ -1,12 +1,12 @@
-from .block import Block
 import numpy as np
 import os
 import tempfile
-from circusort.io.probe import load_probe
 import scipy.sparse
 
+from circusort.block.block import Block
+from circusort.io.probe import load_probe
 # from circusort.io.utils import save_pickle
-from circusort.io.template import TemplateStore
+from circusort.obj import TemplateStore
 
 
 class Template_updater(Block):

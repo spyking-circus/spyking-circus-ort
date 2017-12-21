@@ -5,7 +5,7 @@ import logging
 import time
 
 from circusort.base.endpoint import Endpoint, EOCError
-from circusort.base import utils
+from circusort.base.utils import get_log
 
 
 class Block(threading.Thread):
@@ -30,7 +30,7 @@ class Block(threading.Thread):
         if self.log_address is None:
             raise NotImplementedError("no logger address")
 
-        self.log = utils.get_log(self.log_address, name=__name__, log_level=self.log_level)
+        self.log = get_log(self.log_address, name=__name__, log_level=self.log_level)
 
         self.parent = None
         self.host = None

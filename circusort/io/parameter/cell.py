@@ -11,6 +11,10 @@ default_types = {
         'rate': 'string',
         'path': 'string',
     },
+    'amplitude': {
+        'mode': 'string',
+        'path': 'string',
+    },
     'position': {
         'mode': 'string',
         'x': 'float',

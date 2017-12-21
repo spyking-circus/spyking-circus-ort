@@ -1,8 +1,8 @@
 import numpy as np
 import os.path
-import ConfigParser as cp
+import ConfigParser
 
-from .utils import *
+from circusort.io.utils import *
 
 
 def load(path):
@@ -31,7 +31,7 @@ class RawBinary(object):
 def raw_binary(path):
     path = os.path.expanduser(path)
     header_path = get_header_path(path)
-    header = cp.ConfigParser()
+    header = ConfigParser.ConfigParser()
     header.read(header_path)
     dtype = header.get('header', 'dtype')
     length = header.getint('header', 'length')
@@ -88,81 +88,6 @@ class Peaks(object):
 
         return ans
 
-
-def load_spikes(times_path, templates_path, amplitudes_path):
-    """Load spikes
-
-    Arguments:
-        times_path: string
-        templates_path: string
-        amplitudes_path: string
-
-    """
-    # TODO complete docstring.
-
-    return Spikes(times_path, templates_path, amplitudes_path)
-
-
-class Spikes(object):
-
-    def __init__(self, times_path, templates_path, amplitudes_path):
-
-        self.times_path = os.path.expanduser(times_path)
-        self.templates_path = os.path.expanduser(templates_path)
-        self.amplitudes_path = os.path.expanduser(amplitudes_path)
-
-        self.times = np.fromfile(self.times_path, dtype=np.int32)
-        self.templates = np.fromfile(self.templates_path, dtype=np.int32)
-        self.amplitudes = np.fromfile(self.amplitudes_path, dtype=np.float32)
-
-        self.units = np.unique(self.templates)
-        self.nb_units = self.units.size
-
-    def get_time_steps(self, selection=None):
-        """Get time steps
-
-        Argument:
-            selection: none | integer | list (optional)
-                Unit index or indices. The default value is None.
-        """
-
-        if selection is None:
-            ans = self.times
-        elif np.any([isinstance(selection, t) for t in (int, np.int32)]):
-            is_selected = np.array([e == selection for e in self.templates])
-            ans = self.times[is_selected]
-        elif isinstance(selection, list):
-            is_selected = np.array([e in selection for e in self.templates])
-            ans = self.times[is_selected]
-        else:
-            msg = "Can't use {} ({}) as a selection."
-            msg = msg.format(selection, type(selection))
-            raise NotImplementedError(msg)
-
-        return ans
-
-    def get_amplitudes(self, selection=None):
-        """Get amplitudes
-
-        Argument:
-            selection: none | integer | list (optional)
-                Unit index or indices. The default value is None.
-        """
-
-        if selection is None:
-            ans = self.amplitudes
-        elif np.any([isinstance(selection, t) for t in (int, np.int32)]):
-            is_selected = np.array([e == selection for e in self.templates])
-            ans = self.amplitudes[is_selected]
-        elif isinstance(selection, list):
-            is_selected = np.array([e in selection for e in self.templates])
-            ans = self.times[is_selected]
-        else:
-            msg = "Can't use {} ({}) as a selection."
-            msg = msg.format(selection, type(selection))
-            raise NotImplementedError(msg)
-
-        return ans
 
 def load_times(times_path, amplitudes_path):
     """Load times

@@ -6,7 +6,7 @@ import logging
 import scipy
 import cPickle
 from circusort.io.utils import generate_fake_probe
-from circusort.io.template import TemplateStore
+from circusort.obj import TemplateStore
 
 
 host = '127.0.0.1' # to run the test locally

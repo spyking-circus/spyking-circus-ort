@@ -10,10 +10,47 @@ from circusort.utils.path import normalize_path
 class Train(object):
     # TODO add docstring
 
-    def __init__(self, times):
+    def __init__(self, times, t_min=None, t_max=None):
         # TODO add docstring.
 
         self.times = times
+        self.times = self.times if t_min is None else self.times[t_min <= self.times]
+        self.times = self.times if t_max is None else self.times[self.times <= t_max]
+        self.t_min = min(0.0, np.min(times)) if t_min is None else t_min
+        self.t_max = np.max(times) if t_max is None else t_max
+
+    @property
+    def nb_times(self):
+        # TODO add docstring.
+
+        nb_times = self.times.size
+
+        return nb_times
+
+    def reverse(self):
+        # TODO add docstring.
+
+        # TODO improve method with two additional attributes: start_time and end_time.
+        times = self.t_min + ((self.t_max - self.t_min) - (self.times - self.t_min))
+        train = Train(times, t_min=self.t_min, t_max=self.t_max)
+
+        return train
+
+    def slice(self, t_min=None, t_max=None):
+        # TODO add docstring.
+
+        times = self.times
+        if t_min is None:
+            t_min = self.t_min
+        elif isinstance(t_min, float):
+            times = times[t_min <= times]
+        if t_max is None:
+            t_max = self.t_max
+        elif isinstance(t_max, float):
+            times = times[times <= t_max]
+        train = Train(times, t_min=t_min, t_max=t_max)
+
+        return train
 
     def save(self, path):
         """Save train to file.
@@ -29,17 +66,12 @@ class Train(object):
 
         return
 
-    @property
-    def nb_times(self):
-        # TODO add docstring.
-
-        nb_times = self.times.size
-
-        return nb_times
-
     def _plot(self, ax, t_min=0.0, t_max=10.0, offset=0, **kwargs):
 
         _ = kwargs  # Discard additional keyword arguments.
+
+        t_min = self.t_min + t_min
+        t_max = self.t_min + t_max
 
         is_selected = np.logical_and(t_min <= self.times, self.times <= t_max)
         x = self.times[is_selected]

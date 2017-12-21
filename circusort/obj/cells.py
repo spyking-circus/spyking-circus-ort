@@ -28,6 +28,20 @@ class Cells(object):
 
         self.parameters = get_cells_parameters() if parameters is None else parameters
 
+    def __getitem__(self, identifier):
+        # TODO add docstring.
+
+        cell = self.cells[identifier]
+
+        return cell
+
+    def __iter__(self):
+        # TODO add docstring.
+
+        iterator = self.cells.itervalues()
+
+        return iterator
+
     def itervalues(self):
         # TODO add docstring.
 

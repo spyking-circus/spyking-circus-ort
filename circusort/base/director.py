@@ -1,10 +1,8 @@
 import time
 import logging
 
-from .logger import Logger
-from . import utils
-
-# from circusort.base.process import Process
+from circusort.base.logger import Logger
+from circusort.base.utils import get_log
 from circusort.base.process import create_process
 
 
@@ -18,7 +16,7 @@ class Director(object):
         self.log_level = log_level
         self.logger = Logger(interface=host)
         # Get logger instance
-        self.log = utils.get_log(self.logger.address, name=__name__, log_level=self.log_level)
+        self.log = get_log(self.logger.address, name=__name__, log_level=self.log_level)
 
         self.host = host
 
