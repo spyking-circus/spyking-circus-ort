@@ -1,13 +1,13 @@
-from .block import Block
 import numpy as np
 import os
 import tempfile
-from circusort.io.probe import load_probe
 import scipy.sparse
 
-# from circusort.io.utils import save_pickle
-from circusort.io.template import TemplateStore, TemplateComponent, Template
+from circusort.block.block import Block
+from circusort.io.probe import load_probe
+from circusort.obj.template_store import TemplateStore, TemplateComponent, Template
 from circusort.utils.overlaps import TemplateDictionary
+
 
 class Template_updater(Block):
     """Template updater

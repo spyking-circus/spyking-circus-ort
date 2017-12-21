@@ -6,7 +6,7 @@ import scipy.sparse
 
 from circusort import io
 from circusort.io.synthetic import SyntheticStore
-from circusort.io.template import TemplateStore
+from circusort.obj import TemplateStore
 from circusort.block.synthetic_generator import Cell
 
 

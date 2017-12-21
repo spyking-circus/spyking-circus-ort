@@ -5,10 +5,9 @@ import sys
 import zmq
 import logging
 
-from circusort.base import utils
+from circusort.base.utils import get_log, find_interface_address_towards
 from circusort.base.proxy import Proxy
 from circusort.base.serializer import Serializer
-
 
 
 def create_process(host=None, log_address=None, name=None, log_level=logging.INFO):
@@ -39,7 +38,7 @@ class Process(object):
             raise NotImplementedError()
             # TODO remove
         self.log_level = log_level
-        self.logger = utils.get_log(log_address, name=__name__, log_level=self.log_level)
+        self.logger = get_log(log_address, name=__name__, log_level=self.log_level)
 
         if host is None:
             self.host = '127.0.0.1'
@@ -55,7 +54,7 @@ class Process(object):
             self.logger.debug("create local process on {h}".format(h=self.host))
             # 1. Bind temporary socket
             transport = 'tcp'
-            localhost = utils.find_interface_address_towards(self.host)
+            localhost = find_interface_address_towards(self.host)
             port = '*'
             endpoint = '{h}:{p}'.format(h=localhost, p=port)
             address = '{t}://{e}'.format(t=transport, e=endpoint)
@@ -88,7 +87,7 @@ class Process(object):
             self.logger.debug("create remote process on {h}".format(h=self.host))
             # 1. Bind temporary socket
             transport = 'tcp'
-            localhost = utils.find_interface_address_towards(self.host)
+            localhost = find_interface_address_towards(self.host)
             port = '*'
             endpoint = '{h}:{p}'.format(h=localhost, p=port)
             address = '{t}://{e}'.format(t=transport, e=endpoint)

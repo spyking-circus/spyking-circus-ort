@@ -252,8 +252,10 @@ class Probe(object):
 
         return
 
-    def plot(self, path=None):
+    def plot(self, path=None, fig=None, ax=None, **kwargs):
         # TODO add docstring.
+
+        _ = kwargs  # Discard additional keyword arguments.
 
         x = self.x
         y = self.y
@@ -262,20 +264,23 @@ class Probe(object):
         y_min = np.amin(y) - 10.0
         y_max = np.amax(y) + 10.0
 
-        plt.style.use('seaborn-paper')
-        fig, ax = plt.subplots()
+        if path is not None and ax is None:
+            plt.ioff()
+
+        if ax is None:
+            fig, ax = plt.subplots()
         ax.set_aspect('equal')
-        ax.scatter(x, y)  # TODO control the radius of the electrodes.
         ax.set_xlim(x_min, x_max)
         ax.set_ylim(y_min, y_max)
+        ax.scatter(x, y)  # TODO control the radius of the electrodes.
         ax.set_xlabel(u"x (µm)")
         ax.set_ylabel(u"y (µm)")
         ax.set_title(u"Spatial layout of the electrodes")
-        fig.tight_layout()
 
-        if path is None:
+        if fig is not None and path is None:
+            plt.tight_layout()
             plt.show()
-        else:
+        elif fig is not None and path is not None:
             # Normalize path.
             path = os.path.expanduser(path)
             path = os.path.abspath(path)
@@ -287,7 +292,8 @@ class Probe(object):
             if not os.path.isdir(directory):
                 os.makedirs(directory)
 
-            fig.savefig(path)
+            plt.tight_layout()
+            plt.savefig(path)
 
         return
 

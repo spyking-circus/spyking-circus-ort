@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 
-from .block import Block
 import numpy as np
+import time
+
+from circusort.block.block import Block
 
 
 class Reader(Block):
@@ -10,10 +12,10 @@ class Reader(Block):
     Attributes:
         data_path: string
         dtype: string
-        repeat: boolean
         nb_channels: integer
         nb_samples: integer
-        sampling_rate:
+        sampling_rate: float
+        is_realistic: boolean
 
     See also:
         circusort.block.Block
@@ -25,10 +27,10 @@ class Reader(Block):
     params = {
         'data_path': "/tmp/input.dat",
         'dtype': 'float32',
-        'repeat': False,
         'nb_channels': 10,
         'nb_samples': 1024,
-        'sampling_rate': 20000,
+        'sampling_rate': 20e+3,
+        'is_realistic': True,
     }
 
     def __init__(self, **kwargs):
@@ -37,10 +39,10 @@ class Reader(Block):
         Parameters:
             data_path: string
             dtype: string
-            repeat: boolean
             nb_channels: integer
             nb_samples: integer
-            sampling_rate:
+            sampling_rate: float
+            is_realistic: boolean
 
         See also:
             circusort.block.Block
@@ -54,12 +56,13 @@ class Reader(Block):
         self.quantum_size = 0.1042  # µV / AD
         self.quantum_offset = float(np.iinfo('int16').min)
 
+        self.buffer_rate = float(self.nb_samples) / self.sampling_rate
+
     def _initialize(self):
         """Initialization of the processing block."""
 
-        self.data  = np.memmap(self.data_path, dtype=self.dtype, mode='r')
-        self.shape = (self.data.size/self.nb_channels, self.nb_channels)
-        self.data  = None
+        data = np.memmap(self.data_path, dtype=self.dtype, mode='r')
+        self.shape = (data.size / self.nb_channels, self.nb_channels)
         self.output.configure(dtype=self.output_dtype, shape=(self.nb_samples, self.nb_channels))
 
         return
@@ -67,32 +70,36 @@ class Reader(Block):
     def _process(self):
         """Process one buffer of data."""
 
-        # Read data from the file on disk.
-        self.data = np.memmap(self.data_path, dtype=self.dtype, mode='r', shape=self.shape)
+        # TODO check if we need a background thread.
 
-        # Dequantize data.
-        if self.dtype == 'float32':
-            pass
-        elif self.dtype == 'int16':
-            self.data = self.data.astype(self.output_dtype)
-            self.data *= self.quantum_size
-        elif self.dtype == 'uint16':
-            self.data = self.data.astype(self.output_dtype)
-            self.data += self.quantum_offset
-            self.data *= self.quantum_size
-        else:
-            self.data = self.data.astype(self.output_dtype)
+        # Read data from the file on disk.
+        data = np.memmap(self.data_path, dtype=self.dtype, mode='r', shape=self.shape)
 
         i_min = self.nb_samples * self.counter
         i_max = self.nb_samples * (self.counter + 1)
 
-        if self.repeat:
-            i_min = i_min % self.shape[0]
-            i_max = i_max % self.shape[0]
-
-        if i_min < self.shape[0]:
-          self.output.send(self.data[i_min:i_max, :])
+        if i_max <= self.shape[0]:
+            # Get chunk.
+            chunk = data[i_min:i_max, :]
+            # Dequantize chunk.
+            if self.dtype == 'float32':
+                pass
+            elif self.dtype == 'int16':
+                chunk = chunk.astype(self.output_dtype)
+                chunk *= self.quantum_size
+            elif self.dtype == 'uint16':
+                chunk = chunk.astype(self.output_dtype)
+                chunk += self.quantum_offset
+                chunk *= self.quantum_size
+            else:
+                chunk = chunk.astype(self.output_dtype)
+            # Send chunk.
+            if self.is_realistic:
+                # Simulate duration between two data acquisitions.
+                time.sleep(float(self.nb_samples) / self.sampling_rate)
+            self.output.send(chunk)
+        else:
+            # Stop processing block.
+            self.stop_pending = True
   
-        self.data = None
-
         return
