@@ -19,7 +19,7 @@ class Spikes(object):
             The amplitudes of each spike. An array of shape: (nb_spikes,).
     """
 
-    def __init__(self, times, templates, amplitudes):
+    def __init__(self, times, templates, amplitudes, nb_units=None):
         """Initialization.
 
         Parameters:
@@ -29,28 +29,28 @@ class Spikes(object):
                 The unit (i.e. template) identifiers of each spike. An array of shape: (nb_spikes,).
             amplitudes: numpy.ndarray
                 The amplitudes of each spike. An array of shape: (nb_spikes,).
+            nb_units: none | integer (optional)
+                The number of units.
         """
 
         self.times = times
         self.templates = templates
         self.amplitudes = amplitudes
+        self.nb_units = nb_units
 
     @property
     def units(self):
         # TODO add docstring.
 
-        # TODO correct the following line (i.e. use the number of units instead).
-        units = np.unique(self.templates)
+        if self.nb_units is None:
+            units = np.unique(self.templates)
+        else:
+            if self.nb_units == np.unique(self.templates).size:
+                units = np.unique(self.templates)
+            else:
+                units = np.arange(0, self.nb_units)
 
         return units
-
-    @property
-    def nb_units(self):
-        # TODO add docstring.
-
-        nb_units = self.units.size
-
-        return nb_units
 
     def get_unit(self, k):
         """Get one unit (i.e. cell) given an identifier.

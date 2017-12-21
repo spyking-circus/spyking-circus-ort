@@ -7,6 +7,7 @@ from scipy.sparse import csc_matrix
 
 from circusort.io.probe import load_probe
 from circusort.io.utils import append_hdf5
+from circusort.obj.template import Template as Template_
 
 
 class TemplateComponent(object):
@@ -22,9 +23,9 @@ class TemplateComponent(object):
         """
 
         self.waveforms = waveforms
-        self.amplitudes = amplitudes
         self.indices = indices
         self.nb_channels = nb_channels
+        self.amplitudes = amplitudes
 
     @property
     def norm(self):
@@ -67,20 +68,36 @@ class Template(object):
 
     @property
     def two_components(self):
+
         return self.second_component is not None
 
     @property
     def amplitudes(self):
+
         return np.array(self.first_component.amplitudes, dtype=np.float32)
 
     def normalize(self):
+
         self.first_component.normalize()
         if self.two_components:
             self.second_component.normalize()
 
     @property
     def temporal_width(self):
+
         return self.first_component.temporal_width
+
+    def to_template(self):
+        """Convert object from this class to circusort.obj.template.Template."""
+
+        # TODO merge the two following classes: circusort.obj.template.Template & circusort.obj.template_store.Template.
+
+        waveforms = self.first_component.to_dense()
+        nb_channels, _ = waveforms.shape
+        channels = np.arange(0, nb_channels)
+        template = Template_(channels, waveforms)
+
+        return template
 
 
 class TemplateStore(object):
@@ -115,6 +132,7 @@ class TemplateStore(object):
             self.h5_file.attrs['probe_file'] = os.path.abspath(os.path.expanduser(probe_file))
 
         elif self.mode in ['r', 'r+']:
+
             indices = self.h5_file['indices'][:]
             if len(indices) > 0:
                 self._index = indices.max()

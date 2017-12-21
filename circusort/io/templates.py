@@ -175,7 +175,7 @@ def _load_templates_from_file(path):
 
     template_store = load_template_store(path)
     templates = {
-        k: template_store[k]
+        k: template_store[k].to_template()  # TODO be able to avoid the call to to_template.
         for k in template_store
     }
 
