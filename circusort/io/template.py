@@ -144,15 +144,12 @@ def load_template(path):
 
 def get_template(path=None, **kwargs):
     """Get template.
-
     Parameter:
         path: none | string (optional)
             The path to use to get the template. The default value is None.
-
     Return:
         template: tuple
             The template to get.
-
     See also:
         circusort.io.generate_template (for additional parameters)
     """

@@ -18,14 +18,14 @@ class MacroCluster(object):
 
     def __init__(self, id, pca_data, data, creation_time=0):
 
-        self.id = id
-        self.density = len(pca_data)
-        self.sum_pca = np.sum(pca_data, 0)
-        self.sum_pca_sq = np.sum(pca_data**2, 0)
-        self.sum_full = np.sum(data, 0)
+        self.id            = id
+        self.density       = len(pca_data)
+        self.sum_pca       = np.sum(pca_data, 0)
+        self.sum_pca_sq    = np.sum(pca_data**2, 0)
+        self.sum_full      = np.sum(data, 0)
         self.creation_time = creation_time
-        self.last_update = creation_time
-        self.label = None
+        self.last_update   = creation_time
+        self.label         = 'sparse'
 
     def set_label(self, label):
         assert label in ['sparse', 'dense']
@@ -65,6 +65,10 @@ class MacroCluster(object):
     def sigma(self):
         return np.sqrt(np.linalg.norm(self.sum_pca_sq / self.density - self.center ** 2))
 
+    @property
+    def radius(self):
+        return np.sqrt((self.sum_pca_sq / self.density - self.center ** 2).max())
+
     def get_z_score(self, pca_data, sigma):
         return np.linalg.norm(self.center - pca_data) / sigma
 
@@ -75,7 +79,7 @@ class MacroCluster(object):
 
 class OnlineManager(object):
 
-    def __init__(self, decay=0.35, mu=2, sigma_rad=3, epsilon=0.1, theta=-np.log(0.001), dispersion=(5, 5),
+    def __init__(self, decay=0.25, mu=10, epsilon=10, theta=-np.log(0.001), dispersion=(5, 5),
                  n_min=None, noise_thr=0.8, pca=None, logger=None, name=None):
 
         if name is None:
@@ -87,7 +91,6 @@ class OnlineManager(object):
         self.mu = mu
         self.epsilon = epsilon
         self.theta = theta
-        self.radius = sigma_rad
         self.dispersion = dispersion
         self.noise_thr = noise_thr
         self.n_min = n_min
@@ -107,7 +110,7 @@ class OnlineManager(object):
 
     @property
     def D_threshold(self):
-        return self.mu / (self.nb_clusters*(1 - 2**(-self.decay_factor)))
+        return self.mu * 0.2 #/ (self.nb_clusters*(1 - 2**(-self.decay_factor)))
 
     @property
     def time_gap(self):
@@ -138,9 +141,11 @@ class OnlineManager(object):
 
         sub_data = np.dot(sub_data, self.loc_pca)
         rhos, dist, _ = rho_estimation(sub_data)
-        if len(rhos) > 0:
-            rhos = -rhos + rhos.max()
-            n_min = np.maximum(self.abs_n_min, int(self.n_min*len(data)))
+        if len(rhos) == 1:
+            labels, c = np.array([0]), np.array([0])
+        elif len(rhos) > 1:
+            rhos      = -rhos + rhos.max()
+            n_min     = np.maximum(self.abs_n_min, int(self.n_min*len(data)))
             labels, c = density_based_clustering(rhos, dist, n_min=n_min)
         else:
             labels, c = np.array([]), np.array([])
@@ -150,8 +155,8 @@ class OnlineManager(object):
         mask = labels > -1
         self.nb_dimensions = sub_data.shape[1]
         amplitudes = np.zeros((0, 2), dtype=np.float32)
-        templates = np.zeros((0, self._width), dtype=np.float32)
-        indices = np.zeros(0, dtype=np.int32)
+        templates  = np.zeros((0, self._width), dtype=np.float32)
+        indices    = np.zeros(0, dtype=np.int32)
         if two_components:
             templates2 = np.zeros((0, self._width), dtype=np.float32)
 
@@ -159,13 +164,14 @@ class OnlineManager(object):
 
         for count, i in enumerate(np.unique(labels[mask])):
 
-            indices = np.where(labels == i)[0]
+            indices              = np.where(labels == i)[0]
             self.clusters[count] = MacroCluster(count, sub_data[indices], data[indices], creation_time=time)
             self.tracking[count] = self.clusters[count].tracking_properties
-            template = np.median(data[indices], 0)
+            
+            template   = np.median(data[indices], 0)
             amplitudes = np.vstack((amplitudes, self._compute_amplitudes(data[indices], template)))
-            templates = np.vstack((templates, template))
-            indices = np.concatenate((indices, [count]))
+            templates  = np.vstack((templates, template))
+            indices    = np.concatenate((indices, [count]))
             if two_components:
                 templates2 = np.vstack((templates2, self._compute_template2(data[indices], template)))
 
@@ -244,17 +250,19 @@ class OnlineManager(object):
 
         if len(clusters) > 0:
 
-            centers = self._get_centers(cluster_type)
+            centers  = self._get_centers(cluster_type)
             new_dist = scipy.spatial.distance.cdist(pca_data, centers, 'euclidean')[0]
-            cluster = clusters[np.argmin(new_dist)]
+            cluster  = clusters[np.argmin(new_dist)]
 
             cluster.add_and_update(pca_data[0], data[0], self.time, self.decay_factor)
-            sigma = cluster.sigma
             
-            if sigma == 0:
-                sigma = self._estimate_sigma()
-            
-            to_be_merged = cluster.get_z_score(pca_data[0], sigma) <= self.epsilon
+            # sigma = cluster.sigma
+            # if sigma == 0:
+            #     sigma = self._estimate_sigma()
+            # to_be_merged = cluster.get_z_score(pca_data[0], sigma) <= self.epsilon
+
+            radius = cluster.radius
+            to_be_merged = cluster.radius <= self.epsilon
 
             if to_be_merged:
                 if cluster.density >= self.D_threshold:
@@ -264,20 +272,20 @@ class OnlineManager(object):
 
         return to_be_merged
 
-    def _estimate_sigma(self):
-        if len(self.clusters) > 0:
-            sigma = 0
-            count = 0
-            for cluster in self.clusters.values():
-                if cluster.sigma > 0:
-                    sigma += cluster.sigma
-                    count += 1
-            if count > 0:
-                return sigma / count
-            else:
-                return np.inf
-        else:
-            return np.inf
+    # def _estimate_sigma(self):
+    #     if len(self.clusters) > 0:
+    #         sigma = 0
+    #         count = 0
+    #         for cluster in self.clusters.values():
+    #             if cluster.sigma > 0:
+    #                 sigma += cluster.sigma
+    #                 count += 1
+    #         if count > 0:
+    #             return sigma / count
+    #         else:
+    #             return np.inf
+    #     else:
+    #         return np.inf
 
     def _prune(self):
 
@@ -288,7 +296,8 @@ class OnlineManager(object):
                 count += 1
 
         # TODO uncomment the following line.
-        # self.log.debug("{n} turns {m} dense clusters into sparse...".format(n=self.name, m=count))
+        if count > 0:
+            self.log.debug("{n} turns {m} dense clusters into sparse...".format(n=self.name, m=count))
 
         count = 0
         for cluster in self.sparse_clusters:
@@ -307,20 +316,22 @@ class OnlineManager(object):
                     count += 1
 
         # TODO uncomment the following line.
-        # self.log.debug("{n} prunes {m} sparse clusters...".format(n=self.name, m=count))
+        if count > 0:
+            self.log.debug("{n} prunes {m} sparse clusters...".format(n=self.name, m=count))
 
     def update(self, time, data=None):
         
         self.time = time
         if self.nb_sparse > 500:
             self.log.warning('{n} has too many ({s}) sparse clusters'.format(n=self.name, s=self.nb_sparse))
-        # self.log.debug("{n} processes time {t} with {s} sparse and {d} dense clusters".format(n=self.name, t=time, s=self.nb_sparse, d=self.nb_dense))
+        
+        #self.log.debug("{n} processes time {t} with {s} sparse and {d} dense clusters. Time gap is {g}".format(n=self.name, t=time, s=self.nb_sparse, d=self.nb_dense, g=self.time_gap))
         
         if data is not None:
         
             if self.glob_pca is not None:
                 red_data = np.dot(data, self.glob_pca)
-                data = data.reshape(1, self._width)
+                data     = data.reshape(1, self._width)
                 red_data = red_data.reshape(1, self.loc_pca.shape[0])
             
                 if self.loc_pca is not None:
@@ -360,7 +371,7 @@ class OnlineManager(object):
 
         if len(self.tracking) > 0:
             all_centers = np.array([i[0] for i in self.tracking.values()], dtype=np.float32)
-            all_sigmas = [i[1] for i in self.tracking.values()]
+            all_sigmas  = np.array([i[1] for i in self.tracking.values()], dtype=np.float32)
             all_indices = self.tracking.keys()
 
             for key, value in new_tracking_data.items():
@@ -369,8 +380,8 @@ class OnlineManager(object):
                 dist_min = np.min(new_dist)
                 dist_idx = np.argmin(new_dist)
 
-                if dist_min < self.radius*max(sigma, all_sigmas[dist_idx]):
-                    # self.log.debug("{n} establishes a match between target {t} and source {s}".format(n=self.name, t=key, s=all_indices[dist_idx]))
+                if dist_min <= (sigma + all_sigmas[dist_idx]):
+                    self.log.debug("{n} establishes a match between target {t} and source {s}".format(n=self.name, t=key, s=all_indices[dist_idx]))
                     changes['merged'][key] = all_indices[dist_idx]
                     self.tracking[key]     = center, sigma
                 else:
@@ -391,10 +402,10 @@ class OnlineManager(object):
 
     def _compute_amplitudes(self, data, template):
         # # We could to this in the PCA space, to speed up the computation
-        temp_flat = template.reshape(template.size, 1)
-        amplitudes = np.dot(data, temp_flat)
+        temp_flat   = template.reshape(template.size, 1)
+        amplitudes  = np.dot(data, temp_flat)
         amplitudes /= np.sum(temp_flat**2)
-        variation = np.median(np.abs(amplitudes - np.median(amplitudes)))
+        variation   = np.median(np.abs(amplitudes - np.median(amplitudes)))
         # physical_limit = self.threshold
         amp_min = min(0.8, np.median(amplitudes) - self.dispersion[0]*variation)
         amp_max = max(1.2, np.median(amplitudes) + self.dispersion[1]*variation)
@@ -422,10 +433,12 @@ class OnlineManager(object):
     def cluster(self, tracking=True, two_components=False):
 
         self.log.debug('{n} launches clustering with {s} sparse and {t} dense clusters'.format(n=self.name, s=self.nb_sparse, t=self.nb_dense))
-        centers = self._get_centers('dense')
-        centers_full = self._get_centers_full('dense')
+        centers       = self._get_centers('dense')
+        centers_full  = self._get_centers_full('dense')
         rhos, dist, _ = rho_estimation(centers)
-        if len(rhos) > 0:
+        if len(rhos) == 1:
+            labels, c = np.array([0]), np.array([0])
+        elif len(rhos) > 1:
             rhos = -rhos + rhos.max()
             labels, c = density_based_clustering(rhos, dist, n_min=None)
         else:
@@ -436,40 +449,40 @@ class OnlineManager(object):
         new_tracking_data = {}
         mask = labels > -1
         for l in np.unique(labels[mask]):
-            idx = np.where(labels == l)[0]
-            cluster = MacroCluster(-1, centers[idx], centers_full[idx])
+            idx                  = np.where(labels == l)[0]
+            cluster              = MacroCluster(-1, centers[idx], centers_full[idx])
             new_tracking_data[l] = cluster.tracking_properties
 
         changes = self._perform_tracking(new_tracking_data)
 
-        templates = np.zeros((0, self._width), dtype=np.float32)
+        templates  = np.zeros((0, self._width), dtype=np.float32)
         amplitudes = np.zeros((0, 2), dtype=np.float32)
-        indices = np.zeros(0, dtype=np.int32)
+        indices    = np.zeros(0, dtype=np.int32)
 
         if two_components:
             templates2 = np.zeros((0, self._width), dtype=np.float32)
 
         for key, value in changes['new'].items():
-            data = centers_full[labels == key]
-            template = np.median(data, 0)
-            templates = np.vstack((templates, template))
+            data       = centers_full[labels == key]
+            template   = np.median(data, 0)
+            templates  = np.vstack((templates, template))
             amplitudes = np.vstack((amplitudes, self._compute_amplitudes(data, template)))
-            indices = np.concatenate((indices, [value]))
+            indices    = np.concatenate((indices, [value]))
             if two_components:
-                template2 = self._compute_template2(data, template)
+                template2  = self._compute_template2(data, template)
                 templates2 = np.vstack((templates2, template2))
 
         self.log.debug('{n} found {a} new templates: {s}'.format(n=self.name, a=len(changes['new']), s=changes['new']))
 
         if tracking:
             for key, value in changes['merged'].items():
-                data = centers_full[labels == value]
-                template = np.median(data, 0)
-                templates = np.vstack((templates, template))
+                data       = centers_full[labels == value]
+                template   = np.median(data, 0)
+                templates  = np.vstack((templates, template))
                 amplitudes = np.vstack((amplitudes, self._compute_amplitudes(data, template)))
-                indices = np.concatenate((indices, [key]))
+                indices    = np.concatenate((indices, [key]))
                 if two_components:
-                    template2 = self._compute_template2(data, template)
+                    template2  = self._compute_template2(data, template)
                     templates2 = np.vstack((templates2, template2))
 
             self.log.debug('{n} modified {a} templates with tracking: {s}'.format(n=self.name, a=len(changes['merged']), s=changes['merged'].values()))
@@ -509,18 +522,17 @@ def fit_rho_delta(xdata, ydata, smart_select=False, max_clusters=10):
 
 def rho_estimation(data, mratio=0.01):
 
-    N = len(data)
-    rho = np.zeros(N, dtype=np.float32)
-        
-    dist = scipy.spatial.distance.pdist(data, 'euclidean').astype(np.float32)
+    N    = len(data)
+    rho  = np.zeros(N, dtype=np.float32)
     didx = lambda i, j: i*N + j - i*(i+1)//2 - i - 1
+    dist = scipy.spatial.distance.pdist(data, 'euclidean').astype(np.float32)
     nb_selec = max(5, int(mratio*N))
 
     for i in xrange(N):
         indices = np.concatenate((didx(i, np.arange(i+1, N)), didx(np.arange(0, i-1), i)))
-        tmp = np.argsort(np.take(dist, indices))[:nb_selec]
-        sdist = np.take(dist, np.take(indices, tmp))
-        rho[i] = np.mean(sdist)
+        tmp     = np.argsort(np.take(dist, indices))[:nb_selec]
+        sdist   = np.take(dist, np.take(indices, tmp))
+        rho[i]  = np.mean(sdist)
 
     return rho, dist, nb_selec
 

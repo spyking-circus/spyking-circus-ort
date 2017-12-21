@@ -5,4 +5,3 @@ from .train import Train
 from .amplitude import Amplitude
 from .position import Position
 from .spikes import Spikes
-from .template_store import TemplateStore
