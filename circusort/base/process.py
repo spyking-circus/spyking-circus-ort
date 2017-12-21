@@ -5,10 +5,9 @@ import sys
 import zmq
 import logging
 
-from circusort.utils.base import get_log, find_interface_address_towards
+from circusort.base.utils import get_log, find_interface_address_towards
 from circusort.base.proxy import Proxy
 from circusort.base.serializer import Serializer
-
 
 
 def create_process(host=None, log_address=None, name=None, log_level=logging.INFO):

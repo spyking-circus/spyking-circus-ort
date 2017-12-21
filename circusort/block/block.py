@@ -5,7 +5,7 @@ import logging
 import time
 
 from circusort.base.endpoint import Endpoint, EOCError
-from circusort.utils.base import get_log
+from circusort.base.utils import get_log
 
 
 class Block(threading.Thread):

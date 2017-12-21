@@ -1,14 +1,14 @@
 import json
 import zmq
 
-from circusort.utils.base import get_log
+from circusort.base.utils import get_log
 from circusort.base.proxy import Proxy
 from circusort.block.block import Block
 
 
-
 class Process(object):
-    '''TODO add docstring'''
+    """Process object."""
+    # TODO add docstring.
 
     def __init__(self, host, address, log_address):
 

@@ -2,7 +2,7 @@ import time
 import logging
 
 from circusort.base.logger import Logger
-from circusort.utils.base import get_log
+from circusort.base.utils import get_log
 from circusort.base.process import create_process
 
 

@@ -1,6 +1,6 @@
 import logging
 
-from circusort.utils.base import get_log
+from circusort.base.utils import get_log
 from circusort.base.process import Process
 
 
