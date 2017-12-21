@@ -4,7 +4,6 @@ import argparse
 from logging import DEBUG, INFO
 import os
 import circusort
-# import utils
 
 
 # Parse command line.
