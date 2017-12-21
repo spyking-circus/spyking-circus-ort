@@ -1,4 +1,3 @@
-import numpy
 import threading
 import zmq
 import logging
@@ -43,6 +42,7 @@ class Block(threading.Thread):
         self.is_active = False
         self.start_steps = None
         self.check_interval = 100
+        self._measured_times = {}
         self.counter = 0
         self.mpl_display = False
 
@@ -55,19 +55,30 @@ class Block(threading.Thread):
         self.log.debug(str(self))
 
     def __del__(self):
-        self.log.debug("{n} is destroyed".format(n=self.name))
+
+        string = "{} is destroyed"
+        message = string.format(self.name)
+        self.log.debug(message)
 
     def set_manager(self, manager_name):
+
         self.parent = manager_name
 
     def set_host(self, host):
+
         self.host = host
 
     def add_output(self, name, structure='array'):
+
         self.outputs[name] = Endpoint(self, name, structure)
 
     def add_input(self, name, structure='array'):
+
         self.inputs[name] = Endpoint(self, name, structure)
+
+    def _initialize(self):
+
+        raise NotImplementedError()
 
     def initialize(self):
 
@@ -78,6 +89,7 @@ class Block(threading.Thread):
 
     @property
     def input(self):
+
         if len(self.inputs) == 1:
             return self.inputs[self.inputs.keys()[0]]
         elif len(self.inputs) == 0:
@@ -88,6 +100,7 @@ class Block(threading.Thread):
 
     @property
     def output(self):
+
         if len(self.outputs) == 1:
             return self.outputs[self.outputs.keys()[0]]
         elif len(self.outputs) == 0:
@@ -98,50 +111,75 @@ class Block(threading.Thread):
 
     @property
     def nb_inputs(self):
+
         return len(self.inputs)
 
     @property
     def nb_outputs(self):
+
         return len(self.outputs)
 
     def get_input(self, key):
+
         return self.inputs[key]
 
     def get_output(self, key):
+
         return self.outputs[key]
 
     def connect(self, key):
-        self.log.debug("{n} establishes connections".format(n=self.name))
+
+        string = "{} establishes connections"
+        message = string.format(self.name)
+        self.log.debug(message)
+
         self.get_input(key).socket = self.context.socket(zmq.SUB)
         self.get_input(key).socket.connect(self.get_input(key).addr)
         self.get_input(key).socket.setsockopt(zmq.SUBSCRIBE, "")
 
+        return
+
     def configure(self, **kwargs):
+
         for key, value in kwargs.items():
             self.params[key] = kwargs[key]
             self.__setattr__(key, value)
-
-        self.log.debug("{n} is configured".format(n=self.name))
         self.ready = False
+
+        string = "{} is configured"
+        message = string.format(self.name)
+        self.log.debug(message)
+
+        return
+
+    def _guess_output_endpoints(self, **kwargs):
+
         return
 
     def guess_output_endpoints(self, **kwargs):
+
         if self.nb_inputs > 0 and self.nb_outputs > 0:
-            self.log.debug("{n} guesses output connections".format(n=self.name))
-            return self._guess_output_endpoints(**kwargs)
+            string = "{} guesses output connections"
+            message = string.format(self.name)
+            self.log.debug(message)
+            self._guess_output_endpoints(**kwargs)
+
+        return
 
     def _sync_buffer(self, dictionary, nb_samples):
+
         offset = dictionary['offset']
-        if offset < self.counter * nb_samples:
-            return False
-        return True
+        is_synced = self.counter * nb_samples <= offset
+
+        return is_synced
 
     def run(self):
 
         if not self.ready:
             self.initialize()
 
-        self.log.debug("{n} is running".format(n=self.name))
+        message = "{} is running".format(self.name)
+        self.log.debug(message)
 
         self.running = True
         self._set_start_step()
@@ -150,15 +188,15 @@ class Block(threading.Thread):
             while self.counter < self.nb_steps:
                 self._process()
                 self.counter += 1
-                if numpy.mod(self.counter, self.check_interval) == 0:
-                    self._check_real_time_ratio()
+                # if numpy.mod(self.counter, self.check_interval) == 0:
+                #     self._check_real_time_ratio()
         else:
             try:
                 while self.running and not self.stop_pending:
                     self._process()
                     self.counter += 1
-                    if numpy.mod(self.counter, self.check_interval) == 0:
-                        self._check_real_time_ratio()
+                    # if numpy.mod(self.counter, self.check_interval) == 0:
+                    #     self._check_real_time_ratio()
             except EOCError:
                 # TODO understand why it happens (should not happen).
                 for output in self.outputs.itervalues():
@@ -174,19 +212,37 @@ class Block(threading.Thread):
                 while self.running and self.stop_pending:
                     self._process()
                     self.counter += 1
-                    if numpy.mod(self.counter, self.check_interval) == 0:
-                        self._check_real_time_ratio()
+                    # if numpy.mod(self.counter, self.check_interval) == 0:
+                    #     self._check_real_time_ratio()
             except EOCError:
                 for output in self.outputs.itervalues():
                     output.send_end_connection()
                 self.running = False
 
-        self.log.debug("{n} is stopped".format(n=self.name))
+        message = "{} is stopped".format(self.name)
+        self.log.debug(message)
+
+        self._introspect()
+
+        return
+
+    def _process(self):
+        # TODO add docstring.
+
+        raise NotImplementedError()
+
+    def _introspect(self):
+        # TODO add docstring.
+
+        nb_buffers = self.counter - self.start_step
         if self.real_time_ratio is not None:
-            info_msg = "{n} processed {m} buffers [{k} x real time]"
-            self.log.info(info_msg.format(n=self.name, m=self.counter - self.start_step, k=self.real_time_ratio))
+            string = "{} processed {} buffers [{} x real time]"
+            message = string.format(self.name, nb_buffers, self.real_time_ratio)
+            self.log.info(message)
         else:
-            self.log.info("{n} processed {m} buffers".format(n=self.name, m=self.counter - self.start_step))
+            string = "{} processed {} buffers"
+            message = string.format(self.name, nb_buffers)
+            self.log.info(message)
 
         return
 
@@ -213,37 +269,75 @@ class Block(threading.Thread):
         return
 
     def _check_real_time_ratio(self):
+        # TODO add docstring.
+
         data = self.real_time_ratio
         if data is not None and data <= 1 and self.is_active:
-            self.log.warning("{n} is lagging, running at {k} x real time".format(n=self.name_and_counter, k=data))
+            string = "{} is lagging, running at {} x real time"
+            message = string.format(self.name_and_counter, data)
+            self.log.warning(message)
+
+        return
 
     def list_parameters(self):
+
         return self.params.keys()
+
+    def _measure_time(self, label='default', frequency=1):
+
+        if self.counter % frequency == 0:
+            time_ = time.time()
+            try:
+                self._measured_times[label].append(time_)
+            except KeyError:
+                self._measured_times[label] = [time_]
+
+        return
 
     @property
     def real_time_ratio(self):
+
         if hasattr(self, 'nb_samples') and hasattr(self, 'sampling_rate'):
-            return (self.nb_samples*self.counter/self.sampling_rate)/self.run_time
+            data_time = float(self.counter) * (float(self.nb_samples) / self.sampling_rate)
+            ratio = data_time / self.run_time
         else:
-            return None
+            ratio = None
+
+        return ratio
 
     @property
     def run_time(self):
-        return time.time() - self.t_start
+        """The time elapsed since the start time [s]."""
+
+        time_ = time.time() - self.t_start
+
+        return time_
 
     @property
     def name_and_counter(self):
-        return "{n}[{k} steps]".format(n=self.name, k=self.counter)
+
+        string = "{}[{} steps]".format(self.name, self.counter)
+
+        return string
 
     def _set_start_step(self):
+
         self.t_start = time.time()
         self.start_step = self.counter
 
+        return
+
     def _set_active_mode(self):
+
         self.is_active = True
-        self.log.debug("{n} is now active".format(n=self.name_and_counter))
+        message = "{} is now active".format(self.name_and_counter)
+        self.log.debug(message)
         self._set_start_step()
 
+        return
+
     def __str__(self):
-        res = "Block object {n} with params {s}".format(n=self.name, s=self.params)
-        return res
+
+        string = "Block object {} with params {}".format(self.name, self.params)
+
+        return string
