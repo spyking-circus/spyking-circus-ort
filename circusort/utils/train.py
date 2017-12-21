@@ -160,6 +160,6 @@ def compute_pic_strength(source_train, sink_train, lag_min=-100e-3, lag_max=+100
                                                     lag_min=lag_min, lag_max=lag_max, **kwargs)
     c = np.mean(correlations)
     c_ = np.mean(correlations_)
-    strength = (c - c_) / (c + c_)
+    strength = (c - c_) / (c + c_) if c + c_ != 0.0 else 0.0
 
     return strength

@@ -25,7 +25,7 @@ class Reader(Block):
     name = "File reader"
 
     params = {
-        'data_path': "/tmp/input.dat",
+        'data_path': "/tmp/input.raw",
         'dtype': 'float32',
         'nb_channels': 10,
         'nb_samples': 1024,
@@ -52,6 +52,14 @@ class Reader(Block):
         Block.__init__(self, **kwargs)
         self.add_output('data')
 
+        # Lines useful to remove PyCharm warnings.
+        self.data_path = "/tmp/input.raw" if self.data_path is None else self.data_path
+        self.dtype = 'float32' if self.dtype is None else self.dtype
+        self.nb_channels = 10 if self.nb_channels is None else self.nb_channels
+        self.nb_samples = None if self.nb_samples is None else self.nb_samples
+        self.sampling_rate = None if self.sampling_rate is None else self.sampling_rate
+        self.is_realistic = True if self.is_realistic is None else self.is_realistic
+
         self.output_dtype = 'float32'
         self.quantum_size = 0.1042  # µV / AD
         self.quantum_offset = float(np.iinfo('int16').min)
@@ -71,6 +79,8 @@ class Reader(Block):
         """Process one buffer of data."""
 
         # TODO check if we need a background thread.
+
+        self._measure_time(label='start', frequency=100)
 
         # Read data from the file on disk.
         data = np.memmap(self.data_path, dtype=self.dtype, mode='r', shape=self.shape)
@@ -101,5 +111,27 @@ class Reader(Block):
         else:
             # Stop processing block.
             self.stop_pending = True
+
+        self._measure_time(label='end', frequency=100)
   
+        return
+
+    def _introspect(self):
+        # TODO add docstring.
+
+        nb_buffers = self.counter - self.start_step
+        start_times = np.array(self._measured_times.get('start', []))
+        end_times = np.array(self._measured_times.get('end', []))
+        durations = end_times - start_times
+        data_duration = float(self.nb_samples) / self.sampling_rate
+        ratios = data_duration / durations
+
+        min_ratio = np.min(ratios) if ratios.size > 0 else np.nan
+        mean_ratio = np.mean(ratios) if ratios.size > 0 else np.nan
+        max_ratio = np.max(ratios) if ratios.size > 0 else np.nan
+
+        string = "{} processed {} buffers [speed:x{:.2f} (min:x{:.2f}, max:x{:.2f})]"
+        message = string.format(self.name, nb_buffers, mean_ratio, min_ratio, max_ratio)
+        self.log.info(message)
+
         return
