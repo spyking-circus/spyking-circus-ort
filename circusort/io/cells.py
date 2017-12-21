@@ -1,9 +1,10 @@
 import os
 
-from circusort.io.template import list_templates, load_template
+from circusort.io.template import load_template
+from circusort.io.templates import list_templates
 from circusort.io.trains import list_trains, load_train
 from circusort.io.position import list_positions, load_position
-from circusort.io.cell import generate_cell, load_cell, get_cell
+from circusort.io.cell import generate_cell, get_cell
 from circusort.io.parameter.cells import get_cells_parameters
 from circusort.obj.cell import Cell
 from circusort.obj.cells import Cells
@@ -26,7 +27,7 @@ def save_cells(directory, cells, **kwargs):
     """Save cells to files.
 
     Parameters:
-        path: string
+        directory: string
             The path to the directory in which to save the cells.
         cells: circusort.obj.Cells
             The cells to save.
