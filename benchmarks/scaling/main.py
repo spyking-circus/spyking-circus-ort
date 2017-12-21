@@ -121,7 +121,7 @@ else:
                                    log_level=DEBUG,
                                    **cluster_kwargs)
     updater = manager.create_block('template_updater',
-                                   probe=probe_path,
+                                   probe_path=probe_path,
                                    nb_channels=16,
                                    log_level=DEBUG,
                                    **updater_kwargs)

@@ -1,7 +1,6 @@
 import numpy as np
 import os
 import tempfile
-import scipy.sparse
 
 from circusort.block.block import Block
 from circusort.io.probe import load_probe
@@ -13,7 +12,7 @@ class Template_updater(Block):
     """Template updater
 
     Attributes:
-        probe_file: string (optional)
+        probe_path: string (optional)
         radius: float (optional)
         cc_merge: float (optional)
         cc_mixture: float (optional)
@@ -24,21 +23,23 @@ class Template_updater(Block):
     name = "Template updater"
 
     params = {
-        'probe_file' : None,
-        'radius'     : None,
-        'cc_merge'   : 0.95,
-        'cc_mixture' : None,
-        'data_path'  : None,
+        'probe_path': None,
+        'radius': None,
+        'cc_merge': 0.95,
+        'cc_mixture': None,
+        'data_path': None,
     }
 
     def __init__(self, **kwargs):
 
         Block.__init__(self, **kwargs)
-        if self.probe_file == None:
-            self.log.error('{n}: the probe file must be specified!'.format(n=self.name))
+        if self.probe_path is None:
+            message = "{}: the probe file must be specified!".format(self.name)
+            self.log.error(message)
         else:
-            self.probe = load_probe(self.probe_file, radius=self.radius, logger=self.log)
-            self.log.info('{n} reads the probe layout'.format(n=self.name))
+            self.probe = load_probe(self.probe_path, radius=self.radius, logger=self.log)
+            message = "{} reads the probe layout".format(self.name)
+            self.log.info(message)
         self.add_input('templates')
         self.add_output('updater', 'dict')
         self.two_components = None
@@ -58,44 +59,61 @@ class Template_updater(Block):
             os.makedirs(data_directory)
         
         # Create object to handle templates.
-        self.template_store      = TemplateStore(self.data_path, self.probe_file, mode='w')
-        self.template_dictionary = TemplateDictionary(self.template_store, cc_merge=self.cc_merge, cc_mixture=self.cc_mixture)
+        self.template_store = TemplateStore(self.data_path, self.probe_path, mode='w')
+        self.template_dictionary = TemplateDictionary(self.template_store, cc_merge=self.cc_merge,
+                                                      cc_mixture=self.cc_mixture)
 
         # Log path.
-        info_msg = "{} records templates into {}"
-        self.log.info(info_msg.format(self.name, self.data_path))
+        message = "{} records templates into {}".format(self.name, self.data_path)
+        self.log.info(message)
 
         return
 
-    def _get_tmp_path(self):
+    @staticmethod
+    def _get_tmp_path():
+
         tmp_directory = tempfile.gettempdir()
-        tmp_basename  = 'templates.h5'
-        tmp_path      = os.path.join(tmp_directory, tmp_basename)
+        tmp_basename = "templates.h5"
+        tmp_path = os.path.join(tmp_directory, tmp_basename)
+
         return tmp_path
 
     def _guess_output_endpoints(self):
+
         return
 
     def _data_to_templates(self, data):
+
         all_templates = []
         for key in data['dat'].keys():
             for channel in data['dat'][key].keys():
-                ichannel   = int(channel)
-                templates  = np.array(data['dat'][key][channel]).astype(np.float32)
+                ichannel = int(channel)
+                templates = np.array(data['dat'][key][channel]).astype(np.float32)
                 amplitudes = np.array(data['amp'][key][channel]).astype(np.float32)
 
                 if self.two_components:
                     templates2 = np.array(data['two'][key][channel]).astype(np.float32)
 
                 for count in xrange(len(templates)):                    
-                    first_component = TemplateComponent(templates[count], self.template_store.mappings[ichannel], self.template_store.nb_channels, amplitudes[count])
+                    first_component = TemplateComponent(templates[count],
+                                                        self.template_store.mappings[ichannel],
+                                                        self.template_store.nb_channels,
+                                                        amplitudes[count])
                     if self.two_components:
-                        second_component = TemplateComponent(templates2[count], self.template_store.mappings[ichannel], self.template_store.nb_channels)
+                        second_component = TemplateComponent(templates2[count],
+                                                             self.template_store.mappings[ichannel],
+                                                             self.template_store.nb_channels)
+                    else:
+                        second_component = None
 
-                    all_templates += [Template(first_component, ichannel, second_component, creation_time=int(data['offset']))]
+                    all_templates += [
+                        Template(first_component, ichannel, second_component, creation_time=int(data['offset']))
+                    ]
 
                 if len(templates) > 0:
-                    self.log.debug('{n} received {s} {t} templates from electrode {k}'.format(n=self.name, s=len(templates), t=key, k=channel))
+                    string = "{} received {} {} templates from electrode {}"
+                    message = string.format(self.name, len(templates), key, channel)
+                    self.log.debug(message)
 
         return all_templates
 
@@ -107,18 +125,27 @@ class Template_updater(Block):
             if not self.is_active:
                 self._set_active_mode()
                 if self.two_components is None:
-                    self.two_components = data.has_key('two')
+                    self.two_components = 'two' in data
 
             templates = self._data_to_templates(data)
             accepted, nb_duplicates, nb_mixtures = self.template_dictionary.add(templates)
 
             if nb_duplicates > 0:
-                self.log.debug('{n} rejected {s} duplicated templates'.format(n=self.name, s=nb_duplicates))
+                message = "{} rejected {} duplicated templates".format(self.name, nb_duplicates)
+                self.log.debug(message)
             if nb_mixtures > 0:
-                self.log.debug('{n} rejected {s} composite templates'.format(n=self.name, s=nb_mixtures))
+                message = "{} rejected {} composite templates".format(self.name, nb_mixtures)
+                self.log.debug(message)
             if len(accepted) > 0:
-                self.log.debug('{n} accepted {t} templates'.format(n=self.name, t=len(accepted)))
+                message = "{} accepted {} templates".format(self.name, len(accepted))
+                self.log.debug(message)
 
-            #self.log.debug('{n} saved templates {k}'.format(n=self.name, k=accepted))
-            self.output.send({'templates_file' : self.template_store.file_name, 'indices' : accepted})
+            # message = "{} saved templates {}".format(self.name, accepted)
+            # self.log.debug(message)
+            output = {
+                'templates_file': self.template_store.file_name,
+                'indices' : accepted
+            }
+            self.output.send(output)
+
         return

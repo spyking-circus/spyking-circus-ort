@@ -3,9 +3,9 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-import sys
 
-from circusort.io.template import TemplateStore, TemplateComponent, Template
+from circusort.obj.template_store import TemplateStore
+
 
 def plot_templates(template_store, indices=None, component='first', output=None, x_bar=1.0, y_bar=20.0, show_scale_bar=True):
     """Plot template from template store.
@@ -101,7 +101,8 @@ def plot_templates(template_store, indices=None, component='first', output=None,
     return
 
 
-def plot_templates_on_channels(template_store, channels, component='first', output=None, x_bar=1.0, y_bar=20.0, show_scale_bar=True):
+def plot_templates_on_channels(template_store, channels, component='first', output=None,
+                               x_bar=1.0, y_bar=20.0, show_scale_bar=True):
 
     # Expand user's home directory (if necessary).
     if not isinstance(template_store, TemplateStore):
@@ -112,10 +113,12 @@ def plot_templates_on_channels(template_store, channels, component='first', outp
 
     indices = []
     for channel in channels:
-        if template_store.templates_per_channels.has_key(channel):
+        if channel in template_store.templates_per_channels:
             indices += template_store.templates_per_channels[channel]
 
     plot_templates(template_store, indices, component, output, x_bar, y_bar, show_scale_bar)
+
+    return
 
 
 def plot_templates_history(template_store, output=None):
@@ -124,9 +127,9 @@ def plot_templates_history(template_store, output=None):
     if not isinstance(template_store, TemplateStore):
         template_store = TemplateStore(os.path.expanduser(template_store))
 
-    probe          = template_store.probe
-    indices        = template_store.indices
-    templates      = template_store.get(indices)
+    _ = template_store.probe
+    indices = template_store.indices
+    templates = template_store.get(indices)
 
     plt.style.use('seaborn-paper')
     plt.subplots()
@@ -137,9 +140,11 @@ def plot_templates_history(template_store, output=None):
 
     plt.xlabel(u"Time [step]")
     plt.ylabel(u"Indices")
-    #plt.axis('scaled')
+    # plt.axis('scaled')
     plt.tight_layout()
     if output is None:
         plt.show()
     else:
         plt.savefig(output)
+
+    return
