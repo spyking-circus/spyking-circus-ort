@@ -56,7 +56,7 @@ if args.pending_sorting:
         'nb_channels': nb_channels,
         'nb_samples': nb_samples,
         'sampling_rate': sampling_rate,
-        'is_realistic': args.is_realistic,
+        'is_realistic': True,
     }
     signal_writer_kwargs = {
         'data_path': os.path.join(sorting_directory, "data_filtered.raw"),
@@ -71,8 +71,12 @@ if args.pending_sorting:
     # Initialize the elements of the Circus network.
     director.initialize()
     # Connect the elements of the Circus network.
-    director.connect(reader.output, reader.input)
+    director.connect(reader.output, writer.input)
     # or  # director.connect(reader.output, [reader.input])  # if the previous line does not work.
+    # Launch the network.
+    director.start()
+    director.join()
+    director.destroy()
 
 
 # Introspect sorting (if necessary).
