@@ -86,11 +86,30 @@ if args.pending_sorting:
 # Introspect sorting (if necessary).
 if args.pending_introspection:
 
+    nb_samples = 1024
+    sampling_rate = 20e+3  # Hz
+    duration_data = float(nb_samples) / sampling_rate
+
     # Load time measurements from disk.
-    measurements = circusort.io.load_time_measurements(introspection_directory, name='file_reader_1')
-    print(measurements)
+    measurements_reader = circusort.io.load_time_measurements(introspection_directory, name='file_reader_1')
+    durations_reader = measurements_reader['end'] - measurements_reader['start']
+    speed_factors_reader = duration_data / durations_reader
+    measurements_writer = circusort.io.load_time_measurements(introspection_directory, name='file_writer_1')
+    durations_writer = measurements_writer['end'] - measurements_writer['start']
+    speed_factors_writer = duration_data / durations_writer
 
     # TODO evaluate real-time performances.
-    # TODO plot real-time performances.
+    data = [speed_factors_reader, speed_factors_writer]
+    labels = ['reader', 'writer']
 
-    raise NotImplementedError()  # TODO complete.
+    # TODO plot real-time performances.
+    import matplotlib.pyplot as plt
+
+    plt.ioff()
+
+    fig, ax = plt.subplots(1, 1)
+    ax.boxplot(data, whis=1.5, labels=labels)
+    ax.set_ylabel("speed factor")
+    ax.set_title("Real-time performances")
+    fig.tight_layout()
+    fig.show()
