@@ -17,9 +17,9 @@ if args.pending_generation is None and args.pending_sorting is None and args.pen
     args.pending_sorting = True
     args.pending_introspection = True
 else:
-    args.pending_generation = args.pending_generation == True
-    args.pending_sorting = args.pending_sorting == True
-    args.pending_introspection = args.pending_introspection == True
+    args.pending_generation = args.pending_generation is True
+    args.pending_sorting = args.pending_sorting is True
+    args.pending_introspection = args.pending_introspection is True
 
 
 # Define the working directory.
@@ -27,28 +27,31 @@ directory = os.path.join("~", ".spyking-circus-ort", "benchmarks", "scaling_0")
 directory = os.path.expanduser(directory)
 if not os.path.isdir(directory):
     os.makedirs(directory)
+sorting_directory = os.path.join(directory, "sorting")
+introspection_directory = os.path.join(directory, "introspection")
 
 
 # Generate data (if necessary).
 if args.pending_generation:
-    
+
     circusort.net.pregenerator(working_directory=directory)
 
 
 # Sort data (if necessary).
 if args.pending_sorting:
-    
+
     # Define parameters
     host = '127.0.0.1'  # i.e. run the test locally
     nb_channels = 16
     nb_samples = 1024
     sampling_rate = 20e+3  # Hz
-    sorting_directory = os.path.join(directory, "sorting")
+
+    # Create directories (if necessary).
     if not os.path.isdir(sorting_directory):
         os.makedirs(sorting_directory)
-    # TODO complete.
-    
-    
+    if not os.path.isdir(introspection_directory):
+        os.makedirs(introspection_directory)
+
     # Define keyword arguments.
     reader_kwargs = {
         'data_path': os.path.join(directory, "data.raw"),
@@ -57,12 +60,13 @@ if args.pending_sorting:
         'nb_samples': nb_samples,
         'sampling_rate': sampling_rate,
         'is_realistic': True,
+        'introspection_path': introspection_directory,
     }
     signal_writer_kwargs = {
         'data_path': os.path.join(sorting_directory, "data_filtered.raw"),
+        'introspection_path': introspection_directory,
     }
-    
-    
+
     # Define the elements of the Circus network.
     director = circusort.create_director(host=host)
     manager = director.create_manager(host=host)
@@ -81,5 +85,12 @@ if args.pending_sorting:
 
 # Introspect sorting (if necessary).
 if args.pending_introspection:
-    
-    pass  # TODO complete.
+
+    # Load time measurements from disk.
+    measurements = circusort.io.load_time_measurements(introspection_directory, name='file_reader_1')
+    print(measurements)
+
+    # TODO evaluate real-time performances.
+    # TODO plot real-time performances.
+
+    raise NotImplementedError()  # TODO complete.

@@ -113,7 +113,7 @@ class Reader(Block):
             self.stop_pending = True
 
         self._measure_time(label='end', frequency=100)
-  
+
         return
 
     def _introspect(self):
