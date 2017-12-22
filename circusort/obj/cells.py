@@ -192,7 +192,8 @@ class Cells(object):
         if probe is not None:
             probe.plot(ax=ax, **kwargs)
         for k, cell in self.iteritems():
-            cell.position.plot(ax=ax, set_ax=False, **kwargs)
+            if cell.position is not None:  # TODO be able to remove this line.
+                cell.position.plot(ax=ax, set_ax=False, **kwargs)
         ax.set_title(u"Positions")
 
         return
