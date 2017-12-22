@@ -3,7 +3,7 @@ For the very first evaluation of the benchmark use the following instructions.
 1. Set your current directory to this directory with the `cd` command
 2. Launch IPython  
 `$ ipython`
-3. Launch   
+3. Launch
 `In[1]: %run pregenerate.py --wd ~/.spyking-circus-ort/benchmarks/scaling`
 4. Launch *(not available yet)*  
 `In[2]: %run main.py`

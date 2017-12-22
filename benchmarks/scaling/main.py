@@ -50,7 +50,7 @@ signal_writer_kwargs = {
 }
 mad_writer_kwargs = {
     'data_path': os.path.join(sorting_directory, "mads.h5"),
-    'name': 'mads',
+    'dataset_name': 'mads',
 }
 peak_writer_kwargs = {
     'data_path': os.path.join(sorting_directory, "peaks.h5"),

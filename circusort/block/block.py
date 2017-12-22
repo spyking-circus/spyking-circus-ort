@@ -5,6 +5,7 @@ import time
 
 from circusort.base.endpoint import Endpoint, EOCError
 from circusort.base.utils import get_log
+from circusort.io.time_measurements import save_time_measurements
 
 
 class Block(threading.Thread):
@@ -45,6 +46,7 @@ class Block(threading.Thread):
         self._measured_times = {}
         self.counter = 0
         self.mpl_display = False
+        self.introspection_path = None
 
         self.context = zmq.Context()
         self.params.update(kwargs)
@@ -223,6 +225,8 @@ class Block(threading.Thread):
         self.log.debug(message)
 
         self._introspect()
+        if self.introspection_path is not None:
+            self._save_introspection()
 
         return
 
@@ -243,6 +247,16 @@ class Block(threading.Thread):
             string = "{} processed {} buffers"
             message = string.format(self.name, nb_buffers)
             self.log.info(message)
+
+        return
+
+    def _save_introspection(self):
+        # TODO add docstring.
+
+        assert self.introspection_path is not None
+
+        name = self.name.lower().replace(' ', '_')
+        save_time_measurements(self.introspection_path, self._measured_times, name=name)
 
         return
 
