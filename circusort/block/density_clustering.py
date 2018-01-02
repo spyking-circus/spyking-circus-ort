@@ -90,6 +90,7 @@ class Density_clustering(Block):
             num = 5 * self._spike_width_
             self.cdata = np.linspace(-self._width, self._width, num)
             self.xdata = np.arange(-self._2_width, self._2_width + 1)
+            self.xoff  = len(self.cdata)/2.
 
         return
 
@@ -183,17 +184,17 @@ class Density_clustering(Block):
             if len(ydata) == 1:
                 f = scipy.interpolate.UnivariateSpline(self.xdata, zdata, s=0)
                 if is_neg:
-                    rmin = (np.argmin(f(self.cdata)) - len(self.cdata)/2.)/5.
+                    rmin = (np.argmin(f(self.cdata)) - self.xoff)/5.
                 else:
-                    rmin = (np.argmax(f(self.cdata)) - len(self.cdata)/2.)/5.
+                    rmin = (np.argmax(f(self.cdata)) - self.xoff)/5.
                 ddata = np.linspace(rmin - self._width, rmin + self._width, self._spike_width_)
                 sub_mat = f(ddata).astype(np.float32).reshape(1, self._spike_width_)
             else:
                 f = scipy.interpolate.RectBivariateSpline(self.xdata, ydata, zdata, s=0, ky=min(len(ydata)-1, 3))
                 if is_neg:
-                    rmin = (np.argmin(f(self.cdata, idx)[:, 0]) - len(self.cdata)/2.)/5.
+                    rmin = (np.argmin(f(self.cdata, idx)[:, 0]) - self.xoff)/5.
                 else:
-                    rmin = (np.argmax(f(self.cdata, idx)[:, 0]) - len(self.cdata)/2.)/5.
+                    rmin = (np.argmax(f(self.cdata, idx)[:, 0]) - self.xoff)/5.
                 ddata = np.linspace(rmin-self._width, rmin+self._width, self._spike_width_)
                 sub_mat = f(ddata, ydata).astype(np.float32)
         else:

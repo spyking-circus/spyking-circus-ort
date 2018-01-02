@@ -61,6 +61,7 @@ class Pca(Block):
         if self.alignment:
             self.cdata = np.linspace(-self._width, self._width, 5*self._spike_width_)
             self.xdata = np.arange(-self._2_width, self._2_width + 1)
+            self.xoff  = len(self.cdata)/2.
 
         return
 
@@ -85,9 +86,9 @@ class Pca(Block):
             ydata    = batch[peak - self._2_width:peak + self._2_width + 1, channel]
             f        = scipy.interpolate.UnivariateSpline(self.xdata, ydata, s=0)
             if key == 'negative':
-                rmin = (np.argmin(f(self.cdata)) - len(self.cdata)/2.)/5.
+                rmin = (np.argmin(f(self.cdata)) - self.xoff)/5.
             else:
-                rmin = (np.argmax(f(self.cdata)) - len(self.cdata)/2.)/5.
+                rmin = (np.argmax(f(self.cdata)) - self.xoff)/5.
             ddata    = np.linspace(rmin - self._width, rmin + self._width, self._spike_width_)
 
             result = f(ddata).astype(np.float32)
