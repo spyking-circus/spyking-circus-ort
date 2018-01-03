@@ -1,4 +1,5 @@
 import h5py
+import numpy as np
 import tempfile
 import os
 
@@ -10,7 +11,10 @@ class Writer(Block):
 
     Attribute:
         data_path: none | string
+        dataset_name: none | string
         mode: string
+        nb_samples: integer
+        sampling_rate: float
     """
     # TODO complete docstring
 
@@ -18,8 +22,10 @@ class Writer(Block):
 
     params = {
         'data_path': None,
-        'name': None,
+        'dataset_name': None,
         'mode': None,
+        'nb_samples': 1024,
+        'sampling_rate': 20e+3,
     }
 
     def __init__(self, **kwargs):
@@ -28,18 +34,25 @@ class Writer(Block):
         Parameter:
             data_path: none | string (optional)
                 The path to the file to use to write the data. The default value is None.
-            name: none | string (optional)
+            dataset_name: none | string (optional)
                 The name to use for the HDF5 dataset. The default value is None
-            mode: none | string
+            mode: none | string (optional)
                 The mode to use to write into the file. The default value is None.
+            nb_samples: integer (optional)
+                The number of sampling times for each buffer. The default value is 1024.
+            sampling_rate: float (optional)
+                The sampling rate used to record the data. The default value is 20e+3.
         """
 
         Block.__init__(self, **kwargs)
         self.add_input('data')
 
+        # Lines useful to remove some PyCharm warnings.
         self.data_path = self._get_temp_file() if self.data_path is None else self.data_path
-        self.name = 'dataset' if self.name is None else self.name
+        self.dataset_name = 'dataset' if self.dataset_name is None else self.dataset_name
         self.mode = 'default' if self.mode is None else self.mode
+        self.nb_samples = self.nb_samples
+        self.sampling_rate = self.sampling_rate
 
         self._raw_file = None
         self._h5_file = None
@@ -102,13 +115,14 @@ class Writer(Block):
 
         batch = self.input.receive()
 
+        self._measure_time(label='start', frequency=100)  # TODO check location.
+
         if self.input.structure == 'array':
             if self.mode == 'raw':
                 self._raw_file.write(batch.tostring())
             elif self.mode == 'hdf5':
-                dataset_name = 'dataset'
-                if dataset_name in self._h5_file:
-                    dataset = self._h5_file[dataset_name]
+                if self.dataset_name in self._h5_file:
+                    dataset = self._h5_file[self.dataset_name]
                     shape = dataset.shape
                     shape_ = (shape[0] + batch.shape[0], shape[1])
                     dataset.resize(shape_)
@@ -116,7 +130,8 @@ class Writer(Block):
                     dataset.flush()
                 else:
                     max_shape = batch.ndim * (None,)
-                    dataset = self._h5_file.create_dataset(dataset_name, data=batch, chunks=True, maxshape=max_shape)
+                    dataset = self._h5_file.create_dataset(self.dataset_name, data=batch,
+                                                           chunks=True, maxshape=max_shape)
                     dataset.flush()
             else:
                 message = "Unknown mode value: {}".format(self.mode)
@@ -124,6 +139,28 @@ class Writer(Block):
         else:
             message = "{} can only write arrays".format(self.name)
             self.log.error(message)
+
+        self._measure_time(label='end', frequency=100)
+
+        return
+
+    def _introspect(self):
+        # TODO add docstring.
+
+        nb_buffers = self.counter - self.start_step
+        start_times = np.array(self._measured_times.get('start', []))
+        end_times = np.array(self._measured_times.get('end', []))
+        durations = end_times - start_times
+        data_duration = float(self.nb_samples) / self.sampling_rate
+        ratios = data_duration / durations
+
+        min_ratio = np.min(ratios) if ratios.size > 0 else np.nan
+        mean_ratio = np.mean(ratios) if ratios.size > 0 else np.nan
+        max_ratio = np.max(ratios) if ratios.size > 0 else np.nan
+
+        string = "{} processed {} buffers [speed:x{:.2f} (min:x{:.2f}, max:x{:.2f})]"
+        message = string.format(self.name, nb_buffers, mean_ratio, min_ratio, max_ratio)
+        self.log.info(message)
 
         return
 

@@ -54,5 +54,9 @@ def get_cell_parameters(path=None):
     """
 
     parameters = get_parameters(path=path, types=default_types)
+    
+    # TODO remove the following lines (i.e. mention default values for each parameter).
+    if 'rate' not in parameters['train']:
+        parameters['train']['rate'] = 1.0
 
     return parameters

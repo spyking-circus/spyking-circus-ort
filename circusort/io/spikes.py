@@ -7,8 +7,18 @@ from circusort.utils.path import normalize_path
 
 
 def load_spikes(*args, **kwargs):
-    # TODO add docstring.
+    """Load spikes from disk.
 
+    Parameters:
+        path: string
+        nb_units: none | integer (optional)
+        mode: none | string (optional)
+    Return:
+        spikes: circusort.obj.Spikes
+    """
+    # TODO complete docstring.
+
+    nb_units = kwargs.pop('nb_units', None)
     mode = kwargs.pop('mode', None)
     if mode is None:
         if len(args) == 1:
@@ -81,6 +91,6 @@ def load_spikes(*args, **kwargs):
         raise ValueError(message)
 
     # Instantiate object.
-    spikes = Spikes(**data)
+    spikes = Spikes(nb_units=nb_units, **data)
 
     return spikes

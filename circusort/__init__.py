@@ -4,9 +4,9 @@ from . import io
 from . import net
 from . import obj
 from . import plt
+from . import utils
 
 from .base import create_director
-from .base import utils
 
 
 __version__ = '0.0.1'

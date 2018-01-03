@@ -46,11 +46,11 @@ def find_matching(source_cells, sink_cells, **kwargs):
     ax[1].imshow(train_similarities)
     ax[2].imshow(pic_strengths)
     from circusort.utils.train import compute_correlation, compute_reversed_correlation
-    fig, ax = plt.subplots(3, 3, sharex='all', sharey='all')
-    for i in range(0, 3):
-        for j in range(0, 3):
-            source_train = source_cells[i].train.slice(**kwargs)
-            sink_train = sink_cells[j].train.slice(**kwargs)
+    fig, ax = plt.subplots(nb_source_cells, nb_sink_cells, sharex='all', sharey='all')
+    for i, source_cell in enumerate(source_cells):
+        for j, sink_cell in enumerate(sink_cells):
+            source_train = source_cell.train.slice(**kwargs)
+            sink_train = sink_cell.train.slice(**kwargs)
             lag, correlation = compute_correlation(source_train, sink_train, **kwargs)
             ax[i, j].plot(lag, correlation)
             lag, correlation = compute_reversed_correlation(source_train, sink_train, **kwargs)

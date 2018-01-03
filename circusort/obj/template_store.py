@@ -21,9 +21,9 @@ class TemplateComponent(object):
         """
 
         self.waveforms = waveforms
-        self.amplitudes = amplitudes
         self.indices = indices
         self.nb_channels = nb_channels
+        self.amplitudes = amplitudes
 
     @property
     def norm(self):
@@ -66,20 +66,36 @@ class Template(object):
 
     @property
     def two_components(self):
+
         return self.second_component is not None
 
     @property
     def amplitudes(self):
+
         return np.array(self.first_component.amplitudes, dtype=np.float32)
 
     def normalize(self):
+
         self.first_component.normalize()
         if self.two_components:
             self.second_component.normalize()
 
     @property
     def temporal_width(self):
+
         return self.first_component.temporal_width
+
+    def to_template(self):
+        """Convert object from this class to circusort.obj.template.Template."""
+
+        # TODO merge the two following classes: circusort.obj.template.Template & circusort.obj.template_store.Template.
+
+        waveforms = self.first_component.to_dense()
+        nb_channels, _ = waveforms.shape
+        channels = np.arange(0, nb_channels)
+        template = Template_(channels, waveforms)
+
+        return template
 
 
 class TemplateStore(object):
@@ -114,6 +130,7 @@ class TemplateStore(object):
             self.h5_file.attrs['probe_file'] = os.path.abspath(os.path.expanduser(probe_file))
 
         elif self.mode in ['r', 'r+']:
+
             indices = self.h5_file['indices'][:]
             if len(indices) > 0:
                 self._index = indices.max()
@@ -132,25 +149,35 @@ class TemplateStore(object):
         self._close()
 
     def __str__(self):
+
         string = """
         Template store with {} templates
         two_components : {}
         temporal_width : {}
         probe_file     : {}
         """.format(len(self.indices), self.two_components, self.temporal_width, self.probe_file)
+
         return string
 
-    def __iter__(self, index):
-        for i in self.indices:
-            yield self[i]
+    def __iter__(self, ):
+
+        for index in self.indices:
+            yield index
+
+        return
 
     def __getitem__(self, index):
-        return self.get(self.indices[index])
+
+        template = self.get(index)
+
+        return template
 
     def __len__(self):
+
         return self.nb_templates
 
     def _add_template_channel(self, channel, index):
+
         if self._channels is None:
             self._channels = {}
 
@@ -159,94 +186,110 @@ class TemplateStore(object):
         else:
             self._channels[channel] = [index]
 
+        return
+
     @property
     def templates_per_channels(self):
-        if self._channels is not None:
-            return self._channels
-        else:
+
+        if self._channels is None:
             for channel, index in zip(self.channels, self.indices):
                 self._add_template_channel(channel, index)
-            return self._channels
+
+        return self._channels
 
     @property
     def first_creation(self):
+
         return self.times.min()
 
     @property
     def last_creation(self):
+
         return self.times.max()
 
     @property
     def indices(self):
+
         self._open(mode='r')
         data = self.h5_file['indices'][:]
         self._close()
+
         return data
 
     @property
     def channels(self):
+
         self._open(mode='r')
         data = self.h5_file['channels'][:]
         self._close()
+
         return data
 
     @property
     def times(self):
+
         self._open(mode='r')
         data = self.h5_file['times'][:]
         self._close()
+
         return data
 
     @property
     def nb_templates(self):
+
         return len(self.indices)
 
     @property
     def next_index(self):
+
         self._index += 1
+
         return self._index
 
     @property
     def two_components(self):
-        if self._2_components is not None:
-            return self._2_components
-        else:
+
+        if self._2_components is None:
             indices = self.indices
-            if len(indices) > 0:
-                self._open('r')
-                self._2_components = '2' in self.h5_file['waveforms/%d' % indices[0]]
-                self._close()
-            return self._2_components
+            assert len(indices) > 0
+            self._open('r')
+            self._2_components = '2' in self.h5_file['waveforms/%d' % indices[0]]
+            self._close()
+
+        return self._2_components
 
     @property
     def temporal_width(self):
-        if self._temporal_width is not None:
-            return self._temporal_width
-        else:
+
+        if self._temporal_width is None:
+
             assert self.nb_templates > 0
             template = self.__getitem__(0)
             self._temporal_width = template.temporal_width
-            return self._temporal_width
+
+        return self._temporal_width
 
     def slice_templates_by_channel(self, channels):
+
         if not np.iterable(channels):
             channels = [channels]
         result = []
         for t in self.get():
             if t.channel in [channels]:
                 result += [t]
+
         return result
 
     def slice_templates_by_creation_time(self, start=0, stop=np.inf):
+
         times = self.times
         result = np.where((times > start) & (times <= stop))[0]
+
         return self.get(result)
 
     def is_in_store(self, index):
-        if index in self.indices:
-            return True
-        else:
-            return False
+
+        return index in self.indices
 
     def add(self, templates):
 
@@ -280,6 +323,7 @@ class TemplateStore(object):
             indices += [gidx]
 
         self._close()
+
         return indices
 
     def get(self, elements=None):
@@ -345,15 +389,24 @@ class TemplateStore(object):
 
         self._close()
 
+        return
+
     def _open(self, mode='r+'):
+
         if self.h5_file is None:
             self.h5_file = h5py.File(self.file_name, mode)
 
+        return
+
     def _close(self):
+
         if self.h5_file is not None:
             self.h5_file.flush()
             self.h5_file.close()
             self.h5_file = None
 
+        return
+
     def __del__(self):
+
         self._close()

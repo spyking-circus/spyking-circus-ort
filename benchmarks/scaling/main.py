@@ -4,7 +4,6 @@ import argparse
 from logging import DEBUG, INFO
 import os
 import circusort
-# import utils
 
 
 # Parse command line.
@@ -51,7 +50,7 @@ signal_writer_kwargs = {
 }
 mad_writer_kwargs = {
     'data_path': os.path.join(sorting_directory, "mads.h5"),
-    'name': 'mads',
+    'dataset_name': 'mads',
 }
 peak_writer_kwargs = {
     'data_path': os.path.join(sorting_directory, "peaks.h5"),
@@ -163,11 +162,11 @@ else:
 
 # TODO load data_filtered.raw?
 # TODO load mads.h5?
-# TODO load templates.h5?
 templates = circusort.io.load_templates(updater_kwargs['data_path'])
+nb_templates = len(templates)
 # TODO save initial_template.h5?
 # TODO load initial_template.h5?
-spikes = circusort.io.load_spikes(spike_writer_kwargs['data_path'])
+spikes = circusort.io.load_spikes(spike_writer_kwargs['data_path'], nb_units=nb_templates)
 sorted_cells = spikes.to_units()
 sorted_cells.save(sorting_directory)
 

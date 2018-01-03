@@ -17,9 +17,13 @@ class Spikes(object):
             The unit (i.e. template) identifiers of each spike. An array of shape: (nb_spikes,).
         amplitudes: numpy.ndarray
             The amplitudes of each spike. An array of shape: (nb_spikes,).
+        nb_units: none | integer (optional)
+            The number of units. The default value is None.
+        t_min: none | float (optional)
+            The minimum value of the time window of interest. The default value is None.
     """
 
-    def __init__(self, times, templates, amplitudes):
+    def __init__(self, times, templates, amplitudes, nb_units=None, t_min=None, t_max=None):
         """Initialization.
 
         Parameters:
@@ -29,28 +33,34 @@ class Spikes(object):
                 The unit (i.e. template) identifiers of each spike. An array of shape: (nb_spikes,).
             amplitudes: numpy.ndarray
                 The amplitudes of each spike. An array of shape: (nb_spikes,).
+            nb_units: none | integer (optional)
+                The number of units. The default value is None.
+            t_min: none | float (optional)
+                The minimum value of the time window of interest. The default value is None.
         """
+
+        assert times.size > 0
 
         self.times = times
         self.templates = templates
         self.amplitudes = amplitudes
+        self.nb_units = nb_units
+        self.t_min = np.min(self.times) if t_min is None else t_min
+        self.t_max = np.max(self.times) if t_max is None else t_max
 
     @property
     def units(self):
         # TODO add docstring.
 
-        # TODO correct the following line (i.e. use the number of units instead).
-        units = np.unique(self.templates)
+        if self.nb_units is None:
+            units = np.unique(self.templates)
+        else:
+            if self.nb_units == np.unique(self.templates).size:
+                units = np.unique(self.templates)
+            else:
+                units = np.arange(0, self.nb_units)
 
         return units
-
-    @property
-    def nb_units(self):
-        # TODO add docstring.
-
-        nb_units = self.units.size
-
-        return nb_units
 
     def get_unit(self, k):
         """Get one unit (i.e. cell) given an identifier.
@@ -73,7 +83,7 @@ class Spikes(object):
         waveforms = np.empty((0, 0), dtype=np.float)
 
         template = Template(channels, waveforms)
-        train = Train(times)
+        train = Train(times, t_min=self.t_min, t_max=self.t_max)
         amplitude = Amplitude(amplitudes, times)
 
         unit = Cell(template, train, amplitude)
