@@ -55,11 +55,13 @@ class Pca(Block):
         self.send_pcs = True
         if np.mod(self._spike_width_, 2) == 0:
             self._spike_width_ += 1
-        self._width = (self._spike_width_-1)//2
+        self._width   = (self._spike_width_-1)//2
+        self._2_width = 2 * self._width
 
         if self.alignment:
             self.cdata = np.linspace(-self._width, self._width, 5*self._spike_width_)
-            self.xdata = np.arange(-2*self._width, 2*self._width + 1)
+            self.xdata = np.arange(-self._2_width, self._2_width + 1)
+            self.xoff  = len(self.cdata)/2.
 
         return
 
@@ -69,7 +71,7 @@ class Pca(Block):
 
     def _is_valid(self, peak):
         if self.alignment:
-            return (peak >= 2*self._width) and (peak + 2*self._width < self.nb_samples)
+            return (peak >= self._2_width) and (peak + self._2_width < self.nb_samples)
         else:
             return (peak >= self._width) and (peak + self._width < self.nb_samples)
 
@@ -81,12 +83,12 @@ class Pca(Block):
 
     def _get_waveform(self, batch, channel, peak, key):
         if self.alignment:
-            ydata    = batch[peak - 2*self._width:peak + 2*self._width + 1, channel]
+            ydata    = batch[peak - self._2_width:peak + self._2_width + 1, channel]
             f        = scipy.interpolate.UnivariateSpline(self.xdata, ydata, s=0)
             if key == 'negative':
-                rmin = (np.argmin(f(self.cdata)) - len(self.cdata)/2.)/5.
+                rmin = (np.argmin(f(self.cdata)) - self.xoff)/5.
             else:
-                rmin = (np.argmax(f(self.cdata)) - len(self.cdata)/2.)/5.
+                rmin = (np.argmax(f(self.cdata)) - self.xoff)/5.
             ddata    = np.linspace(rmin - self._width, rmin + self._width, self._spike_width_)
 
             result = f(ddata).astype(np.float32)

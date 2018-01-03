@@ -139,12 +139,12 @@ else:
                                log_level=INFO)
     cluster = manager.create_block('density_clustering',
                                    threshold_factor=7.0,
-                                   probe=probe_path,
+                                   probe_path=probe_path,
                                    two_components=True,
                                    log_level=INFO,
                                    **cluster_kwargs)
     updater = manager.create_block('template_updater',
-                                   probe_file=probe_path,
+                                   probe_path=probe_path,
                                    log_level=DEBUG,
                                    **updater_kwargs)
     fitter = manager.create_block('template_fitter',
