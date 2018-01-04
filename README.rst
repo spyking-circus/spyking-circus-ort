@@ -18,5 +18,5 @@ be compatible with optogenetic stimulation, based on experimental data obtained 
 
 This **online** implementation of SpyKING CIRCUS is currently still under **active** development. Please do not hesitate to report issues with the issue tracker
 
-:copyright: Copyright 2006-2017 by the SpyKING CIRCUS team, see AUTHORS.
+:copyright: Copyright 2006-2018 by the SpyKING CIRCUS team, see AUTHORS.
 :license: CeCILL, see LICENSE for details.
