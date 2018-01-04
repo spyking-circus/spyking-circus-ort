@@ -13,9 +13,29 @@ default_types = {
         'nb_rows': 'integer',
         'nb_columns': 'integer',
         'interelectrode_distance': 'float',
+        'path': 'string',
     },
     'cells': {
         'mode': 'string',
+    },
+}
+
+defaults = {
+    'general': {
+        'duration': 20.0,
+        'sampling_rate': 20e+3,
+        'buffer_width': 1024,
+        'dtype': "int16",
+    },
+    'probe': {
+        'mode': "default",
+        'nb_rows': 4,
+        'nb_columns': 4,
+        'interelectrode_distance': 30.0,
+        'path': "",
+    },
+    'cells': {
+        'mode': "default",
     },
 }
 
@@ -33,6 +53,7 @@ def load_data_parameters(path):
     """
 
     parameters = load_parameters(path, types=default_types)
+    # TODO replace types by defaults.
 
     return parameters
 
@@ -49,6 +70,6 @@ def get_data_parameters(path=None):
             The parameters of the data.
     """
 
-    parameters = get_parameters(path=path, types=default_types)
+    parameters = get_parameters(path=path, defaults=defaults)
 
     return parameters

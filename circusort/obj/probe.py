@@ -31,6 +31,8 @@ class Probe(object):
 
         self._edges = None
         self._nodes = None
+        self._mode = None
+        self._path = None
 
     def _get_edges(self, i, channel_groups):
         # TODO add docstring.
@@ -250,6 +252,10 @@ class Probe(object):
         # Close probe file.
         file_.close()
 
+        # Update private attributes.
+        self._mode = 'file'
+        self._path = path
+
         return
 
     def plot(self, path=None, fig=None, ax=None, **kwargs):
@@ -334,3 +340,23 @@ class Probe(object):
         electrodes, _ = self.get_channels_around(x, y, r=radius)
 
         return electrodes
+
+    def get_parameters(self):
+        """Get the parameters of the probe.
+
+        Return:
+              parameters: dictionary
+        """
+        # TODO complete docstring.
+
+        if self._path is None:
+            parameters = {}
+        else:
+            parameters = {
+                'mode': self._mode,
+                'path': self._path,
+            }
+            # TODO use an ordered dictionary instead.
+        # TODO add other parameters (i.e. mode, nb_rows, nb_columns, interelectrode_distance).
+
+        return parameters
