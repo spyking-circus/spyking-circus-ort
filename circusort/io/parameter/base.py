@@ -17,14 +17,25 @@ default_parameters = OrderedDict([
 ])
 
 
-def generate_parameters(types=None):
+def generate_parameters(defaults=None, types=None):
     """Generate the parameters to use during the generation."""
     # TODO complete docstring.
 
-    parameters = [
-        (section, OrderedDict())
-        for section in types.iterkeys()
-    ]
+    if defaults is not None:
+        # TODO remove the following lines.
+        parameters = [
+            (section, [
+                (option, defaults[section][option])
+                for option in defaults[section].iterkeys()
+            ])
+            for section in defaults.iterkeys()
+        ]
+    else:
+        # TODO remove the following lines.
+        parameters = [
+            (section, OrderedDict())
+            for section in types.iterkeys()
+        ]
     parameters = Parameters(parameters)
 
     return parameters
@@ -88,12 +99,14 @@ def _is_general(parameters, section, option):
     return is_general
 
 
-def load_parameters(path, types=None, default_type='string'):
+def load_parameters(path, defaults=None, types=None, default_type='string'):
     """Load parameters from a file saved on disk.
 
     Parameter:
         path: string
             The path to the file from which to load the parameters.
+        defaults: none | dictionary
+            The default values of the parameters. The default value is None.
         types: none | dictionary
             The default types of the parameters. The default value is None.
 
@@ -128,13 +141,24 @@ def load_parameters(path, types=None, default_type='string'):
             parser.set(section_name, option_name, value)  # set value
 
     # From ConfigParser to dictionary.
-    parameters = []
-    for section_name in parser.sections():
-        section = [('current_directory', current_directory)]
-        if section_name != 'general' and 'general' in parser.sections():
-            section.extend(_collect_options(parser, 'general', types=types, default_type=default_type))
-        section.extend(_collect_options(parser, section_name, types=types, default_type=default_type))
-        parameters.append((section_name, section))
+    if defaults is not None:
+        # TODO keep the following lines.
+        parameters = []
+        for section_name in parser.sections():
+            section = [('current_directory', current_directory)]
+            if section_name != 'general' and 'general' in parser.sections():
+                section.extend(_collect_options(parser, 'general', defaults=defaults, default_type=default_type))
+            section.extend(_collect_options(parser, section_name, defaults=defaults, default_type=default_type))
+            parameters.append((section_name, section))
+    else:
+        # TODO remove the following lines.
+        parameters = []
+        for section_name in parser.sections():
+            section = [('current_directory', current_directory)]
+            if section_name != 'general' and 'general' in parser.sections():
+                section.extend(_collect_options(parser, 'general', types=types, default_type=default_type))
+            section.extend(_collect_options(parser, section_name, types=types, default_type=default_type))
+            parameters.append((section_name, section))
 
     # Instantiate object.
     parameters = Parameters(parameters)
@@ -142,36 +166,63 @@ def load_parameters(path, types=None, default_type='string'):
     return parameters
 
 
-def _collect_options(parser, section_name, types=None, default_type='string'):
+def _collect_options(parser, section_name, defaults=None, types=None, default_type='string'):
 
     options = []
+    if defaults is not None:
+        for option_name in defaults[section_name]:
+            if option_name not in parser.options(section_name):
+                value = defaults[section_name][option_name]
+                options.append((option_name, value))
     for option_name in parser.options(section_name):
-        if types is None or section_name not in types or option_name not in types[section_name]:
-            type_ = default_type
+        if defaults is not None:
+            # TODO keep the following lines.
+            if defaults is None or section_name not in defaults or option_name not in defaults[section_name]:
+                default = ""
+            else:
+                default = defaults[section_name][option_name]
+            if isinstance(default, bool):
+                value = parser.getboolean(section_name, option_name)
+            elif isinstance(default, int):
+                value = parser.getint(section_name, option_name)
+            elif isinstance(default, float):
+                value = parser.getfloat(section_name, option_name)
+            elif isinstance(default, str):
+                value = parser.get(section_name, option_name)
+            else:
+                message = "Unknown type {}".format(type(default))
+                raise ValueError(message)
+            options.append((option_name, value))
         else:
-            type_ = types[section_name][option_name]
-        if type_ == 'boolean':
-            value = parser.getboolean(section_name, option_name)
-        elif type_ == 'integer':
-            value = parser.getint(section_name, option_name)
-        elif type_ == 'float':
-            value = parser.getfloat(section_name, option_name)
-        elif type_ == 'string':
-            value = parser.get(section_name, option_name)
-        else:
-            message = "Unknown type {}".format(type_)
-            raise ValueError(message)
-        options.append((option_name, value))
+            # TODO remove the following lines.
+            if types is None or section_name not in types or option_name not in types[section_name]:
+                type_ = default_type
+            else:
+                type_ = types[section_name][option_name]
+            if type_ == 'boolean':
+                value = parser.getboolean(section_name, option_name)
+            elif type_ == 'integer':
+                value = parser.getint(section_name, option_name)
+            elif type_ == 'float':
+                value = parser.getfloat(section_name, option_name)
+            elif type_ == 'string':
+                value = parser.get(section_name, option_name)
+            else:
+                message = "Unknown type {}".format(type_)
+                raise ValueError(message)
+            options.append((option_name, value))
 
     return options
 
 
-def get_parameters(path=None, types=None, default_type='string', **kwargs):
+def get_parameters(path=None, defaults=None, types=None, default_type='string', **kwargs):
     """Get parameters from path.
 
     Parameter:
         path: none | string
             The path to the file from which to load the parameters. The default value is None.
+        defaults: none | dictionary
+            The default values of the parameters. The default value is None.
         types: none | dictionary
             The default types of the parameters. The default value is None.
 
@@ -186,12 +237,12 @@ def get_parameters(path=None, types=None, default_type='string', **kwargs):
             path = os.path.join(path, "parameters.txt")
         if os.path.isfile(path):
             try:
-                parameters = load_parameters(path, types=types, default_type=default_type)
+                parameters = load_parameters(path, defaults=defaults, types=types, default_type=default_type)
             except (IOError, ValueError):
-                parameters = generate_parameters(types=types)
+                parameters = generate_parameters(defaults=defaults, types=types)
         else:
-            parameters = generate_parameters(types=types)
+            parameters = generate_parameters(defaults=defaults, types=types)
     else:
-        parameters = generate_parameters(types=types)
+        parameters = generate_parameters(defaults=defaults, types=types)
 
     return parameters
