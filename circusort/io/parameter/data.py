@@ -29,6 +29,7 @@ defaults = {
     },
     'probe': {
         'mode': "default",
+        'nb_channels': 16,
         'nb_rows': 4,
         'nb_columns': 4,
         'interelectrode_distance': 30.0,

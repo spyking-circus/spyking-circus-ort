@@ -33,6 +33,7 @@ class Probe(object):
         self._nodes = None
         self._mode = None
         self._path = None
+        self._nb_channels = None
 
     def _get_edges(self, i, channel_groups):
         # TODO add docstring.
@@ -255,6 +256,7 @@ class Probe(object):
         # Update private attributes.
         self._mode = 'file'
         self._path = path
+        self._nb_channels = self.total_nb_channels
 
         return
 
@@ -355,6 +357,7 @@ class Probe(object):
             parameters = {
                 'mode': self._mode,
                 'path': self._path,
+                'nb_channels': self._nb_channels,
             }
             # TODO use an ordered dictionary instead.
         # TODO add other parameters (i.e. mode, nb_rows, nb_columns, interelectrode_distance).
