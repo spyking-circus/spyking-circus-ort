@@ -112,13 +112,26 @@ if args.pending_introspection:
     data = [speed_factors_reader, speed_factors_writer]
     labels = ['reader', 'writer']
 
+    # Print the number of observations for each dataset.
+    for data_, label in zip(data, labels):
+        n = len(data_)
+        print("{}: n={}".format(label, n))
+
     # TODO plot real-time performances.
     import matplotlib.pyplot as plt
 
+    flierprops = {
+        'marker': 's',
+        'markersize': 1,
+        'markerfacecolor': 'k',
+        'markeredgecolor': 'k',
+    }
+
     plt.ioff()
+    plt.style.use('seaborn-paper')
 
     fig, ax = plt.subplots(1, 1)
-    ax.boxplot(data, whis=1.5, labels=labels)
+    ax.boxplot(data, notch=True, whis=1.5, labels=labels, flierprops=flierprops)
     ax.set_ylabel("speed factor")
     ax.set_title("Real-time performances ({} electrodes)".format(nb_channels))
     fig.tight_layout()

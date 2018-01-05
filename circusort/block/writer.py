@@ -115,7 +115,7 @@ class Writer(Block):
 
         batch = self.input.receive()
 
-        self._measure_time(label='start', frequency=100)  # TODO check location.
+        self._measure_time(label='start', frequency=10)  # TODO check location.
 
         if self.input.structure == 'array':
             if self.mode == 'raw':
@@ -140,7 +140,7 @@ class Writer(Block):
             message = "{} can only write arrays".format(self.name)
             self.log.error(message)
 
-        self._measure_time(label='end', frequency=100)
+        self._measure_time(label='end', frequency=10)
 
         return
 
