@@ -28,6 +28,9 @@ class Cells(object):
 
         self.parameters = get_cells_parameters() if parameters is None else parameters
 
+        self._mode = None
+        self._path = None
+
     def __getitem__(self, identifier):
         # TODO add docstring.
 
@@ -83,6 +86,10 @@ class Cells(object):
             for k, cell in self.iteritems():
                 cell_directory = os.path.join(cells_directory, "{}".format(k))
                 cell.save(cell_directory)
+
+            # Update private attributes.
+            self._mode = 'default'
+            self._path = path
 
         elif mode == 'by components':
 
@@ -224,3 +231,22 @@ class Cells(object):
             self._plot_positions(ax, **kwargs)
 
         return
+
+    def get_parameters(self):
+        """Get the parameters of the cells.
+
+        Return:
+            parameters: dictionary
+                A dictionary which contains the parameters of the cells.
+        """
+
+        if self._path is None:
+            parameters = {}
+        else:
+            parameters = {
+                'mode': self._mode,
+                'path': self._path
+            }
+        # TODO correct.
+
+        return parameters

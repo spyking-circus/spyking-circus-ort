@@ -346,8 +346,8 @@ class Probe(object):
 
         Return:
               parameters: dictionary
+                A dictionary which contains the parameters of the probe.
         """
-        # TODO complete docstring.
 
         if self._path is None:
             parameters = {}

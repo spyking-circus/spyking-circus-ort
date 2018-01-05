@@ -4,6 +4,8 @@ import os
 def normalize_path(path, current_directory=None, **kwargs):
     # TODO add docstring.
 
+    _ = kwargs  # Discard additional keyword arguments.
+
     if current_directory is None:
         current_directory = os.getcwd()
 
