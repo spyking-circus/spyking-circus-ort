@@ -4,10 +4,8 @@ import os
 import scipy
 
 from scipy.sparse import csc_matrix
-
-from circusort.io.probe import load_probe
 from circusort.io.utils import append_hdf5
-from circusort.obj.template import Template as Template_
+from circusort.io.probe import load_probe
 
 
 class TemplateComponent(object):

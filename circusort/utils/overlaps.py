@@ -190,13 +190,13 @@ class TemplateDictionary(object):
         distances = np.argmax(overlap.toarray(), 1)
 
         # for i in xrange(self.nb_templates):
-        #     M[0, 0] = overlap[0, i]
+        #     M[0, 0] = overlap[i, i]
         #     V[0, 0] = overlap_k[0, distances[0, i]]
         #     for j in xrange(self.nb_templates):
         #         M[1, 1]  = overlap[j, j]
         #         M[1, 0]  = overlap_i[j, distances[k, i] - distances[k, j]]
         #         M[0, 1]  = M[1, 0]
-        #         V[1, 0]  = overlap_k[j, distances[k, j]]    
+        #         V[1, 0]  = overlap_k[j, distances[k, j]]
 
         return False
 
