@@ -34,7 +34,7 @@ class Density_clustering(Block):
         'spike_width': 5,
         'nb_waveforms': 10000,
         'channels': None,
-        'probe': None,
+        'probe_path': None,
         'radius': None,
         'm_ratio': 0.01,
         'noise_thr': 0.8,
@@ -54,11 +54,11 @@ class Density_clustering(Block):
     def __init__(self, **kwargs):
 
         Block.__init__(self, **kwargs)
-        if self.probe is None:
+        if self.probe_path is None:
             error_msg = "{n}: the probe file must be specified!"
             self.log.error(error_msg.format(n=self.name))
         else:
-            self.probe = load_probe(self.probe, radius=self.radius, logger=self.log)
+            self.probe = load_probe(self.probe_path, radius=self.radius, logger=self.log)
             self.log.info("{n} reads the probe layout".format(n=self.name))
         self.add_input('data')
         self.add_input('pcs')
@@ -74,7 +74,8 @@ class Density_clustering(Block):
         self.masks       = {}
         if np.mod(self._spike_width_, 2) == 0:
             self._spike_width_ += 1
-        self._width = (self._spike_width_ - 1) // 2
+        self._width   = (self._spike_width_ - 1) // 2
+        self._2_width = 2 * self._width
 
         if self.safety_time == 'auto':
             self.safety_time = self._spike_width_ // 3
@@ -87,8 +88,9 @@ class Density_clustering(Block):
 
         if self.alignment:
             num = 5 * self._spike_width_
-            self.cdata = np.linspace(- self._width, self._width, num)
-            self.xdata = np.arange(- 2 * self._width, 2 * self._width + 1)
+            self.cdata = np.linspace(-self._width, self._width, num)
+            self.xdata = np.arange(-self._2_width, self._2_width + 1)
+            self.xoff  = len(self.cdata)/2.
 
         return
 
@@ -133,8 +135,8 @@ class Density_clustering(Block):
 
     def _is_valid(self, peak):
         if self.alignment:
-            cond_1 = (peak >= 2 * self._width)
-            cond_2 = (peak + 2 * self._width < self.nb_samples)
+            cond_1 = (peak >= self._2_width)
+            cond_2 = (peak + self._2_width < self.nb_samples)
         else:
             cond_1 = (peak >= self._width)
             cond_2 = (peak + self._width < self.nb_samples)
@@ -174,25 +176,25 @@ class Density_clustering(Block):
         indices = self.probe.edges[channel]
         if self.alignment:
             idx = self.chan_positions[channel]
-            k_min = peak - 2 * self._width
-            k_max = peak + 2 * self._width + 1
+            k_min = peak - self._2_width
+            k_max = peak + self._2_width + 1
             zdata = batch[k_min:k_max, indices]
             ydata = np.arange(len(indices))
 
             if len(ydata) == 1:
                 f = scipy.interpolate.UnivariateSpline(self.xdata, zdata, s=0)
                 if is_neg:
-                    rmin = (np.argmin(f(self.cdata)) - len(self.cdata)/2.)/5.
+                    rmin = (np.argmin(f(self.cdata)) - self.xoff)/5.
                 else:
-                    rmin = (np.argmax(f(self.cdata)) - len(self.cdata)/2.)/5.
+                    rmin = (np.argmax(f(self.cdata)) - self.xoff)/5.
                 ddata = np.linspace(rmin - self._width, rmin + self._width, self._spike_width_)
                 sub_mat = f(ddata).astype(np.float32).reshape(1, self._spike_width_)
             else:
                 f = scipy.interpolate.RectBivariateSpline(self.xdata, ydata, zdata, s=0, ky=min(len(ydata)-1, 3))
                 if is_neg:
-                    rmin = (np.argmin(f(self.cdata, idx)[:, 0]) - len(self.cdata)/2.)/5.
+                    rmin = (np.argmin(f(self.cdata, idx)[:, 0]) - self.xoff)/5.
                 else:
-                    rmin = (np.argmax(f(self.cdata, idx)[:, 0]) - len(self.cdata)/2.)/5.
+                    rmin = (np.argmax(f(self.cdata, idx)[:, 0]) - self.xoff)/5.
                 ddata = np.linspace(rmin-self._width, rmin+self._width, self._spike_width_)
                 sub_mat = f(ddata, ydata).astype(np.float32)
         else:

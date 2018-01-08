@@ -89,7 +89,8 @@ class Template_fitter(Block):
         
     def _init_temp_window(self):
         self.slice_indices = np.zeros(0, dtype=np.int32)
-        self._width = (self.overlaps_store.temporal_width - 1) // 2
+        self._width   = (self.overlaps_store.temporal_width - 1) // 2
+        self._2_width = 2 * self._width
         temp_window = np.arange(-self._width, self._width + 1)
         buffer_size = 2 * self.nb_samples
         for idx in range(self.nb_channels):
@@ -234,8 +235,8 @@ class Template_fitter(Block):
                         # TODO simplify the following 11 lines.
                         tmp = np.dot(np.ones((1, 1), dtype=np.int32), np.reshape(peaks, (1, nb_peaks)))
                         tmp -= np.array([[peak_time_step]])
-                        is_neighbor = np.abs(tmp) <= 2 * self._width
-                        ytmp = tmp[0, is_neighbor[0, :]] + 2 * self._width
+                        is_neighbor = np.abs(tmp) <= self._2_width
+                        ytmp = tmp[0, is_neighbor[0, :]] + self._2_width
                         indices = np.zeros((self.overlaps_store._overlap_size, len(ytmp)), dtype=np.int32)
                         indices[ytmp, np.arange(len(ytmp))] = 1
 
