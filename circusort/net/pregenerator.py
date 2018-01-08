@@ -182,19 +182,23 @@ def save_parameters(working_directory, parameters):
     return
 
 
-def pregenerator(working_directory=None, probe_path=None, parameters_path=None):
+def pregenerator(working_directory=None, configuration_directory=None, generation_directory=None):
     """Pregenerate synthetic signal.
 
     Parameters:
         working_directory: none | string (optional)
-        probe_path: none | string (optional)
-        parameters_path: none | string (optional)
+        configuration_directory: none | string (optional)
+        generation_directory: none | string (optional)
     """
     # TODO complete docstring.
 
-    # Define the paths to the configuration and generation directories.
-    configuration_directory = os.path.join(working_directory, "configuration")
-    generation_directory = os.path.join(working_directory, "generation")
+    # Define the paths to the configuration and generation directories (if necessary).
+    if working_directory is None:
+        working_directory = os.getcwd()
+    if configuration_directory is None:
+        configuration_directory = os.path.join(working_directory, "configuration")
+    if generation_directory is None:
+        generation_directory = os.path.join(working_directory, "generation")
 
     # Get parameters.
     parameters = io.get_data_parameters(configuration_directory)
@@ -214,10 +218,10 @@ def pregenerator(working_directory=None, probe_path=None, parameters_path=None):
 
     # Generate signal.
     host = '127.0.0.1'  # TODO correct IP address? & transform into a keyword argument?
-    data_path = os.path.join(working_directory, "data.raw")
+    data_path = os.path.join(generation_directory, "data.raw")
     director = create_director(host=host)
     manager = director.create_manager(host=host)
-    generator = manager.create_block('synthetic_generator', working_directory=working_directory, is_realistic=False)
+    generator = manager.create_block('synthetic_generator', working_directory=generation_directory, is_realistic=False)
     writer = manager.create_block('writer', data_path=data_path)
     director.initialize()
     director.connect(generator.output, writer.input)

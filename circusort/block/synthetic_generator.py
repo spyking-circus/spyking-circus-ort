@@ -80,6 +80,12 @@ class Synthetic_generator(block.Block):
         # Preinitialize object with the base class.
         block.Block.__init__(self, **kwargs)
 
+        self.sampling_rate = self.sampling_rate  # Useful to disable some PyCharm warnings.
+        self.nb_samples = self.nb_samples  # Useful to disable some PyCharm warnings.
+        self.seed = self.seed  # Useful to disable some PyCharm warnings.
+        self.is_realistic = self.is_realistic  # Useful to disable some PyCharm warnings.
+
+        self.working_directory = self.working_directory  # Useful to disable some PyCharm warnings.
         if self.working_directory is None:
             self.mode = 'default'
         else:
@@ -104,6 +110,7 @@ class Synthetic_generator(block.Block):
                 self.log.info('{n} reads the probe layout'.format(n=self.name))
 
             # TODO log/save input keyword argument to file.
+            self.log_path = self.log_path  # Useful to disable some PyCharm warnings.
             if self.log_path is not None:
                 log_kwargs = {k: self.params[k] for k in ['nb_samples']}
                 with open(self.log_path, 'w') as log_file:
@@ -111,15 +118,14 @@ class Synthetic_generator(block.Block):
 
         elif self.mode == 'preconfigured':
 
-            generation_directory = os.path.join(self.working_directory, "generation")
-            parameters_path = os.path.join(generation_directory, "parameters.txt")
+            parameters_path = os.path.join(self.working_directory, "parameters.txt")
             parameters = io.get_data_parameters(parameters_path)
             # TODO get rid of the following try ... except ...
             try:
                 self.duration = parameters['general']['duration']
             except KeyError:
                 self.duration = 60.0  # s
-            probe_path = os.path.join(generation_directory, "probe.prb")
+            probe_path = os.path.join(self.working_directory, "probe.prb")
             self.probe = io.load_probe(probe_path, logger=self.log)
 
         # Add data output.
@@ -176,8 +182,7 @@ class Synthetic_generator(block.Block):
 
         elif self.mode == 'preconfigured':
 
-            generation_directory = os.path.join(self.working_directory, "generation")
-            self.cells = io.load_cells(generation_directory, mode='by cells')
+            self.cells = io.load_cells(self.working_directory, mode='by cells')
             self.nb_cells = self.cells.nb_cells
             self.dtype = 'int16'  # TODO set default data type to 16 bit signed (or unsigned) integer.
 
