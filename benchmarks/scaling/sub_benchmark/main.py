@@ -1,9 +1,11 @@
 import argparse
 import matplotlib.pyplot as plt
+import numpy as np
 import os
 
 import circusort
 
+from collections import OrderedDict
 from logging import DEBUG
 
 
@@ -47,7 +49,6 @@ def main():
         generation_directory = os.path.join(directory, "generation", name)
         sorting_directory = os.path.join(directory, "sorting", name)
         introspection_directory = os.path.join(directory, "introspection", name)
-        output_directory = os.path.join(directory, "output", name)
 
         # Generate data (if necessary).
         if args.pending_generation:
@@ -104,8 +105,26 @@ def main():
             director.join()
             director.destroy()
 
-        # Introspect sorting (if necessary).
-        if args.pending_introspection:
+    # Introspect sorting (if necessary).
+    if args.pending_introspection:
+
+        block_labels = ['file_reader_1', 'file_writer_1']
+        block_names = ['reader', 'writer']
+        speed_factors = OrderedDict()
+        output_directory = os.path.join(directory, "output")
+        if not os.path.isdir(output_directory):
+            os.makedirs(output_directory)
+
+        configuration_names = [
+            configuration['general']['name']
+            for configuration in configurations
+        ]
+
+        # Load data from each configuration.
+        for configuration_name in configuration_names:
+
+            generation_directory = os.path.join(directory, "generation", configuration_name)
+            introspection_directory = os.path.join(directory, "introspection", configuration_name)
 
             # Load generation parameters.
             parameters = circusort.io.get_data_parameters(generation_directory)
@@ -114,24 +133,27 @@ def main():
             nb_samples = parameters['general']['buffer_width']
             sampling_rate = parameters['general']['sampling_rate']
             duration_buffer = float(nb_samples) / sampling_rate
-            nb_channels = parameters['probe']['nb_channels']
 
             # Load time measurements from disk.
-            measurements_reader = circusort.io.load_time_measurements(introspection_directory, name='file_reader_1')
-            durations_reader = measurements_reader['end'] - measurements_reader['start']
-            speed_factors_reader = duration_buffer / durations_reader
-            measurements_writer = circusort.io.load_time_measurements(introspection_directory, name='file_writer_1')
-            durations_writer = measurements_writer['end'] - measurements_writer['start']
-            speed_factors_writer = duration_buffer / durations_writer
+            speed_factors[configuration_name] = OrderedDict()
+            for block_name, block_label in zip(block_names, block_labels):
+                measurements = circusort.io.load_time_measurements(introspection_directory, name=block_label)
+                durations = measurements['end'] - measurements['start']
+                speed_factors[configuration_name][block_name] = duration_buffer / durations
+
+        # Plot real-time performances of blocks for each condition.
+        for configuration_name in configuration_names:
 
             # TODO evaluate real-time performances.
-            data = [speed_factors_reader, speed_factors_writer]
-            labels = ['reader', 'writer']
+            data = [
+                speed_factors[configuration_name][block_name]
+                for block_name in block_names
+            ]
 
             # Print the number of observations for each dataset.
-            for data_, label in zip(data, labels):
+            for data_, name in zip(data, block_names):
                 n = len(data_)
-                print("{}: n={}".format(label, n))
+                print("{}: n={}".format(name, n))
 
             # TODO plot real-time performances.
 
@@ -141,16 +163,72 @@ def main():
                 'markerfacecolor': 'k',
                 'markeredgecolor': 'k',
             }
-            if not os.path.isdir(output_directory):
-                os.makedirs(output_directory)
-            output_path = os.path.join(output_directory, "real_time_performances.pdf")
+            output_filename = "real_time_performances_{}.pdf".format(configuration_name)
+            output_path = os.path.join(output_directory, output_filename)
 
             fig, ax = plt.subplots(1, 1, num=0, clear=True)
-            ax.boxplot(data, notch=True, whis=1.5, labels=labels, flierprops=flierprops)
+            ax.boxplot(data, notch=True, whis=1.5, labels=block_names, flierprops=flierprops)
             ax.set_ylabel("speed factor")
-            ax.set_title("Real-time performances ({} electrodes)".format(nb_channels))
+            ax.set_title("Real-time performances ({})".format(configuration_name))
             fig.tight_layout()
             fig.savefig(output_path)
+
+        # Plot real-time performances of conditions for each block.
+        for block_name in block_names:
+
+            # TODO evaluate real-time performances.
+            data = [
+                speed_factors[configuration_name][block_name]
+                for configuration_name in configuration_names
+            ]
+
+            # Print the number of observations for each dataset.
+            for data_, name in zip(data, block_names):
+                n = len(data_)
+                print("{}: n={}".format(name, n))
+
+            # TODO plot real-time performances.
+
+            flierprops = {
+                'marker': 's',
+                'markersize': 1,
+                'markerfacecolor': 'k',
+                'markeredgecolor': 'k',
+            }
+            output_filename = "real_time_performances_{}.pdf".format(block_name)
+            output_path = os.path.join(output_directory, output_filename)
+
+            fig, ax = plt.subplots(1, 1, num=0, clear=True)
+            ax.boxplot(data, notch=True, whis=1.5, labels=configuration_names, flierprops=flierprops)
+            ax.set_xlabel("number of channels")
+            ax.set_ylabel("speed factor")
+            ax.set_title("Real-time performances ({})".format(block_name))
+            fig.tight_layout()
+            fig.savefig(output_path)
+
+        # Plot real-time performances.
+        output_filename = "real_time_performances.pdf"
+        output_path = os.path.join(output_directory, output_filename)
+
+        fig, ax = plt.subplots(1, 1, num=0, clear=True)
+        x = [
+            k
+            for k, _ in enumerate(configuration_names)
+        ]
+        for block_name in block_names:
+            y = [
+                np.mean(speed_factors[configuration_name][block_name])
+                for configuration_name in configuration_names
+            ]
+            plt.plot(x, y, marker='o', label=block_name)
+        ax.set_xticks(x)
+        ax.set_xticklabels(configuration_names)
+        ax.set_xlabel("number of channels")
+        ax.set_ylabel("mean speed factor")
+        ax.set_title("Real-time performances")
+        ax.legend()
+        fig.tight_layout()
+        fig.savefig(output_path)
 
 
 if __name__ == '__main__':

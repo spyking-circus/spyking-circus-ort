@@ -1,3 +1,4 @@
+import numpy as np
 import os
 
 from circusort.io.parameter import load_parameters, get_parameters
@@ -66,6 +67,15 @@ def list_configuration_names(path):
     ]
     # TODO add path to the configuration directory if it contains a file named parameters.txt.
     # TODO take care that writes in the configuration directory may overwrite subdirectories.
+    try:
+        values = np.array([
+            float(name)
+            for name in names
+        ])
+        indices = np.argsort(values)
+        names = [names[index] for index in indices]
+    except ValueError:  # i.e. could not convert to float.
+        pass
 
     return names
 
