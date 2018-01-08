@@ -135,6 +135,7 @@ def main():
         output_directory = os.path.join(directory, "output")
         if not os.path.isdir(output_directory):
             os.makedirs(output_directory)
+        image_format = 'png'
 
         configuration_names = [
             configuration['general']['name']
@@ -176,7 +177,7 @@ def main():
                 'markerfacecolor': 'k',
                 'markeredgecolor': 'k',
             }
-            output_filename = "real_time_performances_{}.pdf".format(configuration_name)
+            output_filename = "real_time_performances_{}.{}".format(configuration_name, image_format)
             output_path = os.path.join(output_directory, output_filename)
 
             fig, ax = plt.subplots(1, 1, num=0, clear=True)
@@ -200,7 +201,7 @@ def main():
                 'markerfacecolor': 'k',
                 'markeredgecolor': 'k',
             }
-            output_filename = "real_time_performances_{}.pdf".format(block_name)
+            output_filename = "real_time_performances_{}.{}".format(block_name, image_format)
             output_path = os.path.join(output_directory, output_filename)
 
             fig, ax = plt.subplots(1, 1, num=0, clear=True)
@@ -212,7 +213,7 @@ def main():
             fig.savefig(output_path)
 
         # Plot median real-time performances.
-        output_filename = "median_real_time_performances.pdf"
+        output_filename = "median_real_time_performances.{}".format(image_format)
         output_path = os.path.join(output_directory, output_filename)
 
         fig, ax = plt.subplots(1, 1, num=0, clear=True)
@@ -229,7 +230,7 @@ def main():
         ax.set_xticks(x)
         ax.set_xticklabels(configuration_names)
         ax.set_xlabel("number of channels")
-        ax.set_ylabel("mean speed factor")
+        ax.set_ylabel("median speed factor")
         ax.set_title("Median real-time performances")
         ax.legend()
         fig.tight_layout()
