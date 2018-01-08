@@ -1,7 +1,7 @@
 import numpy as np
 import os
 
-from circusort.io.parameter import load_parameters, get_parameters
+from circusort.io.parameter import generate_parameters, load_parameters, get_parameters
 from circusort.utils.path import normalize_path
 
 
@@ -45,6 +45,16 @@ defaults = {
         'mode': "default",
     },
 }
+
+
+def generate_configuration(**kwargs):
+    # TODO add docstring.
+
+    defaults_ = defaults.copy()
+    defaults_.update(kwargs)
+    configuration = generate_parameters(types=default_types, defaults=defaults_)
+
+    return configuration
 
 
 def list_configuration_names(path):

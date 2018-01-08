@@ -32,6 +32,27 @@ def main():
     if not os.path.isdir(directory):
         os.makedirs(directory)
     configuration_directory = os.path.join(directory, "configuration")
+    if not os.path.isdir(configuration_directory):
+        os.makedirs(configuration_directory)
+        # Generate configurations.
+        nb_rows_range = [4, 8, 16, 32, 64]
+        nb_columns_range = [4, 8, 16, 32, 64]
+        for nb_rows, nb_columns in zip(nb_rows_range, nb_columns_range):
+            name = str(nb_rows * nb_columns)
+            kwargs = {
+                'general': {
+                    'duration': 60.0,
+                    'name': name,
+                },
+                'probe': {
+                    'mode': 'mea',
+                    'nb_rows': nb_rows,
+                    'nb_columns': nb_columns,
+                }
+            }
+            configuration = circusort.io.generate_configuration(**kwargs)
+            configuration_directory_ = os.path.join(configuration_directory, name)
+            configuration.save(configuration_directory_)
 
     # Load configurations.
     configurations = circusort.io.get_configurations(configuration_directory)
@@ -144,18 +165,10 @@ def main():
         # Plot real-time performances of blocks for each condition.
         for configuration_name in configuration_names:
 
-            # TODO evaluate real-time performances.
             data = [
                 speed_factors[configuration_name][block_name]
                 for block_name in block_names
             ]
-
-            # Print the number of observations for each dataset.
-            for data_, name in zip(data, block_names):
-                n = len(data_)
-                print("{}: n={}".format(name, n))
-
-            # TODO plot real-time performances.
 
             flierprops = {
                 'marker': 's',
@@ -169,25 +182,17 @@ def main():
             fig, ax = plt.subplots(1, 1, num=0, clear=True)
             ax.boxplot(data, notch=True, whis=1.5, labels=block_names, flierprops=flierprops)
             ax.set_ylabel("speed factor")
-            ax.set_title("Real-time performances ({})".format(configuration_name))
+            ax.set_title("Real-time performances ({} channels)".format(configuration_name))
             fig.tight_layout()
             fig.savefig(output_path)
 
         # Plot real-time performances of conditions for each block.
         for block_name in block_names:
 
-            # TODO evaluate real-time performances.
             data = [
                 speed_factors[configuration_name][block_name]
                 for configuration_name in configuration_names
             ]
-
-            # Print the number of observations for each dataset.
-            for data_, name in zip(data, block_names):
-                n = len(data_)
-                print("{}: n={}".format(name, n))
-
-            # TODO plot real-time performances.
 
             flierprops = {
                 'marker': 's',
@@ -206,8 +211,8 @@ def main():
             fig.tight_layout()
             fig.savefig(output_path)
 
-        # Plot real-time performances.
-        output_filename = "real_time_performances.pdf"
+        # Plot median real-time performances.
+        output_filename = "median_real_time_performances.pdf"
         output_path = os.path.join(output_directory, output_filename)
 
         fig, ax = plt.subplots(1, 1, num=0, clear=True)
@@ -217,7 +222,7 @@ def main():
         ]
         for block_name in block_names:
             y = [
-                np.mean(speed_factors[configuration_name][block_name])
+                np.median(speed_factors[configuration_name][block_name])
                 for configuration_name in configuration_names
             ]
             plt.plot(x, y, marker='o', label=block_name)
@@ -225,7 +230,7 @@ def main():
         ax.set_xticklabels(configuration_names)
         ax.set_xlabel("number of channels")
         ax.set_ylabel("mean speed factor")
-        ax.set_title("Real-time performances")
+        ax.set_title("Median real-time performances")
         ax.legend()
         fig.tight_layout()
         fig.savefig(output_path)

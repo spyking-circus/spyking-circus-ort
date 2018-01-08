@@ -13,5 +13,6 @@ the needed parameters during the sorting and the introspection in
 box plot.
 - [ ] Correct the plot of the positions of the cells in the
 `generation/cells` directory.
-- [ ] Deal with multiple configuration files.
-  - [ ] Put the `data.raw` file inside the `generation` directory.
+- [x] Deal with multiple configuration files.
+  - [x] Put the `data.raw` file inside the `generation` directory.
+- [ ] Remove heavy files produced by the generation.
