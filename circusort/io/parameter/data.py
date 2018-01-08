@@ -7,6 +7,7 @@ default_types = {
         'sampling_rate': 'float',
         'buffer_width': 'integer',
         'dtype': 'string',
+        'name': 'string',
     },
     'probe': {
         'mode': 'string',
@@ -26,6 +27,7 @@ defaults = {
         'sampling_rate': 20e+3,
         'buffer_width': 1024,
         'dtype': "int16",
+        'name': "",
     },
     'probe': {
         'mode': "default",
