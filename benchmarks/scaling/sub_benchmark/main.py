@@ -1,4 +1,5 @@
 import argparse
+import matplotlib.pyplot as plt
 import os
 
 import circusort
@@ -32,6 +33,10 @@ def main():
 
     # Load configurations.
     configurations = circusort.io.get_configurations(configuration_directory)
+
+    # Configure Matplotlib.
+    plt.ioff()
+    plt.style.use('seaborn-paper')
 
     # Process each configuration.
     for configuration in configurations:
@@ -129,7 +134,6 @@ def main():
                 print("{}: n={}".format(label, n))
 
             # TODO plot real-time performances.
-            import matplotlib.pyplot as plt
 
             flierprops = {
                 'marker': 's',
@@ -141,17 +145,12 @@ def main():
                 os.makedirs(output_directory)
             output_path = os.path.join(output_directory, "real_time_performances.pdf")
 
-            plt.ioff()
-            plt.style.use('seaborn-paper')
-
-            fig, ax = plt.subplots(1, 1)
+            fig, ax = plt.subplots(1, 1, num=0, clear=True)
             ax.boxplot(data, notch=True, whis=1.5, labels=labels, flierprops=flierprops)
             ax.set_ylabel("speed factor")
             ax.set_title("Real-time performances ({} electrodes)".format(nb_channels))
             fig.tight_layout()
             fig.savefig(output_path)
-
-            plt.close(fig)
 
 
 if __name__ == '__main__':
