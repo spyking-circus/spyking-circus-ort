@@ -1,38 +1,20 @@
-- [ ] Create a script `pregenerate.py` to pregenerate the synthetic data
-  - [ ] First, find/generate the probe to use during the pregeneration
-    - [x] Modify the `Probe` class in `circusort.io` to handle path
-    management outside `__init__`
-    - [x] Implement method to generate a probe
-    - [x] Implement method to save a probe
-    - [x] Implement method to load a probe
-    - [ ] Be less restrictive concerning the probe filenames
-  - [x] Find/generate the templates to use during the pregeneration
-    - [x] Implement method to generate some templates
-    - [x] Implement method to save some templates
-    - [x] Implement method to load some templates
-  - [x] Find/generate the trains to use during the pregeneration
-    - [x] Implement method to generate some trains
-    - [x] Implement method to save some trains
-    - [x] Implement method to load some trains
-  - [ ] Load cells from the `generation` directory
-  - [ ] Add position parameters (time dependent) to the generated cells
-  - [x] Generate the signal (i.e. raw data)
-    - [x] ~~Add gaussian noise to the signal~~
-    - [x] ~~Add template waveforms to the signal~~
-    - [x] Use the `synthetic_generator` and `writer` block to generate
-    the signal
-    - [x] Let background thread generate trains chunk by chunk based on
-    the global trains
-    - [x] Move code from `io.pregenerate` to `net.pregenerator`
-    - [x] Use 16 bit signed (or unsigned) integer to generate data
-  - [x] Pregenerate signal precisely for a given duration
-- [ ] Correct the main script in `main.py`
-  - [x] Add a reader block (i.e. read pregenerated data)
-  - [ ] Correct the part of the code to analyse the results
-  - [x] Change output format from RAW to HDF5
-  See [[h5py] Multiprocess concurrent write and read](http://docs.h5py.org/en/latest/swmr.html?highlight=append#multiprocess-concurrent-write-and-read)
-- [ ] Move the utils from `utils.py` to `circusort`'s core
-- [ ] Explain how to use a non-empty initial template dictionary (in the
-README)
-- [x] Correct README (bugs Pierre)
- 
+- [x] Correct the generation of the `parameters.txt` file in the
+`generation` directory.
+- [x] Check if the configuration is correctly taken into account for the
+generation.
+  - [x] Check the configuration of the duration of the signal to
+  generate.
+  - [x] Check the configuration of the number of electrodes of the probe
+  to generate.
+- [x] Use the values save on disk during the generation to set those of
+the needed parameters during the sorting and the introspection in
+`main.py`.
+- [x] Mention for each block the number of measurements used to make the
+box plot.
+- [ ] Correct the plot of the positions of the cells in the
+`generation/cells` directory.
+- [x] Deal with multiple configuration files.
+  - [x] Put the `data.raw` file inside the `generation` directory.
+- [ ] Remove heavy files produced by the generation.
+- [x] Replace the benchmark by the sub-benchmark.
+- [ ] Delete the old benchmark in `old`.
