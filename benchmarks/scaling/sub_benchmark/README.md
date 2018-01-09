@@ -1,11 +1,12 @@
-In this sub-benchmark, we analyse the real-time performances of a
-sub-network composed of a `reader` block and a `writer` block.
+In this sub-benchmark, we analyse the real-time performances of
+different sub-networks.
 
 The outputs of this sub-benchmark should look like those inside
-the [`outputs`](outputs/) directory (i.e. expected outputs). The main
-output is:
+the [`outputs`](outputs/) directory (i.e. expected outputs). For
+example, in the case of a network composed of a `reader` and a `writer`,
+the main output is:
 
-![Median real time performances.](outputs/median_real_time_performances.png)
+![Median real time performances.](outputs/network_0/median_real_time_performances.png)
 
 To execute this benchmark use the following instructions:
 
