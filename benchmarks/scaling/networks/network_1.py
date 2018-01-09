@@ -10,13 +10,18 @@ name = "network_1"
 directory = os.path.join("~", ".spyking-circus-ort", "benchmarks", "scaling", name)
 directory = os.path.expanduser(directory)
 
-block_names = ['reader', 'filter', 'writer']
+block_names = ["reader", "filter", "writer"]
 
 
 def sorting(configuration_name):
-    # TODO add docstring.
+    """Create the 1st sorting subnetwork.
 
-    # TODO add docstring.
+    Parameter:
+        configuration_name: string
+            The name of the configuration (i.e. context).
+    """
+
+    # Define directories.
     generation_directory = os.path.join(directory, "generation", configuration_name)
     sorting_directory = os.path.join(directory, "sorting", configuration_name)
     introspection_directory = os.path.join(directory, "introspection", configuration_name)
@@ -39,7 +44,7 @@ def sorting(configuration_name):
 
     # Define keyword arguments.
     reader_kwargs = {
-        'name': 'reader',
+        'name': "reader",
         'data_path': os.path.join(generation_directory, "data.raw"),
         'dtype': dtype,
         'nb_channels': nb_channels,
@@ -49,28 +54,29 @@ def sorting(configuration_name):
         'introspection_path': introspection_directory,
     }
     filter_kwargs = {
-        'name': 'filter',
+        'name': "filter",
         'cut_off': 100.0,  # Hz
         'introspection_path': introspection_directory,
+        'log_level': DEBUG,
     }
     signal_writer_kwargs = {
-        'name': 'writer',
+        'name': "writer",
         'data_path': os.path.join(sorting_directory, "data_filtered.raw"),
         'introspection_path': introspection_directory,
+        'log_level': DEBUG,
     }
 
-    # Define the elements of the Circus network.
+    # Define the elements of the network.
     director = circusort.create_director(host=host)
     manager = director.create_manager(host=host)
     reader = manager.create_block('reader', **reader_kwargs)
-    filter_ = manager.create_block('filter', log_level=DEBUG, **filter_kwargs)
-    writer = manager.create_block('writer', log_level=DEBUG, **signal_writer_kwargs)
-    # Initialize the elements of the Circus network.
+    filter_ = manager.create_block('filter', **filter_kwargs)
+    writer = manager.create_block('writer', **signal_writer_kwargs)
+    # Initialize the elements of the network.
     director.initialize()
-    # Connect the elements of the Circus network.
+    # Connect the elements of the network.
     director.connect(reader.output, filter_.input)
     director.connect(filter_.output, writer.input)
-    # or  # director.connect(reader.output, [reader.input])  # if the previous line does not work.
     # Launch the network.
     director.start()
     director.join()

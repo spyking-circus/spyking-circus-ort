@@ -1,11 +1,8 @@
-# TODO correct this file (see `network_0.py` or `network_1.py`).
-
-# TODO add short description.
-
-import argparse
-from logging import DEBUG, INFO
 import os
+
 import circusort
+
+from logging import DEBUG, INFO
 
 
 name = "network"
@@ -13,22 +10,18 @@ name = "network"
 directory = os.path.join("~", ".spyking-circus-ort", "benchmarks", "scaling", name)
 directory = os.path.expanduser(directory)
 
-block_names = []
+block_names = ["reader", "filter", "writer"]  # TODO complete.
 
 
 def sorting(configuration_name):
-    # TODO add docstring.
+    """Create the sorting network.
 
-    # TODO remove the following lines?
-    # # Parse command line.
-    # # TODO check the following lines.
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument('--no-realism', dest='is_realistic', action='store_false', default=True)
-    # parser.add_argument('--no-sorting', dest='skip_sorting', action='store_true', default=False)
-    # parser.add_argument('--init-temp-dict', dest='init_temp_dict', action='store_true')
-    # args = parser.parse_args()
+    Parameter:
+        configuration_name: string
+            The name of the configuration (i.e. context).
+    """
 
-    # TODO add docstring.
+    # Define directories.
     if not os.path.isdir(directory):
         message = "Directory does not exist: {}".format(directory)
         raise OSError(message)
@@ -39,7 +32,7 @@ def sorting(configuration_name):
     # Load generation parameters.
     parameters = circusort.io.get_data_parameters(generation_directory)
 
-    # Define parameters
+    # Define parameters.
     host = '127.0.0.1'  # i.e. run the test locally
     dtype = parameters['general']['dtype']
     nb_channels = parameters['probe']['nb_channels']
@@ -56,7 +49,7 @@ def sorting(configuration_name):
 
     # Define keyword arguments.
     reader_kwargs = {
-        'name': 'reader',
+        'name': "reader",
         'data_path': os.path.join(directory, "data.raw"),
         'dtype': dtype,
         'nb_channels': nb_channels,
@@ -66,13 +59,13 @@ def sorting(configuration_name):
         'introspection_path': introspection_directory,
     }
     filter_kwargs = {
-        'name': 'filter',
+        'name': "filter",
         'cut_off': 100.0,  # Hz
         'introspection_path': introspection_directory,
         'log_level': DEBUG,
     }
     signal_writer_kwargs = {
-        'name': 'writer',
+        'name': "writer",
         'data_path': os.path.join(sorting_directory, "data_filtered.raw"),
         'introspection_path': introspection_directory,
         'log_level': DEBUG,
@@ -109,7 +102,7 @@ def sorting(configuration_name):
         'sampling_rate': sampling_rate,
     }
 
-    # Define the elements of the Circus network.
+    # Define the elements of the network.
     director = circusort.create_director(host=host)
     manager = director.create_manager(host=host)
     reader = manager.create_block('reader', **reader_kwargs)
@@ -148,11 +141,9 @@ def sorting(configuration_name):
     spike_writer = manager.create_block('spike_writer',
                                         log_level=DEBUG,
                                         **spike_writer_kwargs)
-
-    # Initialize the elements of the Circus network.
+    # Initialize the elements of the network.
     director.initialize()
-
-    # Connect the elements of the Circus network.
+    # Connect the elements of the network.
     director.connect(reader.output, [filtering.input])
     director.connect(filtering.output, [mad_estimator.input,
                                         peak_detector.get_input('data'),
@@ -171,8 +162,7 @@ def sorting(configuration_name):
     director.connect(cluster.get_output('templates'), updater.get_input('templates'))
     director.connect(updater.get_output('updater'), fitter.get_input('updater'))
     director.connect(fitter.output, spike_writer.input)
-
-    # Launch the Circus network.
+    # Launch the network.
     director.start()
     director.join()
     director.destroy()
