@@ -125,7 +125,7 @@ def sorting(configuration_name):
                                log_level=DEBUG)
     cluster = manager.create_block('density_clustering',
                                    threshold_factor=7.0,
-                                   probe=probe_path,
+                                   probe_path=probe_path,
                                    two_components=False,
                                    log_level=DEBUG,
                                    **cluster_kwargs)
