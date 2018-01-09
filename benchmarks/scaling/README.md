@@ -11,7 +11,7 @@ the main output is:
 To execute this benchmark use the following instructions:
 
 1. Change your current working directory  
-`cd ~/circusort/benchmarks/scaling/sub_benchmark`
+`cd ~/circusort/benchmarks/scaling`
 1. Launch IPython  
 `$ ipython`
 2. Launch  

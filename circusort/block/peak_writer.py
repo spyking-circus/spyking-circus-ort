@@ -17,6 +17,7 @@ class Peak_writer(Block):
         sampling_rate: float
             The sampling rate to use to transform timestamps into times.
 
+
     Input:
         peaks
 
@@ -29,7 +30,8 @@ class Peak_writer(Block):
         'pos_peaks': None,
         'neg_peaks': None,
         'data_path': None,
-        'sampling_rate': None,
+        'sampling_rate': 20e+3,  # Hz
+        'nb_samples': 1024,
     }
 
     def __init__(self, **kwargs):
@@ -37,10 +39,12 @@ class Peak_writer(Block):
         Block.__init__(self, **kwargs)
         self.add_input('peaks')
 
-        self.pos_peaks = None if self.pos_peaks is None else self.pos_peaks
-        self.neg_peaks = None if self.neg_peaks is None else self.neg_peaks
-        self.data_path = None if self.data_path is None else self.data_path
-        self.sampling_rate = self.sampling_rate if isinstance(self.sampling_rate, float) else 20e+3  # Hz
+        # The following lines are useful to avoid some PyCharm warnings.
+        self.pos_peaks = self.pos_peaks
+        self.neg_peaks = self.neg_peaks
+        self.data_path = self.data_path
+        self.sampling_rate = self.sampling_rate
+        self.nb_samples = self.nb_samples
 
         if self.pos_peaks is not None or self.neg_peaks is not None:
             self._mode = 'raw'
@@ -87,7 +91,10 @@ class Peak_writer(Block):
 
     def _process(self):
 
+        # Receive input data.
         batch = self.input.receive()
+
+        self._measure_time('start', frequency=100)
 
         if self.input.structure == 'dict':
 
@@ -139,6 +146,28 @@ class Peak_writer(Block):
 
             message = "{} can only write peak dictionaries".format(self.name)
             self.log.error(message)
+
+        self._measure_time('end', frequency=100)
+
+        return
+
+    def _introspect(self):
+        # TODO add docstring.
+
+        nb_buffers = self.counter - self.start_step
+        start_times = np.array(self._measured_times.get('start', []))
+        end_times = np.array(self._measured_times.get('end', []))
+        durations = end_times - start_times
+        data_duration = float(self.nb_samples) / self.sampling_rate
+        ratios = data_duration / durations
+
+        min_ratio = np.min(ratios) if ratios.size > 0 else np.nan
+        mean_ratio = np.mean(ratios) if ratios.size > 0 else np.nan
+        max_ratio = np.max(ratios) if ratios.size > 0 else np.nan
+
+        string = "{} processed {} buffers [speed:x{:.2f} (min:x{:.2f}, max:x{:.2f})]"
+        message = string.format(self.name, nb_buffers, mean_ratio, min_ratio, max_ratio)
+        self.log.info(message)
 
         return
 

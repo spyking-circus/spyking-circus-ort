@@ -15,6 +15,7 @@ to
 ## Descriptions
 
 - `network`: all the blocks needed to do spike sorting (i.e. with preprocessing, clustering,
-template matching)
-- `network_0`: a reader block and a writer block
-- `network_1`: a reader, filter and writer blocks
+template matching).
+- `network_0`: a reader block and a writer block.
+- `network_1`: a reader, filter and writer blocks.
+- `network_2`: all the block needed to do peak detection.
