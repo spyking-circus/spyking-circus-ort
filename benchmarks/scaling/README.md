@@ -1,20 +1,29 @@
-For the very first evaluation of the benchmark use the following instructions.
+In this sub-benchmark, we analyse the real-time performances of
+different sub-networks.
 
-1. Set your current directory to this directory with the `cd` command
-2. Launch IPython  
+The outputs of this sub-benchmark should look like those inside
+the [`outputs`](outputs/) directory (i.e. expected outputs). For
+example, in the case of a network composed of a `reader` and a `writer`,
+the main output is:
+
+![Median real time performances.](outputs/network_0/median_real_time_performances.png)
+
+To execute this benchmark use the following instructions:
+
+1. Change your current working directory  
+`cd ~/circusort/benchmarks/scaling`
+1. Launch IPython  
 `$ ipython`
-3. Launch
-`In[1]: %run pregenerate.py --wd ~/.spyking-circus-ort/benchmarks/scaling`
-4. Launch *(not available yet)*  
-`In[2]: %run main.py`
-5. Access the result of the benchmark with *(not available yet)*  
-`In[3]: ans`
+2. Launch  
+`In[1]: %run main.py`
 
+You can alternatively use one of the following instructions for step 2.:
 
-Later, you can directly access the result of the benchmark with the following instructions.
-
-1. Launch *(not available yet)*  
-`In[1]: %run main.py --no-generation`
-2. Access the result *(not available yet)*  
-`In[2]: ans`
- 
+- Launch the generation only  
+`In[2]: %run main.py --generation`
+- Launch the sorting only *(generation must have been executed once
+before)*  
+`In[3]: %run main.py --sorting`
+- Launch the introspection only *(generation and sorting must have been
+executed once before)*  
+`In[4]: %run main.py --introspection`

@@ -7,6 +7,8 @@ class Mad_estimator(Block):
     """MAD estimator block
 
     Attributes:
+        sampling_rate: float
+            The sampling rate [Hz].
         time_constant: float
             Size of the averaging time window [s]. The default value is 1.0.
         epsilon: float
@@ -24,6 +26,7 @@ class Mad_estimator(Block):
     name = "MAD Estimator"
 
     params = {
+        'sampling_rate': 20e+3,
         'time_constant': 1.0,
         'epsilon': 5e-3,
     }
@@ -34,8 +37,10 @@ class Mad_estimator(Block):
         self.add_output('mads')
         self.add_input('data')
 
-        self.time_constant = self.time_constant if isinstance(self.time_constant, float) else 1.0  # s
-        self.epsilon = self.epsilon if isinstance(self.epsilon, float) else 5e-3  # arb. unit
+        # The following lines are useful to avoid some PyCharm warnings.
+        self.sampling_rate = self.sampling_rate
+        self.time_constant = self.time_constant
+        self.epsilon = self.epsilon
 
         self._n = 0
         self._tau = self.time_constant
@@ -100,24 +105,51 @@ class Mad_estimator(Block):
 
     def _process(self):
 
+        # Receive input data.
         batch = self.input.receive()
 
+        self._measure_time('start', frequency=100)
+
+        # Update the weights.
         alpha = self._alpha(self._gamma, self._n)
         beta = self._beta(self._gamma, self._n)
-
+        # Compute the medians.
         medians = np.median(batch, axis=0)
         self._medians = alpha * self._medians + beta * medians
+        # Compute the MADs.
         mads = np.median(np.abs(batch - self._medians), axis=0)
         self._mads = alpha * self._mads + beta * mads
-
+        # Increment counter.
         self._n += 1
-
+        # Check state (if necessary).
         if not self.is_active:
             self._check_if_active()
-
+        # Send output data (if necessary).
         if self.is_active:
             self.get_output('mads').send(self._mads)
-
+        # Update last seen MADs.
         self._last_mads = self._mads
+
+        self._measure_time('end', frequency=100)
+
+        return
+
+    def _introspect(self):
+        # TODO add docstring.
+
+        nb_buffers = self.counter - self.start_step
+        start_times = np.array(self._measured_times.get('start', []))
+        end_times = np.array(self._measured_times.get('end', []))
+        durations = end_times - start_times
+        data_duration = float(self.nb_samples) / self.sampling_rate
+        ratios = data_duration / durations
+
+        min_ratio = np.min(ratios) if ratios.size > 0 else np.nan
+        mean_ratio = np.mean(ratios) if ratios.size > 0 else np.nan
+        max_ratio = np.max(ratios) if ratios.size > 0 else np.nan
+
+        string = "{} processed {} buffers [speed:x{:.2f} (min:x{:.2f}, max:x{:.2f})]"
+        message = string.format(self.name, nb_buffers, mean_ratio, min_ratio, max_ratio)
+        self.log.info(message)
 
         return

@@ -48,6 +48,13 @@ class Peak_detector(Block):
         self.add_input('mads')
         self.add_input('data')
 
+        # The following lines are useful to avoid some PyCharm warnings.
+        self.threshold_factor = self.threshold_factor
+        self.sign_peaks = self.sign_peaks
+        self.spike_width = self.spike_width
+        self.sampling_rate = self.sampling_rate
+        self.safety_time = self.safety_time
+
     def _initialize(self):
 
         self.peaks = {'offset': 0}
@@ -234,6 +241,8 @@ class Peak_detector(Block):
             self.p[self.nb_samples:, :] = np.zeros((self.nb_samples, self.nb_channels), dtype=np.bool)
             self.mph = self.get_input('mads').receive(blocking=False)
 
+        self._measure_time('start', frequency=100)
+
         # If median absolute deviations are defined...
         if self.mph is not None:
 
@@ -256,17 +265,32 @@ class Peak_detector(Block):
                             self.peaks[key][i] = data
                             self.nb_cum_peaks[key][i] += len(data)
 
-            # TODO check the following correction.
-            # self.peaks['offset'] = self.counter * self.nb_samples
             self.peaks['offset'] = (self.counter - 1) * self.nb_samples
 
             # Send detected peaks.
             self.outputs['peaks'].send(self.peaks)
 
-        # else:
-        # 
-        #     if self.is_active:
-        #         raise Exception("Peak detector is active but receive no MADs (counter={})".format(self.counter))
+        self._measure_time('end', frequency=100)
+
+        return
+
+    def _introspect(self):
+        # TODO add docstring.
+
+        nb_buffers = self.counter - self.start_step
+        start_times = np.array(self._measured_times.get('start', []))
+        end_times = np.array(self._measured_times.get('end', []))
+        durations = end_times - start_times
+        data_duration = float(self.nb_samples) / self.sampling_rate
+        ratios = data_duration / durations
+
+        min_ratio = np.min(ratios) if ratios.size > 0 else np.nan
+        mean_ratio = np.mean(ratios) if ratios.size > 0 else np.nan
+        max_ratio = np.max(ratios) if ratios.size > 0 else np.nan
+
+        string = "{} processed {} buffers [speed:x{:.2f} (min:x{:.2f}, max:x{:.2f})]"
+        message = string.format(self.name, nb_buffers, mean_ratio, min_ratio, max_ratio)
+        self.log.info(message)
 
         return
 
@@ -275,6 +299,10 @@ class Peak_detector(Block):
         for key in self.key_peaks:
             for i in range(self.nb_channels):
                 if i in self.nb_cum_peaks[key]:
-                    self.log.debug("{} detected {} {} peaks on channel {}".format(self.name, self.nb_cum_peaks[key][i], key, i))
+                    string = "{} detected {} {} peaks on channel {}"
+                    message = string.format(self.name, self.nb_cum_peaks[key][i], key, i)
+                    self.log.debug(message)
                 else:
-                    self.log.debug("{} detected 0 {} peaks on channel {}".format(self.name, key, i))
+                    string = "{} detected 0 {} peaks on channel {}"
+                    message = string.format(self.name, key, i)
+                    self.log.debug(message)

@@ -1,0 +1,2 @@
+- [ ] Move the utils from `utils.py` to `circusort`.
+- [ ] Delete this directory.
