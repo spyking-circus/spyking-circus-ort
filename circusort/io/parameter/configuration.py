@@ -22,6 +22,7 @@ default_types = {
     },
     'cells': {
         'mode': 'string',
+        'nb_cells': 'integer',
     },
 }
 
@@ -43,6 +44,7 @@ defaults = {
     },
     'cells': {
         'mode': "default",
+        'nb_cells': 3,
     },
 }
 
