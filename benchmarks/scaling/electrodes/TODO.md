@@ -18,4 +18,4 @@ box plot.
 - [ ] Remove heavy files produced by the generation.
 - [x] Replace the benchmark by the sub-benchmark.
 - [ ] Delete the old benchmark in `old`.
-- [ ] Add different `circusort` network architectures.
+- [x] Add different `circusort` network architectures.

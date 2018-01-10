@@ -11,7 +11,7 @@ the main output is:
 To execute this benchmark use the following instructions:
 
 1. Change your current working directory  
-`cd ~/circusort/benchmarks/scaling`
+`cd ~/circusort/benchmarks/scaling/electrodes`
 1. Launch IPython  
 `$ ipython`
 2. Launch  
