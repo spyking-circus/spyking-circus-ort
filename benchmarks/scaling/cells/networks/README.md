@@ -1,5 +1,5 @@
 This directory contains a list of networks which can be select in the
-scaling benchmark (scaling with the number of recording electrodes).
+scaling benchmark (scaling with the number of recorded cells).
 
 For example, if you want to use `network_1` instead of `network_0` then
 you just need to edit the line corresponding to the import of the

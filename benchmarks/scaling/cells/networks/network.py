@@ -7,7 +7,7 @@ from logging import DEBUG, INFO
 
 name = "network"
 
-directory = os.path.join("~", ".spyking-circus-ort", "benchmarks", "scaling", "electrodes", name)
+directory = os.path.join("~", ".spyking-circus-ort", "benchmarks", "scaling", "cells", name)
 directory = os.path.expanduser(directory)
 
 block_names = [

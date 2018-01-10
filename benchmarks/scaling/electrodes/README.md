@@ -1,5 +1,5 @@
 In this sub-benchmark, we analyse the real-time performances of
-different sub-networks.
+different sub-networks while varying the number of recording electrodes.
 
 The outputs of this sub-benchmark should look like those inside
 the [`outputs`](outputs/) directory (i.e. expected outputs). For
