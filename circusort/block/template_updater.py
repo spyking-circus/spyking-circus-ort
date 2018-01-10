@@ -33,6 +33,13 @@ class Template_updater(Block):
     def __init__(self, **kwargs):
 
         Block.__init__(self, **kwargs)
+
+        # The following lines are useful to avoid some PyCharm's warnings.
+        self.probe_path = self.probe_path
+        self.radius = self.radius
+        self.cc_merge = self.cc_merge
+        self.cc_mixture = self.cc_mixture
+
         if self.probe_path is None:
             message = "{}: the probe file must be specified!".format(self.name)
             self.log.error(message)
@@ -42,10 +49,11 @@ class Template_updater(Block):
             self.log.info(message)
         self.add_input('templates')
         self.add_output('updater', 'dict')
+
         self.two_components = None
 
     def _initialize(self):
-        
+
         # Initialize path to save the templates.
         if self.data_path is None:
             self.data_path = self._get_tmp_path()
@@ -57,7 +65,7 @@ class Template_updater(Block):
         data_directory, _ = os.path.split(self.data_path)
         if not os.path.exists(data_directory):
             os.makedirs(data_directory)
-        
+
         # Create object to handle templates.
         self.template_store = TemplateStore(self.data_path, self.probe_path, mode='w')
         self.template_dictionary = TemplateDictionary(self.template_store, cc_merge=self.cc_merge,
@@ -93,8 +101,10 @@ class Template_updater(Block):
 
                 if self.two_components:
                     templates2 = np.array(data['two'][key][channel]).astype(np.float32)
+                else:
+                    templates2 = None
 
-                for count in xrange(len(templates)):                    
+                for count in xrange(len(templates)):
                     first_component = TemplateComponent(templates[count],
                                                         self.template_store.mappings[ichannel],
                                                         self.template_store.nb_channels,
@@ -144,7 +154,7 @@ class Template_updater(Block):
             # self.log.debug(message)
             output = {
                 'templates_file': self.template_store.file_name,
-                'indices' : accepted
+                'indices': accepted
             }
             self.output.send(output)
 

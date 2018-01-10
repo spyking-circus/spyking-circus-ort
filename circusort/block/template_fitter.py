@@ -1,6 +1,5 @@
 import numpy as np
 import os
-from scipy.sparse import csr_matrix, vstack
 
 from circusort.block.block import Block
 from circusort.obj.template_store import TemplateStore
@@ -29,6 +28,11 @@ class Template_fitter(Block):
     def __init__(self, **kwargs):
 
         Block.__init__(self, **kwargs)
+
+        # The following lines are useful to avoid some PyCharm's warnings.
+        self.init_path = self.init_path
+        self.with_rejected_times = self.with_rejected_times
+
         self.add_input('updater')
         self.add_input('data')
         self.add_input('peaks')
@@ -36,8 +40,8 @@ class Template_fitter(Block):
 
     def _initialize(self):
 
-        self.space_explo    = 0.5
-        self.nb_chances     = 3
+        self.space_explo = 0.5
+        self.nb_chances = 3
         self.overlaps_store = None
 
         if self.init_path is not None:
@@ -86,10 +90,10 @@ class Template_fitter(Block):
 
     def _guess_output_endpoints(self):
         return
-        
+
     def _init_temp_window(self):
         self.slice_indices = np.zeros(0, dtype=np.int32)
-        self._width   = (self.overlaps_store.temporal_width - 1) // 2
+        self._width = (self.overlaps_store.temporal_width - 1) // 2
         self._2_width = 2 * self._width
         temp_window = np.arange(-self._width, self._width + 1)
         buffer_size = 2 * self.nb_samples
@@ -143,7 +147,6 @@ class Template_fitter(Block):
 
         return
 
-
     def _extract_waveforms(self, peak_time_steps):
         """Extract waveforms from buffer
 
@@ -157,9 +160,9 @@ class Template_fitter(Block):
                 number of channels x number of samples.
         """
 
-        batch         = self.x.T.flatten()
-        nb_peaks      = len(peak_time_steps)
-        waveforms     = np.zeros((self.overlaps_store._nb_elements, nb_peaks), dtype=np.float32)
+        batch = self.x.T.flatten()
+        nb_peaks = len(peak_time_steps)
+        waveforms = np.zeros((self.overlaps_store._nb_elements, nb_peaks), dtype=np.float32)
         for k, peak_time_step in enumerate(peak_time_steps):
             waveforms[:, k] = batch[self.slice_indices + peak_time_step]
 
@@ -208,17 +211,19 @@ class Template_fitter(Block):
 
                     # Find the best template.
                     peak_scalar_products = np.take(sub_b, peak_index, axis=1)
-                    best_template_index  = np.argmax(peak_scalar_products, axis=0)
+                    best_template_index = np.argmax(peak_scalar_products, axis=0)
 
                     # Compute the best amplitude.
                     best_amplitude = sub_b[best_template_index, peak_index] / self.overlaps_store._nb_elements
                     if self.overlaps_store.two_components:
-                        best_amplitude_2 = scalar_products[best_template_index + self.nb_templates, peak_index] / self.overlaps_store._nb_elements
-                    
+                        best_scalar_product = scalar_products[best_template_index + self.nb_templates, peak_index]
+                        best_amplitude_2 = best_scalar_product / self.overlaps_store._nb_elements
+
                     # Compute the best normalized amplitude.
                     best_amplitude_ = best_amplitude / self.overlaps_store.norms['1'][best_template_index]
                     if self.overlaps_store.two_components:
                         best_amplitude_2_ = best_amplitude_2 / self.overlaps_store.norms['2'][best_template_index]
+                        _ = best_amplitude_2_  # TODO complete.
 
                     # Verify amplitude constraint.
                     a_min = self.overlaps_store.amplitudes[best_template_index, 0]
@@ -240,17 +245,19 @@ class Template_fitter(Block):
                         indices = np.zeros((self.overlaps_store._overlap_size, len(ytmp)), dtype=np.int32)
                         indices[ytmp, np.arange(len(ytmp))] = 1
 
-                        tmp1 = self.overlaps_store.get_overlaps(best_template_index, 'first_component').multiply(-best_amplitude).dot(indices)
+                        tmp1_ = self.overlaps_store.get_overlaps(best_template_index, 'first_component')
+                        tmp1 = tmp1_.multiply(-best_amplitude).dot(indices)
                         scalar_products[:, is_neighbor[0, :]] += tmp1
 
                         if self.overlaps_store.two_components:
-                            tmp2 = self.overlaps_store.get_overlaps(best_template_index, 'second_component').multiply(-best_amplitude_2).dot(indices)
+                            tmp2_ = self.overlaps_store.get_overlaps(best_template_index, 'second_component')
+                            tmp2 = tmp2_.multiply(-best_amplitude_2).dot(indices)
                             scalar_products[:, is_neighbor[0, :]] += tmp2
-                        
+
                         # Add matching to the result.
                         self.r['spike_times'] = np.concatenate((self.r['spike_times'], [peak_time_step]))
-                        self.r['amplitudes']  = np.concatenate((self.r['amplitudes'], [best_amplitude_]))
-                        self.r['templates']   = np.concatenate((self.r['templates'], [best_template_index]))
+                        self.r['amplitudes'] = np.concatenate((self.r['amplitudes'], [best_amplitude_]))
+                        self.r['templates'] = np.concatenate((self.r['templates'], [best_template_index]))
                         # Mark current matching as tried.
                         mask[best_template_index, peak_index] = 0
                     else:
@@ -264,8 +271,10 @@ class Template_fitter(Block):
                             mask[best_template_index, peak_index] = 0
                         # Add reject to the result if necessary.
                         if self.with_rejected_times:
-                            self.r['rejected_times'] = np.concatenate((self.r['rejected_times'], [peaks[peak_index]]))
-                            self.r['rejected_amplitudes'] = np.concatenate((self.r['rejected_amplitudes'], [best_amplitude_]))
+                            self.r['rejected_times'] = np.concatenate((self.r['rejected_times'],
+                                                                       [peaks[peak_index]]))
+                            self.r['rejected_amplitudes'] = np.concatenate((self.r['rejected_amplitudes'],
+                                                                            [best_amplitude_]))
 
             # Handle result.
             is_in_result = self.r['spike_times'] < self.nb_samples
@@ -305,7 +314,8 @@ class Template_fitter(Block):
 
         return
 
-    def _merge_peaks(self, peaks):
+    @staticmethod
+    def _merge_peaks(peaks):
         """Merge positive and negative peaks from all the channels"""
 
         time_steps = set([])
@@ -328,7 +338,7 @@ class Template_fitter(Block):
         else:
             self.x[:self.nb_samples, :] = self.x[self.nb_samples:, :]
             self.x[self.nb_samples:, :] = self.inputs['data'].receive()
-        
+
         if self.is_active:
             peaks = self.inputs['peaks'].receive()
         else:

@@ -36,7 +36,16 @@ class Pca(Block):
     }
 
     def __init__(self, **kwargs):
+
         Block.__init__(self, **kwargs)
+
+        # The following lines are useful to avoid some PyCharm's warnings.
+        self.spike_width = self.spike_width
+        self.output_dim = self.output_dim
+        self.alignment = self.alignment
+        self.nb_waveforms = self.nb_waveforms
+        self.sampling_rate = self.sampling_rate
+
         self.add_output('pcs')
         self.add_input('data')
         self.add_input('peaks')
@@ -55,13 +64,13 @@ class Pca(Block):
         self.send_pcs = True
         if np.mod(self._spike_width_, 2) == 0:
             self._spike_width_ += 1
-        self._width   = (self._spike_width_-1)//2
+        self._width = (self._spike_width_-1)//2
         self._2_width = 2 * self._width
 
         if self.alignment:
             self.cdata = np.linspace(-self._width, self._width, 5*self._spike_width_)
             self.xdata = np.arange(-self._2_width, self._2_width + 1)
-            self.xoff  = len(self.cdata)/2.
+            self.xoff = len(self.cdata)/2.
 
         return
 
@@ -83,13 +92,13 @@ class Pca(Block):
 
     def _get_waveform(self, batch, channel, peak, key):
         if self.alignment:
-            ydata    = batch[peak - self._2_width:peak + self._2_width + 1, channel]
-            f        = scipy.interpolate.UnivariateSpline(self.xdata, ydata, s=0)
+            ydata = batch[peak - self._2_width:peak + self._2_width + 1, channel]
+            f = scipy.interpolate.UnivariateSpline(self.xdata, ydata, s=0)
             if key == 'negative':
                 rmin = (np.argmin(f(self.cdata)) - self.xoff)/5.
             else:
                 rmin = (np.argmax(f(self.cdata)) - self.xoff)/5.
-            ddata    = np.linspace(rmin - self._width, rmin + self._width, self._spike_width_)
+            ddata = np.linspace(rmin - self._width, rmin + self._width, self._spike_width_)
 
             result = f(ddata).astype(np.float32)
         else:
@@ -111,13 +120,13 @@ class Pca(Block):
 
         batch = self.inputs['data'].receive()
         peaks = self.inputs['peaks'].receive(blocking=False)
-        
+
         if peaks is not None:
 
             while not self._sync_buffer(peaks, self.nb_samples):
                 peaks = self.inputs['peaks'].receive()
-            
-            offset = peaks.pop('offset')
+
+            _ = peaks.pop('offset')
 
             if self.sign_peaks is None:
                 self._infer_sign_peaks(peaks)
@@ -132,13 +141,16 @@ class Pca(Block):
                         if self.nb_spikes[key] < self.nb_waveforms:
                             for peak in signed_peaks:
                                 if self.nb_spikes[key] < self.nb_waveforms and self._is_valid(peak):
-                                    self.waveforms[key][self.nb_spikes[key]] = self._get_waveform(batch, int(channel), peak, key)
+                                    waveform = self._get_waveform(batch, int(channel), peak, key)
+                                    self.waveforms[key][self.nb_spikes[key]] = waveform
                                     self.nb_spikes[key] += 1
 
                     if self.is_ready(key):
-                        self.log.info("{n} computes the PCA matrix from {k} {m} spikes".format(n=self.name_and_counter, k=len(self.waveforms[key]), m=key))
-                        pca          = PCAEstimator(self.output_dim, copy=False)
-                        res_pca = pca.fit_transform(self.waveforms[key])
+                        string = "{n} computes the PCA matrix from {k} {m} spikes"
+                        message = string.format(n=self.name_and_counter, k=len(self.waveforms[key]), m=key)
+                        self.log.info(message)
+                        pca = PCAEstimator(self.output_dim, copy=False)
+                        _ = pca.fit_transform(self.waveforms[key])
 
                         if key == 'negative':
                             self.pcs[0] = pca.components_.T
