@@ -40,16 +40,26 @@ class Spike_writer(Block):
         'rejected_times': None,
         'rejected_amplitudes': None,
         'directory': None,
-        'sampling_rate': None,
+        'sampling_rate': 20e+3,  # Hz
+        'nb_samples': 1024,
     }
 
     def __init__(self, **kwargs):
 
         Block.__init__(self, **kwargs)
-        self.add_input('spikes')
 
-        self.data_path = None if self.data_path is None else self.data_path
-        self.sampling_rate = self.sampling_rate if isinstance(self.sampling_rate, float) else 20e+3  # Hz
+        # The following lines are useful to avoid some PyCharm's warning.
+        self.data_path = self.data_path
+        self.spike_times = self.spike_times
+        self.amplitudes = self.amplitudes
+        self.templates = self.templates
+        self.rejected_times = self.rejected_times
+        self.rejected_amplitudes = self.rejected_amplitudes
+        self.directory = self.directory
+        self.sampling_rate = self.sampling_rate
+        self.nb_samples = self.nb_samples
+
+        self.add_input('spikes')
 
         if self.data_path is None:
             self._mode = 'raw'
@@ -103,6 +113,8 @@ class Spike_writer(Block):
     def _process(self):
 
         batch = self.input.receive()
+
+        self._measure_time('start', frequency=100)
 
         if self.input.structure == 'dict':
 
@@ -158,15 +170,38 @@ class Spike_writer(Block):
 
         else:
 
-            message = "{} can only write spike dictionaries".format(self.name)
+            string = "{} can only write spike dictionaries"
+            message = string.format(self.name)
             self.log.error(message)
+
+        self._measure_time('end', frequency=100)
+
+        return
+
+    def _introspect(self):
+        # TODO add docstring.
+
+        nb_buffers = self.counter - self.start_step
+        start_times = np.array(self._measured_times.get('start', []))
+        end_times = np.array(self._measured_times.get('end', []))
+        durations = end_times - start_times
+        data_duration = float(self.nb_samples) / self.sampling_rate
+        ratios = data_duration / durations
+
+        min_ratio = np.min(ratios) if ratios.size > 0 else np.nan
+        mean_ratio = np.mean(ratios) if ratios.size > 0 else np.nan
+        max_ratio = np.max(ratios) if ratios.size > 0 else np.nan
+
+        string = "{} processed {} buffers [speed:x{:.2f} (min:x{:.2f}, max:x{:.2f})]"
+        message = string.format(self.name, nb_buffers, mean_ratio, min_ratio, max_ratio)
+        self.log.info(message)
 
         return
 
     def __del__(self):
 
         if self._mode == 'raw':
-            for file in self.data_file.values():
-                file.close()
+            for file_ in self.data_file.values():
+                file_.close()
         elif self._mode == 'hdf5':
             self._h5_file.close()

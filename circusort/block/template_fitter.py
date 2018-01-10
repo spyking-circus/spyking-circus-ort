@@ -23,6 +23,7 @@ class Template_fitter(Block):
     params = {
         'init_path': None,
         'with_rejected_times': False,
+        'sampling_rate': 20e+3,
     }
 
     def __init__(self, **kwargs):
@@ -32,6 +33,7 @@ class Template_fitter(Block):
         # The following lines are useful to avoid some PyCharm's warnings.
         self.init_path = self.init_path
         self.with_rejected_times = self.with_rejected_times
+        self.sampling_rate = self.sampling_rate
 
         self.add_input('updater')
         self.add_input('data')
@@ -348,6 +350,8 @@ class Template_fitter(Block):
 
         if updater is not None:
 
+            self._measure_time('update_start', frequency=1)
+
             # Create the template dictionary if necessary.
             if self.overlaps_store is None:
                 self.template_store = TemplateStore(updater['templates_file'], 'r')
@@ -357,7 +361,12 @@ class Template_fitter(Block):
             self.overlaps_store.update(updater['indices'])
             self.overlaps_store.clear_overlaps()
 
+            self._measure_time('update_end', frequency=1)
+
         if peaks is not None:
+
+            if self.nb_templates > 0:
+                self._measure_time('start', frequency=100)
 
             self.offset = (self.counter - 1) * self.nb_samples
 
@@ -386,5 +395,27 @@ class Template_fitter(Block):
                 self._fit_chunk()
                 if 0 < self.counter:
                     self.output.send(self.result)
+
+                self._measure_time('end', frequency=100)
+
+        return
+
+    def _introspect(self):
+        # TODO add docstring.
+
+        nb_buffers = self.counter - self.start_step
+        start_times = np.array(self._measured_times.get('start', []))
+        end_times = np.array(self._measured_times.get('end', []))
+        durations = end_times - start_times
+        data_duration = float(self.nb_samples) / self.sampling_rate
+        ratios = data_duration / durations
+
+        min_ratio = np.min(ratios) if ratios.size > 0 else np.nan
+        mean_ratio = np.mean(ratios) if ratios.size > 0 else np.nan
+        max_ratio = np.max(ratios) if ratios.size > 0 else np.nan
+
+        string = "{} processed {} buffers [speed:x{:.2f} (min:x{:.2f}, max:x{:.2f})]"
+        message = string.format(self.name, nb_buffers, mean_ratio, min_ratio, max_ratio)
+        self.log.info(message)
 
         return

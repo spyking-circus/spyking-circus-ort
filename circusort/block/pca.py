@@ -86,9 +86,17 @@ class Pca(Block):
 
     def is_ready(self, key=None):
         if key is not None:
-            return (self.nb_spikes[key] == self.nb_waveforms) and not self.has_pcs[key]
+            # # TODO remove the following lines.
+            # print("nb_spikes: {}".format(self.nb_spikes[key]))
+            # print("nb_waveforms: {}".format(self.nb_waveforms))
+            # print("has_pcs: {}".format(self.has_pcs[key]))
+            # TODO clean.
+            # return (self.nb_spikes[key] == self.nb_waveforms) and not self.has_pcs[key]
+            return (self.nb_spikes[key] >= self.nb_waveforms) and not self.has_pcs[key]
         else:
-            return bool(np.prod([i for i in self.has_pcs.values()]))
+            # # TODO remove the following line.
+            # print("has_pcs: {}".format(self.has_pcs))
+            return bool(np.prod([i for i in self.has_pcs.values()]))  # TODO correct (use np.all instead)?
 
     def _get_waveform(self, batch, channel, peak, key):
         if self.alignment:
@@ -119,9 +127,11 @@ class Pca(Block):
     def _process(self):
 
         batch = self.inputs['data'].receive()
-        peaks = self.inputs['peaks'].receive(blocking=False)
+        peaks = self.inputs['peaks'].receive(blocking=False)  # TODO correct (should block in active state).
 
         if peaks is not None:
+
+            self._measure_time('start', frequency=100)
 
             while not self._sync_buffer(peaks, self.nb_samples):
                 peaks = self.inputs['peaks'].receive()
@@ -137,6 +147,7 @@ class Pca(Block):
             if self.send_pcs:
 
                 for key in self.sign_peaks:
+
                     for channel, signed_peaks in peaks[key].items():
                         if self.nb_spikes[key] < self.nb_waveforms:
                             for peak in signed_peaks:
@@ -158,8 +169,30 @@ class Pca(Block):
                             self.pcs[1] = pca.components_.T
                         self.has_pcs[key] = True
 
-            if self.is_ready() and self.send_pcs:
-                self.outputs['pcs'].send(self.pcs)
-                self.send_pcs = False
+                if self.is_ready():
+                    self.outputs['pcs'].send(self.pcs)
+                    self.send_pcs = False
+
+            self._measure_time('end', frequency=100)
+
+        return
+
+    def _introspect(self):
+        # TODO add docstring.
+
+        nb_buffers = self.counter - self.start_step
+        start_times = np.array(self._measured_times.get('start', []))
+        end_times = np.array(self._measured_times.get('end', []))
+        durations = end_times - start_times
+        data_duration = float(self.nb_samples) / self.sampling_rate
+        ratios = data_duration / durations
+
+        min_ratio = np.min(ratios) if ratios.size > 0 else np.nan
+        mean_ratio = np.mean(ratios) if ratios.size > 0 else np.nan
+        max_ratio = np.max(ratios) if ratios.size > 0 else np.nan
+
+        string = "{} processed {} buffers [speed:x{:.2f} (min:x{:.2f}, max:x{:.2f})]"
+        message = string.format(self.name, nb_buffers, mean_ratio, min_ratio, max_ratio)
+        self.log.info(message)
 
         return

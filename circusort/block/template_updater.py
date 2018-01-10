@@ -28,6 +28,8 @@ class Template_updater(Block):
         'cc_merge': 0.95,
         'cc_mixture': None,
         'data_path': None,
+        'sampling_rate': 20e+3,
+        'nb_samples': 1024,
     }
 
     def __init__(self, **kwargs):
@@ -39,6 +41,8 @@ class Template_updater(Block):
         self.radius = self.radius
         self.cc_merge = self.cc_merge
         self.cc_mixture = self.cc_mixture
+        self.sampling_rate = self.sampling_rate
+        self.nb_samples = self.nb_samples
 
         if self.probe_path is None:
             message = "{}: the probe file must be specified!".format(self.name)
@@ -130,7 +134,10 @@ class Template_updater(Block):
     def _process(self):
 
         data = self.inputs['templates'].receive(blocking=False)
+
         if data is not None:
+
+            self._measure_time('start', frequency=1)
 
             if not self.is_active:
                 self._set_active_mode()
@@ -157,5 +164,27 @@ class Template_updater(Block):
                 'indices': accepted
             }
             self.output.send(output)
+
+            self._measure_time('end', frequency=1)
+
+        return
+
+    def _introspect(self):
+        # TODO add docstring.
+
+        nb_buffers = self.counter - self.start_step
+        start_times = np.array(self._measured_times.get('start', []))
+        end_times = np.array(self._measured_times.get('end', []))
+        durations = end_times - start_times
+        data_duration = float(self.nb_samples) / self.sampling_rate
+        ratios = data_duration / durations
+
+        min_ratio = np.min(ratios) if ratios.size > 0 else np.nan
+        mean_ratio = np.mean(ratios) if ratios.size > 0 else np.nan
+        max_ratio = np.max(ratios) if ratios.size > 0 else np.nan
+
+        string = "{} processed {} buffers [speed:x{:.2f} (min:x{:.2f}, max:x{:.2f})]"
+        message = string.format(self.name, nb_buffers, mean_ratio, min_ratio, max_ratio)
+        self.log.info(message)
 
         return

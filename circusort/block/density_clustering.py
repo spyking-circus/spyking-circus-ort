@@ -84,6 +84,8 @@ class Density_clustering(Block):
         self.add_input('mads')
         self.add_output('templates', 'dict')
 
+        self.thresholds = None
+
     def _initialize(self):
 
         self._spike_width_ = int(self.sampling_rate * self.spike_width * 1e-3)
@@ -349,7 +351,8 @@ class Density_clustering(Block):
             peaks = self.inputs['peaks'].receive()
         else:
             peaks = self.inputs['peaks'].receive(blocking=False)
-        self.thresholds = self.inputs['mads'].receive(blocking=False)
+        thresholds = self.inputs['mads'].receive(blocking=False)
+        self.thresholds = thresholds if thresholds is not None else self.thresholds
 
         if self.receive_pcs:
             self.pcs = self.inputs['pcs'].receive(blocking=False)
@@ -363,6 +366,8 @@ class Density_clustering(Block):
                 self._init_data_structures()
 
             if (peaks is not None) and (self.thresholds is not None):  # (i.e. if we receive some peaks and MADs)
+
+                self._measure_time('start', frequency=100)
 
                 self.to_reset = []
 
@@ -440,5 +445,27 @@ class Density_clustering(Block):
                     self.outputs['templates'].send(self.templates)
                     for key, channel in self.to_reset:
                         self._reset_data_structures(key, channel)
+
+                self._measure_time('end', frequency=100)
+
+        return
+
+    def _introspect(self):
+        # TODO add docstring.
+
+        nb_buffers = self.counter - self.start_step
+        start_times = np.array(self._measured_times.get('start', []))
+        end_times = np.array(self._measured_times.get('end', []))
+        durations = end_times - start_times
+        data_duration = float(self.nb_samples) / self.sampling_rate
+        ratios = data_duration / durations
+
+        min_ratio = np.min(ratios) if ratios.size > 0 else np.nan
+        mean_ratio = np.mean(ratios) if ratios.size > 0 else np.nan
+        max_ratio = np.max(ratios) if ratios.size > 0 else np.nan
+
+        string = "{} processed {} buffers [speed:x{:.2f} (min:x{:.2f}, max:x{:.2f})]"
+        message = string.format(self.name, nb_buffers, mean_ratio, min_ratio, max_ratio)
+        self.log.info(message)
 
         return
