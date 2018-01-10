@@ -7,7 +7,7 @@ import circusort
 
 from collections import OrderedDict
 
-from networks import network_2 as network
+from networks import network_3 as network
 
 
 nb_rows_range = [4, 8, 16, 32]
@@ -72,8 +72,6 @@ def main():
 
         configuration_directory = os.path.join(directory, "configuration", name)
         generation_directory = os.path.join(directory, "generation", name)
-        # sorting_directory = os.path.join(directory, "sorting", name)
-        # introspection_directory = os.path.join(directory, "introspection", name)
 
         # Generate data (if necessary).
         if args.pending_generation:
@@ -120,7 +118,9 @@ def main():
             speed_factors[configuration_name] = OrderedDict()
             for block_name in block_names:
                 measurements = circusort.io.load_time_measurements(introspection_directory, name=block_name)
-                durations = measurements['end'] - measurements['start']
+                end_times = measurements.get('end', np.empty(shape=0))
+                start_times = measurements.get('start', np.empty(shape=0))
+                durations = end_times - start_times
                 speed_factors[configuration_name][block_name] = duration_buffer / durations
 
         # Plot real-time performances of blocks for each condition.

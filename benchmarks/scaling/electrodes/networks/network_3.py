@@ -2,12 +2,12 @@ import os
 
 import circusort
 
-from logging import DEBUG, INFO
+from logging import DEBUG
 
 
 name = "network_3"
 
-directory = os.path.join("~", ".spyking-circus-ort", "benchmarks", "scaling", name)
+directory = os.path.join("~", ".spyking-circus-ort", "benchmarks", "scaling", "electrodes", name)
 directory = os.path.expanduser(directory)
 
 block_names = [
@@ -15,6 +15,10 @@ block_names = [
     "filter",
     "mad",
     "detector",
+    "pca",
+    "cluster",
+    "updater",
+    "fitter",
     "writer",
 ]
 
@@ -80,38 +84,47 @@ def sorting(configuration_name):
         'introspection_path': introspection_directory,
         'log_level': DEBUG,
     }
-    # TODO complete the following `kwargs` and implement `_introspect` for the corresponding blocks.
     pca_kwargs = {
-        'nb_waveforms': 2000,
+        'name': "pca",
+        'nb_waveforms': 200,  # TODO check this value (seems rather low).
         'introspection_path': introspection_directory,
         'log_level': DEBUG,
     }
     cluster_kwargs = {
+        'name': "cluster",
         'threshold_factor': threshold_factor,
         'sampling_rate': sampling_rate,
-        'nb_waveforms': 100,  # TODO replace by 100000 if an initialized template dictionary is used.
+        'nb_waveforms': 50,  # TODO replace by 100000 if an initialized template dictionary is used.
         'probe_path': probe_path,
         'two_components': False,
         'introspection_path': introspection_directory,
         'log_level': DEBUG,
     }
     updater_kwargs = {
+        'name': "updater",
         'probe_path': probe_path,
         'nb_channels': nb_channels,  # TODO remove this keyword argument?
         'data_path': os.path.join(sorting_directory, "templates.h5"),
+        'sampling_rate': sampling_rate,
+        'nb_samples': nb_samples,
         'introspection_path': introspection_directory,
         'log_level': DEBUG,
     }
     fitter_kwargs = {
-        # 'init_path': os.path.join(generation_directory, "initial_templates.h5"),  # TODO uncomment if an initialized template dictionary is used.
-        # 'with_rejected_times': True,  # TODO uncomment if an initialized template dictionary is used.
+        'name': "fitter",
+        # TODO uncomment the following two lines if an initialized template dictionary is used.
+        # 'init_path': os.path.join(generation_directory, "initial_templates.h5"),
+        # 'with_rejected_times': True,
         'two_components': False,  # TODO remove this keyword argument?
+        'sampling_rate': sampling_rate,
         'introspection_path': introspection_directory,
         'log_level': DEBUG,
     }
     writer_kwargs = {
+        'name': "writer",
         'data_path': os.path.join(sorting_directory, "spikes.h5"),
         'sampling_rate': sampling_rate,
+        'nb_samples': nb_samples,
         'introspection_path': introspection_directory,
         'log_level': DEBUG,
     }
@@ -123,6 +136,7 @@ def sorting(configuration_name):
     filter_ = manager.create_block('filter', **filter_kwargs)
     mad = manager.create_block('mad_estimator', **mad_kwargs)
     detector = manager.create_block('peak_detector', **detector_kwargs)
+    # TODO implement `_introspect` for the following blocks.
     pca = manager.create_block('pca', **pca_kwargs)
     cluster = manager.create_block('density_clustering', **cluster_kwargs)
     updater = manager.create_block('template_updater', **updater_kwargs)

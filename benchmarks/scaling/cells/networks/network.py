@@ -7,10 +7,15 @@ from logging import DEBUG, INFO
 
 name = "network"
 
-directory = os.path.join("~", ".spyking-circus-ort", "benchmarks", "scaling", name)
+directory = os.path.join("~", ".spyking-circus-ort", "benchmarks", "scaling", "cells", name)
 directory = os.path.expanduser(directory)
 
-block_names = ["reader", "filter", "writer"]  # TODO complete.
+block_names = [
+    "reader",
+    "filter",
+    "writer",
+    # TODO complete.
+]
 
 
 def sorting(configuration_name):

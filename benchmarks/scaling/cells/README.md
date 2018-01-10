@@ -1,17 +1,13 @@
 In this sub-benchmark, we analyse the real-time performances of
-different sub-networks.
+different sub-networks while varying the number of recorded cells.
 
-The outputs of this sub-benchmark should look like those inside
-the [`outputs`](outputs/) directory (i.e. expected outputs). For
-example, in the case of a network composed of a `reader` and a `writer`,
-the main output is:
-
-![Median real time performances.](outputs/network_0/median_real_time_performances.png)
+The outputs of this sub-benchmark should look like those inside the
+[`outputs`](outputs/) directory (i.e. expected outputs).
 
 To execute this benchmark use the following instructions:
 
 1. Change your current working directory  
-`cd ~/circusort/benchmarks/scaling`
+`cd ~/circusort/benchmarks/scaling/cells`
 1. Launch IPython  
 `$ ipython`
 2. Launch  

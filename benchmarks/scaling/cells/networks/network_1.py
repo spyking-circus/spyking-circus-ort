@@ -5,23 +5,27 @@ import circusort
 from logging import DEBUG
 
 
-name = "network_0"
+name = "network_1"
 
-directory = os.path.join("~", ".spyking-circus-ort", "benchmarks", "scaling", name)
+directory = os.path.join("~", ".spyking-circus-ort", "benchmarks", "scaling", "cells", name)
 directory = os.path.expanduser(directory)
 
-block_names = ["reader", "writer"]
+block_names = [
+    "reader",
+    "filter",
+    "writer",
+]
 
 
 def sorting(configuration_name):
-    """Create the 2nd sorting subnetwork.
+    """Create the 1st sorting subnetwork.
 
     Parameter:
         configuration_name: string
             The name of the configuration (i.e. context).
     """
 
-    # Create directories.
+    # Define directories.
     generation_directory = os.path.join(directory, "generation", configuration_name)
     sorting_directory = os.path.join(directory, "sorting", configuration_name)
     introspection_directory = os.path.join(directory, "introspection", configuration_name)
@@ -53,6 +57,12 @@ def sorting(configuration_name):
         'is_realistic': True,
         'introspection_path': introspection_directory,
     }
+    filter_kwargs = {
+        'name': "filter",
+        'cut_off': 100.0,  # Hz
+        'introspection_path': introspection_directory,
+        'log_level': DEBUG,
+    }
     signal_writer_kwargs = {
         'name': "writer",
         'data_path': os.path.join(sorting_directory, "data_filtered.raw"),
@@ -60,15 +70,17 @@ def sorting(configuration_name):
         'log_level': DEBUG,
     }
 
-    # Define the elements of the Circus network.
+    # Define the elements of the network.
     director = circusort.create_director(host=host)
     manager = director.create_manager(host=host)
     reader = manager.create_block('reader', **reader_kwargs)
+    filter_ = manager.create_block('filter', **filter_kwargs)
     writer = manager.create_block('writer', **signal_writer_kwargs)
-    # Initialize the elements of the Circus network.
+    # Initialize the elements of the network.
     director.initialize()
-    # Connect the elements of the Circus network.
-    director.connect(reader.output, writer.input)
+    # Connect the elements of the network.
+    director.connect(reader.output, filter_.input)
+    director.connect(filter_.output, writer.input)
     # Launch the network.
     director.start()
     director.join()

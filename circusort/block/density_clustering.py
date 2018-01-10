@@ -1,12 +1,8 @@
 from .block import Block
 import numpy as np
-# import time
 import scipy.interpolate
 
 from circusort.io.probe import load_probe
-# from circusort.utils.algorithms import PCAEstimator
-# from circusort.utils.clustering import rho_estimation
-# from circusort.utils.clustering import density_based_clustering
 from circusort.utils.clustering import OnlineManager
 
 
@@ -54,27 +50,51 @@ class Density_clustering(Block):
     def __init__(self, **kwargs):
 
         Block.__init__(self, **kwargs)
+
+        # The following lines are useful to avoid some PyCharm's warnings.
+        self.threshold_factor = self.threshold_factor
+        self.alignment = self.alignment
+        self.sampling_rate = self.sampling_rate
+        self.spike_width = self.spike_width
+        self.nb_waveforms = self.nb_waveforms
+        self.channels = self.channels
+        self.probe_path = self.probe_path
+        self.radius = self.radius
+        self.m_ratio = self.m_ratio
+        self.noise_thr = self.noise_thr
+        self.n_min = self.n_min
+        self.dispersion = self.dispersion
+        self.two_components = self.two_components
+        self.decay_factor = self.decay_factor
+        self.mu = self.mu
+        self.epsilon = self.epsilon
+        self.theta = self.theta
+        self.tracking = self.tracking
+
         if self.probe_path is None:
             error_msg = "{n}: the probe file must be specified!"
             self.log.error(error_msg.format(n=self.name))
         else:
             self.probe = load_probe(self.probe_path, radius=self.radius, logger=self.log)
             self.log.info("{n} reads the probe layout".format(n=self.name))
+
         self.add_input('data')
         self.add_input('pcs')
         self.add_input('peaks')
         self.add_input('mads')
         self.add_output('templates', 'dict')
 
+        self.thresholds = None
+
     def _initialize(self):
 
         self._spike_width_ = int(self.sampling_rate * self.spike_width * 1e-3)
         self.sign_peaks = []
         self.receive_pcs = True
-        self.masks       = {}
+        self.masks = {}
         if np.mod(self._spike_width_, 2) == 0:
             self._spike_width_ += 1
-        self._width   = (self._spike_width_ - 1) // 2
+        self._width = (self._spike_width_ - 1) // 2
         self._2_width = 2 * self._width
 
         if self.safety_time == 'auto':
@@ -90,7 +110,7 @@ class Density_clustering(Block):
             num = 5 * self._spike_width_
             self.cdata = np.linspace(-self._width, self._width, num)
             self.xdata = np.arange(-self._2_width, self._2_width + 1)
-            self.xoff  = len(self.cdata)/2.
+            self.xoff = len(self.cdata)/2.
 
         return
 
@@ -102,7 +122,7 @@ class Density_clustering(Block):
     def nb_samples(self):
         return self.inputs['data'].shape[0]
 
-    def _get_all_valid_peaks(self, peaks, shuffle=True):
+    def _get_all_valid_peaks(self, peaks):
         all_peaks = {}
         for key in peaks.keys():
             all_peaks[key] = set([])
@@ -110,13 +130,13 @@ class Density_clustering(Block):
                 all_peaks[key] = all_peaks[key].union(peaks[key][channel])
 
             all_peaks[key] = np.array(list(all_peaks[key]), dtype=np.int32)
-            mask           = self._is_valid(all_peaks[key])
+            mask = self._is_valid(all_peaks[key])
             all_peaks[key] = all_peaks[key][mask]
 
             if len(all_peaks[key]) > 0:
-                rmin            = all_peaks[key].min()
-                rmax            = all_peaks[key].max()
-                diff_times      = rmax - rmin
+                rmin = all_peaks[key].min()
+                rmax = all_peaks[key].max()
+                diff_times = rmax - rmin
                 self.masks[key] = {}
                 self.masks[key]['all_times'] = np.zeros((self.nb_channels, diff_times+1), dtype=np.bool)
                 self.masks[key]['min_times'] = np.maximum(all_peaks[key] - rmin - self.safety_time, 0)
@@ -126,11 +146,15 @@ class Density_clustering(Block):
 
     def _remove_nn_peaks(self, key, peak_idx, channel):
         indices = self.probe.edges[channel]
-        self.masks[key]['all_times'][indices, self.masks[key]['min_times'][peak_idx]:self.masks[key]['max_times'][peak_idx]] = True
+        min_times_mask = self.masks[key]['min_times'][peak_idx]
+        max_times_mask = self.masks[key]['max_times'][peak_idx]
+        self.masks[key]['all_times'][indices, min_times_mask:max_times_mask] = True
 
     def _isolated_peak(self, key, peak_idx, channel):
         indices = self.probe.edges[channel]
-        myslice = self.masks[key]['all_times'][indices, self.masks[key]['min_times'][peak_idx]:self.masks[key]['max_times'][peak_idx]]
+        min_times_mask = self.masks[key]['min_times'][peak_idx]
+        max_times_mask = self.masks[key]['max_times'][peak_idx]
+        myslice = self.masks[key]['all_times'][indices, min_times_mask:max_times_mask]
         return not myslice.any()
 
     def _is_valid(self, peak):
@@ -142,7 +166,8 @@ class Density_clustering(Block):
             cond_2 = (peak + self._width < self.nb_samples)
         return cond_1 & cond_2
 
-    def _get_extrema_indices(self, peak, peaks):
+    @staticmethod
+    def _get_extrema_indices(peak, peaks):
         res = []
         for key in peaks.keys():
             for channel in peaks[key].keys():
@@ -169,6 +194,8 @@ class Density_clustering(Block):
             else:
                 channel = np.argmin(batch[peak, indices])
                 is_neg = True
+        else:
+            raise NotImplementedError()  # TODO complete.
 
         return indices[channel], is_neg
 
@@ -220,9 +247,9 @@ class Density_clustering(Block):
 
     def _init_data_structures(self):
 
-        self.raw_data  = {}
+        self.raw_data = {}
         self.templates = {}
-        self.managers  = {}
+        self.managers = {}
 
         for k in self.all_keys:
             self.templates[k] = {}
@@ -266,7 +293,7 @@ class Density_clustering(Block):
     def _prepare_templates(self, templates, key, channel):
 
         nb_templates = len(templates['amp'])
-        nb_elecs     = len(self.probe.edges[channel])
+        nb_elecs = len(self.probe.edges[channel])
 
         t1 = templates.pop('dat')
         t1 = t1.reshape(nb_templates, nb_elecs, self._spike_width_)
@@ -294,6 +321,8 @@ class Density_clustering(Block):
                 tmpidx = divmod(template.argmin(), template.shape[1])
             elif key == 'positive':
                 tmpidx = divmod(template.argmax(), template.shape[1])
+            else:
+                raise NotImplementedError()  # TODO complete.
 
             shift = self._width - tmpidx[1]
 
@@ -307,7 +336,7 @@ class Density_clustering(Block):
         return aligned_template, shift
 
     def _reset_data_structures(self, key, channel):
-        shape =(0, len(self.probe.edges[channel]), self._spike_width_)
+        shape = (0, len(self.probe.edges[channel]), self._spike_width_)
         self.raw_data[key][channel] = np.zeros(shape, dtype=np.float32)
         self.templates['dat'][key][channel] = np.zeros(shape, dtype=np.float32)
         self.templates['amp'][key][channel] = np.zeros((0, 2), dtype=np.float32)
@@ -322,7 +351,8 @@ class Density_clustering(Block):
             peaks = self.inputs['peaks'].receive()
         else:
             peaks = self.inputs['peaks'].receive(blocking=False)
-        self.thresholds = self.inputs['mads'].receive(blocking=False)
+        thresholds = self.inputs['mads'].receive(blocking=False)
+        self.thresholds = thresholds if thresholds is not None else self.thresholds
 
         if self.receive_pcs:
             self.pcs = self.inputs['pcs'].receive(blocking=False)
@@ -336,6 +366,8 @@ class Density_clustering(Block):
                 self._init_data_structures()
 
             if (peaks is not None) and (self.thresholds is not None):  # (i.e. if we receive some peaks and MADs)
+
+                self._measure_time('start', frequency=100)
 
                 self.to_reset = []
 
@@ -356,7 +388,7 @@ class Density_clustering(Block):
                     # # TODO remove the following line.
                     # self.log.debug("{} processes {} {} peaks".format(self.name, len(all_peaks[key]), key))
                     peak_indices = np.random.permutation(np.arange(len(all_peaks[key])))
-                    peak_values  = np.take(all_peaks[key], peak_indices)
+                    peak_values = np.take(all_peaks[key], peak_indices)
 
                     for peak_idx, peak in zip(peak_indices, peak_values):
 
@@ -384,24 +416,56 @@ class Density_clustering(Block):
                         threshold = self.threshold_factor * self.thresholds[0, channel]
                         self.managers[key][channel].set_physical_threshold(threshold)
 
-                        if len(self.raw_data[key][channel]) >= self.nb_waveforms and not self.managers[key][channel].is_ready:
+                        if len(self.raw_data[key][channel]) >=\
+                                self.nb_waveforms and not self.managers[key][channel].is_ready:
                             # TODO remove the following line.
-                            self.log.debug("{n} Electrode {k} has obtained {m} {t} waveforms: clustering".format(n=self.name, k=channel, m=self.nb_waveforms, t=key))
-                            templates = self.managers[key][channel].initialize(self.counter, self.raw_data[key][channel], self.two_components)
+                            string = "{n} Electrode {k} has obtained {m} {t} waveforms: clustering"
+                            message = string.format(n=self.name, k=channel, m=self.nb_waveforms, t=key)
+                            self.log.debug(message)
+                            templates = self.managers[key][channel].initialize(self.counter,
+                                                                               self.raw_data[key][channel],
+                                                                               self.two_components)
                             self._prepare_templates(templates, key, channel)
                         elif self.managers[key][channel].time_to_cluster(self.nb_waveforms):
                             # TODO remove the following line.
-                            self.log.debug("{n} Electrode {k} has obtained {m} {t} waveforms: reclustering".format(n=self.name, k=channel, m=self.nb_waveforms, t=key))
-                            templates = self.managers[key][channel].cluster(two_components=self.two_components, tracking=self.tracking)
+                            string = "{n} Electrode {k} has obtained {m} {t} waveforms: reclustering"
+                            message = string.format(n=self.name, k=channel, m=self.nb_waveforms, t=key)
+                            self.log.debug(message)
+                            templates = self.managers[key][channel].cluster(two_components=self.two_components,
+                                                                            tracking=self.tracking)
                             self._prepare_templates(templates, key, channel)
                         # else:
                         #     # TODO remove the following line.
-                        #     self.log.debug("key:{}, channel:{}, test:{} >=? {}".format(key, channel, len(self.raw_data[key][channel]), self.nb_waveforms))
+                        #     string = "key:{}, channel:{}, test:{} >=? {}"
+                        #     message = string.format(key, channel, len(self.raw_data[key][channel]), self.nb_waveforms)
+                        #     self.log.debug(message)
 
                 if len(self.to_reset) > 0:
                     self.templates['offset'] = self.counter * self.nb_samples
                     self.outputs['templates'].send(self.templates)
                     for key, channel in self.to_reset:
                         self._reset_data_structures(key, channel)
+
+                self._measure_time('end', frequency=100)
+
+        return
+
+    def _introspect(self):
+        # TODO add docstring.
+
+        nb_buffers = self.counter - self.start_step
+        start_times = np.array(self._measured_times.get('start', []))
+        end_times = np.array(self._measured_times.get('end', []))
+        durations = end_times - start_times
+        data_duration = float(self.nb_samples) / self.sampling_rate
+        ratios = data_duration / durations
+
+        min_ratio = np.min(ratios) if ratios.size > 0 else np.nan
+        mean_ratio = np.mean(ratios) if ratios.size > 0 else np.nan
+        max_ratio = np.max(ratios) if ratios.size > 0 else np.nan
+
+        string = "{} processed {} buffers [speed:x{:.2f} (min:x{:.2f}, max:x{:.2f})]"
+        message = string.format(self.name, nb_buffers, mean_ratio, min_ratio, max_ratio)
+        self.log.info(message)
 
         return
