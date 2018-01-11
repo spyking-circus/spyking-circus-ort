@@ -9,5 +9,7 @@ and a varying number of cells.
 - [ ] Understand why 4 `RunTimeError` appear at some point (probably
 during the introspection). The errors were raised by some `Tkinter`
 callbacks because the maximum recursion depth was exceeded.
-- [ ] Modify the `updater` block to send templates in a control manner
+- [x] Modify the `updater` block to send templates in a control manner
 to the `fitter` block.
+- [ ] Check that the `fitter` correctly reconstructs the signal from the
+precomputed templates send by the `updater`.

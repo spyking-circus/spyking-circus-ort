@@ -137,7 +137,7 @@ def load_template(path):
     channels = f.get('channels').value
     waveforms = f.get('waveforms').value
     f.close()
-    template = Template(channels, waveforms)
+    template = Template(channels, waveforms, path=path)
 
     return template
 

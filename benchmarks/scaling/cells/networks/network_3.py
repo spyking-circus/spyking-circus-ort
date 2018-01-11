@@ -47,6 +47,10 @@ def sorting(configuration_name):
     sampling_rate = parameters['general']['sampling_rate']
     threshold_factor = 7.0
     probe_path = os.path.join(generation_directory, "probe.prb")
+    precomputed_template_paths = [
+        cell.template.path
+        for cell in circusort.io.load_cells(generation_directory)
+    ]
 
     # Create directories (if necessary).
     if not os.path.isdir(sorting_directory):
@@ -105,6 +109,7 @@ def sorting(configuration_name):
         'probe_path': probe_path,
         'nb_channels': nb_channels,  # TODO remove this keyword argument?
         'data_path': os.path.join(sorting_directory, "templates.h5"),
+        'precomputed_template_paths': precomputed_template_paths,
         'sampling_rate': sampling_rate,
         'nb_samples': nb_samples,
         'introspection_path': introspection_directory,

@@ -181,7 +181,7 @@ def load_train(path, **kwargs):
     f = h5py.File(path, mode='r')
     times = f.get('times').value
     f.close()
-    train = Train(times)
+    train = Train(times, path=path)
 
     return train
 

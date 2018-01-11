@@ -10,7 +10,7 @@ class Template(object):
     """The template of a cell."""
     # TODO complete docstring
 
-    def __init__(self, channels, waveforms):
+    def __init__(self, channels, waveforms, path=None):
         """Initialization.
 
         Parameters:
@@ -18,10 +18,21 @@ class Template(object):
                 The channels which define the support of the template. An array of shape (nb_channels,).
             waveforms: numpy.ndarray
                 The waveforms of the template. An array of shape: (nb_channels, nb_samples).
+            path: none | string (optional)
+                The path to the file in which the template is saved. The default value is None.
         """
 
         self.channels = channels
         self.waveforms = waveforms
+        self.path = path
+
+    @property
+    def central_channel(self):
+
+        min_voltages = np.min(self.waveforms, axis=1)
+        channel = np.argmin(min_voltages)
+
+        return channel
 
     def save(self, path):
         """Save template to file.
@@ -35,6 +46,8 @@ class Template(object):
         file_.create_dataset('channels', shape=self.channels.shape, dtype=self.channels.dtype, data=self.channels)
         file_.create_dataset('waveforms', shape=self.waveforms.shape, dtype=self.waveforms.dtype, data=self.waveforms)
         file_.close()
+
+        self.path = path
 
         return
 
