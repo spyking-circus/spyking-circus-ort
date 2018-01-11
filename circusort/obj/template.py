@@ -10,7 +10,7 @@ class Template(object):
     """The template of a cell."""
     # TODO complete docstring
 
-    def __init__(self, channels, waveforms):
+    def __init__(self, channels, waveforms, path=None):
         """Initialization.
 
         Parameters:
@@ -18,10 +18,21 @@ class Template(object):
                 The channels which define the support of the template. An array of shape (nb_channels,).
             waveforms: numpy.ndarray
                 The waveforms of the template. An array of shape: (nb_channels, nb_samples).
+            path: none | string (optional)
+                The path to the file in which the template is saved. The default value is None.
         """
 
         self.channels = channels
         self.waveforms = waveforms
+        self.path = path
+
+    @property
+    def central_channel(self):
+
+        min_voltages = np.min(self.waveforms, axis=1)
+        channel = np.argmin(min_voltages)
+
+        return channel
 
     def save(self, path):
         """Save template to file.
@@ -36,26 +47,43 @@ class Template(object):
         file_.create_dataset('waveforms', shape=self.waveforms.shape, dtype=self.waveforms.dtype, data=self.waveforms)
         file_.close()
 
+        self.path = path
+
         return
 
-    def plot(self, output=None, **kwargs):
-        # TODO add docstring.
+    def plot(self, output=None, probe=None, **kwargs):
+        """Plot template.
+
+        Parameters:
+            output: none | string
+            probe: none | circusort.obj.Probe
+        """
+        # TODO complete docstring.
 
         _ = kwargs  # Discard additional keyword arguments.
 
         nb_channels, nb_samples = self.waveforms.shape
-        x = np.arange(0, nb_samples)
-        x_min = 0
-        x_max = nb_samples
 
         if output is not None:
             plt.ioff()
 
         fig, ax = plt.subplots()
-        ax.set_xlim(x_min, x_max)
-        for k in range(0, nb_channels):
-            y = self.waveforms[k, :]
-            ax.plot(x, y)
+        if probe is None:
+            x_min = 0
+            x_max = nb_samples
+            ax.set_xlim(x_min, x_max)
+            x = np.arange(0, nb_samples)
+            for k in range(0, nb_channels):
+                y = self.waveforms[k, :]
+                color = 'C{}'.format(k)
+                ax.plot(x, y, color=color)
+        else:
+            color = 'C0'
+            for k in self.channels:
+                x_0, y_0 = probe.get_channel_position(k)
+                x = 20.0 * np.linspace(-0.5, +0.5, num=nb_samples) + x_0
+                y = 0.3 * self.waveforms[k, :] + y_0
+                ax.plot(x, y, color=color)
         ax.set_xlabel(u"time (arb. unit)")
         ax.set_ylabel(u"voltage (arb. unit)")
         ax.set_title(u"Template")

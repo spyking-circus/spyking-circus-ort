@@ -12,6 +12,7 @@ from networks import network_3 as network
 
 nb_rows_range = [4, 8, 16, 32]
 nb_columns_range = [4, 8, 16, 32]
+nb_cells = 3
 duration = 5.0 * 60.0  # s
 
 
@@ -52,6 +53,9 @@ def main():
                     'mode': 'mea',
                     'nb_rows': nb_rows,
                     'nb_columns': nb_columns,
+                },
+                'cells': {
+                    'nb_cells': nb_cells,
                 }
             }
             configuration = circusort.io.generate_configuration(**kwargs)

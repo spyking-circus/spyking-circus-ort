@@ -93,7 +93,7 @@ class Template(object):
         waveforms = self.first_component.to_dense()
         nb_channels, _ = waveforms.shape
         channels = np.arange(0, nb_channels)
-        template = Template_(channels, waveforms)
+        template = Template(channels, waveforms)
 
         return template
 

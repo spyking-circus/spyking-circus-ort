@@ -46,7 +46,7 @@ def generate_template(probe=None, position=(0.0, 0.0), amplitude=80.0, radius=No
     Parameters:
         probe: circusort.obj.Probe
             Description of the probe (e.g. spatial layout).
-        position: tuple (optional)
+        position: tuple | circusort.obj.Position (optional)
             Coordinates of position of the center (spatially) of the template [µm]. The default value is (0.0, 0.0).
         amplitude: float (optional)
             Maximum amplitude of the template [µV]. The default value is 80.0.
@@ -137,7 +137,7 @@ def load_template(path):
     channels = f.get('channels').value
     waveforms = f.get('waveforms').value
     f.close()
-    template = Template(channels, waveforms)
+    template = Template(channels, waveforms, path=path)
 
     return template
 

@@ -133,39 +133,34 @@ class Cell(object):
             os.makedirs(directory)
 
         # Save the template of the cell.
-        template_path = os.path.join(directory, "template.h5")
-        self.parameters.add('template', 'path', template_path)
+        self.template_path = os.path.join(directory, "template.h5")
+        self.parameters.add('template', 'path', self.template_path)
         self.parameters.add('template', 'mode', 'default')
-        template = self.template
-        template.save(template_path)
+        self.template.save(self.template_path)
 
         # Save the train of the cell.
-        train_path = os.path.join(directory, "train.h5")
-        self.parameters.add('train', 'path', train_path)
+        self.train_path = os.path.join(directory, "train.h5")
+        self.parameters.add('train', 'path', self.train_path)
         self.parameters.add('train', 'mode', 'default')
-        train = self.train
-        train.save(train_path)
+        self.train.save(self.train_path)
 
         # Save the amplitude of the cell (if necessary).
         if self.amplitude is not None:
-            amplitude_path = os.path.join(directory, "amplitude.h5")
-            self.parameters.add('amplitude', 'path', amplitude_path)
+            self.amplitude_path = os.path.join(directory, "amplitude.h5")
+            self.parameters.add('amplitude', 'path', self.amplitude_path)
             self.parameters.add('amplitude', 'mode', 'default')
-            amplitude = self.amplitude
-            amplitude.save(amplitude_path)
+            self.amplitude.save(self.amplitude_path)
 
         # Save the position of the cell (if necessary).
         if self.position is not None:
-            position_path = os.path.join(directory, "position.h5")
-            self.parameters.add('position', 'path', position_path)
+            self.position_path = os.path.join(directory, "position.h5")
+            self.parameters.add('position', 'path', self.position_path)
             self.parameters.add('position', 'mode', 'default')
-            position = self.position
-            position.save(position_path)
+            self.position.save(self.position_path)
 
         # Save the parameters of the cell.
         parameters_path = os.path.join(directory, "parameters.txt")
-        parameters = self.parameters
-        parameters.save(parameters_path)
+        self.parameters.save(parameters_path)
 
         return
 
