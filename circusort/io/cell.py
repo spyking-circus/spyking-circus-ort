@@ -12,8 +12,9 @@ def generate_cell(**kwargs):
 
     template = generate_template(**kwargs)
     train = generate_train(**kwargs)
-    position = generate_position(**kwargs)
-    cell = Cell(template, train, position)
+    # TODO generate amplitude.
+    position = generate_position(train=train, **kwargs)
+    cell = Cell(template, train, position=position)
 
     return cell
 

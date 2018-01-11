@@ -114,6 +114,7 @@ class Cells(object):
             kwargs.update(parameters['general'])
             self.plot_rates(output=cells_directory, **kwargs)
             self.plot_trains(output=cells_directory, **kwargs)
+            # TODO plot amplitudes.
             self.plot_positions(output=cells_directory, **kwargs)
             for k, cell in self.iteritems():
                 cell_directory = os.path.join(cells_directory, "{}".format(k))
@@ -200,7 +201,8 @@ class Cells(object):
             probe.plot(ax=ax, **kwargs)
         for k, cell in self.iteritems():
             if cell.position is not None:  # TODO be able to remove this line.
-                cell.position.plot(ax=ax, set_ax=False, **kwargs)
+                color = 'C{}'.format(1 + k % 9)
+                cell.position.plot(ax=ax, color=color, set_ax=False, **kwargs)
         ax.set_title(u"Positions")
 
         return

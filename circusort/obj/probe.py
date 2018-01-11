@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 
+import matplotlib.patches as ptc
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+
+from matplotlib.collections import PatchCollection
 
 
 class Probe(object):
@@ -152,6 +155,18 @@ class Probe(object):
         }
 
         return fov
+    
+    def sample_visible_position(self):
+
+        fov = self.field_of_view
+        x_min = fov['x_min']
+        x_max = fov['x_max']
+        y_min = fov['y_min']
+        y_max = fov['y_max']
+        x = np.random.uniform(x_min, x_max)
+        y = np.random.uniform(y_min, y_max)
+
+        return x, y
 
     def get_averaged_n_edges(self):
         n = 0
@@ -267,6 +282,7 @@ class Probe(object):
 
         x = self.x
         y = self.y
+        r = 4.0  # µm
         x_min = np.amin(x) - 10.0
         x_max = np.amax(x) + 10.0
         y_min = np.amin(y) - 10.0
@@ -280,7 +296,12 @@ class Probe(object):
         ax.set_aspect('equal')
         ax.set_xlim(x_min, x_max)
         ax.set_ylim(y_min, y_max)
-        ax.scatter(x, y)  # TODO control the radius of the electrodes.
+        circles = [
+            ptc.Circle((_x, _y), radius=r, color='C0')
+            for _x, _y in zip(x, y)
+        ]
+        collection = PatchCollection(circles)
+        ax.add_collection(collection)
         ax.set_xlabel(u"x (µm)")
         ax.set_ylabel(u"y (µm)")
         ax.set_title(u"Spatial layout of the electrodes")

@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import h5py
 import numpy as np
 import os
@@ -6,10 +8,30 @@ from circusort.obj.position import Position
 from circusort.obj.train import Train
 
 
-def generate_position(x=0.0, y=0.0, train=None, **kwargs):
-    """Generate position."""
+def generate_position(x=None, y=None, train=None, probe=None, **kwargs):
+    """Generate position.
 
-    # TODO improve this generation.
+    Parameters:
+        x: none | float
+            A pregenerated x-coordinate [µm]. The default value is None.
+        y: none | float
+            A pregenerated y_coordinate [µm]. The default value is None.
+        train: none | circusort.obj.Train
+            The times to use to generate the position. The default value is None.
+        probe: none | circusort.obj.Probe
+            The probe to use to generate the position. The default value is None.
+    Return:
+        x: float
+            The generated x-coordinate [µm].
+        y: float
+            The generated y-coordinate [µm].
+    """
+
+    if x is None or y is None:
+        if probe is None:
+            raise NotImplementedError()  # TODO complete.
+        else:
+            x, y = probe.sample_visible_position()
 
     _ = kwargs
     if isinstance(train, Train):

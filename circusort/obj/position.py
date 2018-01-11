@@ -2,6 +2,7 @@
 
 import h5py
 import matplotlib.gridspec as gds
+import matplotlib.patches as ptc
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -42,29 +43,31 @@ class Position(object):
 
         return position
 
-    def _plot(self, ax, probe=None, set_ax=False, **kwargs):
+    def _plot(self, ax, probe=None, color='C1', set_ax=False, **kwargs):
         # TODO add docstring.
 
         _ = kwargs  # Discard additional keyword arguments.
 
         x = self.x[0:1]
         y = self.y[0:1]
-        x_min = np.amin(x) - 10.0
-        x_max = np.amax(x) + 10.0
-        y_min = np.amin(y) - 10.0
-        y_max = np.amax(y) + 10.0
+        r = 5.0  # µm
 
         if probe is None:
             if set_ax:
+                x_min = np.amin(x) - 10.0
+                x_max = np.amax(x) + 10.0
+                y_min = np.amin(y) - 10.0
+                y_max = np.amax(y) + 10.0
                 ax.set_aspect('equal')
                 ax.set_xlim(x_min, x_max)
                 ax.set_ylim(y_min, y_max)
                 ax.set_xlabel(u"x (µm)")
                 ax.set_ylabel(u"y (µm)")
-            ax.scatter(x, y)  # TODO control the radius of the somas of the cells.
         else:
             probe.plot(ax=ax)
-            ax.scatter(x, y)  # TODO control the radius of the somas of the cells.
+
+        patch = ptc.Circle((x, y), radius=r, color=color)
+        ax.add_patch(patch)
         ax.set_title(u"Position")
 
         return
