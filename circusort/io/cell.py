@@ -10,10 +10,10 @@ from ..obj.cell import Cell
 def generate_cell(**kwargs):
     # TODO add docstring.
 
-    template = generate_template(**kwargs)
     train = generate_train(**kwargs)
-    # TODO generate amplitude.
     position = generate_position(train=train, **kwargs)
+    template = generate_template(position=position, **kwargs)
+    # TODO generate amplitude.
     cell = Cell(template, train, position=position)
 
     return cell

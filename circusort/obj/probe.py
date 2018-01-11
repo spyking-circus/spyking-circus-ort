@@ -174,6 +174,39 @@ class Probe(object):
             n += len(value)
         return n/float(len(self.edges.values()))
 
+    def get_channel_position(self, channel, group=None):
+        """Get the position (i.e. coordinate) of a channel.
+
+        Parameters:
+            channel: integer
+            group: integer
+        Returns:
+            x: float
+                The x-coordinate of the channel [µm].
+            y: float
+                The y-coordinate of the channel [µm].
+        """
+        # TODO complete docstring.
+
+        _channel = channel
+
+        if group is None:
+            _groups = self.channel_groups.keys()
+            _group = _groups[0]
+        else:
+            _group = str(group)
+        _group = self.channel_groups[_group]
+
+        _channels = _group['channels']
+        assert _channel in _channels, "channel {} not found among channels {}".format(type(_channel), type(_channels[0]))
+
+        _geometry = _group['geometry']
+        _position = np.array(_geometry[_channel])
+        x = _position[0]
+        y = _position[1]
+
+        return x, y
+
     def get_channels_around(self, x, y, r=None):
         """Get channel identifiers around a given point in space.
 

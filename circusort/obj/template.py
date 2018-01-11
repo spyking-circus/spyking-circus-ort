@@ -38,24 +38,39 @@ class Template(object):
 
         return
 
-    def plot(self, output=None, **kwargs):
-        # TODO add docstring.
+    def plot(self, output=None, probe=None, **kwargs):
+        """Plot template.
+
+        Parameters:
+            output: none | string
+            probe: none | circusort.obj.Probe
+        """
+        # TODO complete docstring.
 
         _ = kwargs  # Discard additional keyword arguments.
 
         nb_channels, nb_samples = self.waveforms.shape
-        x = np.arange(0, nb_samples)
-        x_min = 0
-        x_max = nb_samples
 
         if output is not None:
             plt.ioff()
 
         fig, ax = plt.subplots()
-        ax.set_xlim(x_min, x_max)
-        for k in range(0, nb_channels):
-            y = self.waveforms[k, :]
-            ax.plot(x, y)
+        if probe is None:
+            x_min = 0
+            x_max = nb_samples
+            ax.set_xlim(x_min, x_max)
+            x = np.arange(0, nb_samples)
+            for k in range(0, nb_channels):
+                y = self.waveforms[k, :]
+                color = 'C{}'.format(k)
+                ax.plot(x, y, color=color)
+        else:
+            color = 'C0'
+            for k in self.channels:
+                x_0, y_0 = probe.get_channel_position(k)
+                x = 20.0 * np.linspace(-0.5, +0.5, num=nb_samples) + x_0
+                y = 0.3 * self.waveforms[k, :] + y_0
+                ax.plot(x, y, color=color)
         ax.set_xlabel(u"time (arb. unit)")
         ax.set_ylabel(u"voltage (arb. unit)")
         ax.set_title(u"Template")
