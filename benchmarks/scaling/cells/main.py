@@ -7,7 +7,7 @@ import circusort
 
 from collections import OrderedDict
 
-from networks import network_0 as network
+from networks import network_3 as network
 
 
 nb_rows = 16

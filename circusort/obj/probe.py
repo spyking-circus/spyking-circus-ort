@@ -176,7 +176,69 @@ class Probe(object):
         }
 
         return fov
+
+    @property
+    def x_limits(self, pad=None):
+        """Get the x limits of the probe.
+
+        This method is useful to easily set the limits of any matplotlib's figure involving this probe.
+
+        Parameter:
+            pad: none | float (optional)
+                The size of the pad [µm]. The default value is None.
+        Returns:
+            x_min: float
+            x_max: float
+        """
+
+        if pad is None:
+            pad = self.minimum_interelectrode_distance
+        x_min = self.field_of_view['x_min'] - pad
+        x_max = self.field_of_view['x_max'] + pad
+
+        return x_min, x_max
     
+    @property
+    def y_limits(self, pad=None):
+        """Get the y limits of the probe.
+
+        This method is useful to easily set the limits of any matplotlib's figure involving this probe.
+
+        Parameter:
+            pad: none | float (optional)
+                The size of the pad [µm]. The default value is None.
+        Returns:
+            y_min: float
+            y_max: float
+        """
+
+        if pad is None:
+            pad = self.minimum_interelectrode_distance
+        y_min = self.field_of_view['y_min'] - pad
+        y_max = self.field_of_view['y_max'] + pad
+
+        return y_min, y_max
+
+    @property
+    def minimum_interelectrode_distance(self):
+
+        d = None
+        x = self.x
+        y = self.y
+        assert x.size == y.size
+        n = x.size
+        for i in range(0, n - 1):
+            for j in range(i + 1, n):
+                _dx = x[j] - x[i]
+                _dy = y[j] - y[i]
+                _d = np.sqrt(np.square(_dx) + np.square(_dy))
+                if d is None or _d < d:
+                    d = _d
+        if d is None:
+            d = 0.0
+
+        return d
+
     def sample_visible_position(self):
 
         fov = self.field_of_view
@@ -341,10 +403,6 @@ class Probe(object):
         r = 4.0  # µm
         s = self.labels
         size = 3
-        x_min = np.amin(x) - 10.0
-        x_max = np.amax(x) + 10.0
-        y_min = np.amin(y) - 10.0
-        y_max = np.amax(y) + 10.0
 
         if path is not None and ax is None:
             plt.ioff()
@@ -352,8 +410,8 @@ class Probe(object):
         if ax is None:
             fig, ax = plt.subplots()
         ax.set_aspect('equal')
-        ax.set_xlim(x_min, x_max)
-        ax.set_ylim(y_min, y_max)
+        ax.set_xlim(*self.x_limits)
+        ax.set_ylim(*self.y_limits)
         # Draw the tips of the electrodes.
         circles = [
             ptc.Circle((_x, _y), radius=r, color='C0')
