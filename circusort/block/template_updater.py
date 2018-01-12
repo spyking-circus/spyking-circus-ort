@@ -176,8 +176,9 @@ class Template_updater(Block):
             # Define the data.
             data = np.array(centered_templates)
             # Define the amplitudes.
-            shape = (nb_centered_templates, 2)
-            amplitudes = np.ones(shape, dtype=np.float32)
+            a_min = 0.8
+            a_max = 1.2
+            amplitudes = np.tile([a_min, a_max], (nb_centered_templates, 1))
             assert not self.two_components
             # For each template centered on the current channel.
             for k in range(0, nb_centered_templates):

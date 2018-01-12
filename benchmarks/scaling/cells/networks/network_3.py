@@ -71,7 +71,7 @@ def sorting(configuration_name):
     }
     filter_kwargs = {
         'name': "filter",
-        'cut_off': 100.0,  # Hz
+        'cut_off': 0.0,  # Hz
         'introspection_path': introspection_directory,
         'log_level': DEBUG,
     }
