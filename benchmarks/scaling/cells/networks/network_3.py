@@ -90,7 +90,7 @@ def sorting(configuration_name):
     }
     pca_kwargs = {
         'name': "pca",
-        'nb_waveforms': 200,  # TODO check this value (seems rather low).
+        'nb_waveforms': 100000,
         'introspection_path': introspection_directory,
         'log_level': DEBUG,
     }

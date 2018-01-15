@@ -30,7 +30,8 @@ class Template(object):
     def central_channel(self):
 
         min_voltages = np.min(self.waveforms, axis=1)
-        channel = np.argmin(min_voltages)
+        index = np.argmin(min_voltages)
+        channel = self.channels[index]
 
         return channel
 

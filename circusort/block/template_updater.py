@@ -166,11 +166,20 @@ class Template_updater(Block):
         channels = np.unique(central_channels)
         channels = np.sort(channels)
         for channel in channels:
+            indices = self.template_store.mappings[channel]
             # Find the templates which are centered on channel.
             nb_templates = len(templates)
+            masks = [
+                np.array([
+                    channel_ in indices
+                    for channel_ in templates[k].channels
+                ])
+                for k in range(0, nb_templates)
+            ]
             centered_templates = [
-                templates[k].waveforms
-                for k in range(0, nb_templates) if central_channels[k] == channel
+                templates[k].waveforms[masks[k], :]
+                for k in range(0, nb_templates)
+                if central_channels[k] == channel
             ]
             nb_centered_templates = len(centered_templates)
             # Define the data.
@@ -183,7 +192,7 @@ class Template_updater(Block):
             # For each template centered on the current channel.
             for k in range(0, nb_centered_templates):
                 first_component = TemplateComponent(data[k],
-                                                    self.template_store.mappings[channel],
+                                                    indices,
                                                     self.template_store.nb_channels,
                                                     amplitudes[k])
                 second_component = None
