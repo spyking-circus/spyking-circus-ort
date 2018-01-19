@@ -30,7 +30,8 @@ class Template(object):
     def central_channel(self):
 
         min_voltages = np.min(self.waveforms, axis=1)
-        channel = np.argmin(min_voltages)
+        index = np.argmin(min_voltages)
+        channel = self.channels[index]
 
         return channel
 
@@ -78,12 +79,15 @@ class Template(object):
                 color = 'C{}'.format(k)
                 ax.plot(x, y, color=color)
         else:
+            ax.set_aspect('equal')
+            ax.set_xlim(*probe.x_limits)
+            ax.set_ylim(*probe.y_limits)
             color = 'C0'
-            for k in self.channels:
-                x_0, y_0 = probe.get_channel_position(k)
+            for k, channel in enumerate(self.channels):
+                x_0, y_0 = probe.get_channel_position(channel)
                 x = 20.0 * np.linspace(-0.5, +0.5, num=nb_samples) + x_0
                 y = 0.3 * self.waveforms[k, :] + y_0
-                ax.plot(x, y, color=color)
+                ax.plot(x, y, color=color, solid_capstyle='round')
         ax.set_xlabel(u"time (arb. unit)")
         ax.set_ylabel(u"voltage (arb. unit)")
         ax.set_title(u"Template")

@@ -2,6 +2,7 @@
 
 import matplotlib.patches as ptc
 import matplotlib.pyplot as plt
+import matplotlib.textpath as ttp
 import numpy as np
 import os
 
@@ -96,6 +97,26 @@ class Probe(object):
         return y
 
     @property
+    def labels(self):
+
+        if len(self.channel_groups) == 1:
+            labels = [
+                str(channel)
+                for group in self.channel_groups.itervalues()
+                for channel in group['channels']
+            ]
+        elif len(self.channel_groups) > 1:
+            labels = [
+                str(group) + "/" + str(channel)
+                for group in self.channel_groups.itervalues()
+                for channel in group['channels']
+            ]
+        else:
+            raise NotImplementedError()
+
+        return labels
+
+    @property
     def edges(self):
         if self._edges is None:
             self._nodes, self._edges = self.get_nodes_and_edges()
@@ -155,7 +176,69 @@ class Probe(object):
         }
 
         return fov
+
+    @property
+    def x_limits(self, pad=None):
+        """Get the x limits of the probe.
+
+        This method is useful to easily set the limits of any matplotlib's figure involving this probe.
+
+        Parameter:
+            pad: none | float (optional)
+                The size of the pad [µm]. The default value is None.
+        Returns:
+            x_min: float
+            x_max: float
+        """
+
+        if pad is None:
+            pad = self.minimum_interelectrode_distance
+        x_min = self.field_of_view['x_min'] - pad
+        x_max = self.field_of_view['x_max'] + pad
+
+        return x_min, x_max
     
+    @property
+    def y_limits(self, pad=None):
+        """Get the y limits of the probe.
+
+        This method is useful to easily set the limits of any matplotlib's figure involving this probe.
+
+        Parameter:
+            pad: none | float (optional)
+                The size of the pad [µm]. The default value is None.
+        Returns:
+            y_min: float
+            y_max: float
+        """
+
+        if pad is None:
+            pad = self.minimum_interelectrode_distance
+        y_min = self.field_of_view['y_min'] - pad
+        y_max = self.field_of_view['y_max'] + pad
+
+        return y_min, y_max
+
+    @property
+    def minimum_interelectrode_distance(self):
+
+        d = None
+        x = self.x
+        y = self.y
+        assert x.size == y.size
+        n = x.size
+        for i in range(0, n - 1):
+            for j in range(i + 1, n):
+                _dx = x[j] - x[i]
+                _dy = y[j] - y[i]
+                _d = np.sqrt(np.square(_dx) + np.square(_dy))
+                if d is None or _d < d:
+                    d = _d
+        if d is None:
+            d = 0.0
+
+        return d
+
     def sample_visible_position(self):
 
         fov = self.field_of_view
@@ -198,7 +281,9 @@ class Probe(object):
         _group = self.channel_groups[_group]
 
         _channels = _group['channels']
-        assert _channel in _channels, "channel {} not found among channels {}".format(type(_channel), type(_channels[0]))
+        _string = "channel {} not found among channels {}"
+        _message = _string.format(type(_channel), type(_channels[0]))
+        assert _channel in _channels, _message
 
         _geometry = _group['geometry']
         _position = np.array(_geometry[_channel])
@@ -316,10 +401,8 @@ class Probe(object):
         x = self.x
         y = self.y
         r = 4.0  # µm
-        x_min = np.amin(x) - 10.0
-        x_max = np.amax(x) + 10.0
-        y_min = np.amin(y) - 10.0
-        y_max = np.amax(y) + 10.0
+        s = self.labels
+        size = 3
 
         if path is not None and ax is None:
             plt.ioff()
@@ -327,13 +410,25 @@ class Probe(object):
         if ax is None:
             fig, ax = plt.subplots()
         ax.set_aspect('equal')
-        ax.set_xlim(x_min, x_max)
-        ax.set_ylim(y_min, y_max)
+        ax.set_xlim(*self.x_limits)
+        ax.set_ylim(*self.y_limits)
+        # Draw the tips of the electrodes.
         circles = [
             ptc.Circle((_x, _y), radius=r, color='C0')
             for _x, _y in zip(x, y)
         ]
-        collection = PatchCollection(circles)
+        collection = PatchCollection(circles, match_original=True)
+        ax.add_collection(collection)
+        # Draw the labels of the electrodes.
+        text_paths = [
+            ttp.TextPath((_x - 0.3 * float(len(_s) * size), _y - 0.4 * float(size)), _s, size=size, horizontalalignment='center')
+            for _x, _y, _s in zip(x, y, s)
+        ]
+        paths = [
+            ptc.PathPatch(text_path, facecolor="black")
+            for text_path in text_paths
+        ]
+        collection = PatchCollection(paths, match_original=True)
         ax.add_collection(collection)
         ax.set_xlabel(u"x (µm)")
         ax.set_ylabel(u"y (µm)")

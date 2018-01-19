@@ -166,23 +166,33 @@ class Template_updater(Block):
         channels = np.unique(central_channels)
         channels = np.sort(channels)
         for channel in channels:
+            indices = self.template_store.mappings[channel]
             # Find the templates which are centered on channel.
             nb_templates = len(templates)
+            masks = [
+                np.array([
+                    channel_ in indices
+                    for channel_ in templates[k].channels
+                ])
+                for k in range(0, nb_templates)
+            ]
             centered_templates = [
-                templates[k].waveforms
-                for k in range(0, nb_templates) if central_channels[k] == channel
+                templates[k].waveforms[masks[k], :]
+                for k in range(0, nb_templates)
+                if central_channels[k] == channel
             ]
             nb_centered_templates = len(centered_templates)
             # Define the data.
             data = np.array(centered_templates)
             # Define the amplitudes.
-            shape = (nb_centered_templates, 2)
-            amplitudes = np.ones(shape, dtype=np.float32)
+            a_min = 0.8
+            a_max = 1.2
+            amplitudes = np.tile([a_min, a_max], (nb_centered_templates, 1))
             assert not self.two_components
             # For each template centered on the current channel.
             for k in range(0, nb_centered_templates):
                 first_component = TemplateComponent(data[k],
-                                                    self.template_store.mappings[channel],
+                                                    indices,
                                                     self.template_store.nb_channels,
                                                     amplitudes[k])
                 second_component = None
@@ -198,7 +208,7 @@ class Template_updater(Block):
     def _process(self):
 
         # Send precomputed templates.
-        if self.counter == 0 and self.precomputed_templates is not None:
+        if self.counter == 0 and self.precomputed_template_paths is not None:
 
             # Add precomputed templates to the dictionary.
             accepted, nb_duplicates, nb_mixtures = self.template_dictionary.add(self.precomputed_templates)

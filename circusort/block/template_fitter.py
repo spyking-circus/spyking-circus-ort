@@ -308,11 +308,11 @@ class Template_fitter(Block):
             # Log fitting result.
             nb_spike_times = len(self.result['spike_times'])
             if nb_spike_times > 0:
-                debug_msg = "{} fitted {} spikes from {} templates"
+                debug_msg = "{} fitted {} spikes ({} templates)"
                 self.log.debug(debug_msg.format(self.name_and_counter, nb_spike_times, self.nb_templates))
             else:
-                debug_msg = "{} fitted no spikes"
-                self.log.debug(debug_msg.format(self.name_and_counter))
+                debug_msg = "{} fitted no spikes ({} templates)"
+                self.log.debug(debug_msg.format(self.name_and_counter, self.nb_templates))
 
         return
 
@@ -357,8 +357,8 @@ class Template_fitter(Block):
                 self.template_store = TemplateStore(updater['templates_file'], 'r')
                 self.overlaps_store = OverlapsDictionary(self.template_store)
                 self._init_temp_window()
-
-            self.overlaps_store.update(updater['indices'])
+            else:
+                self.overlaps_store.update(updater['indices'])
             self.overlaps_store.clear_overlaps()
 
             self._measure_time('update_end', frequency=1)

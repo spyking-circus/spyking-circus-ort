@@ -71,7 +71,7 @@ def sorting(configuration_name):
     }
     filter_kwargs = {
         'name': "filter",
-        'cut_off': 100.0,  # Hz
+        'cut_off': 0.0,  # Hz
         'introspection_path': introspection_directory,
         'log_level': DEBUG,
     }
@@ -90,7 +90,7 @@ def sorting(configuration_name):
     }
     pca_kwargs = {
         'name': "pca",
-        'nb_waveforms': 200,  # TODO check this value (seems rather low).
+        'nb_waveforms': 100000,
         'introspection_path': introspection_directory,
         'log_level': DEBUG,
     }
@@ -98,7 +98,7 @@ def sorting(configuration_name):
         'name': "cluster",
         'threshold_factor': threshold_factor,
         'sampling_rate': sampling_rate,
-        'nb_waveforms': 50,  # TODO replace by 100000 if an initialized template dictionary is used.
+        'nb_waveforms': 100000,
         'probe_path': probe_path,
         'two_components': False,
         'introspection_path': introspection_directory,
@@ -107,7 +107,6 @@ def sorting(configuration_name):
     updater_kwargs = {
         'name': "updater",
         'probe_path': probe_path,
-        'nb_channels': nb_channels,  # TODO remove this keyword argument?
         'data_path': os.path.join(sorting_directory, "templates.h5"),
         'precomputed_template_paths': precomputed_template_paths,
         'sampling_rate': sampling_rate,
@@ -117,10 +116,6 @@ def sorting(configuration_name):
     }
     fitter_kwargs = {
         'name': "fitter",
-        # TODO uncomment the following two lines if an initialized template dictionary is used.
-        # 'init_path': os.path.join(generation_directory, "initial_templates.h5"),
-        # 'with_rejected_times': True,
-        'two_components': False,  # TODO remove this keyword argument?
         'sampling_rate': sampling_rate,
         'introspection_path': introspection_directory,
         'log_level': DEBUG,
