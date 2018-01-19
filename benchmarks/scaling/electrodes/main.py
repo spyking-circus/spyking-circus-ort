@@ -125,7 +125,9 @@ def main():
                 end_times = measurements.get('end', np.empty(shape=0))
                 start_times = measurements.get('start', np.empty(shape=0))
                 durations = end_times - start_times
-                speed_factors[configuration_name][block_name] = duration_buffer / durations
+                # speed_factor = duration_buffer / durations
+                speed_factor = np.log10(duration_buffer / durations)
+                speed_factors[configuration_name][block_name] = speed_factor
 
         # Plot real-time performances of blocks for each condition.
         for configuration_name in configuration_names:
@@ -145,8 +147,14 @@ def main():
             output_path = os.path.join(output_directory, output_filename)
 
             fig, ax = plt.subplots(1, 1, num=0, clear=True)
-            ax.boxplot(data, notch=True, whis=1.5, labels=block_names,
-                       flierprops=flierprops, showfliers=showfliers)
+            ax.set(yscale='log')
+            ax_ = ax.twinx()
+            ax_.boxplot(data, notch=True, whis=1.5, labels=block_names,
+                        flierprops=flierprops, showfliers=showfliers)
+            ax_.set_yticks([])
+            ax_.set_yticklabels([])
+            ax_.set_ylabel("")
+            ax.set_ylim(10.0 ** np.array(ax_.get_ylim()))
             ax.set_ylabel("speed factor")
             ax.set_title("Real-time performances ({} channels)".format(configuration_name))
             fig.tight_layout()
@@ -170,8 +178,14 @@ def main():
             output_path = os.path.join(output_directory, output_filename)
 
             fig, ax = plt.subplots(1, 1, num=0, clear=True)
-            ax.boxplot(data, notch=True, whis=1.5, labels=configuration_names,
-                       flierprops=flierprops, showfliers=showfliers)
+            ax.set(yscale='log')
+            ax_ = ax.twinx()
+            ax_.boxplot(data, notch=True, whis=1.5, labels=configuration_names,
+                        flierprops=flierprops, showfliers=showfliers)
+            ax_.set_yticks([])
+            ax_.set_yticklabels([])
+            ax_.set_ylabel("")
+            ax.set_ylim(10.0 ** np.array(ax_.get_ylim()))
             ax.set_xlabel("number of channels")
             ax.set_ylabel("speed factor")
             ax.set_title("Real-time performances ({})".format(block_name))
@@ -183,6 +197,8 @@ def main():
         output_path = os.path.join(output_directory, output_filename)
 
         fig, ax = plt.subplots(1, 1, num=0, clear=True)
+        ax.set(yscale='log')
+        ax_ = ax.twinx()
         x = [
             k
             for k, _ in enumerate(configuration_names)
@@ -192,13 +208,17 @@ def main():
                 np.median(speed_factors[configuration_name][block_name])
                 for configuration_name in configuration_names
             ]
-            plt.plot(x, y, marker='o', label=block_name)
+            ax_.plot(x, y, marker='o', label=block_name)
+        ax_.set_yticks([])
+        ax_.set_yticklabels([])
+        ax_.set_ylabel("")
+        ax.set_ylim(10.0 ** np.array(ax_.get_ylim()))
         ax.set_xticks(x)
         ax.set_xticklabels(configuration_names)
         ax.set_xlabel("number of channels")
         ax.set_ylabel("median speed factor")
         ax.set_title("Median real-time performances")
-        ax.legend()
+        ax_.legend()
         fig.tight_layout()
         fig.savefig(output_path)
 

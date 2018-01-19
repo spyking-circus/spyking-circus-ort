@@ -208,7 +208,7 @@ class Template_updater(Block):
     def _process(self):
 
         # Send precomputed templates.
-        if self.counter == 0 and self.precomputed_templates is not None:
+        if self.counter == 0 and self.precomputed_template_paths is not None:
 
             # Add precomputed templates to the dictionary.
             accepted, nb_duplicates, nb_mixtures = self.template_dictionary.add(self.precomputed_templates)
