@@ -112,7 +112,10 @@ class Cells(object):
             cells_directory = os.path.join(path, "cells")
             parameters = get_cells_parameters(cells_directory)
             kwargs.update(parameters['general'])
-            self.plot_rates(output=cells_directory, **kwargs)
+            try:
+                self.plot_rates(output=cells_directory, **kwargs)
+            except NotImplementedError:
+                pass  # TODO remove try ... except ...
             self.plot_trains(output=cells_directory, **kwargs)
             # TODO plot amplitudes.
             self.plot_positions(output=cells_directory, **kwargs)

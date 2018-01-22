@@ -79,6 +79,6 @@ def get_cell(directory=None, **kwargs):
     template_parameters.update(parameters['template'])
     template = get_template(position=position, **template_parameters)
 
-    cell = Cell(template, train, position, parameters=parameters)
+    cell = Cell(template, train, position=position, parameters=parameters)
 
     return cell

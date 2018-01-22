@@ -6,9 +6,9 @@ import circusort
 from logging import DEBUG
 
 
-nb_rows = 16
-nb_columns = 16
-nb_cells = 12
+nb_rows = 4
+nb_columns = 4
+nb_cells = 3
 duration = 5.0 * 60.0  # s
 
 
@@ -18,13 +18,16 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--generation', dest='pending_generation', action='store_true', default=None)
     parser.add_argument('--sorting', dest='pending_sorting', action='store_true', default=None)
+    parser.add_argument('--plotting', dest='pending_plotting', action='store_true', default=None)
     args = parser.parse_args()
-    if args.pending_generation is None and args.pending_sorting is None:
+    if args.pending_generation is None and args.pending_sorting is None and args.pending_plotting is None:
         args.pending_generation = True
         args.pending_sorting = True
+        args.pending_plotting = True
     else:
         args.pending_generation = args.pending_generation is True
         args.pending_sorting = args.pending_sorting is True
+        args.pending_plotting = args.pending_plotting is True
 
     # Define the working directory.
     directory = os.path.join("~", ".spyking-circus-ort", "benchmarks", "rates_manipulation")
@@ -34,6 +37,15 @@ def main():
     configuration_directory = os.path.join(directory, "configuration")
     if not os.path.isdir(configuration_directory):
         os.makedirs(configuration_directory)
+        # TODO remove the following commented lines.
+        # # Define probe path.
+        # probe_path = os.path.join(configuration_directory, "probe.prb")
+        # # Generate probe.
+        # probe = circusort.io.generate_probe(mode='mea', nb_rows=nb_rows, nb_columns=nb_columns)
+        # # Save probe.
+        # probe.save(probe_path)
+        # Define cells directory.
+        cells_directory = os.path.join(configuration_directory, "cells")
         # Generate configuration.
         kwargs = {
             'general': {
@@ -45,25 +57,43 @@ def main():
                 'nb_columns': nb_columns,
             },
             'cells': {
+                'mode': "default",
                 'nb_cells': nb_cells,
+                'path': cells_directory,
             }
         }
         configuration = circusort.io.generate_configuration(**kwargs)
+        # Save configuration.
         configuration.save(configuration_directory)
+        # Create cells directory.
+        os.makedirs(cells_directory)
+        # cells_parameters = circusort.io.generate_cells_parameters()  # TODO enable this line.
+        # cells_parameters.save(cells_directory)  # TODO enable this line.
+        # For each cell...
+        for k in range(0, nb_cells):
+            # Define cell directory.
+            cell_directory = os.path.join(cells_directory, str(k))
+            kwargs = {
+                'train': {
+                    'rate': "2.0",
+                }
+            }
+            cell_parameters = circusort.io.generate_cell_parameters(**kwargs)
+            cell_parameters.save(cell_directory)
+
+    # Define directories.
+    generation_directory = os.path.join(directory, "generation")
+    sorting_directory = os.path.join(directory, "sorting")
+    plotting_directory = os.path.join(directory, "plotting")
 
     # Generate data (if necessary).
     if args.pending_generation:
-
-        generation_directory = os.path.join(directory, "generation")
 
         circusort.net.pregenerator(configuration_directory=configuration_directory,
                                    generation_directory=generation_directory)
 
     # Sort data (if necessary).
     if args.pending_sorting:
-
-        generation_directory = os.path.join(directory, "generation")
-        sorting_directory = os.path.join(directory, "sorting")
 
         # Load generation parameters.
         parameters = circusort.io.get_data_parameters(generation_directory)
@@ -197,6 +227,21 @@ def main():
         director.start()
         director.join()
         director.destroy()
+
+    # Plot results (if necessary).
+    if args.pending_plotting:
+
+        # Create plotting directory (if necessary).
+        if not os.path.isdir(plotting_directory):
+            os.makedirs(plotting_directory)
+
+        # TODO retrieve the configured rates.
+        # TODO plot the configures rates (for a given window).
+        # TODO retrieve the generated spike trains.
+        # TODO compute the generated firing rates.
+        # TODO plot the generated firing rates (for a given window).
+
+    return
 
 
 if __name__ == '__main__':

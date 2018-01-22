@@ -182,7 +182,7 @@ class Synthetic_generator(block.Block):
 
         elif self.mode == 'preconfigured':
 
-            self.cells = io.load_cells(self.working_directory, mode='by cells')
+            self.cells = io.load_cells(self.working_directory, mode='by cells', probe=self.probe)
             self.nb_cells = self.cells.nb_cells
             self.dtype = 'int16'  # TODO set default data type to 16 bit signed (or unsigned) integer.
 

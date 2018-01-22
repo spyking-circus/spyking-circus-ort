@@ -140,9 +140,8 @@ class Cell(object):
 
         # Save the train of the cell.
         self.train_path = os.path.join(directory, "train.h5")
-        self.parameters.add('train', 'path', self.train_path)
-        self.parameters.add('train', 'mode', 'default')
         self.train.save(self.train_path)
+        self.parameters['train'] = self.train.get_parameters()
 
         # Save the amplitude of the cell (if necessary).
         if self.amplitude is not None:
@@ -161,6 +160,7 @@ class Cell(object):
         # Save the parameters of the cell.
         parameters_path = os.path.join(directory, "parameters.txt")
         self.parameters.save(parameters_path)
+        # TODO correct the previous lines.
 
         return
 
@@ -192,24 +192,30 @@ class Cell(object):
 
     def _plot_rate(self, ax, t_min=0.0, t_max=10.0, **kwargs):
 
-        rate = self.parameters['train']['rate']
-        if isinstance(rate, float):
-            rate = eval("lambda t: {}".format(rate))
-        elif isinstance(rate, (str, unicode)):
-            rate = eval("lambda t: {}".format(rate), kwargs)
+        if 'rate' in self.parameters['train']:
+
+            rate = self.parameters['train']['rate']
+            if isinstance(rate, float):
+                rate = eval("lambda t: {}".format(rate))
+            elif isinstance(rate, (str, unicode)):
+                rate = eval("lambda t: {}".format(rate), kwargs)
+            else:
+                message = "Unknown rate type: {}".format(type(rate))
+                raise TypeError(message)
+            rate = np.vectorize(rate)
+
+            x = np.linspace(t_min, t_max, num=1000)
+            y = rate(x)
+
+            ax.plot(x, y)
+            ax.set_xlim(t_min, t_max)
+            ax.set_xlabel(u"time (s)")
+            ax.set_ylabel(u"rate (Hz)")
+            ax.set_title(u"Rate")
+
         else:
-            message = "Unknown rate type: {}".format(type(rate))
-            raise TypeError(message)
-        rate = np.vectorize(rate)
 
-        x = np.linspace(t_min, t_max, num=1000)
-        y = rate(x)
-
-        ax.plot(x, y)
-        ax.set_xlim(t_min, t_max)
-        ax.set_xlabel(u"time (s)")
-        ax.set_ylabel(u"rate (Hz)")
-        ax.set_title(u"Rate")
+            raise NotImplementedError()  # TODO plot the empirical firing rate instead.
 
         return
 
