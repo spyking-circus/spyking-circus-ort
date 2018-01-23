@@ -131,7 +131,7 @@ def load_template(path):
     path = os.path.abspath(path)
     if not os.path.isfile(path):
         message = "No such template file: {}".format(path)
-        raise OSError(message)
+        raise IOError(message)
 
     f = h5py.File(path, mode='r')
     channels = f.get('channels').value
@@ -154,14 +154,14 @@ def get_template(path=None, **kwargs):
         circusort.io.generate_template (for additional parameters)
     """
 
-    if path is None:
+    if not isinstance(path, (str, unicode)):
         template = generate_template(**kwargs)
     elif not os.path.isfile(path):
         template = generate_template(**kwargs)
     else:
         try:
             template = load_template(path)
-        except OSError:
+        except IOError:
             template = generate_template(**kwargs)
 
     return template

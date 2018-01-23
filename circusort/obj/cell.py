@@ -311,24 +311,27 @@ class Cell(object):
         if output is not None and ax is None:
             plt.ioff()
 
-        if ax is None:
-            fig = plt.figure()
-            gs = gds.GridSpec(1, 1)
-            ax_ = plt.subplot(gs[0])
-            self._plot_x_position(ax_, **kwargs)
-            gs.tight_layout(fig)
-            if output is None:
-                plt.show()
+        try:
+            if ax is None:
+                fig = plt.figure()
+                gs = gds.GridSpec(1, 1)
+                ax_ = plt.subplot(gs[0])
+                self._plot_x_position(ax_, **kwargs)
+                gs.tight_layout(fig)
+                if output is None:
+                    plt.show()
+                else:
+                    path = normalize_path(output)
+                    if path[-4:] != ".pdf":
+                        path = os.path.join(path, "parameters_x_position.pdf")
+                    directory = os.path.dirname(path)
+                    if not os.path.isdir(directory):
+                        os.makedirs(directory)
+                    plt.savefig(path)
             else:
-                path = normalize_path(output)
-                if path[-4:] != ".pdf":
-                    path = os.path.join(path, "parameters_x_position.pdf")
-                directory = os.path.dirname(path)
-                if not os.path.isdir(directory):
-                    os.makedirs(directory)
-                plt.savefig(path)
-        else:
-            self._plot_x_position(ax, **kwargs)
+                self._plot_x_position(ax, **kwargs)
+        except TypeError:
+            pass
 
         return
 
@@ -361,23 +364,26 @@ class Cell(object):
         if output is not None and ax is None:
             plt.ioff()
 
-        if ax is None:
-            fig = plt.figure()
-            gs = gds.GridSpec(1, 1)
-            ax_ = plt.subplot(gs[0])
-            self._plot_y_position(ax_, **kwargs)
-            gs.tight_layout(fig)
-            if output is None:
-                plt.show()
+        try:
+            if ax is None:
+                fig = plt.figure()
+                gs = gds.GridSpec(1, 1)
+                ax_ = plt.subplot(gs[0])
+                self._plot_y_position(ax_, **kwargs)
+                gs.tight_layout(fig)
+                if output is None:
+                    plt.show()
+                else:
+                    path = normalize_path(output)
+                    if path[-4:] != ".pdf":
+                        path = os.path.join(path, "parameters_y_position.pdf")
+                    directory = os.path.dirname(path)
+                    if not os.path.isdir(directory):
+                        os.makedirs(directory)
+                    plt.savefig(path)
             else:
-                path = normalize_path(output)
-                if path[-4:] != ".pdf":
-                    path = os.path.join(path, "parameters_y_position.pdf")
-                directory = os.path.dirname(path)
-                if not os.path.isdir(directory):
-                    os.makedirs(directory)
-                plt.savefig(path)
-        else:
-            self._plot_y_position(ax, **kwargs)
+                self._plot_y_position(ax, **kwargs)
+        except TypeError:
+            pass
 
         return

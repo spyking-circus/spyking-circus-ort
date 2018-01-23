@@ -8,14 +8,14 @@ from circusort.obj.position import Position
 from circusort.obj.train import Train
 
 
-def generate_position(x=None, y=None, train=None, probe=None, **kwargs):
+def generate_position(x=0.0, y=0.0, train=None, probe=None, **kwargs):
     """Generate position.
 
     Parameters:
-        x: none | float
-            A pregenerated x-coordinate [µm]. The default value is None.
-        y: none | float
-            A pregenerated y_coordinate [µm]. The default value is None.
+        x: float
+            A pregenerated x-coordinate [µm]. The default value is 0.0.
+        y: float
+            A pregenerated y_coordinate [µm]. The default value is 0.0.
         train: none | circusort.obj.Train
             The times to use to generate the position. The default value is None.
         probe: none | circusort.obj.Probe
@@ -27,10 +27,8 @@ def generate_position(x=None, y=None, train=None, probe=None, **kwargs):
             The generated y-coordinate [µm].
     """
 
-    if x is None or y is None:
-        if probe is None:
-            raise NotImplementedError()  # TODO complete.
-        else:
+    if x == 0.0 and y == 0.0:
+        if probe is not None:
             x, y = probe.sample_visible_position()
 
     _ = kwargs
@@ -114,6 +112,10 @@ def load_position(path):
             The loaded position.
     """
 
+    if not os.path.isfile(path):
+        message = "No such position file: {}".format(path)
+        raise IOError(message)
+
     file_ = h5py.File(path, mode='r')
     x = file_.get('x').value
     y = file_.get('y').value
@@ -142,7 +144,7 @@ def get_position(path=None, **kwargs):
     if isinstance(path, (str, unicode)):
         try:
             position = load_position(path)
-        except OSError:
+        except IOError:
             position = generate_position(**kwargs)
     else:
         position = generate_position(**kwargs)

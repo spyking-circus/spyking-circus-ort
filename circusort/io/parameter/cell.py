@@ -39,8 +39,8 @@ defaults = {
     },
     'position': {
         'mode': "default",
-        'x': None,
-        'y': None,
+        'x': 0.0,
+        'y': 0.0,
         'path': "",
     }
 }
@@ -88,6 +88,6 @@ def get_cell_parameters(path=None):
             The parameters of the cell.
     """
 
-    parameters = get_parameters(path=path, types=default_types)
+    parameters = get_parameters(path=path, defaults=defaults, types=default_types)
 
     return parameters

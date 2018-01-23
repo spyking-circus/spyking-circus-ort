@@ -59,6 +59,13 @@ class Parameters(object):
 
         return iterator
 
+    def __str__(self):
+
+        string = ["{"] + ["{}: {},".format(key, self[key]) for key in self] + ["}"]
+        string = "".join(string)
+
+        return string
+
     def add(self, section, option, value):
         # TODO add docstring.
 

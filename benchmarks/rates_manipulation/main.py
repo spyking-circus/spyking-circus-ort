@@ -9,7 +9,7 @@ from logging import DEBUG
 nb_rows = 4
 nb_columns = 4
 nb_cells = 3
-duration = 5.0 * 60.0  # s
+duration = 1.0 * 60.0  # s
 
 
 def main():
@@ -73,12 +73,14 @@ def main():
         for k in range(0, nb_cells):
             # Define cell directory.
             cell_directory = os.path.join(cells_directory, str(k))
-            kwargs = {
-                'train': {
-                    'rate': "2.0",
-                }
-            }
-            cell_parameters = circusort.io.generate_cell_parameters(**kwargs)
+            cell_parameters = [
+                ('train', [
+                    ('rate', "5.0"),
+                ]),
+                ('position', []),
+                ('template', []),
+            ]
+            cell_parameters = circusort.obj.Parameters(cell_parameters)
             cell_parameters.save(cell_directory)
 
     # Define directories.
@@ -106,9 +108,10 @@ def main():
         sampling_rate = parameters['general']['sampling_rate']
         threshold_factor = 7.0
         probe_path = os.path.join(generation_directory, "probe.prb")
+        probe = circusort.io.load_probe(probe_path)
         precomputed_template_paths = [
             cell.template.path
-            for cell in circusort.io.load_cells(generation_directory)
+            for cell in circusort.io.load_cells(generation_directory, probe=probe)
         ]
 
         # Create sorting directory (if necessary).
