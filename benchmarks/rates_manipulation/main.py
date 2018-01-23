@@ -18,16 +18,13 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--generation', dest='pending_generation', action='store_true', default=None)
     parser.add_argument('--sorting', dest='pending_sorting', action='store_true', default=None)
-    parser.add_argument('--plotting', dest='pending_plotting', action='store_true', default=None)
     args = parser.parse_args()
-    if args.pending_generation is None and args.pending_sorting is None and args.pending_plotting is None:
+    if args.pending_generation is None and args.pending_sorting is None:
         args.pending_generation = True
         args.pending_sorting = True
-        args.pending_plotting = True
     else:
         args.pending_generation = args.pending_generation is True
         args.pending_sorting = args.pending_sorting is True
-        args.pending_plotting = args.pending_plotting is True
 
     # Define the working directory.
     directory = os.path.join("~", ".spyking-circus-ort", "benchmarks", "rates_manipulation")
@@ -75,10 +72,10 @@ def main():
             cell_directory = os.path.join(cells_directory, str(k))
             cell_parameters = [
                 ('train', [
-                    ('rate', "5.0"),
+                    ('rate', "5.0*(0.4*np.sin(2.0*np.pi*(t/5.0))+0.6)"),
                 ]),
-                ('position', []),
-                ('template', []),
+                ('position', []),  # TODO be able to remove this line.
+                ('template', []),  # TODO be able to remove this line.
             ]
             cell_parameters = circusort.obj.Parameters(cell_parameters)
             cell_parameters.save(cell_directory)
@@ -86,7 +83,6 @@ def main():
     # Define directories.
     generation_directory = os.path.join(directory, "generation")
     sorting_directory = os.path.join(directory, "sorting")
-    plotting_directory = os.path.join(directory, "plotting")
 
     # Generate data (if necessary).
     if args.pending_generation:
@@ -230,19 +226,6 @@ def main():
         director.start()
         director.join()
         director.destroy()
-
-    # Plot results (if necessary).
-    if args.pending_plotting:
-
-        # Create plotting directory (if necessary).
-        if not os.path.isdir(plotting_directory):
-            os.makedirs(plotting_directory)
-
-        # TODO retrieve the configured rates.
-        # TODO plot the configures rates (for a given window).
-        # TODO retrieve the generated spike trains.
-        # TODO compute the generated firing rates.
-        # TODO plot the generated firing rates (for a given window).
 
     return
 

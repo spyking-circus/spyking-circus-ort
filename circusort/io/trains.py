@@ -20,6 +20,7 @@ def generate_train(duration=60.0, rate=1.0, **kwargs):
     """
 
     if isinstance(rate, (float, str, unicode)):
+        kwargs.update({'np': np})
         rate = eval("lambda t: {}".format(rate), kwargs)
     else:
         message = "Unknown rate type: {}".format(type(rate))

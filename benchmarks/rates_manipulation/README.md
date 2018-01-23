@@ -1,5 +1,8 @@
 In this benchmark, we launch a spike sorting network with a precomputed
-template dictionary for the `fitter` block.
+template dictionary for the `fitter` block. More precisely, the template
+of each generated cell is added to this dictionary.
+
+For each cell, its firing rate evolves sinusoidally through time.
 
 You will find the outputs of this benchmark in:
 ```
@@ -14,6 +17,10 @@ If you want to configure the generation then you can modify the content of:
 ~/.spyking-circus-ort/benchmarks/rates-manipulation/configuration
 ```
 
+If you want to check the firing rates of the cells then go to:
+```
+~/.spyking-circus-ort/benchmarks/rates-manipulation/generation/cells/train.pdf
+```
 
 To execute this benchmark use the following instructions:
 

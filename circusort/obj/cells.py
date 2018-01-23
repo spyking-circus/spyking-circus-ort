@@ -150,7 +150,7 @@ class Cells(object):
             else:
                 path = normalize_path(output)
                 if path[-4:] != ".pdf":
-                    path = os.path.join(path, "parameters_rates.pdf")
+                    path = os.path.join(path, "rates.pdf")
                 directory = os.path.dirname(path)
                 if not os.path.isdir(directory):
                     os.makedirs(directory)
@@ -187,7 +187,7 @@ class Cells(object):
             else:
                 path = normalize_path(output)
                 if path[-4:] != ".pdf":
-                    path = os.path.join(path, "parameters_trains.pdf")
+                    path = os.path.join(path, "trains.pdf")
                 directory = os.path.dirname(path)
                 if not os.path.isdir(directory):
                     os.makedirs(directory)
@@ -227,7 +227,7 @@ class Cells(object):
             else:
                 path = normalize_path(output)
                 if path[-4:] != ".pdf":
-                    path = os.path.join(path, "parameters_positions.pdf")
+                    path = os.path.join(path, "positions.pdf")
                 directory = os.path.dirname(path)
                 if not os.path.isdir(directory):
                     os.makedirs(directory)
