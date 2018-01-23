@@ -20,6 +20,7 @@ def generate_train(duration=60.0, rate=1.0, **kwargs):
     """
 
     if isinstance(rate, (float, str, unicode)):
+        kwargs.update({'np': np})
         rate = eval("lambda t: {}".format(rate), kwargs)
     else:
         message = "Unknown rate type: {}".format(type(rate))
@@ -177,6 +178,9 @@ def load_train(path, **kwargs):
     path = os.path.abspath(path)
     if os.path.isdir(path):
         path = os.path.join(path, "train.h5")
+    if not os.path.isfile(path):
+        message = "No such train file: {}".format(path)
+        raise IOError(message)
 
     f = h5py.File(path, mode='r')
     times = f.get('times').value
@@ -228,7 +232,7 @@ def get_train(path=None, **kwargs):
     if isinstance(path, (str, unicode)):
         try:
             train = load_train(path, **kwargs)
-        except OSError:
+        except IOError:
             train = generate_train(**kwargs)
     else:
         train = generate_train(**kwargs)

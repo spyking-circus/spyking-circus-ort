@@ -1,4 +1,4 @@
-from .base import load_parameters, get_parameters
+from .base import generate_parameters, load_parameters, get_parameters
 
 
 default_types = {
@@ -22,6 +22,41 @@ default_types = {
         'path': 'string',
     },
 }
+
+defaults = {
+    'template': {
+        'mode': "default",
+        'path': "",
+    },
+    'train': {
+        'mode': "default",
+        'rate': "1.0",
+        'path': "",
+    },
+    'amplitude': {
+        'mode': "default",
+        'path': "",
+    },
+    'position': {
+        'mode': "default",
+        'x': 0.0,
+        'y': 0.0,
+        'path': "",
+    }
+}
+
+
+def generate_cell_parameters(**kwargs):
+    """Generate cell parameters."""
+    # TODO complete docstring.
+
+    defaults_ = defaults.copy()
+    for key in defaults_:
+        if key in kwargs:
+            defaults_[key].update(kwargs[key])
+    cell_parameters = generate_parameters(types=default_types, defaults=defaults_)
+
+    return cell_parameters
 
 
 def load_cell_parameters(path):
@@ -53,10 +88,6 @@ def get_cell_parameters(path=None):
             The parameters of the cell.
     """
 
-    parameters = get_parameters(path=path, types=default_types)
-    
-    # TODO remove the following lines (i.e. mention default values for each parameter).
-    if 'rate' not in parameters['train']:
-        parameters['train']['rate'] = 1.0
+    parameters = get_parameters(path=path, defaults=defaults, types=default_types)
 
     return parameters
