@@ -69,6 +69,17 @@ class Train(object):
 
         return
 
+    def get_parameters(self):
+        # TODO add docstring.
+
+        parameters = {
+            'mode': "default",
+            'path': self.path if self.path is not None else "",
+            # TODO complete.
+        }
+
+        return parameters
+
     def _plot(self, ax, t_min=0.0, t_max=10.0, offset=0, **kwargs):
 
         _ = kwargs  # Discard additional keyword arguments.
