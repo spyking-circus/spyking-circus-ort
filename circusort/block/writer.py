@@ -87,7 +87,7 @@ class Writer(Block):
         # TODO add docstring.
 
         extension = os.path.splitext(self.data_path)[1]
-        if extension == ".raw":
+        if extension in [".raw", ".dat", ".bin"]:
             self.mode = 'raw'
         elif extension == ".h5":
             self.mode = 'hdf5'
