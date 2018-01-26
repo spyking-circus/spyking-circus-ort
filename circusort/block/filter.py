@@ -26,6 +26,7 @@ class Filter(Block):
         'cut_off': 500.0,  # Hz
         'sampling_rate': 20000.0,  # Hz
         'remove_median': False,
+        'use_gpu' : False,
     }
 
     def __init__(self, **kwargs):
@@ -57,7 +58,6 @@ class Filter(Block):
         self.b = filter_[0]
         self.a = filter_[1]
         self.z = {}
-
         return
 
     @property
@@ -78,21 +78,37 @@ class Filter(Block):
         for i in xrange(self.nb_channels):
             self.z[i] = np.zeros(m, dtype=np.float32)
 
+        if self.use_gpu:
+            from scipy.signal import iirfilter
+            import pyopencl
+            from circusort.utils.gpu.filter import GpuFilter
+            from circusort.utils.gpu.utils import get_first_gpu_device
+            platform_name = 'NVIDIA'
+            #platform_name = 'Intel'
+            device = get_first_gpu_device(platform_name)
+            assert device is not None, 'No GPU devices for this platform'
+            context            = pyopencl.Context([device])
+            coefficients       = iirfilter(3, [self.cut_off/(self.sampling_rate / 2.), 0.95], btype = 'bandpass', ftype = 'butter', output = 'sos')
+            self.filter_engine = GpuFilter(context, coefficients, self.nb_channels, 'float32', self.nb_samples)
+
+
     def _process(self):
 
         # Receive input data.
         batch = self.input.receive()
-
         self._measure_time('start', frequency=100)
 
-        # Process data.
-        for i in xrange(self.nb_channels):
-            batch[:, i], self.z[i] = signal.lfilter(self.b, self.a, batch[:, i], zi=self.z[i])
-            batch[:, i] -= np.median(batch[:, i])
-        if self.remove_median:
-            global_median = np.median(batch, 1)
+        if self.use_gpu:
+            batch = self.filter_engine.compute_one_chunk(batch)
+        else:
+            # Process data.
             for i in xrange(self.nb_channels):
-                batch[:, i] -= global_median
+                batch[:, i], self.z[i] = signal.lfilter(self.b, self.a, batch[:, i], zi=self.z[i])
+                batch[:, i] -= np.median(batch[:, i])
+            if self.remove_median:
+                global_median = np.median(batch, 1)
+                for i in xrange(self.nb_channels):
+                    batch[:, i] -= global_median
 
         # Send output data.
         self.output.send(batch)

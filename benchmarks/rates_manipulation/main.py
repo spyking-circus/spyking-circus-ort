@@ -6,10 +6,10 @@ import circusort
 from logging import DEBUG
 
 
-nb_rows = 4
-nb_columns = 4
-nb_cells = 3
-duration = 1.0 * 60.0  # s
+nb_rows = 10
+nb_columns = 10
+nb_cells = 50
+duration = 5.0 * 60.0  # s
 
 
 def main():
@@ -72,11 +72,12 @@ def main():
             cell_directory = os.path.join(cells_directory, str(k))
             cell_parameters = [
                 ('train', [
-                    ('rate', "5.0*(0.4*np.sin(2.0*np.pi*(t/5.0))+0.6)"),
+                    ('rate', "1 + 5.0*(t > %g)" %((k + 0.5)*duration/float(nb_cells))),
                 ]),
                 ('position', []),  # TODO be able to remove this line.
                 ('template', []),  # TODO be able to remove this line.
             ]
+            print cell_parameters
             cell_parameters = circusort.obj.Parameters(cell_parameters)
             cell_parameters.save(cell_directory)
 
@@ -126,7 +127,7 @@ def main():
         }
         filter_kwargs = {
             'name': "filter",
-            'cut_off': 0.0,  # Hz
+            'cut_off': 0.1,  # Hz
             'log_level': DEBUG,
         }
         mad_kwargs = {
@@ -142,14 +143,14 @@ def main():
         }
         pca_kwargs = {
             'name': "pca",
-            'nb_waveforms': 100000,
+            'nb_waveforms': 1000,
             'log_level': DEBUG,
         }
         cluster_kwargs = {
             'name': "cluster",
             'threshold_factor': threshold_factor,
             'sampling_rate': sampling_rate,
-            'nb_waveforms': 100000,
+            'nb_waveforms': 100,
             'probe_path': probe_path,
             'two_components': False,
             'log_level': DEBUG,
@@ -158,7 +159,7 @@ def main():
             'name': "updater",
             'probe_path': probe_path,
             'data_path': os.path.join(sorting_directory, "templates.h5"),
-            'precomputed_template_paths': precomputed_template_paths,
+            #'precomputed_template_paths': precomputed_template_paths,
             'sampling_rate': sampling_rate,
             'nb_samples': nb_samples,
             'log_level': DEBUG,

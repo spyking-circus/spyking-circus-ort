@@ -12,11 +12,11 @@ host = '127.0.0.1'  # to run the test locally
 director = circusort.create_director(host=host)
 manager = director.create_manager(host=host, log_level=logging.INFO)
 
-nb_channels = 10
+nb_channels = 100
 
 noise = manager.create_block('fake_spike_generator', nb_channels=nb_channels)
 selector = manager.create_block('channel_selector')
-filter_1 = manager.create_block('filter', cut_off=100)
+filter_1 = manager.create_block('filter', cut_off=100, use_gpu=False)
 writer_1 = manager.create_block('writer', data_path='/tmp/input.dat')
 writer_2 = manager.create_block('writer', data_path='/tmp/output.dat')
 
