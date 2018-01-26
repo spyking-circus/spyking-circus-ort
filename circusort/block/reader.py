@@ -80,7 +80,7 @@ class Reader(Block):
 
         # TODO check if we need a background thread.
 
-        self._measure_time(label='start', frequency=10)
+        self._measure_time(label='start', frequency=100)
 
         # Read data from the file on disk.
         data = np.memmap(self.data_path, dtype=self.dtype, mode='r', shape=self.shape)
@@ -112,7 +112,7 @@ class Reader(Block):
             # Stop processing block.
             self.stop_pending = True
 
-        self._measure_time(label='end', frequency=10)
+        self._measure_time(label='end', frequency=100)
 
         return
 

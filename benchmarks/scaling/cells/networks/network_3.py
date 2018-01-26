@@ -68,6 +68,7 @@ def sorting(configuration_name):
         'sampling_rate': sampling_rate,
         'is_realistic': True,
         'introspection_path': introspection_directory,
+        'log_level': DEBUG,
     }
     filter_kwargs = {
         'name': "filter",
