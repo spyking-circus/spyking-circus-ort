@@ -2,6 +2,7 @@ import h5py
 import numpy as np
 import os
 import tempfile
+import time
 
 from circusort.block.block import Block
 
@@ -112,74 +113,88 @@ class Spike_writer(Block):
 
     def _process(self):
 
-        batch = self.input.receive()
+        batch = self.input.receive(blocking=False)
 
-        self._measure_time('start', frequency=100)
+        if batch is None:
 
-        if self.input.structure == 'dict':
-
-            offset = batch.pop('offset')
-            if self._mode == 'raw':
-                for key in batch:
-                    if key in ['spike_times']:
-                        to_write = np.array(batch[key]).astype(np.int32)
-                        to_write += offset
-                    elif key in ['templates']:
-                        to_write = np.array(batch[key]).astype(np.int32)
-                    elif key in ['amplitudes']:
-                        to_write = np.array(batch[key]).astype(np.float32)
-                    elif key in ['rejected_times']:
-                        to_write = np.array(batch[key]).astype(np.int32)
-                        to_write += offset
-                    elif key in ['rejected_amplitudes']:
-                        to_write = np.array(batch[key]).astype(np.float32)
-                    else:
-                        raise KeyError(key)
-                    self.data_file[key].write(to_write)
-                    self.data_file[key].flush()
-            elif self._mode == 'hdf5':
-                for key in batch:
-                    dataset_name = key
-                    if key == 'spike_times':
-                        dataset_name = 'times'
-                        times = [float(timestamp + offset) / self.sampling_rate for timestamp in batch[key]]
-                        data = np.array(times, dtype=np.float32)
-                    elif key == 'templates':
-                        data = np.array(batch[key], dtype=np.int16)
-                    elif key == 'amplitudes':
-                        data = np.array(batch[key], dtype=np.float32)
-                    elif key == 'rejected_times':
-                        rejected_times = [float(timestamp + offset) / self.sampling_rate for timestamp in batch[key]]
-                        data = np.array(rejected_times, dtype=np.float32)
-                    elif key == 'rejected_amplitudes':
-                        data = np.array(batch[key], dtype=np.float32)
-                    else:
-                        data = None
-                    if data is None or data.size == 0:
-                        pass
-                    elif dataset_name in self._h5_file:
-                        dataset = self._h5_file[dataset_name]
-                        shape = dataset.shape
-                        shape_ = (shape[0] + data.shape[0],)
-                        dataset.resize(shape_)
-                        dataset[shape[0]:] = data
-                        dataset.flush()
-                    else:
-                        dataset = self._h5_file.create_dataset(dataset_name, data=data, chunks=True, maxshape=(None,))
-                        dataset.flush()
+            duration = 0.1  # s
+            time.sleep(duration)
 
         else:
 
-            string = "{} can only write spike dictionaries"
-            message = string.format(self.name)
-            self.log.error(message)
+            self._measure_time('start', frequency=100)
 
-        self._measure_time('end', frequency=100)
+            if self.input.structure == 'dict':
+
+                offset = batch.pop('offset')
+                if self._mode == 'raw':
+                    for key in batch:
+                        if key in ['spike_times']:
+                            to_write = np.array(batch[key]).astype(np.int32)
+                            to_write += offset
+                        elif key in ['templates']:
+                            to_write = np.array(batch[key]).astype(np.int32)
+                        elif key in ['amplitudes']:
+                            to_write = np.array(batch[key]).astype(np.float32)
+                        elif key in ['rejected_times']:
+                            to_write = np.array(batch[key]).astype(np.int32)
+                            to_write += offset
+                        elif key in ['rejected_amplitudes']:
+                            to_write = np.array(batch[key]).astype(np.float32)
+                        else:
+                            raise KeyError(key)
+                        self.data_file[key].write(to_write)
+                        self.data_file[key].flush()
+                elif self._mode == 'hdf5':
+                    for key in batch:
+                        dataset_name = key
+                        if key == 'spike_times':
+                            dataset_name = 'times'
+                            times = [
+                                float(timestamp + offset) / self.sampling_rate
+                                for timestamp in batch[key]
+                            ]
+                            data = np.array(times, dtype=np.float32)
+                        elif key == 'templates':
+                            data = np.array(batch[key], dtype=np.int16)
+                        elif key == 'amplitudes':
+                            data = np.array(batch[key], dtype=np.float32)
+                        elif key == 'rejected_times':
+                            rejected_times = [
+                                float(timestamp + offset) / self.sampling_rate
+                                for timestamp in batch[key]
+                            ]
+                            data = np.array(rejected_times, dtype=np.float32)
+                        elif key == 'rejected_amplitudes':
+                            data = np.array(batch[key], dtype=np.float32)
+                        else:
+                            data = None
+                        if data is None or data.size == 0:
+                            pass
+                        elif dataset_name in self._h5_file:
+                            dataset = self._h5_file[dataset_name]
+                            shape = dataset.shape
+                            shape_ = (shape[0] + data.shape[0],)
+                            dataset.resize(shape_)
+                            dataset[shape[0]:] = data
+                            dataset.flush()
+                        else:
+                            dataset = self._h5_file.create_dataset(dataset_name, data=data,
+                                                                   chunks=True, maxshape=(None,))
+                            dataset.flush()
+
+            else:
+
+                string = "{} can only write spike dictionaries"
+                message = string.format(self.name)
+                self.log.error(message)
+
+            self._measure_time('end', frequency=100)
 
         return
 
     def _introspect(self):
-        # TODO add docstring.
+        """Introspection of this block for spike writing."""
 
         nb_buffers = self.counter - self.start_step
         start_times = np.array(self._measured_times.get('start', []))
