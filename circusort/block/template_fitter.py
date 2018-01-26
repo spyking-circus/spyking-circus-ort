@@ -308,11 +308,19 @@ class Template_fitter(Block):
             # Log fitting result.
             nb_spike_times = len(self.result['spike_times'])
             if nb_spike_times > 0:
-                debug_msg = "{} fitted {} spikes ({} templates)"
-                self.log.debug(debug_msg.format(self.name_and_counter, nb_spike_times, self.nb_templates))
+                string = "{} fitted {} spikes ({} templates)"
+                message = string.format(self.name_and_counter, nb_spike_times, self.nb_templates)
+                self.log.debug(message)
             else:
-                debug_msg = "{} fitted no spikes ({} templates)"
-                self.log.debug(debug_msg.format(self.name_and_counter, self.nb_templates))
+                string = "{} fitted no spikes ({} templates)"
+                message = string.format(self.name_and_counter, self.nb_templates)
+                self.log.debug(message)
+
+        else:  # nb_peaks == 0
+
+            string = "{} can't fit spikes ({} templates)"
+            message = string.format(self.name_and_counter, self.nb_templates)
+            self.log.debug(message)
 
         return
 
