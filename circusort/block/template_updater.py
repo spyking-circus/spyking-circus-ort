@@ -210,20 +210,17 @@ class Template_updater(Block):
         # Send precomputed templates.
         if self.counter == 0 and self.precomputed_template_paths is not None:
 
+            # Log some information.
+            string = "{} adds precomputed templates..."
+            message = string.format(self.name)
+            self.log.debug(message)
+
             # Add precomputed templates to the dictionary.
-            accepted, nb_duplicates, nb_mixtures = self.template_dictionary.add(self.precomputed_templates)
+            accepted = self.template_dictionary.initialize(self.precomputed_templates)
 
             # Log some information.
-            if nb_duplicates > 0:
-                string = "{} rejected {} duplicated templates"
-                message = string.format(self.name, nb_duplicates)
-                self.log.debug(message)
-            if nb_mixtures > 0:
-                string = "{} rejected {} composite templates"
-                message = string.format(self.name, nb_mixtures)
-                self.log.debug(message)
             if len(accepted) > 0:
-                string = "{} accepted {} templates"
+                string = "{} added {} precomputed templates."
                 message = string.format(self.name, len(accepted))
                 self.log.debug(message)
 

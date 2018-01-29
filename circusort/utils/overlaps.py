@@ -98,40 +98,81 @@ class TemplateDictionary(object):
             self._mixtures[template.channel] = [template.creation_time]
 
     def _add_template(self, template, csc_template):
-        self.first_component = scipy.sparse.vstack((self.first_component, csc_template), 'csc')
-        return self.template_store.add(template)
+
+        self.first_component = scipy.sparse.vstack((self.first_component, csc_template), format='csc')
+        indices = self.template_store.add(template)
+
+        return indices
+
+    def _add_templates(self, templates, csc_templates):
+
+        self.first_component = scipy.sparse.vstack([self.first_component] + csc_templates, format='csc')
+        indices = [
+            index
+            for template in templates
+            for index in self.template_store.add(template)
+        ]
+
+        return indices
 
     def _remove_template(self, template, index):
         pass
 
+    def initialize(self, templates):
 
-    def add(self, templates):
+        accepted, _, _ = self.add(templates, force=True)
+
+        return accepted
+
+    def add(self, templates, force=False):
 
         nb_duplicates = 0
-        nb_mixtures   = 0
-        accepted      = []
+        nb_mixtures = 0
+        accepted = []
 
-        for t in templates:
+        if force:
 
-            if self.first_component is None:
-                self._init_from_template(t)
+            if self.first_component is None and len(templates) > 0:
+                self._init_from_template(templates[0])
 
-            csc_template  = t.first_component.to_sparse('csc', flatten=True)
-            norm          = t.first_component.norm
-            csc_template /= norm
-            is_present    = self._is_present(csc_template)
-            is_mixture    = self._is_mixture(csc_template)
+            def get_csc_template(template):
+                csc_template = template.first_component.to_sparse('csc', flatten=True)
+                csc_template /= template.first_component.norm
+                return csc_template
 
-            if is_present:
-                nb_duplicates += 1
-                self._add_duplicates(t)
+            csc_templates = [
+                get_csc_template(template)
+                for template in templates
+            ]
 
-            if is_mixture:
-                nb_mixtures += 1
-                self._add_mixture(t)
+            # TODO remove prints.
+            print("Add templates to the dictionary...")
+            accepted = self._add_templates(templates, csc_templates)
+            print("Added templates to the dictionary...")
 
-            if not is_present and not is_mixture:
-                accepted += self._add_template(t, csc_template)
+        else:
+
+            for k, t in enumerate(templates):
+
+                if self.first_component is None:
+                    self._init_from_template(t)
+
+                csc_template = t.first_component.to_sparse('csc', flatten=True)
+                norm = t.first_component.norm
+                csc_template /= norm
+
+                is_present = self._is_present(csc_template)
+                is_mixture = self._is_mixture(csc_template)
+                if is_present:
+                    nb_duplicates += 1
+                    self._add_duplicates(t)
+                if is_mixture:
+                    nb_mixtures += 1
+                    self._add_mixtures(t)
+                if not is_present and not is_mixture:
+                    accepted += self._add_template(t, csc_template)
+                    # TODO add templates with self._add_templates instead of self._add_template.
+                    # TODO this will be more efficient (i.e. nb_templates times faster).
 
         return accepted, nb_duplicates, nb_mixtures
 
@@ -308,7 +349,9 @@ class OverlapsDictionary(object):
 
         templates = self.template_store.get(indices)
 
-        for t in templates:
+        for k, t in enumerate(templates):
+
+            print("Add template {} to the OverlapsDictionary...".format(k))
 
             # Add new and updated templates to the dictionary.
             self.norms['1'] = np.concatenate((self.norms['1'], [t.first_component.norm]))
