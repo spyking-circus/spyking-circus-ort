@@ -54,7 +54,7 @@ class Filter(Block):
     def _initialize(self):
 
         cut_off = np.array([self.cut_off, 0.95 * (self.sampling_rate / 2.0)])
-        filter_= signal.butter(3, cut_off / (self.sampling_rate / 2.0), 'pass')
+        filter_ = signal.butter(3, cut_off / (self.sampling_rate / 2.0), 'pass')
         self.b = filter_[0]
         self.a = filter_[1]
         self.z = {}

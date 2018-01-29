@@ -136,6 +136,7 @@ class Block(threading.Thread):
         self.log.debug(message)
 
         self.get_input(key).socket = self.context.socket(zmq.SUB)
+        self.get_input(key).socket.setsockopt(zmq.RCVTIMEO, 5000)  # Timeout after 5 s.
         self.get_input(key).socket.connect(self.get_input(key).addr)
         self.get_input(key).socket.setsockopt(zmq.SUBSCRIBE, "")
 
@@ -197,10 +198,7 @@ class Block(threading.Thread):
                 while self.running and not self.stop_pending:
                     self._process()
                     self.counter += 1
-                    # if numpy.mod(self.counter, self.check_interval) == 0:
-                    #     self._check_real_time_ratio()
             except EOCError:
-                # TODO understand why it happens (should not happen).
                 for output in self.outputs.itervalues():
                     output.send_end_connection()
                 self.stop_pending = True
@@ -221,7 +219,8 @@ class Block(threading.Thread):
                     output.send_end_connection()
                 self.running = False
 
-        message = "{} is stopped".format(self.name)
+        string = "{} is stopped"
+        message = string.format(self.name)
         self.log.debug(message)
 
         self._introspect()
@@ -231,12 +230,12 @@ class Block(threading.Thread):
         return
 
     def _process(self):
-        # TODO add docstring.
+        """Abstract method, processing task of this block."""
 
         raise NotImplementedError()
 
     def _introspect(self):
-        # TODO add docstring.
+        """Introspection of this block."""
 
         nb_buffers = self.counter - self.start_step
         if self.real_time_ratio is not None:
@@ -251,7 +250,7 @@ class Block(threading.Thread):
         return
 
     def _save_introspection(self):
-        # TODO add docstring.
+        """Save introspection of this block."""
 
         assert self.introspection_path is not None
 
@@ -264,7 +263,6 @@ class Block(threading.Thread):
         """Send a stop signal to the block.
 
         The block will wait until the termination of the underlying process.
-
         """
 
         self.stop_pending = True
@@ -275,7 +273,6 @@ class Block(threading.Thread):
         """Kill the block.
 
         The block won't wait until the termination of the underlying process.
-
         """
 
         self.running = False
@@ -283,7 +280,10 @@ class Block(threading.Thread):
         return
 
     def _check_real_time_ratio(self):
-        # TODO add docstring.
+        """Check real time ratio for this block.
+
+        This method is deprecated.
+        """
 
         data = self.real_time_ratio
         if data is not None and data <= 1 and self.is_active:

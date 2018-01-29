@@ -360,8 +360,9 @@ class Density_clustering(Block):
         if self.pcs is not None:  # (i.e. we have already received some principal components).
 
             if self.receive_pcs:  # (i.e. we need to initialize the block with the principal components).
-                info_msg = "{} receives the PCA matrices"
-                self.log.info(info_msg.format(self.name_and_counter))
+                string = "{} receives the PCA matrices"
+                message = string.format(self.name_and_counter)
+                self.log.info(message)
                 self.receive_pcs = False
                 self._init_data_structures()
 
@@ -385,8 +386,6 @@ class Density_clustering(Block):
 
                 for key in self.sign_peaks:
 
-                    # # TODO remove the following line.
-                    # self.log.debug("{} processes {} {} peaks".format(self.name, len(all_peaks[key]), key))
                     peak_indices = np.random.permutation(np.arange(len(all_peaks[key])))
                     peak_values = np.take(all_peaks[key], peak_indices)
 
@@ -418,7 +417,6 @@ class Density_clustering(Block):
 
                         if len(self.raw_data[key][channel]) >=\
                                 self.nb_waveforms and not self.managers[key][channel].is_ready:
-                            # TODO remove the following line.
                             string = "{n} Electrode {k} has obtained {m} {t} waveforms: clustering"
                             message = string.format(n=self.name, k=channel, m=self.nb_waveforms, t=key)
                             self.log.debug(message)
@@ -427,7 +425,6 @@ class Density_clustering(Block):
                                                                                self.two_components)
                             self._prepare_templates(templates, key, channel)
                         elif self.managers[key][channel].time_to_cluster(self.nb_waveforms):
-                            # TODO remove the following line.
                             string = "{n} Electrode {k} has obtained {m} {t} waveforms: reclustering"
                             message = string.format(n=self.name, k=channel, m=self.nb_waveforms, t=key)
                             self.log.debug(message)
@@ -435,7 +432,6 @@ class Density_clustering(Block):
                                                                             tracking=self.tracking)
                             self._prepare_templates(templates, key, channel)
                         # else:
-                        #     # TODO remove the following line.
                         #     string = "key:{}, channel:{}, test:{} >=? {}"
                         #     message = string.format(key, channel, len(self.raw_data[key][channel]), self.nb_waveforms)
                         #     self.log.debug(message)
@@ -451,7 +447,7 @@ class Density_clustering(Block):
         return
 
     def _introspect(self):
-        # TODO add docstring.
+        """Introspection of this block for density clustering."""
 
         nb_buffers = self.counter - self.start_step
         start_times = np.array(self._measured_times.get('start', []))
