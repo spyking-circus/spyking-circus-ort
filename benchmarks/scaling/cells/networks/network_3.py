@@ -118,6 +118,7 @@ def sorting(configuration_name):
     fitter_kwargs = {
         'name': "fitter",
         'sampling_rate': sampling_rate,
+        'discarding_eoc_from_updater': True,
         'introspection_path': introspection_directory,
         'log_level': DEBUG,
     }
