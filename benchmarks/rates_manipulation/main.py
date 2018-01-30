@@ -153,7 +153,7 @@ def main():
             'nb_waveforms': 100,
             'probe_path': probe_path,
             'two_components': False,
-            'log_level': DEBUG,
+            'log_level': INFO,
         }
         updater_kwargs = {
             'name': "updater",

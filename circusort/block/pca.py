@@ -160,8 +160,8 @@ class Pca(Block):
                         string = "{n} computes the PCA matrix from {k} {m} spikes"
                         message = string.format(n=self.name_and_counter, k=len(self.waveforms[key]), m=key)
                         self.log.info(message)
-                        pca = PCAEstimator(self.output_dim, copy=False)
-                        _ = pca.fit_transform(self.waveforms[key])
+                        pca = PCAEstimator(self.output_dim)
+                        pca.fit(self.waveforms[key])
 
                         if key == 'negative':
                             self.pcs[0] = pca.components_.T

@@ -135,8 +135,8 @@ class OnlineManager(object):
 
         # TODO uncomment the following line.
         self.log.debug("{n} computes local PCA".format(n=self.name))
-        pca = PCAEstimator(self.sub_dim, copy=False)
-        res_pca = pca.fit_transform(sub_data)
+        pca = PCAEstimator(self.sub_dim)
+        pca.fit(sub_data)
         self.loc_pca = pca.components_.T
 
         sub_data = np.dot(sub_data, self.loc_pca)
@@ -423,7 +423,7 @@ class OnlineManager(object):
 
         if len(temp_flat) > 1:
             pca = PCAEstimator(1)
-            res_pca = pca.fit_transform(data).astype(np.float32)
+            pca.fit(data)
             template2 = pca.components_.T.astype(np.float32)
         else:
             template2 = data / np.sum(data ** 2)

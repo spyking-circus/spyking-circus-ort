@@ -5,6 +5,7 @@ import os
 
 from circusort.utils.path import normalize_path
 
+import circusort.obj.template_store
 
 class Template(object):
     """The template of a cell."""
@@ -34,6 +35,16 @@ class Template(object):
         channel = self.channels[index]
 
         return channel
+
+    def to_template(self, nb_channels):
+        """Convert object from this class to circusort.obj.template.Template."""
+
+        # TODO merge the two following classes: circusort.obj.template.Template & circusort.obj.template_store.Template.
+
+        first_component = circusort.obj.template_store.TemplateComponent(self.waveforms, self.channels, nb_channels, amplitudes=[0.8, 1.2])
+        template        = circusort.obj.template_store.Template(first_component, self.central_channel)
+        return template
+
 
     def save(self, path):
         """Save template to file.

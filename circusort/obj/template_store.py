@@ -5,7 +5,7 @@ import scipy
 
 from scipy.sparse import csc_matrix
 from circusort.io.utils import append_hdf5
-from circusort.io.probe import load_probe
+
 
 
 class TemplateComponent(object):
@@ -27,13 +27,16 @@ class TemplateComponent(object):
 
     @property
     def norm(self):
+
         return np.sqrt(np.sum(self.waveforms**2)/(self.nb_channels * self.temporal_width))
 
     @property
     def temporal_width(self):
+
         return self.waveforms.shape[1]
 
     def to_sparse(self, method='csc', flatten=False):
+
         data = self.to_dense()
         if method is 'csc':
             if flatten:
@@ -51,7 +54,12 @@ class TemplateComponent(object):
         return result
 
     def normalize(self):
+
         self.waveforms /= self.norm
+
+    def similarity(self, component):
+
+        return np.corrcoef(self.to_dense().flatten(), component.to_dense().flatten())[0, 1]
 
 
 class Template(object):
@@ -97,6 +105,15 @@ class Template(object):
 
         return template
 
+    def similarity(self, template):
+
+        res = [self.first_component.similarity(template.first_component)]
+        if template.two_components and self.two_components:
+            res += [self.second_component.similarity(template.second_component)]
+
+        return np.mean(res)
+
+
 
 class TemplateStore(object):
 
@@ -115,6 +132,7 @@ class TemplateStore(object):
         self._channels = None
 
         self._open(self.mode)
+        from circusort.io.probe import load_probe
 
         if self.mode in ['w']:
 
@@ -162,7 +180,7 @@ class TemplateStore(object):
     def __iter__(self, ):
 
         for index in self.indices:
-            yield index
+            yield self.get(index)
 
         return
 
