@@ -5,3 +5,6 @@ from .train import Train
 from .amplitude import Amplitude
 from .position import Position
 from .spikes import Spikes
+from .template_store import TemplateStore
+from .template_dictionary import TemplateDictionary
+from .overlaps_dictionary import OverlapsDictionary

@@ -6,7 +6,7 @@ from circusort.block.block import Block
 from circusort.io.probe import load_probe
 from circusort.io.template import load_template
 from circusort.obj.template_store import TemplateStore, TemplateComponent, Template
-from circusort.utils.overlaps import TemplateDictionary
+from circusort.obj.template_dictionary import TemplateDictionary
 
 
 class Template_updater(Block):

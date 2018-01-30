@@ -28,11 +28,8 @@ class Train(object):
 
     @property
     def nb_times(self):
-        # TODO add docstring.
 
-        nb_times = self.times.size
-
-        return nb_times
+        return self.times.size
 
     def reverse(self):
         # TODO add docstring.

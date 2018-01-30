@@ -1,6 +1,7 @@
 import matplotlib.gridspec as gds
 import matplotlib.pyplot as plt
 import os
+import numpy as np
 
 from circusort.io.parameter.cells import get_cells_parameters
 from circusort.utils.path import normalize_path
@@ -30,6 +31,15 @@ class Cells(object):
 
         self._mode = None
         self._path = None
+
+    def __len__(self):
+
+        return len(self.cells)
+
+    @property
+    def ids(self):
+
+        return self.cells.keys()
 
     def __getitem__(self, identifier):
         # TODO add docstring.
@@ -66,6 +76,40 @@ class Cells(object):
         nb_cells = len(self.cells)
 
         return nb_cells
+
+    def slice(self, indices):
+        
+        cells = {
+            k: self.cells[k]
+            for k in indices
+        }
+
+        return Cells(cells)
+
+    def set_t_min(self, t_min):
+        for key, value in self.cells.items():
+            self.cells[key].train = self.cells[key].train.slice(t_min, self.cells[key].train.t_max)
+
+    def set_t_max(self, t_max):
+        for key, value in self.cells.items():
+            self.cells[key].train = self.cells[key].train.slice(self.cells[key].train.t_min, t_max)
+
+    @property
+    def t_min(self):
+        t_min = np.inf 
+        for c in self:
+            if c.train.t_min < t_min:
+                t_min = c.train.t_min
+        return t_min
+
+    @property
+    def t_max(self):
+        t_max = 0 
+        for c in self:
+            if c.train.t_max > t_max:
+                t_max = c.train.t_max
+        return t_max  
+
 
     def save(self, path, mode='default', **kwargs):
         """Save cells to files.

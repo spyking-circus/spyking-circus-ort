@@ -14,27 +14,27 @@ class Spikes(object):
         times: numpy.ndarray
             The spike times. An array of shape: (nb_spikes,).
         templates: numpy.ndarray
-            The unit (i.e. template) identifiers of each spike. An array of shape: (nb_spikes,).
+            The cell (i.e. template) identifiers of each spike. An array of shape: (nb_spikes,).
         amplitudes: numpy.ndarray
             The amplitudes of each spike. An array of shape: (nb_spikes,).
-        nb_units: none | integer (optional)
-            The number of units. The default value is None.
+        nb_cells: none | integer (optional)
+            The number of cells. The default value is None.
         t_min: none | float (optional)
             The minimum value of the time window of interest. The default value is None.
     """
 
-    def __init__(self, times, templates, amplitudes, nb_units=None, t_min=None, t_max=None):
+    def __init__(self, times, templates, amplitudes, nb_cells=None, t_min=None, t_max=None):
         """Initialization.
 
         Parameters:
             times: numpy.ndarray
                 The spike times. An array of shape: (nb_spikes,).
             templates: numpy.ndarray
-                The unit (i.e. template) identifiers of each spike. An array of shape: (nb_spikes,).
+                The cell (i.e. template) identifiers of each spike. An array of shape: (nb_spikes,).
             amplitudes: numpy.ndarray
                 The amplitudes of each spike. An array of shape: (nb_spikes,).
-            nb_units: none | integer (optional)
-                The number of units. The default value is None.
+            nb_cells: none | integer (optional)
+                The number of cells. The default value is None.
             t_min: none | float (optional)
                 The minimum value of the time window of interest. The default value is None.
         """
@@ -44,33 +44,33 @@ class Spikes(object):
         self.times = times
         self.templates = templates
         self.amplitudes = amplitudes
-        self.nb_units = nb_units
+        self.nb_cells = nb_cells
         self.t_min = np.min(self.times) if t_min is None else t_min
         self.t_max = np.max(self.times) if t_max is None else t_max
 
     def __iter__(self):
-        for i in self.units:
-            yield self.get_unit(i)
+        for i in self.cells:
+            yield self.get_cell(i)
 
     def __getitem__(self, index):
-        return self.get_unit(index)
+        return self.get_cell(index)
 
     def __len__(self):
-        return len(self.units)
+        return len(self.cells)
 
     @property
     def cells(self):
         # TODO add docstring.
 
-        if self.nb_units is None:
-            units = np.unique(self.templates)
+        if self.nb_cells is None:
+            cells = np.unique(self.templates)
         else:
-            if self.nb_units == np.unique(self.templates).size:
-                units = np.unique(self.templates)
+            if self.nb_cells == np.unique(self.templates).size:
+                cells = np.unique(self.templates)
             else:
-                units = np.arange(0, self.nb_units)
+                cells = np.arange(0, self.nb_cells)
 
-        return units
+        return cells
 
     def get_cell(self, k):
         """Get one cell (i.e. cell) given an identifier.
@@ -83,10 +83,10 @@ class Spikes(object):
             cell: circusort.obj.Cell.
                 The cell to get.
         """
-
-        is_unit = self.templates == k
-        times = self.times[is_unit]
-        amplitudes = self.amplitudes[is_unit]
+ 
+        is_cell = self.templates == k
+        times = self.times[is_cell]
+        amplitudes = self.amplitudes[is_cell]
 
         # TODO correct the two following lines (i.e. get the true template).
         channels = np.empty((0,), dtype=np.int)
@@ -104,8 +104,8 @@ class Spikes(object):
         """Convert spikes to cells."""
 
         cells = {
-            k: self.get_unit(k)
-            for k in self.units
+            k: self.get_cell(k)
+            for k in self.cells
         }
         cells = Cells(cells)
 

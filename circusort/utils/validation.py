@@ -1,5 +1,5 @@
 import numpy as np
-from circusort.obj.spikes import Spikes
+from circusort.obj.cells import Cells
 
 def get_fp_fn_rate(spike_trains, target, jitter):
     '''Return the false positive and false negative rates for a given
@@ -12,7 +12,7 @@ def get_fp_fn_rate(spike_trains, target, jitter):
 
     results = []
 
-    assert isinstance(spike_trains, Spikes), "spike_trains should be a list of spike trains"
+    assert isinstance(spike_trains, Cells), "spike_trains should be a list of spike trains"
 
     for spk in spike_trains:
         count = 0
@@ -30,7 +30,7 @@ def get_fp_fn_rate(spike_trains, target, jitter):
                 count += 1
         if len(target.train) > 0:
             fn_rate  = count/(float(len(target.train)))
-        
+    
         results += [[1 - fp_rate, 1 - fn_rate]]
 
     return results
@@ -46,8 +46,7 @@ def best_match(spike_trains, target, jitter):
 
     results = []
 
-    assert np.iterable(spike_trains[0]), "spike_trains should be a list of spike trains"
-
+    assert isinstance(spike_trains, Cells), "spike_trains should be a list of spike trains"
 
     selection  = []
     error      = [1, 1]
@@ -56,15 +55,15 @@ def best_match(spike_trains, target, jitter):
 
     while (find_next == True):
 
-        to_explore   = np.setdiff1d(np.arange(len(spike_trains)), np.unique(selection))
+        to_explore   = np.setdiff1d(spike_trains.ids, np.unique(selection))
+        ids          = spike_trains.ids
             
         if len(to_explore) > 0:
 
-            new_spike_trains = []
-            for idx in to_explore:
-                new_spike_trains += [list(spike_trains[idx]) + sel_spikes]
+            new_spike_trains = spike_trains.slice(to_explore + sel_spikes)
 
-            local_errors = match.get_fp_fn_rate(new_spike_trains, target, jitter)
+            local_errors = get_fp_fn_rate(new_spike_trains, target, jitter)
+            print local_errors
             errors       = np.mean(local_errors, 1)
 
             if np.min(errors) <= np.mean(error):
