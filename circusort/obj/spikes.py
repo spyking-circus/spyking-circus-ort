@@ -48,8 +48,18 @@ class Spikes(object):
         self.t_min = np.min(self.times) if t_min is None else t_min
         self.t_max = np.max(self.times) if t_max is None else t_max
 
+    def __iter__(self):
+        for i in self.units:
+            yield self.get_unit(i)
+
+    def __getitem__(self, index):
+        return self.get_unit(index)
+
+    def __len__(self):
+        return len(self.units)
+
     @property
-    def units(self):
+    def cells(self):
         # TODO add docstring.
 
         if self.nb_units is None:
@@ -62,16 +72,16 @@ class Spikes(object):
 
         return units
 
-    def get_unit(self, k):
-        """Get one unit (i.e. cell) given an identifier.
+    def get_cell(self, k):
+        """Get one cell (i.e. cell) given an identifier.
 
         Parameter:
             k: integer
-                The identifier of the unit to get.
+                The identifier of the cell to get.
 
         Return:
-            unit: circusort.obj.Cell.
-                The unit to get.
+            cell: circusort.obj.Cell.
+                The cell to get.
         """
 
         is_unit = self.templates == k
@@ -86,11 +96,11 @@ class Spikes(object):
         train = Train(times, t_min=self.t_min, t_max=self.t_max)
         amplitude = Amplitude(amplitudes, times)
 
-        unit = Cell(template, train, amplitude)
+        cell = Cell(template, train, amplitude)
 
-        return unit
+        return cell
 
-    def to_units(self):
+    def to_cells(self):
         """Convert spikes to cells."""
 
         cells = {

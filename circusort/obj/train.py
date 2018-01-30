@@ -20,6 +20,12 @@ class Train(object):
         self.t_max = np.max(times) if t_max is None else t_max
         self.path = path
 
+    def __len__(self):
+        return len(self.times)
+
+    def __iter__(self):
+        return self.times.__iter__()
+
     @property
     def nb_times(self):
         # TODO add docstring.
