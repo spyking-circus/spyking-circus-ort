@@ -80,7 +80,6 @@ def main():
                 ('position', []),  # TODO be able to remove this line.
                 ('template', []),  # TODO be able to remove this line.
             ]
-            print cell_parameters
             cell_parameters = circusort.obj.Parameters(cell_parameters)
             cell_parameters.save(cell_directory)
 
@@ -110,7 +109,7 @@ def main():
         probe_path = os.path.join(generation_directory, "probe.prb")
         probe = circusort.io.load_probe(probe_path)
         precomputed_template_paths = [
-            list_templates(e)
+            os.path.join(e, 'template.h5')
             for e in list_cells(os.path.join(generation_directory, 'cells'))
         ]
 
@@ -162,7 +161,7 @@ def main():
             'name': "updater",
             'probe_path': probe_path,
             'data_path': os.path.join(sorting_directory, "templates.h5"),
-            #'precomputed_template_paths': precomputed_template_paths,
+            'precomputed_template_paths': precomputed_template_paths,
             'sampling_rate': sampling_rate,
             'nb_samples': nb_samples,
             'log_level': DEBUG,

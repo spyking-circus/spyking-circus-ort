@@ -89,7 +89,7 @@ def generate_template(probe=None, position=(0.0, 0.0), amplitude=80.0, radius=No
             gain = (1.0 + distance / 40.0) ** -2.0
             waveforms[i, :] = gain * waveform
         # Define template.
-        first_component = TemplateComponent(waveforms, channels, nb_electrodes, amplitudes=[0.8, 1.2])
+        first_component = TemplateComponent(waveforms, channels, probe.nb_channels, amplitudes=[0.8, 1.2])
         template = Template(first_component, channel=None, creation_time=0)
 
     else:
