@@ -3,7 +3,10 @@ import os
 
 import circusort
 
-from logging import DEBUG
+from logging import DEBUG, INFO
+
+from circusort.io.templates import list_templates, load_templates
+from circusort.io.cells import list_cells
 
 
 nb_rows = 10
@@ -107,8 +110,8 @@ def main():
         probe_path = os.path.join(generation_directory, "probe.prb")
         probe = circusort.io.load_probe(probe_path)
         precomputed_template_paths = [
-            cell.template.path
-            for cell in circusort.io.load_cells(generation_directory, probe=probe)
+            list_templates(e)
+            for e in list_cells(os.path.join(generation_directory, 'cells'))
         ]
 
         # Create sorting directory (if necessary).
