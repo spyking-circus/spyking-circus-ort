@@ -168,9 +168,9 @@ class Template(object):
             x_max = nb_samples
             ax.set_xlim(x_min, x_max)
             x = np.arange(0, nb_samples)
+            color = 'C0'
             for k in range(0, nb_channels):
                 y = self.first_component.waveforms[k, :]
-                color = 'C{}'.format(k)
                 ax.plot(x, y, color=color)
         else:
             ax.set_aspect('equal')

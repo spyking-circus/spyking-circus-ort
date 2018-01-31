@@ -113,6 +113,8 @@ def main():
             for e in list_cells(os.path.join(generation_directory, 'cells'))
         ]
 
+        print parameters
+
         # Create sorting directory (if necessary).
         if not os.path.isdir(sorting_directory):
             os.makedirs(sorting_directory)
@@ -161,7 +163,7 @@ def main():
             'name': "updater",
             'probe_path': probe_path,
             'data_path': os.path.join(sorting_directory, "templates.h5"),
-            #'precomputed_template_paths': precomputed_template_paths,
+            'precomputed_template_paths': precomputed_template_paths,
             'sampling_rate': sampling_rate,
             'nb_samples': nb_samples,
             'log_level': DEBUG,
