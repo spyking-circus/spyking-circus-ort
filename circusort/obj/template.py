@@ -20,10 +20,10 @@ class TemplateComponent(object):
             amplitudes (optional)
         """
 
-        self.waveforms = waveforms
-        self.indices = indices
+        self.waveforms = waveforms.astype(np.float32)
+        self.indices = indices.astype(np.int32)
         self.nb_channels = nb_channels
-        self.amplitudes = amplitudes
+        self.amplitudes = np.array(amplitudes, dtype=np.float32)
 
     @property
     def norm(self):
@@ -114,9 +114,9 @@ class Template(object):
             channels = channels[:, np.newaxis]
             channels = np.repeat(channels, repeats=nb_timestamps, axis=1)
 
-            i = timestamps.flatten()
-            j = channels.flatten()
-            v = waveforms.flatten()
+            i = timestamps.flatten().astype(np.int32)
+            j = channels.flatten().astype(np.int32)
+            v = waveforms.flatten().astype(np.float32)
 
             self._synthetic_export = i, j, v
 
