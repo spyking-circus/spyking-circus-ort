@@ -8,7 +8,7 @@ import circusort
 
 from collections import OrderedDict
 
-from networks import network_3 as network
+from networks import network_4 as network
 
 
 nb_rows = 16
@@ -27,7 +27,7 @@ def main():
     parser.add_argument('--introspection', dest='pending_introspection', action='store_true', default=None)
     args = parser.parse_args()
     if args.pending_configuration is None and args.pending_generation is None \
-        and args.pending_sorting is None and args.pending_introspection is None:
+            and args.pending_sorting is None and args.pending_introspection is None:
         args.pending_configuration = True
         args.pending_generation = True
         args.pending_sorting = True

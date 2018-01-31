@@ -46,6 +46,7 @@ def sorting(configuration_name):
         'slave_2': '192.168.0.2',
         'slave_3': '192.168.0.3',
     }
+    hosts_keys = ['master', 'slave_1', 'slave_2', 'slave_3']  # ordered
     dtype = parameters['general']['dtype']
     nb_channels = parameters['probe']['nb_channels']
     nb_samples = parameters['general']['buffer_width']
@@ -140,7 +141,7 @@ def sorting(configuration_name):
     director = circusort.create_director(host=hosts['master'])
     managers = {
         key: director.create_manager(host=hosts[key])
-        for key in hosts
+        for key in hosts_keys
     }
     reader = managers['master'].create_block('reader', **reader_kwargs)
     filter_ = managers['slave_1'].create_block('filter', **filter_kwargs)
