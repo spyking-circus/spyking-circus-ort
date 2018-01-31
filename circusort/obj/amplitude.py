@@ -11,13 +11,12 @@ class Amplitude(object):
     """The amplitude of a cell through time."""
     # TODO complete docstring.
 
-    def __init__(self, amplitudes, times, path=None):
+    def __init__(self, amplitudes, times):
         """Initialization."""
         # TODO complete docstring.
 
         self.amplitudes = amplitudes
         self.times = times
-        self.path = path
 
     def save(self, path):
         """Save amplitude to file.
@@ -40,8 +39,6 @@ class Amplitude(object):
                 'data': self.times,
             }
             file_.create_dataset('times', **kwargs)
-
-        self.path = path
 
         return
 

@@ -1,6 +1,6 @@
 from .parameter import Parameters
 from .cell import Cell
-from .template import Template
+from .template import Template, TemplateComponent
 from .train import Train
 from .amplitude import Amplitude
 from .position import Position
