@@ -642,7 +642,7 @@ def pre_syn_gen_target(rpc_queue, queue, nb_channels, nb_samples_per_chunk, samp
         if not queue.full():  # limit memory consumption
             # a. Generate some gaussian noise.
             shape = (nb_samples_per_chunk, nb_channels)
-            data = np.random.normal(loc=mu, scale=sigma, size=shape)
+            data = np.random.normal(loc=mu, scale=sigma, size=shape).astype(np.float32)
             # b. Inject waveforms.
             for cell in cells.itervalues():
                 # Collect subtrain with spike events which fall inside the current chunk.
@@ -672,7 +672,7 @@ def pre_syn_gen_target(rpc_queue, queue, nb_channels, nb_samples_per_chunk, samp
             if not queue.full():  # limit memory consumption
                 # a. Generate some gaussian noise.
                 shape = (nb_samples_last_chunk, nb_channels)
-                data = np.random.normal(loc=mu, scale=sigma, size=shape)
+                data = np.random.normal(loc=mu, scale=sigma, size=shape).astype(np.float32)
                 # b. Inject waveforms.
                 for cell in cells.itervalues():
                     # Collect subtrain with spike events which fall inside the current chunk.
