@@ -89,7 +89,7 @@ class Template_updater(Block):
                 load_template(path)
                 for path in self.precomputed_template_paths
             ]
-            self.precomputed_templates = self._templates_to_templates(precomputed_templates)
+            self.precomputed_templates = precomputed_templates
 
         # Log path.
         message = "{} records templates into {}".format(self.name, self.data_path)
@@ -146,64 +146,6 @@ class Template_updater(Block):
                     self.log.debug(message)
 
         return all_templates
-
-    def _templates_to_templates(self, templates):
-        """Convert a list of circusort.obj.Template to a list of circusort.block.template_updater.Template.
-
-        Parameter:
-            templates: list
-        Return
-            templates_: list
-        """
-
-        templates_ = []
-
-        # Find central channels for each template.
-        central_channels = [
-            template.central_channel
-            for template in templates
-        ]
-        channels = np.unique(central_channels)
-        channels = np.sort(channels)
-        for channel in channels:
-            indices = self.template_store.mappings[channel]
-            # Find the templates which are centered on channel.
-            nb_templates = len(templates)
-            masks = [
-                np.array([
-                    channel_ in indices
-                    for channel_ in templates[k].channels
-                ])
-                for k in range(0, nb_templates)
-            ]
-            centered_templates = [
-                templates[k].waveforms[masks[k], :]
-                for k in range(0, nb_templates)
-                if central_channels[k] == channel
-            ]
-            nb_centered_templates = len(centered_templates)
-            # Define the data.
-            data = np.array(centered_templates)
-            # Define the amplitudes.
-            a_min = 0.8
-            a_max = 1.2
-            amplitudes = np.tile([a_min, a_max], (nb_centered_templates, 1))
-            assert not self.two_components
-            # For each template centered on the current channel.
-            for k in range(0, nb_centered_templates):
-                first_component = TemplateComponent(data[k],
-                                                    indices,
-                                                    self.template_store.nb_channels,
-                                                    amplitudes[k])
-                second_component = None
-                template_ = Template(first_component, channel, second_component, creation_time=0)
-                templates_.append(template_)
-
-            string = "{} initialized {} negative templates from electrode {}"
-            message = string.format(self.name, nb_centered_templates, channel)
-            self.log.debug(message)
-
-        return templates_
 
     def _process(self):
 

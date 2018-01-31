@@ -612,6 +612,25 @@ def syn_gen_target(rpc_queue, queue, nb_channels, probe, nb_samples, cells, hdf5
     return
 
 
+def convert_template(template):
+    channels = template.first_component.indices
+    waveforms = template.first_component.waveforms
+    nb_channels, nb_timestamps = waveforms.shape
+
+    timestamps = np.arange(0, nb_timestamps) - (nb_timestamps - 1) // 2
+    timestamps = timestamps[np.newaxis, :]
+    timestamps = np.repeat(timestamps, repeats=nb_channels, axis=0)
+
+    channels = channels[:, np.newaxis]
+    channels = np.repeat(channels, repeats=nb_timestamps, axis=1)
+
+    i = timestamps.flatten()
+    j = channels.flatten()
+    v = waveforms.flatten()
+
+    return i, j, v
+
+
 def pre_syn_gen_target(rpc_queue, queue, nb_channels, nb_samples_per_chunk, sampling_rate, duration, cells):
     """Preconfigured synthetic data generation (background thread).
 
@@ -648,7 +667,7 @@ def pre_syn_gen_target(rpc_queue, queue, nb_channels, nb_samples_per_chunk, samp
                 # Collect subtrain with spike events which fall inside the current chunk.
                 subtrain = cell.get_chunk_subtrain(chunk_number, chunk_width=chunk_width)
                 # Retrieve the template to inject.
-                i_ref, j, v = cell.get_template()
+                i_ref, j, v = convert_template(cell.template)
                 # Inject the template to the correct spatiotemporal locations.
                 for t in subtrain:
                     k = int(t * sampling_rate)
@@ -678,7 +697,7 @@ def pre_syn_gen_target(rpc_queue, queue, nb_channels, nb_samples_per_chunk, samp
                     # Collect subtrain with spike events which fall inside the current chunk.
                     subtrain = cell.get_chunk_subtrain(chunk_number, chunk_width=chunk_width)
                     # Retrieve the template to inject.
-                    i_ref, j, v = cell.get_template()
+                    i_ref, j, v = convert_template(cell.template)
                     # Inject the template to the correct spatiotemporal locations.
                     for t in subtrain:
                         k = int(t * sampling_rate)

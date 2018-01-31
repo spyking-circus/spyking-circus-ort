@@ -100,7 +100,7 @@ class Cell(object):
 
         return subtrain
 
-    def get_template(self):
+    def inject_template(self):
         """Get the template of the cell."""
 
         channels = self.template.channels

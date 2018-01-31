@@ -79,35 +79,41 @@ class Cells(object):
 
     def slice(self, indices):
         
-        cells = {
-            k: self.cells[k]
-            for k in indices
-        }
-
+        cells = {}
+        for key, value in self.cells.items():
+            if key in indices:
+                cells[key] = value
+        
         return Cells(cells)
 
     def set_t_min(self, t_min):
+        
         for key, value in self.cells.items():
             self.cells[key].train = self.cells[key].train.slice(t_min, self.cells[key].train.t_max)
 
     def set_t_max(self, t_max):
+        
         for key, value in self.cells.items():
             self.cells[key].train = self.cells[key].train.slice(self.cells[key].train.t_min, t_max)
 
     @property
     def t_min(self):
+        
         t_min = np.inf 
         for c in self:
             if c.train.t_min < t_min:
                 t_min = c.train.t_min
+        
         return t_min
 
     @property
     def t_max(self):
+        
         t_max = 0 
         for c in self:
             if c.train.t_max > t_max:
                 t_max = c.train.t_max
+        
         return t_max  
 
 

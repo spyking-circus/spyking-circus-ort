@@ -2,7 +2,7 @@ import numpy as np
 
 from circusort.obj.cells import Cells
 from circusort.obj.cell import Cell
-from circusort.obj.template import Template
+from circusort.obj.template import Template, TemplateComponent
 from circusort.obj.train import Train
 from circusort.obj.amplitude import Amplitude
 
@@ -92,7 +92,8 @@ class Spikes(object):
         channels = np.empty((0,), dtype=np.int)
         waveforms = np.empty((0, 0), dtype=np.float)
 
-        template = Template(channels, waveforms)
+        first_component = TemplateComponent(waveforms, channels, 1, amplitudes=[0.8, 1.2])
+        template = Template(first_component, 0)
         train = Train(times, t_min=self.t_min, t_max=self.t_max)
         amplitude = Amplitude(amplitudes, times)
 

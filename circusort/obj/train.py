@@ -10,7 +10,7 @@ from circusort.utils.path import normalize_path
 class Train(object):
     # TODO add docstring
 
-    def __init__(self, times, t_min=None, t_max=None, path=None):
+    def __init__(self, times, t_min=None, t_max=None):
         # TODO add docstring.
 
         self.times = times
@@ -18,12 +18,13 @@ class Train(object):
         self.times = self.times if t_max is None else self.times[self.times <= t_max]
         self.t_min = min(0.0, np.min(times)) if t_min is None else t_min
         self.t_max = np.max(times) if t_max is None else t_max
-        self.path = path
 
     def __len__(self):
+
         return len(self.times)
 
     def __iter__(self):
+        
         return self.times.__iter__()
 
     @property
@@ -63,12 +64,8 @@ class Train(object):
             path: string
                 The path to the file in which to save the train.
         """
-
-        file_ = h5py.File(path, mode='w')
-        file_.create_dataset('times', shape=self.times.shape, dtype=self.times.dtype, data=self.times)
-        file_.close()
-
-        self.path = path
+        with h5py.File(path, mode='w') as file_:
+            file_.create_dataset('times', shape=self.times.shape, dtype=self.times.dtype, data=self.times)
 
         return
 
@@ -77,8 +74,6 @@ class Train(object):
 
         parameters = {
             'mode': "default",
-            'path': self.path if self.path is not None else "",
-            # TODO complete.
         }
 
         return parameters

@@ -5,7 +5,7 @@ import numpy as np
 import os
 import sys
 
-from circusort.obj.template import Template
+from circusort.obj.template import Template, TemplateComponent
 from circusort.obj.position import Position
 
 
@@ -89,7 +89,8 @@ def generate_template(probe=None, position=(0.0, 0.0), amplitude=80.0, radius=No
             gain = (1.0 + distance / 40.0) ** -2.0
             waveforms[i, :] = gain * waveform
         # Define template.
-        template = Template(channels, waveforms)
+        first_component = TemplateComponent(waveforms, channels, nb_electrodes, amplitudes=[0.8, 1.2])
+        template = Template(first_component, channel=None, creation_time=0)
 
     else:
 
@@ -134,10 +135,21 @@ def load_template(path):
         raise IOError(message)
 
     f = h5py.File(path, mode='r')
-    channels = f.get('channels').value
-    waveforms = f.get('waveforms').value
+    channels = f.get('indices').value
+    waveforms = f.get('waveforms/1').value
+    amplitudes = f.get('amplitudes').value
+    channel = f.attrs['channel']
+    creation_time = f.attrs['creation_time']
+    nb_channels = f.attrs['nb_channels']
+
+    first_component = TemplateComponent(waveforms, channels, nb_channels, amplitudes)
+    second_component = None
+    if '2' in f.get('waveforms').keys():
+        waveforms = f.get('waveforms/2').value
+        second_component = TemplateComponent(waveforms, channels, nb_channels)
+
     f.close()
-    template = Template(channels, waveforms, path=path)
+    template = Template(first_component, channel, second_component, creation_time=creation_time)
 
     return template
 

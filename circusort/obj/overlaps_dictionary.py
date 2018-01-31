@@ -129,8 +129,6 @@ class OverlapsDictionary(object):
 
         for k, t in enumerate(templates):
 
-            print("Add template {} to the OverlapsDictionary...".format(k))
-
             # Add new and updated templates to the dictionary.
             self.norms['1'] = np.concatenate((self.norms['1'], [t.first_component.norm]))
             self.amplitudes = np.vstack((self.amplitudes, t.amplitudes))
