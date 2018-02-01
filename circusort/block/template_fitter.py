@@ -24,6 +24,7 @@ class Template_fitter(Block):
         'init_path': None,
         'with_rejected_times': False,
         'sampling_rate': 20e+3,
+        'discarding_eoc_from_updater': False,
     }
 
     def __init__(self, **kwargs):
@@ -34,6 +35,7 @@ class Template_fitter(Block):
         self.init_path = self.init_path
         self.with_rejected_times = self.with_rejected_times
         self.sampling_rate = self.sampling_rate
+        self.discarding_eoc_from_updater = self.discarding_eoc_from_updater
 
         self.add_input('updater')
         self.add_input('data')
@@ -171,6 +173,11 @@ class Template_fitter(Block):
         return waveforms
 
     def _fit_chunk(self):
+
+        # Log some information.
+        string = "{} fits spikes... ({} templates)"
+        message = string.format(self.name_and_counter, self.nb_templates)
+        self.log.debug(message)
 
         # Reset result.
         self._reset_result()
@@ -354,7 +361,7 @@ class Template_fitter(Block):
         else:
             peaks = self.inputs['peaks'].receive(blocking=False)
 
-        updater = self.inputs['updater'].receive(blocking=False)
+        updater = self.inputs['updater'].receive(blocking=False, discarding_eoc=self.discarding_eoc_from_updater)
 
         if updater is not None:
 
