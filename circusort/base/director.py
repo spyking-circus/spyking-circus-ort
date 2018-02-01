@@ -8,6 +8,7 @@ from circusort.base.utils import find_interface_address_towards
 
 
 def create_director(host='127.0.0.1', **kwargs):
+    # type: (object, object) -> object
     """Create a new director in this process.
 
     Parameter:

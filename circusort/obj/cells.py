@@ -30,7 +30,6 @@ class Cells(object):
         self.parameters = get_cells_parameters() if parameters is None else parameters
 
         self._mode = None
-        self._path = None
 
     def __len__(self):
 
@@ -139,7 +138,6 @@ class Cells(object):
 
             # Update private attributes.
             self._mode = 'default'
-            self._path = path
 
         elif mode == 'by components':
 
@@ -295,13 +293,9 @@ class Cells(object):
                 A dictionary which contains the parameters of the cells.
         """
 
-        if self._path is None:
-            parameters = {}
-        else:
-            parameters = {
-                'mode': self._mode,
-                'path': self._path
-            }
+        parameters = {
+            'mode': self._mode
+        }
         # TODO correct.
 
         return parameters

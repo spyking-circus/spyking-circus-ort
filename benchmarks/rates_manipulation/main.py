@@ -11,7 +11,7 @@ from circusort.io.cells import list_cells
 
 nb_rows = 10
 nb_columns = 10
-nb_cells = 50
+nb_cells = 100
 duration = 5.0 * 60.0  # s
 
 
@@ -75,7 +75,7 @@ def main():
             cell_directory = os.path.join(cells_directory, str(k))
             cell_parameters = [
                 ('train', [
-                    ('rate', "1 + 5.0*(t > %g)" %((k + 0.5)*duration/float(nb_cells))),
+                    ('rate', "5 + 5.0*(t > %g)" %((k + 0.5)*duration/float(nb_cells))),
                 ]),
                 ('position', []),  # TODO be able to remove this line.
                 ('template', []),  # TODO be able to remove this line.
@@ -113,8 +113,6 @@ def main():
             for e in list_cells(os.path.join(generation_directory, 'cells'))
         ]
 
-        print parameters
-
         # Create sorting directory (if necessary).
         if not os.path.isdir(sorting_directory):
             os.makedirs(sorting_directory)
@@ -147,7 +145,7 @@ def main():
         }
         pca_kwargs = {
             'name': "pca",
-            'nb_waveforms': 1000,
+            'nb_waveforms': 2000,
             'log_level': DEBUG,
         }
         cluster_kwargs = {
@@ -157,13 +155,13 @@ def main():
             'nb_waveforms': 100,
             'probe_path': probe_path,
             'two_components': False,
-            'log_level': INFO,
+            'log_level': DEBUG,
         }
         updater_kwargs = {
             'name': "updater",
             'probe_path': probe_path,
             'data_path': os.path.join(sorting_directory, "templates.h5"),
-            'precomputed_template_paths': precomputed_template_paths,
+            #'precomputed_template_paths': precomputed_template_paths,
             'sampling_rate': sampling_rate,
             'nb_samples': nb_samples,
             'log_level': DEBUG,

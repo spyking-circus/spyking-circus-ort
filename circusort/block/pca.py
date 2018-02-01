@@ -127,14 +127,18 @@ class Pca(Block):
     def _process(self):
 
         batch = self.inputs['data'].receive()
-        peaks = self.inputs['peaks'].receive(blocking=False)  # TODO correct (should block in active state).
+
+        if self.is_active:
+            peaks = self.inputs['peaks'].receive()
+        else:
+            peaks = self.inputs['peaks'].receive(blocking=False)
 
         if peaks is not None:
 
             self._measure_time('start', frequency=100)
 
             while not self._sync_buffer(peaks, self.nb_samples):
-                peaks = self.inputs['peaks'].receive()
+                peaks = self.inputs['peaks'].receive(blocking=True)
 
             _ = peaks.pop('offset')
 
@@ -162,6 +166,8 @@ class Pca(Block):
                         self.log.info(message)
                         pca = PCAEstimator(self.output_dim)
                         pca.fit(self.waveforms[key])
+
+                        np.save('pca_%s' %key, self.waveforms[key])
 
                         if key == 'negative':
                             self.pcs[0] = pca.components_.T

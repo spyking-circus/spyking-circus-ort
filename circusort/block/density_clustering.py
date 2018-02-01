@@ -376,6 +376,7 @@ class Density_clustering(Block):
                 while not self._sync_buffer(peaks, self.nb_samples):
                     peaks = self.inputs['peaks'].receive()
 
+
                 # Set active mode (i.e. use a blocking reception for the peaks).
                 if not self.is_active:
                     self._set_active_mode()
@@ -414,6 +415,8 @@ class Density_clustering(Block):
 
                         threshold = self.threshold_factor * self.thresholds[0, channel]
                         self.managers[key][channel].set_physical_threshold(threshold)
+
+                        #self.log.debug("We have collected {a} {b} peaks on channel {c}".format(a=len(self.raw_data[key][channel]),b=key,c=channel))
 
                         if len(self.raw_data[key][channel]) >=\
                                 self.nb_waveforms and not self.managers[key][channel].is_ready:
