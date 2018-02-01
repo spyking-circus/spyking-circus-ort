@@ -67,14 +67,17 @@ def get_cell(directory=None, **kwargs):
 
     parameters = get_cell_parameters(directory)
 
+    parameters['train']['path'] = os.path.join(directory, 'train.h5')
     train_parameters = kwargs.copy()
     train_parameters.update(parameters['train'])
     train = get_train(**train_parameters)
 
+    parameters['position']['path'] = os.path.join(directory, 'position.h5')
     position_parameters = kwargs.copy()
     position_parameters.update(parameters['position'])
     position = get_position(train=train, **position_parameters)
 
+    parameters['template']['path'] = os.path.join(directory, 'template.h5')
     template_parameters = kwargs.copy()
     template_parameters.update(parameters['template'])
     template = get_template(position=position, **template_parameters)

@@ -495,121 +495,121 @@ class Cell(object):
 
         return i, j, v
 
-#
-# def syn_gen_target(rpc_queue, queue, nb_channels, probe, nb_samples, cells, hdf5_path):
-#     """Synthetic data generation (background thread)."""
-#     # TODO complete docstring.
-#
-#     mu = 0.0  # uV  # noise mean
-#     sigma = 4.0  # uV  # noise standard deviation
-#     nb_cells = len(cells)
-#
-#     spike_trains_buffer_ante = {c: np.array([], dtype='int') for c in range(0, nb_cells)}
-#     spike_trains_buffer_curr = {c: np.array([], dtype='int') for c in range(0, nb_cells)}
-#     spike_trains_buffer_post = {c: np.array([], dtype='int') for c in range(0, nb_cells)}
-#
-#     synthetic_store = SyntheticStore(hdf5_path, 'w')
-#
-#     for c in range(0, nb_cells):
-#         s, u = cells[c].get_waveform()
-#
-#         params = {
-#             'cell_id': c,
-#             'waveform/x': s,
-#             'waveform/y': u
-#         }
-#
-#         synthetic_store.add(params)
-#
-#     # Generate spikes for the third part of this buffer.
-#     chunk_number = 0
-#     to_write = {}
-#     frequency = 100
-#
-#     for c in range(0, nb_cells):
-#         spike_trains_buffer_post[c] = cells[c].generate_spike_trains(chunk_number, nb_samples)
-#         to_write[c] = {
-#             'cell_id': c,
-#             'x': [],
-#             'y': [],
-#             'z': [],
-#             'e': [],
-#             'r': [],
-#             'spike_times': [],
-#         }
-#
-#     while rpc_queue.empty():  # check if main thread requires a stop
-#         if not queue.full():  # limit memory consumption
-#             # 1. Generate noise.
-#             shape = (nb_samples, nb_channels)
-#             data = np.random.normal(mu, sigma, shape).astype(np.float32)
-#             # 2. Get spike trains.
-#             spike_trains_buffer_ante = spike_trains_buffer_curr.copy()
-#             spike_trains_buffer_curr = spike_trains_buffer_post.copy()
-#             for c in range(0, nb_cells):
-#                 spike_trains_buffer_post[c] = cells[c].generate_spike_trains(chunk_number + 1, nb_samples)
-#
-#                 # 3. Reconstruct signal from spike trains.
-#
-#                 # Get waveform.
-#                 i, j, v = cells[c].get_waveforms(chunk_number, probe)
-#                 # Get current spike train.
-#                 spike_train = spike_trains_buffer_curr[c]
-#                 # Add waveforms into the data.
-#                 for t in spike_train:
-#                     b = np.logical_and(0 <= t + i, t + i < nb_samples)
-#                     data[t + i[b], j[b]] = data[t + i[b], j[b]] + v[b]
-#                 # Get previous spike train.
-#                 spike_train = spike_trains_buffer_ante[c] - nb_samples
-#                 # Add waveforms into the data.
-#                 for t in spike_train:
-#                     b = np.logical_and(0 <= t + i, t + i < nb_samples)
-#                     data[t + i[b], j[b]] = data[t + i[b], j[b]] + v[b]
-#                 # Get post spike train.
-#                 spike_train = spike_trains_buffer_post[c] + nb_samples
-#                 # Add waveforms into the data.
-#                 for t in spike_train:
-#                     b = np.logical_and(0 <= t + i, t + i < nb_samples)
-#                     data[t + i[b], j[b]] = data[t + i[b], j[b]] + v[b]
-#
-#                 # 4. Save spike trains in HDF5 file.
-#
-#                 spike_times = spike_trains_buffer_curr[c] + chunk_number * nb_samples
-#                 # # TODO remove following lines.
-#                 # if len(spike_times) > 0 and chunk_number < 50:
-#                 #     print("{} + {} x {} = {}".format(spike_train, chunk_number, nb_samples, spike_times))
-#
-#                 to_write[c]['x'] += [cells[c].x(chunk_number)]
-#                 to_write[c]['y'] += [cells[c].y(chunk_number)]
-#                 to_write[c]['z'] += [cells[c].z(chunk_number)]
-#                 to_write[c]['e'] += [cells[c].e(chunk_number, probe)]
-#                 to_write[c]['r'] += [cells[c].r(chunk_number)]
-#                 to_write[c]['spike_times'] += spike_times.tolist()
-#
-#                 if chunk_number % frequency == 0:
-#                     synthetic_store.add(to_write[c])
-#                     to_write[c] = {
-#                         'cell_id': c,
-#                         'x': [],
-#                         'y': [],
-#                         'z': [],
-#                         'e': [],
-#                         'r': [],
-#                         'spike_times': [],
-#                     }
-#
-#             # Finally, send data to main thread and update chunk number.
-#             # data = np.transpose(data)
-#             queue.put(data)
-#             chunk_number += 1
-#
-#     # We write the remaining data for the cells.
-#     for c in range(0, nb_cells):
-#         synthetic_store.add(to_write[c])
-#
-#     synthetic_store.close()
-#
-#     return
+
+def syn_gen_target(rpc_queue, queue, nb_channels, probe, nb_samples, cells, hdf5_path):
+    """Synthetic data generation (background thread)."""
+    # TODO complete docstring.
+
+    mu = 0.0  # uV  # noise mean
+    sigma = 4.0  # uV  # noise standard deviation
+    nb_cells = len(cells)
+
+    spike_trains_buffer_ante = {c: np.array([], dtype='int') for c in range(0, nb_cells)}
+    spike_trains_buffer_curr = {c: np.array([], dtype='int') for c in range(0, nb_cells)}
+    spike_trains_buffer_post = {c: np.array([], dtype='int') for c in range(0, nb_cells)}
+
+    synthetic_store = SyntheticStore(hdf5_path, 'w')
+
+    for c in range(0, nb_cells):
+        s, u = cells[c].get_waveform()
+
+        params = {
+            'cell_id': c,
+            'waveform/x': s,
+            'waveform/y': u
+        }
+
+        synthetic_store.add(params)
+
+    # Generate spikes for the third part of this buffer.
+    chunk_number = 0
+    to_write = {}
+    frequency = 100
+
+    for c in range(0, nb_cells):
+        spike_trains_buffer_post[c] = cells[c].generate_spike_trains(chunk_number, nb_samples)
+        to_write[c] = {
+            'cell_id': c,
+            'x': [],
+            'y': [],
+            'z': [],
+            'e': [],
+            'r': [],
+            'spike_times': [],
+        }
+
+    while rpc_queue.empty():  # check if main thread requires a stop
+        if not queue.full():  # limit memory consumption
+            # 1. Generate noise.
+            shape = (nb_samples, nb_channels)
+            data = np.random.normal(mu, sigma, shape).astype(np.float32)
+            # 2. Get spike trains.
+            spike_trains_buffer_ante = spike_trains_buffer_curr.copy()
+            spike_trains_buffer_curr = spike_trains_buffer_post.copy()
+            for c in range(0, nb_cells):
+                spike_trains_buffer_post[c] = cells[c].generate_spike_trains(chunk_number + 1, nb_samples)
+
+                # 3. Reconstruct signal from spike trains.
+
+                # Get waveform.
+                i, j, v = cells[c].get_waveforms(chunk_number, probe)
+                # Get current spike train.
+                spike_train = spike_trains_buffer_curr[c]
+                # Add waveforms into the data.
+                for t in spike_train:
+                    b = np.logical_and(0 <= t + i, t + i < nb_samples)
+                    data[t + i[b], j[b]] = data[t + i[b], j[b]] + v[b]
+                # Get previous spike train.
+                spike_train = spike_trains_buffer_ante[c] - nb_samples
+                # Add waveforms into the data.
+                for t in spike_train:
+                    b = np.logical_and(0 <= t + i, t + i < nb_samples)
+                    data[t + i[b], j[b]] = data[t + i[b], j[b]] + v[b]
+                # Get post spike train.
+                spike_train = spike_trains_buffer_post[c] + nb_samples
+                # Add waveforms into the data.
+                for t in spike_train:
+                    b = np.logical_and(0 <= t + i, t + i < nb_samples)
+                    data[t + i[b], j[b]] = data[t + i[b], j[b]] + v[b]
+
+                # 4. Save spike trains in HDF5 file.
+
+                spike_times = spike_trains_buffer_curr[c] + chunk_number * nb_samples
+                # # TODO remove following lines.
+                # if len(spike_times) > 0 and chunk_number < 50:
+                #     print("{} + {} x {} = {}".format(spike_train, chunk_number, nb_samples, spike_times))
+
+                to_write[c]['x'] += [cells[c].x(chunk_number)]
+                to_write[c]['y'] += [cells[c].y(chunk_number)]
+                to_write[c]['z'] += [cells[c].z(chunk_number)]
+                to_write[c]['e'] += [cells[c].e(chunk_number, probe)]
+                to_write[c]['r'] += [cells[c].r(chunk_number)]
+                to_write[c]['spike_times'] += spike_times.tolist()
+
+                if chunk_number % frequency == 0:
+                    synthetic_store.add(to_write[c])
+                    to_write[c] = {
+                        'cell_id': c,
+                        'x': [],
+                        'y': [],
+                        'z': [],
+                        'e': [],
+                        'r': [],
+                        'spike_times': [],
+                    }
+
+            # Finally, send data to main thread and update chunk number.
+            # data = np.transpose(data)
+            queue.put(data)
+            chunk_number += 1
+
+    # We write the remaining data for the cells.
+    for c in range(0, nb_cells):
+        synthetic_store.add(to_write[c])
+
+    synthetic_store.close()
+
+    return
 
 
 def pre_syn_gen_target(rpc_queue, queue, nb_channels, nb_samples_per_chunk, sampling_rate, duration, cells):
@@ -644,7 +644,7 @@ def pre_syn_gen_target(rpc_queue, queue, nb_channels, nb_samples_per_chunk, samp
             shape = (nb_samples_per_chunk, nb_channels)
             data = np.random.normal(loc=mu, scale=sigma, size=shape).astype(np.float32)
             # b. Inject waveforms.
-            for cell in cells.itervalues():
+            for cell in cells:
                 # Collect subtrain with spike events which fall inside the current chunk.
                 subtrain = cell.get_chunk_subtrain(chunk_number, chunk_width=chunk_width)
                 # Retrieve the template to inject.
@@ -674,7 +674,7 @@ def pre_syn_gen_target(rpc_queue, queue, nb_channels, nb_samples_per_chunk, samp
                 shape = (nb_samples_last_chunk, nb_channels)
                 data = np.random.normal(loc=mu, scale=sigma, size=shape).astype(np.float32)
                 # b. Inject waveforms.
-                for cell in cells.itervalues():
+                for cell in cells:
                     # Collect subtrain with spike events which fall inside the current chunk.
                     subtrain = cell.get_chunk_subtrain(chunk_number, chunk_width=chunk_width)
                     # Retrieve the template to inject.

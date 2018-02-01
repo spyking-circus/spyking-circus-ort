@@ -167,8 +167,6 @@ class Pca(Block):
                         pca = PCAEstimator(self.output_dim)
                         pca.fit(self.waveforms[key])
 
-                        np.save('pca_%s' %key, self.waveforms[key])
-
                         if key == 'negative':
                             self.pcs[0] = pca.components_.T
                         elif key == 'positive':

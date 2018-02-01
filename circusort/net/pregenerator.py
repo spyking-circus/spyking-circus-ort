@@ -3,7 +3,6 @@ import os
 from circusort import io
 from circusort.base import create_director
 
-
 def find_or_generate_probe(path=None, directory=None):
     """Find or generate probe to use during the pregeneration.
 

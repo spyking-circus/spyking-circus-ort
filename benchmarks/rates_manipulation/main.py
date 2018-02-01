@@ -5,14 +5,13 @@ import circusort
 
 from logging import DEBUG, INFO
 
-from circusort.io.templates import list_templates, load_templates
 from circusort.io.cells import list_cells
 
 
 nb_rows = 10
 nb_columns = 10
 nb_cells = 100
-duration = 5.0 * 60.0  # s
+duration = 5 * 60 # s
 
 
 def main():

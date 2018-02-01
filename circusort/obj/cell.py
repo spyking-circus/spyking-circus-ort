@@ -100,26 +100,6 @@ class Cell(object):
 
         return subtrain
 
-    def inject_template(self):
-        """Get the template of the cell."""
-
-        channels = self.template.channels
-        waveforms = self.template.waveforms
-        nb_channels, nb_timestamps = waveforms.shape
-
-        timestamps = np.arange(0, nb_timestamps) - (nb_timestamps - 1) // 2
-        timestamps = timestamps[np.newaxis, :]
-        timestamps = np.repeat(timestamps, repeats=nb_channels, axis=0)
-
-        channels = channels[:, np.newaxis]
-        channels = np.repeat(channels, repeats=nb_timestamps, axis=1)
-
-        i = timestamps.flatten()
-        j = channels.flatten()
-        v = waveforms.flatten()
-
-        return i, j, v
-
     def save(self, directory):
         """Save the cell to file.
 

@@ -123,6 +123,7 @@ def load_cells(path=None, mode='default', **kwargs):
             message = "No such cells directory: {}".format(path)
             raise OSError(message)
         parameters = get_cells_parameters(path)
+
         kwargs.update(parameters['general'])
         cell_directories = list_cells(path)
         cells = {
