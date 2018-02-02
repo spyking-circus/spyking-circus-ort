@@ -144,23 +144,23 @@ def main():
         }
         pca_kwargs = {
             'name': "pca",
-            'nb_waveforms': 2000,
+            'nb_waveforms': 5000,
             'log_level': DEBUG,
         }
         cluster_kwargs = {
             'name': "cluster",
             'threshold_factor': threshold_factor,
             'sampling_rate': sampling_rate,
-            'nb_waveforms': 100,
+            'nb_waveforms': 500,
             'probe_path': probe_path,
             'two_components': False,
-            'log_level': DEBUG,
+            'log_level': INFO,
         }
         updater_kwargs = {
             'name': "updater",
             'probe_path': probe_path,
             'data_path': os.path.join(sorting_directory, "templates.h5"),
-            #'precomputed_template_paths': precomputed_template_paths,
+            #s'precomputed_template_paths': precomputed_template_paths,
             'sampling_rate': sampling_rate,
             'nb_samples': nb_samples,
             'log_level': DEBUG,

@@ -340,6 +340,7 @@ class Cell(object):
         self.a_dist = a_dist
 
         self.buffered_spike_times = np.array([], dtype='float32')
+        self._waveform = None
 
     def e(self, chunk_number, probe):
         """Nearest electrode for the given chunk.
@@ -447,22 +448,25 @@ class Cell(object):
 
         return spike_steps
 
-    def get_waveform(self):
+    @property
+    def waveform(self):
         """Get spike waveform"""
 
-        tau = 1.5e-3  # s  # characteristic time
-        amp = -80.0  # um  # minimal voltage
+        if self._waveform is None:
+            tau = 1.5e-3  # s  # characteristic time
+            amp = -80.0  # um  # minimal voltage
 
-        i_start = -20
-        i_stop = +60
-        steps = np.arange(i_start, i_stop + 1)
-        times = steps.astype('float32') / self.sr
-        times = times - times[0]
-        u = np.sin(4.0 * np.pi * times / times[-1])
-        u = u * np.power(times * np.exp(- times / tau), 10.0)
-        u = u * (amp / np.amin(u))
+            i_start = -20
+            i_stop = +60
+            steps = np.arange(i_start, i_stop + 1)
+            times = steps.astype('float32') / self.sr
+            times = times - times[0]
+            u = np.sin(4.0 * np.pi * times / times[-1])
+            u = u * np.power(times * np.exp(- times / tau), 10.0)
+            u = u * (amp / np.amin(u))
+            self._waveform = steps, u
 
-        return steps, u
+        return self._waveform
 
     def get_waveforms(self, chunk_number, probe):
         """Get spike waveforms

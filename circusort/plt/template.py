@@ -73,7 +73,7 @@ def plot_templates(template_store, indices=None, component='first', output=None,
         y_scl = scl * (1.0 / max(np.max(np.abs(data_1)), np.max(np.abs(data_2))))
 
     for count, i in enumerate(indices):
-        color = 'C{}'.format(i)
+        color = 'C{}'.format(i % 10)
         for k in range(0, probe.nb_channels):
             x_prb, y_prb = probe.positions[:, k]
             x = x_prb + x_scl * np.linspace(-1.0, +1.0, num=t.temporal_width)
@@ -135,7 +135,7 @@ def plot_templates_history(template_store, output=None):
     plt.subplots()
 
     for count, t in enumerate(templates):
-        color = 'C{}'.format(indices[count])
+        color = 'C{}'.format(indices[count] % 10)
         plt.scatter([t.creation_time], [indices[count]], c=color, marker='|')
 
     plt.xlabel(u"Time [step]")

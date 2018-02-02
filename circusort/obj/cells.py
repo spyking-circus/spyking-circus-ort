@@ -113,7 +113,7 @@ class Cells(object):
             if c.train.t_max > t_max:
                 t_max = c.train.t_max
         
-        return t_max  
+        return t_max
 
 
     def save(self, path, mode='default', **kwargs):

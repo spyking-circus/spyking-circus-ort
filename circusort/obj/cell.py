@@ -100,6 +100,24 @@ class Cell(object):
 
         return subtrain
 
+    def set_t_min(self, t_min):
+
+        self.train = self.train.slice(t_min, self.train.t_max)
+
+    def set_t_max(self, t_max):
+
+        self.train = self.train.slice(self.train.t_min, t_max)
+
+    @property
+    def t_min(self):
+
+        return self.train.t_min
+
+    @property
+    def t_max(self):
+
+        return self.train.t_max
+
     def save(self, directory):
         """Save the cell to file.
 

@@ -1,5 +1,5 @@
 import numpy as np
-from circusort.obj.cells import Cells
+from circusort.obj.train import Train
 
 def get_fp_fn_rate(spike_trains, target, jitter):
     '''Return the false positive and false negative rates for a given
@@ -12,25 +12,29 @@ def get_fp_fn_rate(spike_trains, target, jitter):
 
     results = []
 
-    assert isinstance(spike_trains, Cells), "spike_trains should be a list of spike trains"
+    assert isinstance(spike_trains, list), "spike_trains should be a list of spike trains"
 
     for spk in spike_trains:
         count = 0
-        for spike in spk.train.times:
-            idx = np.where(np.abs(target.train.times - spike) < jitter)[0]
+        for spike in spk.times:
+            idx = np.where(np.abs(target.times - spike) < jitter)[0]
             if len(idx) > 0:
                 count += 1
-        if len(spk.train) > 0:
-            fp_rate = count/float(len(spk.train))
+        if len(spk) > 0:
+            fp_rate = count/float(len(spk))
+        else:
+            fp_rate = 0
 
         count = 0
-        for spike in target.train:
-            idx = np.where(np.abs(spk.train.times - spike) < jitter)[0]
+        for spike in target:
+            idx = np.where(np.abs(spk.times - spike) < jitter)[0]
             if len(idx) > 0:
                 count += 1
-        if len(target.train) > 0:
-            fn_rate  = count/(float(len(target.train)))
-    
+        if len(target) > 0:
+            fn_rate = count/(float(len(target)))
+        else:
+            fn_rate = 0
+
         results += [[1 - fp_rate, 1 - fn_rate]]
 
     return results
@@ -46,7 +50,7 @@ def best_match(spike_trains, target, jitter):
 
     results = []
 
-    assert isinstance(spike_trains, Cells), "spike_trains should be a list of spike trains"
+    assert isinstance(spike_trains, list), "spike_trains should be a list of spike trains"
 
     selection  = []
     error      = [1, 1]
