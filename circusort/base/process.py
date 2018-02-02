@@ -11,7 +11,7 @@ from circusort.base.serializer import Serializer
 
 
 def create_process(host=None, log_address=None, name=None, log_level=logging.INFO):
-    '''TODO add docstring'''
+    """TODO add docstring"""
 
     process = Process(host=host, log_address=log_address, name=name, log_level=log_level)
     proxy = process.get_proxy()
@@ -20,7 +20,7 @@ def create_process(host=None, log_address=None, name=None, log_level=logging.INF
 
 
 class Process(object):
-    '''Spawn a process (local or remote host) and return a proxy.
+    """Spawn a process (local or remote host) and return a proxy.
 
     Parameter
     ---------
@@ -28,7 +28,7 @@ class Process(object):
         Host (i.e. machine) {None, '127.0.0.1', 'X.X.X.X'}
     log_address: None or string
         Log address {None, 'tcp://X.X.X.X:X'}
-    '''
+    """
 
     def __init__(self, host=None, log_address=None, name=None, log_level=logging.INFO):
 
@@ -60,7 +60,7 @@ class Process(object):
             address = '{t}://{e}'.format(t=transport, e=endpoint)
             self.logger.debug("bind tmp socket at {a}".format(a=address))
             socket = self.context.socket(zmq.PAIR)
-            socket.setsockopt(zmq.RCVTIMEO, 60000)
+            socket.setsockopt(zmq.RCVTIMEO, 60 * 1000)
             socket.bind(address)
             address = socket.getsockopt(zmq.LAST_ENDPOINT)
             self.logger.debug("tmp socket binded at {a}".format(a=address))
@@ -80,7 +80,7 @@ class Process(object):
             self.logger.debug("connect rpc socket to {a}".format(a=address))
             self.socket = self.context.socket(zmq.PAIR)
             self.socket.connect(address)
-            #5. Close temporary socket
+            # 5. Close temporary socket
             self.logger.debug("close tmp socket")
             socket.close()
         else:
@@ -93,7 +93,7 @@ class Process(object):
             address = '{t}://{e}'.format(t=transport, e=endpoint)
             self.logger.debug("bind tmp socket at {a}".format(a=address))
             socket = self.context.socket(zmq.PAIR)
-            socket.setsockopt(zmq.RCVTIMEO, 60000)
+            socket.setsockopt(zmq.RCVTIMEO, 60 * 1000)
             socket.bind(address)
             address = socket.getsockopt(zmq.LAST_ENDPOINT)
             self.logger.debug("tmp socket binded at {a}".format(a=address))
@@ -108,7 +108,32 @@ class Process(object):
             ssh_client = paramiko.SSHClient()
             ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             ssh_client.connect(self.host)
-            stdin, stdout, stderr = ssh_client.exec_command(command, timeout=60.0)
+            stdin, stdout, stderr = ssh_client.exec_command(command, timeout=60)
+            # Check if everything went well.
+            try:
+                stderr = stderr.readlines()
+                stderr = ''.join(stderr)
+                if stderr != "":
+                    # Log the standard input.
+                    try:
+                        stdin = stdin.readlines()
+                        stdin = ''.join(stdin)
+                    except IOError:
+                        stdin = ""
+                    if stdin != "":
+                        self.logger.debug("stdin:\n{}".format(stdin))
+                    # Log the standard output.
+                    try:
+                        stdout = stdout.readlines()
+                        stdout = ''.join(stdout)
+                    except IOError:
+                        stdout = ""
+                    if stdout != "":
+                        self.logger.debug("stdout:\n{}".format(stdout))
+                    # Log the standard error.
+                    self.logger.debug("stderr:\n{}".format(stderr))
+            except IOError:
+                pass
             # 3. Ensure connection
             self.logger.debug("ensure connection")
             message = socket.recv_json()
@@ -134,7 +159,7 @@ class Process(object):
         self.socket.close()
 
     def get_proxy(self):
-        '''TODO add docstring'''
+        # TODO add docstring.
 
         self.logger.debug("get proxy")
 
@@ -144,7 +169,7 @@ class Process(object):
         return response
 
     def get_module(self, name, **kwds):
-        '''TODO add docstring'''
+        # TODO add docstring.
 
         self.logger.debug("get module {n}".format(n=name))
 
@@ -157,7 +182,7 @@ class Process(object):
         return response
 
     def call_obj(self, obj, args, kwds):
-        '''TODO add docstring'''
+        # TODO add docstring.
 
         self.logger.debug("call object {o}".format(o=obj))
 
@@ -172,7 +197,7 @@ class Process(object):
         return response
 
     def get_attr(self, obj, name):
-        ''' TODO add docstring'''
+        # TODO add docstring.
 
         self.logger.debug("get attribute '{n}' of object {o}".format(n=name, o=obj))
 
@@ -186,7 +211,7 @@ class Process(object):
         return response
 
     def set_attr(self, obj, name, value):
-        '''TODO add docstring'''
+        # TODO add docstring.
 
         self.logger.debug("set attribute {n} of object {o}".format(n=name, o=obj))
 
@@ -201,7 +226,7 @@ class Process(object):
         return response
 
     def new_request_id(self):
-        '''TODO add docstring...'''
+        # TODO add docstring.
 
         self.logger.debug("generate new request identifier")
 
@@ -211,7 +236,7 @@ class Process(object):
         return request_id
 
     def serialize_options(self, options):
-        '''TODO add docstring...'''
+        # TODO add docstring.
 
         self.logger.debug("serialize options")
 
@@ -222,8 +247,8 @@ class Process(object):
 
         return serialized_options
 
-    def send(self, request, options=None, **kwds):
-        '''Send a request to the process and return the response result.
+    def send(self, request, options=None, **kwargs):
+        """Send a request to the process and return the response result.
 
         Parameters
         ----------
@@ -231,9 +256,10 @@ class Process(object):
             The request to invoke on the process.
         options: dictionary
             The options to be sent with the request.
+        """
+        # TODO complete docstring.
 
-        TODO complete...
-        '''
+        _ = kwargs
 
         message = {
             'request_id': self.new_request_id(),
@@ -250,7 +276,7 @@ class Process(object):
         return result
 
     def decode(self, dct):
-        '''TODO add docstring'''
+        # TODO add docstring.
 
         self.logger.debug("decode")
 
@@ -273,7 +299,7 @@ class Process(object):
             raise NotImplementedError()
 
     def loads(self, message):
-        '''TODO add docstring'''
+        # TODO add docstring.
 
         self.logger.debug("loads")
 
@@ -283,7 +309,7 @@ class Process(object):
         return obj
 
     def receive(self):
-        '''TODO add docstring'''
+        # TODO add docstring.
 
         self.logger.debug("receive")
 
@@ -293,7 +319,7 @@ class Process(object):
         return message
 
     def process_until_result(self):
-        '''TODO add docstring'''
+        # TODO add docstring.
 
         self.logger.debug("process until result")
 
@@ -313,8 +339,8 @@ class Process(object):
                 self.logger.debug("message: {m}".format(m=message))
                 raise NotImplementedError()
                 # TODO set and raise exception
-                exception = message['exception']
-                raise exception
+                # exception = message['exception']
+                # raise exception
         elif message['response'] == 'disconnect':
             raise NotImplementedError()
             # TODO remote process asks for disconnection

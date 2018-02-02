@@ -82,10 +82,10 @@ class Director(object):
 
         self.log.debug("{d} creates new manager {m}".format(d=str(self), m=name))
 
-        process = create_process(host=host, log_address=self.logger.address, name=name)
-        module = process.get_module('circusort.base.manager')
         if log_level is None:
             log_level = self.log_level
+        process = create_process(host=host, log_address=self.logger.address, name=name, log_level=log_level)
+        module = process.get_module('circusort.base.manager')
         manager = module.Manager(name=name, log_address=self.logger.address, log_level=log_level, host=host)
 
         self.register_manager(manager)

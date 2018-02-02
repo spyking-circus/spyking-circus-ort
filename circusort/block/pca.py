@@ -127,7 +127,6 @@ class Pca(Block):
     def _process(self):
 
         batch = self.inputs['data'].receive()
-
         if self.is_active:
             peaks = self.inputs['peaks'].receive()
         else:

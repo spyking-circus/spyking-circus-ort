@@ -64,18 +64,20 @@ class Connection(object):
 
         raise NotImplementedError()
 
-    def receive(self, blocking=True):
+    def receive(self, blocking=True, discarding_eoc=False):
         """Receive data.
 
         Parameter:
             blocking: boolean (optional)
                 If true then this waits until data arrives. The default value is True.
+            discarding_eoc: boolean (optional)
+                If true then this discards any end of connection (EOC) signal received. The default value is False.
         Return:
             data: np.ndarray | dictionary | boolean | string
                 The data to receive.
         """
 
-        data = self._get_data(blocking=blocking)
+        data = self._get_data(blocking=blocking, discarding_eoc=discarding_eoc)
 
         return data
 
@@ -173,31 +175,36 @@ class Endpoint(Connection):
         if self.tmp_name is not None:
             os.remove(self.tmp_name)
 
-    def _get_data(self, blocking=True):
+    def _get_data(self, blocking=True, discarding_eoc=False):
         """Get batch of data from this endpoint.
 
         Parameter:
             blocking: boolean (optional)
                 If true then this waits until a batch of data arrives. The default value is True.
+            discarding_eoc: boolean (optional)
+                If true then this discards any end of connection (EOC) signal received. The default value is False.
         Return:
             batch: numpy.ndarray | dictionary | boolean | string
                 The batch of data to get.
         """
 
-        if not blocking:
-            try:
-                batch = self.socket.recv(flags=zmq.NOBLOCK)
-            except zmq.Again:
-                return None
-        else:
+        if blocking:
             try:
                 batch = self.socket.recv()
             except zmq.Again:
                 # Resource temporarily unavailable (with respect to a 5 s timeout).
                 raise EOCError()
+        else:
+            try:
+                batch = self.socket.recv(flags=zmq.NOBLOCK)
+            except zmq.Again:
+                return None
 
         if batch == TERM_MSG:
-            raise EOCError()
+            if discarding_eoc:
+                return None
+            else:
+                raise EOCError()
 
         if self.structure == 'array':
             batch = numpy.fromstring(batch, dtype=self.dtype)
