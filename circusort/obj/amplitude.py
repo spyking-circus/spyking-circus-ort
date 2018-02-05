@@ -18,6 +18,43 @@ class Amplitude(object):
         self.amplitudes = amplitudes
         self.times = times
 
+    def __iter__(self):
+        return self.amplitudes.__iter__()
+
+    @property
+    def two_components(self):
+        res = self.amplitudes.shape[0] == 2
+        return res
+
+    @property
+    def t_min(self):
+        if len(self.times) > 0:
+            return self.times.min()
+        else:
+            return 0
+
+    @property
+    def t_max(self):
+        if len(self.times) > 0:
+            return self.times.max()
+        else:
+            return np.inf
+
+    def slice(self, t_min=None, t_max=None):
+        # TODO add docstring.
+
+        times = self.times
+        if t_min is None:
+            t_min = self.t_min
+        if t_max is None:
+            t_max = self.t_max
+
+        idx = np.where((self.times >= t_min) & (self.times <= t_max))[0]
+
+        amplitude = Amplitude(self.amplitudes[idx], self.times[idx])
+
+        return amplitude
+
     def save(self, path):
         """Save amplitude to file.
 

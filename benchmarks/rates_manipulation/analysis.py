@@ -1,11 +1,12 @@
 import os
 import numpy as np
 
-from circusort.io.spikes import load_spikes
+from circusort.io.spikes import load_spikes, spikes2cells
 from circusort.io.cells import load_cells
 from circusort.io.template_store import load_template_store
 from circusort.utils.validation import get_fp_fn_rate
-
+from circusort.io.datafile import load_datafile
+from circusort.plt.cells import *
 
 generation_directory = os.path.join("~", ".spyking-circus-ort", "benchmarks", "rates_manipulation")
 probe_path = os.path.join(generation_directory, "probe.prb")
@@ -13,9 +14,16 @@ probe_path = os.path.join(generation_directory, "probe.prb")
 similarity_thresh = 0.8
 
 print('Loading data...')
-fitted_spikes   = load_spikes(os.path.join(os.path.join(generation_directory, 'sorting'), 'spikes.h5')).to_cells()
+fitted_spikes = load_spikes(os.path.join(os.path.join(generation_directory, 'sorting'), 'spikes.h5'))
 found_templates = load_template_store(os.path.join(os.path.join(generation_directory, 'sorting'), 'templates.h5'))
-injected_cells  = load_cells(os.path.join(generation_directory, 'generation'))
+fitted_cells = spikes2cells(fitted_spikes, found_templates)
+injected_cells = load_cells(os.path.join(generation_directory, 'generation'))
+
+
+filename = os.path.join(os.path.join(generation_directory, 'generation'), 'data.raw')
+
+data_file = load_datafile(filename, 20000, 100, 'int16')
+
 
 print('Computing similarities...')
 similarities = [[] for i in range(len(injected_cells))]
@@ -35,7 +43,7 @@ errors = [[] for i in range(len(injected_cells))]
 for count, cell in enumerate(injected_cells):
     matches[count] = np.where(similarities[count] > similarity_thresh)[0]
 
-    sink_cells = fitted_spikes.slice(matches[count])
+    sink_cells = fitted_cells.slice(matches[count])
 
     gtmin, gtmax = np.inf, 0
     for c in sink_cells:
@@ -44,7 +52,7 @@ for count, cell in enumerate(injected_cells):
         if c.train.times.max() > gtmax:
             gtmax = c.train.times.max()
 
-    mytrain = cell.train.slice(gtmin, gtmax)
+    mytrain = cell.train#
     print "Computing errors for cell %d in [%g,%g] with %d spikes" %(count, gtmin, gtmax, len(mytrain))
 
     if len(sink_cells) > 0:

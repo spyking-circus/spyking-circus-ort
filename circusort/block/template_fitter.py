@@ -175,9 +175,9 @@ class Template_fitter(Block):
     def _fit_chunk(self):
 
         # Log some information.
-        string = "{} fits spikes... ({} templates)"
-        message = string.format(self.name_and_counter, self.nb_templates)
-        self.log.debug(message)
+        #string = "{} fits spikes... ({} templates)"
+        #message = string.format(self.name_and_counter, self.nb_templates)
+        #self.log.debug(message)
 
         # Reset result.
         self._reset_result()

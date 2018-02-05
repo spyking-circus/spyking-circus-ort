@@ -102,11 +102,13 @@ class Cell(object):
 
     def set_t_min(self, t_min):
 
-        self.train = self.train.slice(t_min, self.train.t_max)
+        self.train = self.train.slice(t_min, self.t_max)
+        self.amplitude = self.amplitude.slice(t_min, self.t_max)
 
     def set_t_max(self, t_max):
 
         self.train = self.train.slice(self.train.t_min, t_max)
+        self.amplitude = self.amplitude.slice(self.t_min, t_max)
 
     @property
     def t_min(self):
@@ -117,6 +119,13 @@ class Cell(object):
     def t_max(self):
 
         return self.train.t_max
+
+    def slice(self, t_min=None, t_max=None):
+        # TODO add docstring.
+
+        cell = Cell(self.template, self.train.slice(t_min, t_max), self.amplitude.slice(t_min, t_max), self.position)
+
+        return cell
 
     def save(self, directory):
         """Save the cell to file.
@@ -138,8 +147,9 @@ class Cell(object):
 
         # Save the train of the cell.
         self.train_path = os.path.join(directory, "train.h5")
+        self.parameters.add('train', 'path', self.template_path)
+        self.parameters.add('train', 'mode', 'default')
         self.train.save(self.train_path)
-        self.parameters['train'] = self.train.get_parameters()
 
         # Save the amplitude of the cell (if necessary).
         if self.amplitude is not None:

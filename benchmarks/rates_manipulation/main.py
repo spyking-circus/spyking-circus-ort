@@ -97,7 +97,7 @@ def main():
 
         # Load generation parameters.
         parameters = circusort.io.get_data_parameters(generation_directory)
-
+        introspect_path = os.path.join(directory, 'introspection')
         # Define parameters.
         host = '127.0.0.1'  # i.e. run the test locally
         dtype = parameters['general']['dtype']
@@ -144,7 +144,7 @@ def main():
         }
         pca_kwargs = {
             'name': "pca",
-            'nb_waveforms': 5000,
+            'nb_waveforms': 10000,
             'log_level': DEBUG,
         }
         cluster_kwargs = {
@@ -169,6 +169,7 @@ def main():
             'name': "fitter",
             'sampling_rate': sampling_rate,
             'log_level': DEBUG,
+            'introspection_path': introspect_path
         }
         writer_kwargs = {
             'name': "writer",

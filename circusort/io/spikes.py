@@ -94,3 +94,11 @@ def load_spikes(*args, **kwargs):
     spikes = Spikes(nb_cells=nb_cells, **data)
 
     return spikes
+
+def spikes2cells(spikes, template_store):
+
+    cells = spikes.to_cells()
+    for id in cells.ids:
+        cells[id].template = template_store.get(id)
+
+    return cells
