@@ -10,13 +10,14 @@ from circusort.utils.path import normalize_path
 class DataFile(object):
     # TODO add docstring
 
-    def __init__(self, path, sampling_rate, nb_channels, dtype='float32'):
+    def __init__(self, path, sampling_rate, nb_channels, dtype='float32', gain=1.):
         # TODO add docstring.
 
         self.path = path
         self.dtype = dtype
         self.nb_channels = nb_channels
         self.sampling_rate = sampling_rate
+        self.gain = gain
         self.data = np.memmap(self.path, dtype=self.dtype)
 
         if self.nb_channels > 1:
@@ -31,8 +32,8 @@ class DataFile(object):
         gmin = int(t_min * self.sampling_rate)
         gmax = int(t_max * self.sampling_rate)
 
-        return self.data[gmin:gmax, :].astype(np.float32)
-
+        data = self.data[gmin:gmax, :].astype(np.float32) * self.gain
+        return data
 
     def _plot(self, ax, t_min=0.0, t_max=0.5, **kwargs):
 
@@ -41,10 +42,12 @@ class DataFile(object):
         bmin = int(t_min * self.sampling_rate)
         bmax = int(t_max * self.sampling_rate)
 
+        snippet = self.get_snippet(t_min, t_max)
+
         factor = self.data[bmin:bmax, :].max()
 
         for count, channel in enumerate(range(self.nb_channels)):
-            ax.plot(np.linspace(t_min, t_max, (bmax - bmin)), factor*count + self.data[bmin:bmax, channel], '0.5')
+            ax.plot(np.linspace(t_min, t_max, (bmax - bmin)), factor*count + snippet[bmin:bmax, channel], '0.5')
 
         ax.set_yticks([])
         ax.set_xlabel(u"time (s)")

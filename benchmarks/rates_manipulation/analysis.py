@@ -22,7 +22,7 @@ injected_cells = load_cells(os.path.join(generation_directory, 'generation'))
 
 filename = os.path.join(os.path.join(generation_directory, 'generation'), 'data.raw')
 
-data_file = load_datafile(filename, 20000, 100, 'int16')
+data_file = load_datafile(filename, 20000, 100, 'int16', 0.1042)
 
 
 print('Computing similarities...')

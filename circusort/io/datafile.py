@@ -1,7 +1,7 @@
 from ..obj import DataFile
 import os
 
-def load_datafile(path, sampling_rate, nb_channels, dtype):
+def load_datafile(path, sampling_rate, nb_channels, dtype, gain=1.):
     """Load datafile from path.
 
     Parameter:
@@ -25,6 +25,6 @@ def load_datafile(path, sampling_rate, nb_channels, dtype):
         message = "No such data file: {}".format(path)
         raise IOError(message)
 
-    datafile = DataFile(path, sampling_rate, nb_channels, dtype)
+    datafile = DataFile(path, sampling_rate, nb_channels, dtype, gain)
 
     return datafile

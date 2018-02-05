@@ -3,6 +3,7 @@
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gds
 import numpy as np
+import sys
 
 
 def plot_reconstruction(cells, t_min, t_max, sampling_rate, data_file=None, ax=None, output=None, channels=None):
@@ -47,22 +48,25 @@ def plot_reconstruction(cells, t_min, t_max, sampling_rate, data_file=None, ax=N
     if channels is None:
         channels = range(data_file.nb_channels)
 
+    x = np.linspace(t_min, t_max, num=len(snippet), endpoint=False)
+
     y_spread = np.max(np.abs(snippet))
     y_scale = 0.5 / y_spread if y_spread > sys.float_info.epsilon else 1.0
 
     for j, i in enumerate(channels):
         y_offset = float(j)
         if data_file is not None:
-            ax.plot(y_scale * snippet[:, i] + y_offset, '0.5')
-        ax.plot(y_scale * result[:, i] + y_offset, 'r')
+            ax.plot(x, y_scale * snippet[:, i] + y_offset, '0.5')
+        ax.plot(x, y_scale * result[:, i] + y_offset, 'r')
 
     ax.set_xlabel(u"Times (s)")
-    ax.set_ylabel(u"# Cells")
+    ax.set_ylabel(u"Channels")
     gs.tight_layout(fig)
 
     if output is not None:
         plt.savefig(output)
 
+    return
 
 
 def raster_plot(cells, t_min, t_max, ax=None, output=None):
