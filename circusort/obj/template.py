@@ -122,13 +122,24 @@ class Template(object):
 
         return self._synthetic_export
 
-    def similarity(self, template):
+    def _similarity(self, template):
 
         res = [self.first_component.similarity(template.first_component)]
         if template.two_components and self.two_components:
             res += [self.second_component.similarity(template.second_component)]
 
         return np.mean(res)
+
+    def similarity(self, template):
+
+        if type(template) == list:
+            res = []
+            for t in template:
+                res += [self._similarity(t)]
+            return res
+        else:
+            return self._similarity(template)
+
 
     def save(self, path):
 

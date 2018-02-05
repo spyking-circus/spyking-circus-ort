@@ -32,6 +32,11 @@ class Train(object):
 
         return self.times.size
 
+    @property
+    def mean_rate(self):
+
+        return len(self) / (self.t_max - self.t_min)
+
     def reverse(self):
         # TODO add docstring.
 
@@ -53,6 +58,7 @@ class Train(object):
             t_max = self.t_max
         elif isinstance(t_max, float):
             times = times[times <= t_max]
+
         train = Train(times, t_min=t_min, t_max=t_max)
 
         return train
@@ -68,6 +74,13 @@ class Train(object):
             file_.create_dataset('times', shape=self.times.shape, dtype=self.times.dtype, data=self.times)
 
         return
+
+    def rate(self, time_bin=1):
+
+        bins = np.arange(self.t_min, self.t_max, time_bin)
+        x, y = np.histogram(self.times, bins=bins)
+
+        return x/time_bin
 
     def _plot(self, ax, t_min=0.0, t_max=10.0, offset=0, **kwargs):
 

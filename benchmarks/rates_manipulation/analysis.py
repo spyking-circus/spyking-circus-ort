@@ -43,7 +43,7 @@ errors = [[] for i in range(len(injected_cells))]
 for count, cell in enumerate(injected_cells):
     matches[count] = np.where(similarities[count] > similarity_thresh)[0]
 
-    sink_cells = fitted_cells.slice(matches[count])
+    sink_cells = fitted_cells.slice_by_ids(matches[count])
 
     gtmin, gtmax = np.inf, 0
     for c in sink_cells:

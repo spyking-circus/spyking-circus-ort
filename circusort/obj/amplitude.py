@@ -19,7 +19,12 @@ class Amplitude(object):
         self.times = times
 
     def __iter__(self):
+
         return self.amplitudes.__iter__()
+
+    def __len__(self):
+
+        return len(self.times)
 
     @property
     def two_components(self):
@@ -43,7 +48,6 @@ class Amplitude(object):
     def slice(self, t_min=None, t_max=None):
         # TODO add docstring.
 
-        times = self.times
         if t_min is None:
             t_min = self.t_min
         if t_max is None:

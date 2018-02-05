@@ -50,18 +50,25 @@ class Cells(object):
     def __iter__(self):
         # TODO add docstring.
 
-        iterator = self.cells.itervalues()
+        iterator = self.values()
 
         return iterator
 
-    def itervalues(self):
+    def keys(self):
+        # TODO add docstring.
+
+        iterator = self.cells.iterkeys()
+
+        return iterator
+
+    def values(self):
         # TODO add docstring.
 
         iterator = self.cells.itervalues()
 
         return iterator
 
-    def iteritems(self):
+    def items(self):
         # TODO add docstring.
 
         iterator = self.cells.iteritems()
@@ -79,29 +86,19 @@ class Cells(object):
     def slice_by_ids(self, indices):
         
         cells = {}
-        for key, value in self.cells.items():
-            if key in indices:
-                cells[key] = value
+        for key in indices:
+            if key in self.ids:
+                cells[key] = self.cells[key]
         
         return Cells(cells)
 
     def slice_by_time(self, t_min=None, t_max=None):
 
         cells = {}
-        for key, value in self.cells.items():
+        for key, value in self.items():
             cells[key] = value.slice(t_min, t_max)
 
         return Cells(cells)
-
-    def set_t_min(self, t_min):
-        
-        for key, value in self.cells.items():
-            self.cells[key] = self.cells[key].slice(t_min, self.cells[key].train.t_max)
-
-    def set_t_max(self, t_max):
-        
-        for key, value in self.cells.items():
-            self.cells[key] = self.cells[key].slice(self.cells[key].train.t_min, t_max)
 
     @property
     def t_min(self):
