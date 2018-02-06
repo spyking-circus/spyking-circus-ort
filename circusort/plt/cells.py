@@ -6,7 +6,7 @@ import numpy as np
 import sys
 
 
-def plot_reconstruction(cells, t_min, t_max, sampling_rate, data_file=None, ax=None, output=None, channels=None):
+def plot_reconstruction(cells, t_min, t_max, sampling_rate, data_file, ax=None, output=None, channels=None):
 
     sampling_rate = float(sampling_rate)
     gmin = int(t_min * sampling_rate)

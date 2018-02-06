@@ -137,7 +137,7 @@ class Cells(object):
             path = normalize_path(path, **kwargs)
             cells_directory = os.path.join(path, "cells")
             self.parameters.save(cells_directory, **kwargs)
-            for k, cell in self.iteritems():
+            for k, cell in self.items():
                 cell_directory = os.path.join(cells_directory, "{}".format(k))
                 cell.save(cell_directory)
 
@@ -172,7 +172,7 @@ class Cells(object):
             self.plot_trains(output=cells_directory, **kwargs)
             # TODO plot amplitudes.
             self.plot_positions(output=cells_directory, **kwargs)
-            for k, cell in self.iteritems():
+            for k, cell in self.items():
                 cell_directory = os.path.join(cells_directory, "{}".format(k))
                 cell.plot(output=cell_directory, **kwargs)
 
@@ -180,7 +180,7 @@ class Cells(object):
 
     def _plot_rates(self, ax, **kwargs):
 
-        for k, cell in self.iteritems():
+        for k, cell in self.items():
             cell.plot_rate(ax=ax, **kwargs)
         ax.set_title(u"Rates")
 
@@ -215,7 +215,7 @@ class Cells(object):
 
     def _plot_trains(self, ax, **kwargs):
 
-        for k, cell in self.iteritems():
+        for k, cell in self.items():
             cell.train.plot(ax=ax, offset=k, **kwargs)
         ax.set_yticks([i for i in range(0, self.nb_cells)])
         ax.set_yticklabels([str(k) for k in range(0, self.nb_cells)])
@@ -255,7 +255,7 @@ class Cells(object):
 
         if probe is not None:
             probe.plot(ax=ax, **kwargs)
-        for k, cell in self.iteritems():
+        for k, cell in self.items():
             if cell.position is not None:  # TODO be able to remove this line.
                 color = 'C{}'.format(1 + k % 9)
                 cell.position.plot(ax=ax, color=color, set_ax=False, **kwargs)
