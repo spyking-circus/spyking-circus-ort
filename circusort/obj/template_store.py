@@ -216,6 +216,9 @@ class TemplateStore(object):
             self.h5_file.create_dataset('waveforms/%d/1' % gidx, data=t.first_component.waveforms, chunks=True)
             self.h5_file.create_dataset('amplitudes/%d' % gidx, data=t.amplitudes)
 
+            if t.compressed:
+                self.h5_file.create_dataset('compressed/%d' %gidx, data=t.indices)
+
             if self._temporal_width is None:
                 self._temporal_width = t.temporal_width
 
@@ -260,15 +263,28 @@ class TemplateStore(object):
 
             waveforms = self.h5_file['waveforms/%d/1' % index][:]
             amplitudes = self.h5_file['amplitudes/%d' % index][:]
+
             channel = channels[idx_pos][0]
-            first_component = TemplateComponent(waveforms, self.mappings[channel], self.nb_channels, amplitudes)
+
+            if 'compressed' in self.h5_file.keys():
+                mapping = self.h5_file['compressed/%d' %index][:]
+                compressed = True
+            else:
+                mapping = self.mappings[channel]
+                compressed = False
+
+            first_component = TemplateComponent(waveforms, mapping, self.nb_channels, amplitudes)
+
             if self.two_components:
                 waveforms2 = self.h5_file['waveforms/%d/2' % index][:]
-                second_component = TemplateComponent(waveforms2, self.mappings[channel], self.nb_channels)
+                second_component = TemplateComponent(waveforms2, mapping, self.nb_channels)
             else:
                 second_component = None
 
-            result += [Template(first_component, channel, second_component, creation_time=int(times[idx_pos]))]
+            template = Template(first_component, channel, second_component, creation_time=int(times[idx_pos]))
+            template.compressed = compressed
+            result += [template]
+
 
         self._close()
         if singleton and len(result) == 1:
@@ -287,6 +303,8 @@ class TemplateStore(object):
             assert index in indices
             self.h5_file.pop('waveforms/%d' % index)
             self.h5_file.pop('amplitudes/%d' % index)
+            if 'compressed' in self.h5_file.keys():
+                self.h5_file.pop('compressed/%d' % index)
             channels = self.h5_file.pop('channels')
             times = self.h5_file.pop('times')
             indices = self.h5_file.pop('indices')

@@ -7,7 +7,7 @@ from circusort.io.probe import load_probe
 from circusort.io.template import load_template
 from circusort.obj.template_store import TemplateStore, TemplateComponent, Template
 from circusort.obj.template_dictionary import TemplateDictionary
-
+from circusort.io.template import load_template_from_dict
 
 class Template_updater(Block):
     """Template updater
@@ -31,7 +31,7 @@ class Template_updater(Block):
         'data_path': None,
         'precomputed_template_paths': None,
         'sampling_rate': 20e+3,
-        'nb_samples': 1024,
+        'nb_samples': 1024
     }
 
     def __init__(self, **kwargs):
@@ -113,37 +113,19 @@ class Template_updater(Block):
     def _data_to_templates(self, data):
 
         all_templates = []
-        for key in data['dat'].keys():
-            for channel in data['dat'][key].keys():
-                ichannel = int(channel)
-                templates = np.array(data['dat'][key][channel]).astype(np.float32)
-                amplitudes = np.array(data['amp'][key][channel]).astype(np.float32)
+        for key in data.keys():
+            for channel in data[key].keys():
+                templates = []
+                for template in data[key][channel].values():
 
-                if self.two_components:
-                    templates2 = np.array(data['two'][key][channel]).astype(np.float32)
-                else:
-                    templates2 = None
-
-                for count in xrange(len(templates)):
-                    first_component = TemplateComponent(templates[count],
-                                                        self.template_store.mappings[ichannel],
-                                                        self.template_store.nb_channels,
-                                                        amplitudes[count])
-                    if self.two_components:
-                        second_component = TemplateComponent(templates2[count],
-                                                             self.template_store.mappings[ichannel],
-                                                             self.template_store.nb_channels)
-                    else:
-                        second_component = None
-
-                    all_templates += [
-                        Template(first_component, ichannel, second_component, creation_time=int(data['offset']))
-                    ]
+                    templates += [load_template_from_dict(template, self.probe)]
 
                 if len(templates) > 0:
                     string = "{} received {} {} templates from electrode {}"
                     message = string.format(self.name, len(templates), key, channel)
                     self.log.debug(message)
+
+                all_templates += templates
 
         return all_templates
 
@@ -178,13 +160,12 @@ class Template_updater(Block):
 
         if data is not None:
 
+            offset = data.pop('offset')
             self._measure_time('start', frequency=1)
 
             # Set mode as active (if necessary).
             if not self.is_active:
                 self._set_active_mode()
-                if self.two_components is None:
-                    self.two_components = 'two' in data
 
             # Add received templates to the dictionary.
             templates = self._data_to_templates(data)

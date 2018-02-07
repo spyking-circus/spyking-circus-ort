@@ -155,7 +155,8 @@ def plot_templates_history(template_store, ax=None, output=None):
     ax.set_xlabel(u"Time [step]")
     ax.set_ylabel(u"Indices")
     # plt.axis('scaled')
-    plt.tight_layout()
+    gs.tight_layout(fig)
+
     if output is not None:
         plt.savefig(output)
 

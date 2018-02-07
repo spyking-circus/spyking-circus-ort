@@ -93,3 +93,28 @@ def raster_plot(cells, t_min, t_max, ax=None, output=None):
         plt.savefig(output)
 
     return
+
+
+def plot_rates(cells, time_bin=1, ax=None, output=None):
+
+    plt.style.use('seaborn-paper')
+
+    if output is not None:
+        plt.ioff()
+
+    if ax is None:
+        fig = plt.figure()
+        gs = gds.GridSpec(1, 1)
+        ax = plt.subplot(gs[0])
+
+    rates = cells.rate(time_bin)
+    cax = ax.imshow(rates, aspect='auto', origin='lower')
+    cbar = fig.colorbar(cax)
+    ax.set_xlabel(u"Times (s)")
+    ax.set_ylabel(u"# Cells")
+    gs.tight_layout(fig)
+
+    if output is not None:
+        plt.savefig(output)
+
+    return

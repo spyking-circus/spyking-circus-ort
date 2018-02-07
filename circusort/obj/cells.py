@@ -121,6 +121,16 @@ class Cells(object):
         return t_max
 
 
+    def set_t_min(self, t_min):
+
+        for c in self:
+            c.train = c.train.slice(t_min, self.t_max)
+
+    def set_t_max(self, t_max):
+
+        for c in self:
+            c.train = c.train.slice(self.t_min, t_max)
+
     def save(self, path, mode='default', **kwargs):
         """Save cells to files.
 
@@ -154,6 +164,23 @@ class Cells(object):
             raise ValueError(message)
 
         return
+
+    @property
+    def mean_rate(self):
+
+        mean_rate = np.mean([c.mean_rate for c in self])
+
+        return mean_rate
+
+    def rate(self, time_bin=1):
+
+        bins = np.arange(self.t_min, self.t_max, time_bin)
+        result = np.zeros((len(self), len(bins) - 1))
+
+        for count, c in enumerate(self):
+            result[count, :] = c.rate(time_bin)
+
+        return result
 
     def plot(self, output=None, **kwargs):
         # TODO add docstring.

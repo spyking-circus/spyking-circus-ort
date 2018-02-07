@@ -177,3 +177,37 @@ def get_template(path=None, **kwargs):
             template = generate_template(**kwargs)
 
     return template
+
+
+def load_component_from_dict(template_dict, probe, indices):
+
+    waveforms = np.array(template_dict['wav'], dtype=np.float32)
+    amplitudes = np.array(template_dict['amp'], dtype=np.float32)
+    component = TemplateComponent(waveforms, indices, probe.nb_channels, amplitudes)
+
+    return component
+
+
+def load_template_from_dict(template_dict, probe):
+
+    channel = template_dict['channel']
+    creation_time = template_dict['time']
+
+    if 'compressed' in template_dict:
+        indices = np.array(template_dict['compressed'], dtype='int32')
+        compressed = True
+    else:
+        indices = probe.edges[channel]
+        compressed = False
+
+    first_component = load_component_from_dict(template_dict['1'], probe, indices)
+
+    if '2' in template_dict:
+        second_component = load_component_from_dict(template_dict['2'], probe, indices)
+    else:
+        second_component = None
+
+    template = Template(first_component, channel, second_component, creation_time)
+    template.compressed = compressed
+
+    return template

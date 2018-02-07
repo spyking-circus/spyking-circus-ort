@@ -115,6 +115,18 @@ class Cell(object):
 
         return self.train.t_max
 
+    @property
+    def mean_rate(self):
+
+        return self.train.mean_rate
+
+    def rate(self, time_bin=1):
+
+        bins = np.arange(self.t_min, self.t_max, time_bin)
+        x, y = np.histogram(self.train.times, bins=bins)
+
+        return x/time_bin
+
     def slice(self, t_min=None, t_max=None):
         # TODO add docstring.
 

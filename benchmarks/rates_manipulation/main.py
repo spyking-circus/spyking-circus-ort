@@ -160,7 +160,7 @@ def main():
             'name': "updater",
             'probe_path': probe_path,
             'data_path': os.path.join(sorting_directory, "templates.h5"),
-            #s'precomputed_template_paths': precomputed_template_paths,
+            #'precomputed_template_paths': precomputed_template_paths,
             'sampling_rate': sampling_rate,
             'nb_samples': nb_samples,
             'log_level': DEBUG,

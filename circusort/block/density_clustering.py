@@ -44,7 +44,8 @@ class Density_clustering(Block):
         'epsilon': 10,
         'theta': -np.log(0.001),
         'tracking': True,
-        'safety_time': 'auto'
+        'safety_time': 'auto',
+        'compression': 0.5
     }
 
     def __init__(self, **kwargs):
@@ -101,10 +102,6 @@ class Density_clustering(Block):
             self.safety_time = self._spike_width_ // 3
         else:
             self.safety_time = int(self.safety_time*self.sampling_rate * 1e-3)
-
-        self.all_keys = ['dat', 'amp', 'ind']
-        if self.two_components:
-            self.all_keys += ['two']
 
         if self.alignment:
             num = 5 * self._spike_width_
@@ -251,9 +248,6 @@ class Density_clustering(Block):
         self.templates = {}
         self.managers = {}
 
-        for k in self.all_keys:
-            self.templates[k] = {}
-
         if not np.all(self.pcs[0] == 0):
             self.sign_peaks += ['negative']
         if not np.all(self.pcs[1] == 0):
@@ -264,13 +258,13 @@ class Density_clustering(Block):
         for key in self.sign_peaks:
             self.raw_data[key] = {}
             self.managers[key] = {}
-
-            for k in self.all_keys:
-                self.templates[k][key] = {}
+            self.templates[key] = {}
 
             for channel in self.channels:
 
                 params = {
+                    'probe': self.probe,
+                    'channel': channel,
                     'dispersion': self.dispersion,
                     'mu': self.mu,
                     'decay': self.decay_time,
@@ -287,62 +281,24 @@ class Density_clustering(Block):
                 elif key == 'positive':
                     params['pca'] = self.pcs[1]
 
+                self.templates[key][channel] = {}
                 self.managers[key][channel] = OnlineManager(**params)
                 self._reset_data_structures(key, channel)
 
     def _prepare_templates(self, templates, key, channel):
 
-        nb_templates = len(templates['amp'])
-        nb_elecs = len(self.probe.edges[channel])
+        for ind in templates.keys():
+            template = templates[ind]
+            template.compress(self.compression)
+            template.center(key)
+            self.templates[key][channel][ind] = template.to_dict()
 
-        t1 = templates.pop('dat')
-        t1 = t1.reshape(nb_templates, nb_elecs, self._spike_width_)
-
-        if self.two_components:
-            t2 = templates.pop('two')
-            t2 = t2.reshape(nb_templates, nb_elecs, self._spike_width_)
-
-        for count in xrange(nb_templates):
-            t1[count], shift = self._center_template(t1[count], key)
-            if self.two_components:
-                t2[count], _ = self._center_template(t2[count], key, shift)
-
-        self.templates['dat'][key][channel] = t1
-        if self.two_components:
-            self.templates['two'][key][channel] = t2
-
-        self.templates['amp'][key][channel] = templates.pop('amp')
-        self.templates['ind'][key][channel] = templates.pop('ind')
         self.to_reset += [(key, channel)]
-
-    def _center_template(self, template, key, shift=None):
-        if shift is None:
-            if key == 'negative':
-                tmpidx = divmod(template.argmin(), template.shape[1])
-            elif key == 'positive':
-                tmpidx = divmod(template.argmax(), template.shape[1])
-            else:
-                raise NotImplementedError()  # TODO complete.
-
-            shift = self._width - tmpidx[1]
-
-        aligned_template = np.zeros(template.shape, dtype=np.float32)
-        if shift > 0:
-            aligned_template[:, shift:] = template[:, :-shift]
-        elif shift < 0:
-            aligned_template[:, :shift] = template[:, -shift:]
-        else:
-            aligned_template = template
-        return aligned_template, shift
 
     def _reset_data_structures(self, key, channel):
         shape = (0, len(self.probe.edges[channel]), self._spike_width_)
         self.raw_data[key][channel] = np.zeros(shape, dtype=np.float32)
-        self.templates['dat'][key][channel] = np.zeros(shape, dtype=np.float32)
-        self.templates['amp'][key][channel] = np.zeros((0, 2), dtype=np.float32)
-        self.templates['ind'][key][channel] = np.zeros(0, dtype=np.int32)
-        if self.two_components:
-            self.templates['two'][key][channel] = np.zeros(shape, dtype=np.float32)
+        self.templates[key][channel] = {}
 
     def _process(self):
 
