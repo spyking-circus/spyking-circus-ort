@@ -234,11 +234,7 @@ class Density_clustering(Block):
         if self.inputs['data'].dtype is not None:
             self.decay_time = self.decay_factor
             self.chan_positions = np.zeros(self.nb_channels, dtype=np.int32)
-            # Here:
-            #  self.nb_channels = 10
-            #  probe.edges.keys = [0, 1, 2, 3]
-            # I have to find where is the problem...
-            for channel in xrange(self.nb_channels):
+            for channel in range(self.nb_channels):
                 mask = self.probe.edges[channel] == channel
                 self.chan_positions[channel] = np.where(mask)[0]
 

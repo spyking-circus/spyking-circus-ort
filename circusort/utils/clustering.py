@@ -160,7 +160,9 @@ class OnlineManager(object):
 
         templates = {}
 
-        self.log.debug("{n} founds {k} initial clusters from {m} datapoints".format(n=self.name, k=len(np.unique(labels[mask])), m=len(sub_data)))
+        self.log.debug("{n} founds {k} initial clusters from {m} datapoints".format(n=self.name,
+                                                                                    k=len(np.unique(labels[mask])),
+                                                                                    m=len(sub_data)))
 
         for count, i in enumerate(np.unique(labels[mask])):
 
@@ -171,15 +173,15 @@ class OnlineManager(object):
             template = np.median(data[indices], 0)
             amplitudes = self._compute_amplitudes(data[indices], template)
 
-            first_component = TemplateComponent(template, self.probe.edges[self.channel], self.probe.nb_channels, amplitudes)
+            first_comp = TemplateComponent(template, self.probe.edges[self.channel], self.probe.nb_channels, amplitudes)
 
             if two_components:
                 template2 = self._compute_template2(data[indices], template)
-                second_component = TemplateComponent(template2, self.probe.edges[self.channel], self.probe.nb_channels)
+                second_comp = TemplateComponent(template2, self.probe.edges[self.channel], self.probe.nb_channels)
             else:
-                second_component = None
+                second_comp = None
 
-            full_template = Template(first_component, self.channel, second_component)
+            full_template = Template(first_comp, self.channel, second_comp)
             templates[count] = full_template
 
         for cluster in self.clusters.values():
@@ -289,7 +291,9 @@ class OnlineManager(object):
 
             if 0 < t_0 < self.time:
 
-                zeta = (2**(-self.decay_factor*(self.time - t_0 + self.time_gap)) - 1)/(2**(-self.decay_factor*self.time_gap) - 1)
+                numerator = (2**(-self.decay_factor*(self.time - t_0 + self.time_gap)) - 1)
+                denominator = (2**(-self.decay_factor*self.time_gap) - 1)
+                zeta = numerator / denominator
                 delta_t = self.theta*(cluster.last_update - t_0)/cluster.density
 
                 if cluster.density < zeta or ((self.time - cluster.last_update) > delta_t):
@@ -381,7 +385,7 @@ class OnlineManager(object):
         return changes
 
     def set_physical_threshold(self, threshold):
-        self.threshold = -self.noise_thr * threshold
+        self.physical_threshold = self.noise_thr * threshold
 
     def _compute_amplitudes(self, data, template):
         # # We could to this in the PCA space, to speed up the computation
@@ -389,8 +393,8 @@ class OnlineManager(object):
         amplitudes = np.dot(data, temp_flat)
         amplitudes /= np.sum(temp_flat**2)
         variation = np.median(np.abs(amplitudes - np.median(amplitudes)))
-        # physical_limit = self.threshold
-        amp_min = min(0.8, np.median(amplitudes) - self.dispersion[0]*variation)
+
+        amp_min = min(0.8, max(self.physical_threshold, np.median(amplitudes) - self.dispersion[0]*variation))
         amp_max = max(1.2, np.median(amplitudes) + self.dispersion[1]*variation)
 
         return np.array([amp_min, amp_max], dtype=np.float32)

@@ -40,7 +40,7 @@ def generate_waveform(width=5.0e-3, amplitude=80.0, sampling_rate=20e+3):
 
 
 def generate_template(probe=None, position=(0.0, 0.0), amplitude=80.0, radius=None,
-                      width=5.0e-3, sampling_rate=20e+3, mode='default', **kwargs):
+                      width=5.0e-3, sampling_rate=20e+3, sparse_factor=0.5, mode='default', **kwargs):
     """Generate a template.
 
     Parameters:
@@ -56,6 +56,8 @@ def generate_template(probe=None, position=(0.0, 0.0), amplitude=80.0, radius=No
             Temporal width [s]. The default value is 5.0e-3.
         sampling_rate: float (optional)
             Sampling rate [Hz]. The default value is 20e+3.
+        sparse_factor: float (optional)
+            Between 0-1: The number of channels that will be randomly set to 0. Default is 0.5
         mode: string (optional)
             Mode of generation. The default value is 'default'.
 
@@ -85,9 +87,15 @@ def generate_template(probe=None, position=(0.0, 0.0), amplitude=80.0, radius=No
         waveforms = np.zeros(shape, dtype=np.float)
         # Initialize waveforms.
         waveform = generate_waveform(width=width, amplitude=amplitude, sampling_rate=sampling_rate)
-        for i, distance in enumerate(distances):
-            gain = (1.0 + distance / 40.0) ** -2.0
+
+        indices = np.arange(len(channels))
+        if sparse_factor is not None:
+            indices = np.random.permutation(indices)[:int(len(channels)*sparse_factor)]
+
+        for i in indices:
+            gain = (1.0 + distances[i] / 40.0) ** -2.0
             waveforms[i, :] = gain * waveform
+
         # Define template.
         first_component = TemplateComponent(waveforms, channels, probe.nb_channels, amplitudes=[0.8, 1.2])
         template = Template(first_component, channel=None, creation_time=0)

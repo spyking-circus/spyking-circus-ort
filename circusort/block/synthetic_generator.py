@@ -341,6 +341,7 @@ class Cell(object):
 
         self.buffered_spike_times = np.array([], dtype='float32')
         self._waveform = None
+        self._indices = None
 
     def e(self, chunk_number, probe):
         """Nearest electrode for the given chunk.
@@ -468,7 +469,7 @@ class Cell(object):
 
         return self._waveform
 
-    def get_waveforms(self, chunk_number, probe):
+    def get_waveforms(self, chunk_number, probe, sparse_factor=0.5):
         """Get spike waveforms
 
         Parameters
@@ -477,6 +478,7 @@ class Cell(object):
             Number of the current chunk.
         probe: circusort.io.Probe
             Description of the probe.
+        sparse_factor: percentage of channels that are set to 0 randomly (default is 0.5)
         """
 
         steps, u = self.get_waveform()
@@ -491,7 +493,14 @@ class Cell(object):
         i = np.tile(steps, channels.size)
         j = np.repeat(channels, steps.size)
         v = np.zeros((steps.size, channels.size))
-        for k in range(0, channels.size):
+
+        self._indices = np.arange(channels.size)
+
+        if sparse_factor > 0:
+            if self._indices is None:
+                self._indices = np.random.permutation(self._indices)[:int(channels.size*sparse_factor)]
+
+        for k in self._indices:
             coef = self.a_dist / (1.0 + (distances[k] / self.hf_dist) ** 2.0)  # coefficient of attenuation
             v[:, k] = coef * u
         v = np.transpose(v)
