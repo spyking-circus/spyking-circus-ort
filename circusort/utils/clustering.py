@@ -422,6 +422,7 @@ class OnlineManager(object):
         self.log.debug('{n} launches clustering with {s} sparse and {t} dense clusters'.format(n=self.name, s=self.nb_sparse, t=self.nb_dense))
         centers = self._get_centers('dense')
         centers_full = self._get_centers_full('dense')
+
         rhos, dist, _ = rho_estimation(centers)
         if len(rhos) == 1:
             labels, c = np.array([0]), np.array([0])
@@ -466,12 +467,25 @@ class OnlineManager(object):
             for key, value in changes['merged'].items():
                 data = centers_full[labels == value]
                 template = np.median(data, 0)
-                templates = np.vstack((templates, template))
-                amplitudes = np.vstack((amplitudes, self._compute_amplitudes(data, template)))
-                indices = np.concatenate((indices, [key]))
+                amplitudes = self._compute_amplitudes(data, template)
+
+                first_component = TemplateComponent(template, self.probe.edges[self.channel], self.probe.nb_channels,
+                                                    amplitudes)
+
                 if two_components:
-                    template2  = self._compute_template2(data, template)
-                    templates2 = np.vstack((templates2, template2))
+                    template2 = self._compute_template2(data, template)
+                    second_component = TemplateComponent(template2, self.probe.edges[self.channel],
+                                                         self.probe.nb_channels)
+                else:
+                    second_component = None
+
+                #indices = np.concatenate((indices, [key]))
+                #if two_components:
+                #    template2  = self._compute_template2(data, template)
+                #    templates2 = np.vstack((templates2, template2))
+
+                full_template = Template(first_component, self.channel, second_component)
+                templates[value] = full_template
 
             self.log.debug('{n} modified {a} templates with tracking: {s}'.format(n=self.name, a=len(changes['merged']), s=changes['merged'].values()))
 

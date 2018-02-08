@@ -5,6 +5,7 @@ import os
 import scipy
 
 from circusort.utils.path import normalize_path
+from circusort.utils.algorithms import sparse_corrcoef
 from scipy.sparse import csc_matrix
 
 
@@ -45,6 +46,30 @@ class TemplateComponent(object):
         return 'TemplateComponent for %d channels with amplitudes %s' %(self.nb_channels, self.amplitudes)
 
     def to_sparse(self, method='csc', flatten=False):
+
+        # if not flatten:
+        #     row_ind, col_ind = np.mgrid[0:len(self.indices), 0:self.temporal_width]
+        #     row_ind, col_ind = row_ind.ravel(), col_ind.ravel()
+        #     row_ind = self.indices[row_ind]
+        # else:
+        #     nb_elements = len(self.indices) * self.temporal_width
+        #     row_ind = np.ones(nb_elements, dtype=np.int32)
+        #     col_ind = np.arange
+        #
+        # to_export = (self.waveforms.flatten(), (row_ind, col_ind))
+        #
+        # if method is 'csc':
+        #     if not flatten:
+        #         return scipy.sparse.csc_matrix(to_export, shape=(self.nb_channels, self.temporal_width), dtype=np.float32)
+        #     else:
+        #         nb_elements = self.nb_channels * self.temporal_width
+        #         return scipy.sparse.csc_matrix(to_export, shape=(1, nb_elements), dtype=np.float32)
+        # elif method is 'csr':
+        #     if not flatten:
+        #         return scipy.sparse.csr_matrix(to_export, shape=(self.nb_channels, self.temporal_width), dtype=np.float32)
+        #     else:
+        #         nb_elements = self.nb_channels * self.temporal_width
+        #         return scipy.sparse.csr_matrix(to_export, shape=(nb_elements, 1), dtype=np.float32)
 
         data = self.to_dense()
         if method is 'csc':
@@ -98,6 +123,8 @@ class Template(object):
             min_voltages = np.min(self.first_component.waveforms, axis=1)
             index = np.argmin(min_voltages)
             self.channel = self.first_component.indices[index]
+
+        self._auto_compression()
 
     def __str__(self):
         if self.compressed:
@@ -173,6 +200,20 @@ class Template(object):
             return res
         else:
             return self._similarity(template)
+
+    def _auto_compression(self):
+        sums = np.sum(self.first_component.waveforms, 1)
+        if self.two_components:
+            sums += np.sum(self.second_component.waveforms, 1)
+        idx = np.where(sums == 0)[0]
+        if len(idx) > 0:
+            self.first_component.waveforms = np.delete(self.first_component.waveforms, idx, 0)
+            self.first_component.indices = np.delete(self.first_component.indices, idx, 0)
+            if self.two_components:
+                self.second_component.waveforms = np.delete(self.second_component.waveforms, idx, 0)
+                self.second_component.indices = np.delete(self.second_component.indices, idx, 0)
+            self.compressed = True
+            self._synthetic_export = None
 
     def compress(self, compression_factor=0.5):
 
