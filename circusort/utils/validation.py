@@ -16,7 +16,7 @@ def get_fp_fn_rate(spike_trains, target, jitter):
 
     for spk in spike_trains:
         count = 0
-        for spike in spk.times:
+        for spike in spk:
             idx = np.where(np.abs(target.times - spike) < jitter)[0]
             if len(idx) > 0:
                 count += 1

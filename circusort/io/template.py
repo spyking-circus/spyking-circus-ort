@@ -149,6 +149,7 @@ def load_template(path):
     channel = f.attrs['channel']
     creation_time = f.attrs['creation_time']
     nb_channels = f.attrs['nb_channels']
+    compressed = f.attrs['compressed']
 
     first_component = TemplateComponent(waveforms, channels, nb_channels, amplitudes)
     second_component = None
@@ -158,6 +159,7 @@ def load_template(path):
 
     f.close()
     template = Template(first_component, channel, second_component, creation_time=creation_time)
+    template.compressed = compressed
 
     return template
 

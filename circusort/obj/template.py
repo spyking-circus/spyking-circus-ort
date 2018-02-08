@@ -5,7 +5,6 @@ import os
 import scipy
 
 from circusort.utils.path import normalize_path
-from circusort.utils.algorithms import sparse_corrcoef
 from scipy.sparse import csc_matrix
 
 
@@ -29,7 +28,7 @@ class TemplateComponent(object):
 
         self.nb_channels = nb_channels
         self.amplitudes = np.array(amplitudes, dtype=np.float32)
-        assert len(self.waveforms) == len(self.indices), "%s different from %s" %(self.waveforms.shape, self.indices.shape)
+        assert len(self.waveforms) == len(self.indices), "%s different from %s" %(self.waveforms.shape, len(self.indices))
 
     @property
     def norm(self):
@@ -47,30 +46,6 @@ class TemplateComponent(object):
 
     def to_sparse(self, method='csc', flatten=False):
 
-        # if not flatten:
-        #     row_ind, col_ind = np.mgrid[0:len(self.indices), 0:self.temporal_width]
-        #     row_ind, col_ind = row_ind.ravel(), col_ind.ravel()
-        #     row_ind = self.indices[row_ind]
-        # else:
-        #     nb_elements = len(self.indices) * self.temporal_width
-        #     row_ind = np.ones(nb_elements, dtype=np.int32)
-        #     col_ind = np.arange
-        #
-        # to_export = (self.waveforms.flatten(), (row_ind, col_ind))
-        #
-        # if method is 'csc':
-        #     if not flatten:
-        #         return scipy.sparse.csc_matrix(to_export, shape=(self.nb_channels, self.temporal_width), dtype=np.float32)
-        #     else:
-        #         nb_elements = self.nb_channels * self.temporal_width
-        #         return scipy.sparse.csc_matrix(to_export, shape=(1, nb_elements), dtype=np.float32)
-        # elif method is 'csr':
-        #     if not flatten:
-        #         return scipy.sparse.csr_matrix(to_export, shape=(self.nb_channels, self.temporal_width), dtype=np.float32)
-        #     else:
-        #         nb_elements = self.nb_channels * self.temporal_width
-        #         return scipy.sparse.csr_matrix(to_export, shape=(nb_elements, 1), dtype=np.float32)
-
         data = self.to_dense()
         if method is 'csc':
             if flatten:
@@ -82,9 +57,10 @@ class TemplateComponent(object):
             return scipy.sparse.csr_matrix(data, dtype=np.float32)
 
     def to_dense(self):
+
         result = np.zeros((self.nb_channels, self.temporal_width), dtype=np.float32)
-        for count, index in enumerate(self.indices):
-            result[index] = self.waveforms[count]
+        result[self.indices] = self.waveforms
+
         return result
 
     def normalize(self):
@@ -237,10 +213,11 @@ class Template(object):
 
             file_.create_dataset('waveforms/1', data=self.first_component.waveforms, chunks=True)
             file_.create_dataset('amplitudes', data=self.amplitudes)
-            file_.create_dataset('indices', data=self.first_component.indices, chunks=True)
+            file_.create_dataset('indices', data=self.indices, chunks=True)
             file_.attrs['channel'] = self.channel
             file_.attrs['nb_channels'] = self.first_component.nb_channels
             file_.attrs['creation_time'] = self.creation_time
+            file_.attrs['compressed'] = self.compressed
 
             if self.two_components:
                 file_.create_dataset('waveforms/2', data=self.second_component.waveforms, chunks=True)
