@@ -114,19 +114,12 @@ class TemplateDictionary(object):
 
     def _add_template(self, template, csc_template):
 
-        self.first_component = scipy.sparse.vstack((self.first_component, csc_template), format='csc')
-        indices = self.template_store.add(template)
-
-        return indices
+        return self._add_templates([template], [csc_template])
 
     def _add_templates(self, templates, csc_templates):
 
         self.first_component = scipy.sparse.vstack([self.first_component] + csc_templates, format='csc')
-        indices = [
-            index
-            for template in templates
-            for index in self.template_store.add(template)
-        ]
+        indices = self.template_store.add(templates)
 
         return indices
 

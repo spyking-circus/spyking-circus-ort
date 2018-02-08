@@ -11,7 +11,7 @@ from circusort.io.cells import list_cells
 nb_rows = 10
 nb_columns = 10
 nb_cells = 100
-duration = 5 * 60 # s
+duration = 10 * 60# s
 
 
 def main():
@@ -74,7 +74,7 @@ def main():
             cell_directory = os.path.join(cells_directory, str(k))
             cell_parameters = [
                 ('train', [
-                    ('rate', "5 + 5.0*(t > %g)" %((k + 0.5)*duration/float(nb_cells))),
+                    ('rate', "2 + 5.0*(t > %g)" %((k + 0.5)*(2*duration/3.)/float(nb_cells))),
                 ]),
                 ('position', []),  # TODO be able to remove this line.
                 ('template', []),  # TODO be able to remove this line.
@@ -151,7 +151,7 @@ def main():
             'name': "cluster",
             'threshold_factor': threshold_factor,
             'sampling_rate': sampling_rate,
-            'nb_waveforms': 500,
+            'nb_waveforms': 1000,
             'probe_path': probe_path,
             'two_components': False,
             'log_level': INFO,

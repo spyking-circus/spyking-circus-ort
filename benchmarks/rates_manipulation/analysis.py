@@ -48,7 +48,7 @@ for count, cell in enumerate(injected_cells):
     print "Computing errors for cell %d in [%g,%g] with %d spikes" %(count, mytrain.t_min, mytrain.t_max, len(mytrain))
 
     if len(sink_cells) > 0:
-        errors[count] += np.mean(get_fp_fn_rate([i.train for i in sink_cells], mytrain, 2e-3), 1).tolist()
+        errors[count] += get_fp_fn_rate([i.train for i in sink_cells], mytrain, 5e-3)
     else:
         errors[count] += []
 
@@ -64,5 +64,5 @@ for count, e in enumerate(errors):
     res += [[idx, emin]]
 
 
-injected_cells[0].template.plot(probe=p)
-found_templates[res[0][0]].plot(probe=p)
+injected_cells[1].template.plot(probe=p)
+found_templates[res[1][0]].plot(probe=p)

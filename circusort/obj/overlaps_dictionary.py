@@ -3,6 +3,7 @@ from scipy.sparse import vstack, csr_matrix
 import numpy as np
 import scipy.sparse
 
+
 class OverlapsDictionary(object):
 
     def __init__(self, template_store=None):
@@ -127,18 +128,22 @@ class OverlapsDictionary(object):
 
         templates = self.template_store.get(indices)
 
-        for k, t in enumerate(templates):
+        amplitudes = [t.amplitudes for t in templates]
+        norms_1 = [t.first_component.norm for t in templates]
 
-            # Add new and updated templates to the dictionary.
-            self.norms['1'] = np.concatenate((self.norms['1'], [t.first_component.norm]))
-            self.amplitudes = np.vstack((self.amplitudes, t.amplitudes))
-            if self.two_components:
-                self.norms['2'] = np.concatenate((self.norms['2'], [t.second_component.norm]))
+        self.amplitudes = np.vstack((self.amplitudes, amplitudes))
+        self.norms['1'] = np.concatenate((self.norms['1'], norms_1))
 
+        if self.two_components:
+            norms_2 = [t.second_component.norm for t in templates]
+            self.norms['2'] = np.concatenate((self.norms['2'], norms_2))
+
+        for t in templates:
             t.normalize()
 
-            first_component = t.first_component.to_sparse('csc', flatten=True)
-            self.first_component = vstack((self.first_component, first_component), format='csc')
-            if self.two_components:
-                second_component = t.second_component.to_sparse('csc', flatten=True)
-                self.second_component = vstack((self.second_component, second_component), format='csc')
+        csc_templates = [t.first_component.to_sparse('csc', flatten=True) for t in templates]
+        self.first_component = vstack([self.first_component] + csc_templates, format='csc')
+
+        if self.two_components:
+            csc_templates = [t.second_component.to_sparse('csc', flatten=True) for t in templates]
+            self.second_component = vstack([self.second_component] + csc_templates, format='csc')

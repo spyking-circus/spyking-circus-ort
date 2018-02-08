@@ -44,6 +44,11 @@ class TemplateComponent(object):
 
         return 'TemplateComponent for %d channels with amplitudes %s' %(self.nb_channels, self.amplitudes)
 
+    def _compress(self, indices):
+
+        self.waveforms = np.delete(self.waveforms, indices, 0)
+        self.indices = np.delete(self.indices, indices, 0)
+
     def to_sparse(self, method='csc', flatten=False):
 
         data = self.to_dense()
@@ -80,6 +85,19 @@ class TemplateComponent(object):
 
         return res
 
+    def center(self, shift):
+
+        if shift != 0:
+            aligned_template = np.zeros(self.waveforms.shape, dtype=np.float32)
+            if shift > 0:
+                aligned_template[:, shift:] = self.waveforms[:, :-shift]
+            elif shift < 0:
+                aligned_template[:, :shift] = self.waveforms[:, -shift:]
+
+            self.waveforms = aligned_template
+
+        return
+
 
 class Template(object):
 
@@ -90,7 +108,9 @@ class Template(object):
         self.channel = channel
         self.second_component = second_component
         if self.second_component is not None:
-            assert self.second_component.indices == self.first_component.indices, "Error with indices"
+            assert np.all(self.second_component.indices == self.first_component.indices), "Error with indices"
+            assert self.second_component.temporal_width == self.first_component.temporal_width, "Error with time"
+
         self.creation_time = creation_time
         self._synthetic_export = None
         self.compressed = False
@@ -101,6 +121,23 @@ class Template(object):
             self.channel = self.first_component.indices[index]
 
         self._auto_compression()
+
+    def __len__(self):
+
+        if self.second_component is not None:
+            return 2
+        else:
+            return 1
+
+    def __getitem__(self, item):
+
+        if item == 0:
+            return self.first_component
+        elif len(self) > 1:
+            if item == 1:
+                return self.second_component
+            else:
+                print("Only 2 components are available")
 
     def __str__(self):
         if self.compressed:
@@ -181,29 +218,29 @@ class Template(object):
         sums = np.sum(self.first_component.waveforms, 1)
         if self.two_components:
             sums += np.sum(self.second_component.waveforms, 1)
-        idx = np.where(sums == 0)[0]
-        if len(idx) > 0:
-            self.first_component.waveforms = np.delete(self.first_component.waveforms, idx, 0)
-            self.first_component.indices = np.delete(self.first_component.indices, idx, 0)
+        indices = np.where(sums == 0)[0]
+        self._compress(indices)
+
+        return
+
+    def _compress(self, indices):
+
+        if len(indices) > 0:
+            self.first_component._compress(indices)
             if self.two_components:
-                self.second_component.waveforms = np.delete(self.second_component.waveforms, idx, 0)
-                self.second_component.indices = np.delete(self.second_component.indices, idx, 0)
+                self.second_component._compress(indices)
             self.compressed = True
             self._synthetic_export = None
+
+        return
 
     def compress(self, compression_factor=0.5):
 
         if compression_factor > 0:
             stds = np.std(self.first_component.waveforms, 1)
             threshold = np.percentile(stds, compression_factor*100)
-            idx = np.where(stds < threshold)[0]
-            self.first_component.waveforms = np.delete(self.first_component.waveforms, idx, 0)
-            self.first_component.indices = np.delete(self.first_component.indices, idx, 0)
-            if self.two_components:
-                self.second_component.waveforms = np.delete(self.second_component.waveforms, idx, 0)
-                self.second_component.indices = np.delete(self.second_component.indices, idx, 0)
-            self._synthetic_export = None
-            self.compressed = True
+            indices = np.where(stds < threshold)[0]
+            self._compress(indices)
 
         return
 
@@ -302,28 +339,8 @@ class Template(object):
 
         shift = (self.temporal_width - 1) // 2 - tmpidx[1]
 
-        aligned_template = np.zeros(self.first_component.waveforms.shape, dtype=np.float32)
-
-        if shift > 0:
-            aligned_template[:, shift:] = self.first_component.waveforms[:, :-shift]
-        elif shift < 0:
-            aligned_template[:, :shift] = self.first_component.waveforms[:, -shift:]
-        else:
-            aligned_template = self.first_component.waveforms
-
-        self.first_component.waveforms = aligned_template
-
+        self.first_component.center(shift)
         if self.two_components:
-
-            aligned_template = np.zeros(self.second_component.waveforms.shape, dtype=np.float32)
-
-            if shift >= 0:
-                aligned_template[:, shift:] = self.second_component.waveforms[:, :-shift]
-            elif shift < 0:
-                aligned_template[:, :shift] = self.second_component.waveforms[:, -shift:]
-            else:
-                aligned_template = self.second_component.waveforms
-
-            self.second_component.waveforms = aligned_template
+            self.second_component.center(shift)
 
         return
