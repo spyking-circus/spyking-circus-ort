@@ -4,6 +4,59 @@ import numpy as np
 import scipy.sparse
 
 
+class Overlaps(object):
+
+    def __init__(self, template, target, _delays, _scols, overlap_size, spike_width):
+
+        self._delays = _delays
+        self._scols = _scols
+        self._overlap_size = overlap_size
+        self._spike_width = spike_width
+        self.new_indices = []
+        self.overlaps = self._get_overlaps(template, target)
+
+    @property
+    def do_update(self):
+
+        return len(self.new_indices) > 0
+
+    def _get_overlaps(self, template, target):
+
+        all_x = np.zeros(0, dtype=np.int32)
+        all_y = np.zeros(0, dtype=np.int32)
+        all_data = np.zeros(0, dtype=np.float32)
+
+        for idelay in self._delays:
+            tmp_1 = template[:, self._scols['left'][idelay]]
+            tmp_2 = target[:, self._scols['right'][idelay]]
+            data = tmp_1.dot(tmp_2.T)
+            dx, dy = data.nonzero()
+            ones = np.ones(len(dx), dtype=np.int32)
+            all_x = np.concatenate((all_x, dx * target.shape[0] + dy))
+            all_y = np.concatenate((all_y, (idelay - 1) * ones))
+            all_data = np.concatenate((all_data, data.data))
+
+            if idelay < self._spike_width:
+                tmp_1 = template[:, self._scols['right'][idelay]]
+                tmp_2 = target[:, self._scols['left'][idelay]]
+                data = tmp_1.dot(tmp_2.T)
+                dx, dy = data.nonzero()
+                ones = np.ones(len(dx), dtype=np.int32)
+                all_x = np.concatenate((all_x, dx * target.shape[0] + dy))
+                all_y = np.concatenate((all_y, (self._overlap_size - idelay) * ones))
+                all_data = np.concatenate((all_data, data.data))
+
+        shape = (target.shape[0] * template.shape[0], self._overlap_size)
+
+        return csr_matrix((all_data, (all_x, all_y)), shape=shape)
+
+    def update(self, template, target):
+
+        new_overlaps = self._get_overlaps(template, target[self.new_indices])
+        self.overlaps = scipy.sparse.vstack((self.overlaps, new_overlaps))
+        self.new_indices = []
+
+
 class OverlapsDictionary(object):
 
     def __init__(self, template_store=None):
@@ -44,7 +97,7 @@ class OverlapsDictionary(object):
 
     def __len__(self):
 
-        return len(self.first_component)
+        return self.first_component.shape[0]
 
     @property
     def temporal_width(self):
@@ -74,43 +127,17 @@ class OverlapsDictionary(object):
 
         if index not in self.overlaps[component]:
             target = self.all_components
-            overlaps = self._get_overlaps(self.first_component[index], target)
-            self.overlaps['1'][index] = overlaps
-            if self.two_components:
-                overlaps = self._get_overlaps(self.second_component[index], target)
-                self.overlaps['2'][index] = overlaps
+            template = self.all_components[index]
+            self.overlaps[component][index] = Overlaps(template, target, self._delays,
+                                                       self._scols, self._overlap_size, self._spike_width)
 
-        return self.overlaps[component][index]
+        else:
+            if self.overlaps[component][index].do_update:
+                target = self.all_components
+                template = self.all_components[index]
+                self.overlaps[component][index].update(template, target)
 
-    def _get_overlaps(self, template, target):
-
-        all_x = np.zeros(0, dtype=np.int32)
-        all_y = np.zeros(0, dtype=np.int32)
-        all_data = np.zeros(0, dtype=np.float32)
-
-        for idelay in self._delays:
-            tmp_1 = template[:, self._scols['left'][idelay]]
-            tmp_2 = target[:, self._scols['right'][idelay]]
-            data = tmp_1.dot(tmp_2.T)
-            dx, dy = data.nonzero()
-            ones = np.ones(len(dx), dtype=np.int32)
-            all_x = np.concatenate((all_x, dx * target.shape[0] + dy))
-            all_y = np.concatenate((all_y, (idelay - 1) * ones))
-            all_data = np.concatenate((all_data, data.data))
-
-            if idelay < self._spike_width:
-                tmp_1 = template[:, self._scols['right'][idelay]]
-                tmp_2 = target[:, self._scols['left'][idelay]]
-                data = tmp_1.dot(tmp_2.T)
-                dx, dy = data.nonzero()
-                ones = np.ones(len(dx), dtype=np.int32)
-                all_x = np.concatenate((all_x, dx * target.shape[0] + dy))
-                all_y = np.concatenate((all_y, (self._overlap_size - idelay) * ones))
-                all_data = np.concatenate((all_data, data.data))
-
-        shape = (target.shape[0] * template.shape[0], self._overlap_size)
-
-        return csr_matrix((all_data, (all_x, all_y)), shape=shape)
+        return self.overlaps[component][index].overlaps
 
     def clear_overlaps(self):
 
@@ -143,6 +170,9 @@ class OverlapsDictionary(object):
             self.second_component = vstack((self.second_component, csr_template), format='csr')
 
         self._all_components = None
+        for key, value in self.overlaps.items():
+            for index in value.keys():
+                self.overlaps[key][index].new_indices += [len(self) - 1]
 
     def update(self, indices):
 

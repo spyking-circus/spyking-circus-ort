@@ -374,7 +374,8 @@ class Template_fitter(Block):
                 self._init_temp_window()
             else:
                 self.overlaps_store.update(updater['indices'])
-            self.overlaps_store.clear_overlaps()
+
+            #self.overlaps_store.clear_overlaps()
 
             self._measure_time('update_end', frequency=1)
 

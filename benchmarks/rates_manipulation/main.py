@@ -12,7 +12,7 @@ nb_rows = 10
 nb_columns = 10
 nb_cells = 100
 duration = 10 * 60# s
-preload_templates = True
+preload_templates = False
 nb_waveforms_clustering = 100
 
 
