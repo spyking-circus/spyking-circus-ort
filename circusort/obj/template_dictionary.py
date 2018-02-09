@@ -24,7 +24,7 @@ class TemplateDictionary(object):
         self._spike_width = template.temporal_width
         self._overlap_size = 2 * self._spike_width - 1
         self._cols = np.arange(self.nb_channels * self._spike_width).astype(np.int32)
-        self.first_component = scipy.sparse.csc_matrix((0, self._nb_elements), dtype=np.float32)
+        self.first_component = scipy.sparse.csr_matrix((0, self._nb_elements), dtype=np.float32)
         self._scols = {
             'left': {},
             'right': {}
@@ -123,6 +123,12 @@ class TemplateDictionary(object):
 
         pass  # TODO implement or remove this method?
 
+    def _get_csr_template(self, template):
+        csr_template = template.first_component.to_sparse('csr', flatten=True)
+        norm = template.first_component.norm
+        csr_template /= norm
+        return csr_template
+
     def initialize(self, templates):
 
         accepted, _, _ = self.add(templates, force=True)
@@ -136,65 +142,59 @@ class TemplateDictionary(object):
         accepted = []
 
         if force:
-
             for t in templates:
 
                 if self.first_component is None:
                     self._init_from_template(t)
 
-                csr_template = t.first_component.to_sparse('csr', flatten=True)
-                norm = t.first_component.norm
-                csr_template /= norm
-
+                csr_template = self._get_csr_template(t)
                 accepted += self._add_template(t, csr_template)
 
         else:
-
-            for k, t in enumerate(templates):
+            for t in templates:
 
                 if self.first_component is None:
                     self._init_from_template(t)
 
-                csr_template = t.first_component.to_sparse('csr', flatten=True)
-                norm = t.first_component.norm
-                csr_template /= norm
+                csr_template = self._get_csr_template(t)
 
                 is_present = self._is_present(csr_template)
                 is_mixture = self._is_mixture(csr_template)
+
                 if is_present:
                     nb_duplicates += 1
                     self._add_duplicates(t)
+
                 if is_mixture:
                     nb_mixtures += 1
                     self._add_mixtures(t)
+
                 if not is_present and not is_mixture:
                     accepted += self._add_template(t, csr_template)
-                    # TODO add templates with self._add_templates instead of self._add_template.
-                    # TODO this will be more efficient (i.e. nb_templates times faster).
 
         return accepted, nb_duplicates, nb_mixtures
 
-    def _is_present(self, csc_template):
+    def _is_present(self, csr_template):
 
         if (self.cc_merge is None) or (self.nb_templates == 0):
             return False
 
         for idelay in self._delays:
-            tmp_1 = csc_template[:, self._scols['left'][idelay]]
+            tmp_1 = csr_template[:, self._scols['left'][idelay]]
             tmp_2 = self.first_component[:, self._scols['right'][idelay]]
             data = tmp_1.dot(tmp_2.T)
             if np.any(data.data >= self.cc_merge):
                 return True
 
             if idelay < self._spike_width:
-                tmp_1 = csc_template[:, self._scols['right'][idelay]]
+                tmp_1 = csr_template[:, self._scols['right'][idelay]]
                 tmp_2 = self.first_component[:, self._scols['left'][idelay]]
                 data = tmp_1.dot(tmp_2.T)
                 if np.any(data.data >= self.cc_merge):
                     return True
         return False
 
-    def _is_mixture(self, csc_template):
+    def _is_mixture(self, csr_template):
         
         if (self.cc_mixture is None) or (self.nb_templates == 0):
             return False
@@ -204,7 +204,7 @@ class TemplateDictionary(object):
         all_data = np.zeros(0, dtype=np.float32)
 
         for idelay in self._delays:
-            tmp_1 = csc_template[:, self._scols['left'][idelay]]
+            tmp_1 = csr_template[:, self._scols['left'][idelay]]
             tmp_2 = self.first_component[:, self._scols['right'][idelay]]
             data = tmp_1.dot(tmp_2.T)
             dx, dy = data.nonzero()
@@ -214,7 +214,7 @@ class TemplateDictionary(object):
             all_data = np.concatenate((all_data, data.data))
 
             if idelay < self._spike_width:
-                tmp_1 = csc_template[:, self._scols['right'][idelay]]
+                tmp_1 = csr_template[:, self._scols['right'][idelay]]
                 tmp_2 = self.first_component[:, self._scols['left'][idelay]]
                 data = tmp_1.dot(tmp_2.T)
                 dx, dy = data.nonzero()

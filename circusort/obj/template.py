@@ -51,7 +51,7 @@ class TemplateComponent(object):
 
         return
 
-    def to_sparse(self, method='csc', flatten=False):
+    def to_sparse(self, method='csr', flatten=False):
 
         data = self.to_dense()
         if flatten:

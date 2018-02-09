@@ -20,7 +20,7 @@ class OverlapsDictionary(object):
         self._delays = np.arange(1, self.temporal_width + 1)
         self._cols = np.arange(self.nb_channels * self._temporal_width).astype(np.int32)
         self._overlap_size = 2 * self._spike_width - 1
-        self.first_component = scipy.sparse.csc_matrix((0, self._nb_elements), dtype=np.float32)
+        self.first_component = scipy.sparse.csr_matrix((0, self._nb_elements), dtype=np.float32)
         self.norms = {
             '1': np.zeros(0, dtype=np.float32)
         }
@@ -31,7 +31,7 @@ class OverlapsDictionary(object):
         }
 
         if self.two_components:
-            self.second_component = scipy.sparse.csc_matrix((0, self._nb_elements), dtype=np.float32)
+            self.second_component = scipy.sparse.csr_matrix((0, self._nb_elements), dtype=np.float32)
             self.norms['2'] = np.zeros(0, dtype=np.float32)
             self.overlaps['2'] = {}
 
@@ -40,6 +40,11 @@ class OverlapsDictionary(object):
             self._scols['right'][idelay] = np.where(self._cols % self._spike_width >= (self._spike_width - idelay))[0]
 
         self.update(self.template_store.indices)
+        self._all_components = None
+
+    def __len__(self):
+
+        return len(self.first_component)
 
     @property
     def temporal_width(self):
@@ -52,12 +57,13 @@ class OverlapsDictionary(object):
     @property
     def all_components(self):
 
-        if not self.two_components:
-            all_components = self.first_component
-        else:
-            all_components = vstack((self.first_component, self.second_component), format='csc')
+        if self._all_components is None:
+            if not self.two_components:
+                self._all_components = self.first_component
+            else:
+                self._all_components = vstack((self.first_component, self.second_component), format='csr')
 
-        return all_components
+        return self._all_components
 
     @property
     def nb_templates(self):
@@ -77,7 +83,7 @@ class OverlapsDictionary(object):
         return self.overlaps[component][index]
 
     def _get_overlaps(self, template, target):
-        
+
         all_x = np.zeros(0, dtype=np.int32)
         all_y = np.zeros(0, dtype=np.int32)
         all_data = np.zeros(0, dtype=np.float32)
@@ -119,26 +125,28 @@ class OverlapsDictionary(object):
 
         return scalar_products
 
+    def add_template(self, template):
+
+        # Add new and updated templates to the dictionary.
+        self.norms['1'] = np.concatenate((self.norms['1'], [template.first_component.norm]))
+        self.amplitudes = np.vstack((self.amplitudes, template.amplitudes))
+        if self.two_components:
+            self.norms['2'] = np.concatenate((self.norms['2'], [template.second_component.norm]))
+
+        template.normalize()
+
+        csr_template = template.first_component.to_sparse('csr', flatten=True)
+        self.first_component = vstack((self.first_component, csr_template), format='csr')
+
+        if self.two_components:
+            csr_template = template.second_component.to_sparse('csr', flatten=True)
+            self.second_component = vstack((self.second_component, csr_template), format='csr')
+
+        self._all_components = None
+
     def update(self, indices):
 
         templates = self.template_store.get(indices)
 
-        amplitudes = [t.amplitudes for t in templates]
-        norms_1 = [t.first_component.norm for t in templates]
-
-        self.amplitudes = np.vstack((self.amplitudes, amplitudes))
-        self.norms['1'] = np.concatenate((self.norms['1'], norms_1))
-
-        if self.two_components:
-            norms_2 = [t.second_component.norm for t in templates]
-            self.norms['2'] = np.concatenate((self.norms['2'], norms_2))
-
-        for t in templates:
-            t.normalize()
-
-        csc_templates = [t.first_component.to_sparse('csc', flatten=True) for t in templates]
-        self.first_component = vstack([self.first_component] + csc_templates, format='csc')
-
-        if self.two_components:
-            csc_templates = [t.second_component.to_sparse('csc  ', flatten=True) for t in templates]
-            self.second_component = vstack([self.second_component] + csc_templates, format='csc')
+        for template in templates:
+            self.add_template(template)
