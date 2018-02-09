@@ -13,7 +13,7 @@ class OverlapsDictionary(object):
         self.nb_channels = self.template_store.nb_channels
         self._temporal_width = None
         self.overlaps = {
-            'first_component': {}
+            '1': {}
         }
         self._spike_width = self.template_store.temporal_width
         self._nb_elements = self.nb_channels * self.temporal_width
@@ -33,7 +33,7 @@ class OverlapsDictionary(object):
         if self.two_components:
             self.second_component = scipy.sparse.csc_matrix((0, self._nb_elements), dtype=np.float32)
             self.norms['2'] = np.zeros(0, dtype=np.float32)
-            self.overlaps['second_component'] = {}
+            self.overlaps['2'] = {}
 
         for idelay in self._delays:
             self._scols['left'][idelay] = np.where(self._cols % self._spike_width < idelay)[0]
@@ -64,15 +64,15 @@ class OverlapsDictionary(object):
 
         return self.first_component.shape[0]        
 
-    def get_overlaps(self, index, component='first_component'):
+    def get_overlaps(self, index, component='1'):
 
         if index not in self.overlaps[component]:
             target = self.all_components
             overlaps = self._get_overlaps(self.first_component[index], target)
-            self.overlaps['first_component'][index] = overlaps
+            self.overlaps['1'][index] = overlaps
             if self.two_components:
                 overlaps = self._get_overlaps(self.second_component[index], target)
-                self.overlaps['second_component'][index] = overlaps
+                self.overlaps['2'][index] = overlaps
 
         return self.overlaps[component][index]
 
@@ -115,12 +115,7 @@ class OverlapsDictionary(object):
 
     def dot(self, waveforms):
 
-        if not self.two_components:
-            scalar_products = self.first_component.dot(waveforms)
-        else:
-            tmp1 = self.first_component.dot(waveforms)
-            tmp2 = self.second_component.dot(waveforms)
-            scalar_products = np.vstack((tmp1, tmp2))
+        scalar_products = self.all_components.dot(waveforms)
 
         return scalar_products
 
@@ -145,5 +140,5 @@ class OverlapsDictionary(object):
         self.first_component = vstack([self.first_component] + csc_templates, format='csc')
 
         if self.two_components:
-            csc_templates = [t.second_component.to_sparse('csc', flatten=True) for t in templates]
+            csc_templates = [t.second_component.to_sparse('csc  ', flatten=True) for t in templates]
             self.second_component = vstack([self.second_component] + csc_templates, format='csc')

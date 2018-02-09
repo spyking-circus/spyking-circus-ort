@@ -205,7 +205,7 @@ class TemplateStore(object):
         self._open('r+')
 
         indices = []
-        if not np.iterable(templates):
+        if isinstance(templates, Template):
             templates = [templates]
 
         for t in templates:
@@ -285,8 +285,8 @@ class TemplateStore(object):
             template.compressed = compressed
             result += [template]
 
-
         self._close()
+
         if singleton and len(result) == 1:
             result = result[0]
 

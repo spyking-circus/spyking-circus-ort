@@ -112,14 +112,10 @@ class TemplateDictionary(object):
 
         return
 
-    def _add_template(self, template, csc_template):
+    def _add_template(self, template, csr_template):
 
-        return self._add_templates([template], [csc_template])
-
-    def _add_templates(self, templates, csc_templates):
-
-        self.first_component = scipy.sparse.vstack([self.first_component] + csc_templates, format='csc')
-        indices = self.template_store.add(templates)
+        self.first_component = scipy.sparse.vstack((self.first_component, csr_template), format='csr')
+        indices = self.template_store.add(template)
 
         return indices
 
@@ -141,20 +137,16 @@ class TemplateDictionary(object):
 
         if force:
 
-            if self.first_component is None and len(templates) > 0:
-                self._init_from_template(templates[0])
+            for t in templates:
 
-            def get_csc_template(template_):
-                csc_template_ = template_.first_component.to_sparse('csc', flatten=True)
-                csc_template_ /= template_.first_component.norm
-                return csc_template_
+                if self.first_component is None:
+                    self._init_from_template(t)
 
-            csc_templates = [
-                get_csc_template(template)
-                for template in templates
-            ]
+                csr_template = t.first_component.to_sparse('csr', flatten=True)
+                norm = t.first_component.norm
+                csr_template /= norm
 
-            accepted = self._add_templates(templates, csc_templates)
+                accepted += self._add_template(t, csr_template)
 
         else:
 
@@ -163,12 +155,12 @@ class TemplateDictionary(object):
                 if self.first_component is None:
                     self._init_from_template(t)
 
-                csc_template = t.first_component.to_sparse('csc', flatten=True)
+                csr_template = t.first_component.to_sparse('csr', flatten=True)
                 norm = t.first_component.norm
-                csc_template /= norm
+                csr_template /= norm
 
-                is_present = self._is_present(csc_template)
-                is_mixture = self._is_mixture(csc_template)
+                is_present = self._is_present(csr_template)
+                is_mixture = self._is_mixture(csr_template)
                 if is_present:
                     nb_duplicates += 1
                     self._add_duplicates(t)
@@ -176,7 +168,7 @@ class TemplateDictionary(object):
                     nb_mixtures += 1
                     self._add_mixtures(t)
                 if not is_present and not is_mixture:
-                    accepted += self._add_template(t, csc_template)
+                    accepted += self._add_template(t, csr_template)
                     # TODO add templates with self._add_templates instead of self._add_template.
                     # TODO this will be more efficient (i.e. nb_templates times faster).
 

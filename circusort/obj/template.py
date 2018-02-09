@@ -49,16 +49,17 @@ class TemplateComponent(object):
         self.waveforms = np.delete(self.waveforms, indices, 0)
         self.indices = np.delete(self.indices, indices, 0)
 
+        return
+
     def to_sparse(self, method='csc', flatten=False):
 
         data = self.to_dense()
+        if flatten:
+            data = data.flatten()[None, :]
+
         if method is 'csc':
-            if flatten:
-                data = data.flatten()[None, :]
             return scipy.sparse.csc_matrix(data, dtype=np.float32)
         elif method is 'csr':
-            if flatten:
-                data = data.flatten()[:, None]
             return scipy.sparse.csr_matrix(data, dtype=np.float32)
 
     def to_dense(self):
@@ -103,14 +104,16 @@ class Template(object):
 
     def __init__(self, first_component, channel=None, second_component=None, creation_time=0):
 
+        assert isinstance(first_component, TemplateComponent)
         self.first_component = first_component
         assert self.first_component.amplitudes is not None
         self.channel = channel
-        self.second_component = second_component
-        if self.second_component is not None:
-            assert np.all(self.second_component.indices == self.first_component.indices), "Error with indices"
-            assert self.second_component.temporal_width == self.first_component.temporal_width, "Error with time"
+        if second_component is not None:
+            assert isinstance(second_component, TemplateComponent)
+            assert np.all(second_component.indices == self.first_component.indices), "Error with indices"
+            assert second_component.temporal_width == self.first_component.temporal_width, "Error with time"
 
+        self.second_component = second_component
         self.creation_time = creation_time
         self._synthetic_export = None
         self.compressed = False
@@ -147,6 +150,14 @@ class Template(object):
 
         return '%s template on channel %d (%d indices)\n' %(str_comp, self.channel, len(self.indices))
 
+    def __iter__(self):
+
+        data = [self.first_component]
+        if len(self) == 2:
+            data += [self.second_component]
+
+        return data.__iter__()
+
     @property
     def two_components(self):
 
@@ -162,16 +173,15 @@ class Template(object):
 
         return np.array(self.first_component.amplitudes, dtype=np.float32)
 
-    def normalize(self):
-
-        self.first_component.normalize()
-        if self.two_components:
-            self.second_component.normalize()
-
     @property
     def temporal_width(self):
 
         return self.first_component.temporal_width
+
+    @property
+    def nb_channels(self):
+
+        return self.first_component.nb_channels
 
     @property
     def synthetic_export(self):
@@ -196,25 +206,30 @@ class Template(object):
 
         return self._synthetic_export
 
-    def _similarity(self, template):
+    @property
+    def norm(self):
 
-        res = [self.first_component.similarity(template.first_component)]
-        if template.two_components and self.two_components:
-            res += [self.second_component.similarity(template.second_component)]
+        result = [a.norm for a in self]
 
-        return np.mean(res)
+        return result
+
+    def normalize(self):
+
+        for component in self:
+            component.normalize()
 
     def similarity(self, template):
 
         if type(template) == list:
             res = []
             for t in template:
-                res += [self._similarity(t)]
+                res += [self.first_component.similarity(t.first_component)]
             return res
         else:
-            return self._similarity(template)
+            return self.first_component.similarity(template.first_component)
 
     def _auto_compression(self):
+
         sums = np.sum(self.first_component.waveforms, 1)
         if self.two_components:
             sums += np.sum(self.second_component.waveforms, 1)
@@ -226,9 +241,8 @@ class Template(object):
     def _compress(self, indices):
 
         if len(indices) > 0:
-            self.first_component._compress(indices)
-            if self.two_components:
-                self.second_component._compress(indices)
+            for component in self:
+                component._compress(indices)
             self.compressed = True
             self._synthetic_export = None
 
@@ -317,10 +331,9 @@ class Template(object):
 
     def to_dict(self):
 
-        res = {'1': self.first_component.to_dict(False)}
-
-        if self.two_components:
-            res['2'] = self.second_component.to_dict(False)
+        res = {}
+        for count, component in enumerate(self):
+            res['%d' %count] = component.to_dict(False)
 
         if self.compressed:
             res['compressed'] = self.indices
@@ -339,8 +352,7 @@ class Template(object):
 
         shift = (self.temporal_width - 1) // 2 - tmpidx[1]
 
-        self.first_component.center(shift)
-        if self.two_components:
-            self.second_component.center(shift)
+        for component in self:
+            component.center(shift)
 
         return

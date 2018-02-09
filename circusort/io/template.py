@@ -189,31 +189,34 @@ def get_template(path=None, **kwargs):
     return template
 
 
-def load_component_from_dict(template_dict, probe, indices):
+def load_component_from_dict(template_dict, indices, nb_channels):
+
+    if nb_channels is None:
+        nb_channels = np.max(indices)
 
     waveforms = np.array(template_dict['wav'], dtype=np.float32)
     amplitudes = np.array(template_dict['amp'], dtype=np.float32)
-    component = TemplateComponent(waveforms, indices, probe.nb_channels, amplitudes)
+    component = TemplateComponent(waveforms, indices, nb_channels, amplitudes)
 
     return component
 
 
 def load_template_from_dict(template_dict, probe):
 
-    channel = template_dict['channel']
-    creation_time = template_dict['time']
+    channel = int(template_dict['channel'])
+    creation_time = int(template_dict['time'])
 
     if 'compressed' in template_dict:
-        indices = np.array(template_dict['compressed'], dtype='int32')
+        indices = np.array(template_dict['compressed'], dtype=np.int32)
         compressed = True
     else:
         indices = probe.edges[channel]
         compressed = False
 
-    first_component = load_component_from_dict(template_dict['1'], probe, indices)
+    first_component = load_component_from_dict(template_dict['0'], indices, probe.nb_channels)
 
     if '2' in template_dict:
-        second_component = load_component_from_dict(template_dict['2'], probe, indices)
+        second_component = load_component_from_dict(template_dict['1'], indices, probe.nb_channels)
     else:
         second_component = None
 

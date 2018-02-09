@@ -254,12 +254,12 @@ class Template_fitter(Block):
                         indices = np.zeros((self.overlaps_store._overlap_size, len(ytmp)), dtype=np.int32)
                         indices[ytmp, np.arange(len(ytmp))] = 1
 
-                        tmp1_ = self.overlaps_store.get_overlaps(best_template_index, 'first_component')
+                        tmp1_ = self.overlaps_store.get_overlaps(best_template_index, '1')
                         tmp1 = tmp1_.multiply(-best_amplitude).dot(indices)
                         scalar_products[:, is_neighbor[0, :]] += tmp1
 
                         if self.overlaps_store.two_components:
-                            tmp2_ = self.overlaps_store.get_overlaps(best_template_index, 'second_component')
+                            tmp2_ = self.overlaps_store.get_overlaps(best_template_index, '2')
                             tmp2 = tmp2_.multiply(-best_amplitude_2).dot(indices)
                             scalar_products[:, is_neighbor[0, :]] += tmp2
 
