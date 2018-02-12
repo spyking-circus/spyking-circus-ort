@@ -166,7 +166,7 @@ class Template_fitter(Block):
 
         batch = self.x.T.flatten()
         nb_peaks = len(peak_time_steps)
-        waveforms = np.zeros((self.overlaps_store._nb_elements, nb_peaks), dtype=np.float32)
+        waveforms = np.zeros((self.overlaps_store.nb_elements, nb_peaks), dtype=np.float32)
         for k, peak_time_step in enumerate(peak_time_steps):
             waveforms[:, k] = batch[self.slice_indices + peak_time_step]
 
@@ -223,10 +223,10 @@ class Template_fitter(Block):
                     best_template_index = np.argmax(peak_scalar_products, axis=0)
 
                     # Compute the best amplitude.
-                    best_amplitude = sub_b[best_template_index, peak_index] / self.overlaps_store._nb_elements
+                    best_amplitude = sub_b[best_template_index, peak_index] / self.overlaps_store.nb_elements
                     if self.overlaps_store.two_components:
                         best_scalar_product = scalar_products[best_template_index + self.nb_templates, peak_index]
-                        best_amplitude_2 = best_scalar_product / self.overlaps_store._nb_elements
+                        best_amplitude_2 = best_scalar_product / self.overlaps_store.nb_elements
 
                     # Compute the best normalized amplitude.
                     best_amplitude_ = best_amplitude / self.overlaps_store.norms['1'][best_template_index]
@@ -251,7 +251,7 @@ class Template_fitter(Block):
                         tmp -= np.array([[peak_time_step]])
                         is_neighbor = np.abs(tmp) <= self._2_width
                         ytmp = tmp[0, is_neighbor[0, :]] + self._2_width
-                        indices = np.zeros((self.overlaps_store._overlap_size, len(ytmp)), dtype=np.int32)
+                        indices = np.zeros((self.overlaps_store.size, len(ytmp)), dtype=np.int32)
                         indices[ytmp, np.arange(len(ytmp))] = 1
 
                         tmp1_ = self.overlaps_store.get_overlaps(best_template_index, '1')
