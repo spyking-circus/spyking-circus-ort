@@ -49,7 +49,7 @@ class Fitter(Network):
         }
         fitters_kwargs = {
             k: {
-                'name': "{} > fitter {}".format(self.name, k),
+                'name': "{} fitter {}".format(self.name, k),
                 '_nb_fitters': self.degree,
                 '_fitter_id': k,
                 'log_level': self.log_level,

@@ -103,6 +103,10 @@ def main():
     if args.pending_introspection:
 
         block_names = network.block_names
+        try:
+            block_nb_buffers = network.block_nb_buffers
+        except AttributeError:
+            block_nb_buffers = {}
         showfliers = False
         duration_factors = OrderedDict()
         output_directory = os.path.join(directory, "output")
@@ -127,7 +131,6 @@ def main():
             # Define parameters.
             nb_samples = parameters['general']['buffer_width']
             sampling_rate = parameters['general']['sampling_rate']
-            duration_buffer = float(nb_samples) / sampling_rate
 
             # Load time measurements from disk.
             duration_factors[configuration_name] = OrderedDict()
@@ -136,6 +139,8 @@ def main():
                 end_times = measurements.get('end', np.empty(shape=0))
                 start_times = measurements.get('start', np.empty(shape=0))
                 durations = end_times - start_times
+                nb_buffers = block_nb_buffers.get(block_name, 1)
+                duration_buffer = float(nb_buffers * nb_samples) / sampling_rate
                 duration_factors_ = np.log10(durations / duration_buffer)
                 duration_factors[configuration_name][block_name] = duration_factors_
 

@@ -491,7 +491,7 @@ class Fitter(Block):
         start_times = np.array(self._measured_times.get('start', []))
         end_times = np.array(self._measured_times.get('end', []))
         durations = end_times - start_times
-        data_duration = float(self.nb_samples) / self.sampling_rate
+        data_duration = float(self._nb_fitters * self.nb_samples) / self.sampling_rate
         ratios = data_duration / durations
 
         min_ratio = np.min(ratios) if ratios.size > 0 else np.nan
