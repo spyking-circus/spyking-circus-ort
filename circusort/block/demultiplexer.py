@@ -67,8 +67,8 @@ class Demultiplexer(Block):
         # Declare the outputs.
         for name, structure in zip(self._input_names, self._input_structures):
             for k in range(0, self.degree):
-                name = self._get_output_name(name, k)
-                self.add_output(name, structure)
+                output_name = self._get_output_name(name, k)
+                self.add_output(output_name, structure)
 
     @staticmethod
     def _get_output_name(name, k):
@@ -95,11 +95,23 @@ class Demultiplexer(Block):
 
         return
 
+    def _guess_output_endpoints(self):
+
+        for input_name, structure in zip(self._input_names, self._input_structures):
+            if structure == 'array':
+                input = self.get_input(input_name)
+                for k in range(0, self.degree):
+                    output_name = self._get_output_name(input_name, k)
+                    output = self.get_output(output_name)
+                    output.configure(dtype=input.dtype, shape=input.shape)
+
+        return
+
     def _process(self):
 
         # Get tokens (i.e. which outputs should we use?).
         tokens = [
-            self.counter + 1 % self.degree
+            (self.counter + k) % self.degree
             for k in range(0, self.overlap + 1)
         ]
 
