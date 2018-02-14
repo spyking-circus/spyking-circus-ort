@@ -161,10 +161,7 @@ class TemplateDictionary(object):
                 for template in templates
             ]
 
-            # TODO remove prints.
-            print("Add templates to the dictionary...")
             accepted = self._add_templates(templates, csc_templates)
-            print("Added templates to the dictionary...")
 
         else:
 
@@ -293,7 +290,7 @@ class OverlapsDictionary(object):
             self._scols['left'][idelay] = np.where(self._cols % self._spike_width < idelay)[0]
             self._scols['right'][idelay] = np.where(self._cols % self._spike_width >= (self._spike_width - idelay))[0]
 
-        self.update(self.template_store.indices)
+        self.update(self.template_store.indices)  # TODO improve the performances of this line.
 
     @property
     def temporal_width(self):
@@ -383,8 +380,6 @@ class OverlapsDictionary(object):
         templates = self.template_store.get(indices)
 
         for k, t in enumerate(templates):
-
-            print("Add template {} to the OverlapsDictionary...".format(k))
 
             # Add new and updated templates to the dictionary.
             self.norms['1'] = np.concatenate((self.norms['1'], [t.first_component.norm]))
