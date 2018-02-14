@@ -71,10 +71,14 @@ class Template_fitter(Block):
         return
 
     def _initialize_templates(self):
+
         self.template_store = TemplateStore(self.init_path, mode='r')
         self.overlaps_store = OverlapsDictionary(self.template_store)
-        info_msg = "{} is initialized with {} templates from {}"
-        self.log.info(info_msg.format(self.name, self.overlaps_store.nb_templates, self.init_path))
+
+        string = "{} is initialized with {} templates from {}"
+        message = string.format(self.name, self.overlaps_store.nb_templates, self.init_path)
+        self.log.info(message)
+
         return
 
     @property
