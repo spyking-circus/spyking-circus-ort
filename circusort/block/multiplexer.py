@@ -67,6 +67,36 @@ class Multiplexer(Block):
 
         return
 
+    def _guess_output_endpoints(self):
+
+        for output_name, structure in zip(self._output_names, self._output_structures):
+            if structure == 'array':
+                output = self.get_output(output_name)
+                if self.degree > 0:
+                    # Find the data type and shape of the 1st input.
+                    input_name = self._get_input_name(output_name, 0)
+                    input_ = self.get_output(input_name)
+                    dtype = input_.dtype
+                    shape = input_.shape
+                    # Check the data types and shapes of the other inputs.
+                    for k in range(1, self.degree):
+                        input_name = self._get_input_name(output_name, k)
+                        input_ = self.get_input(input_name)
+                        if input_.dtype != dtype:
+                            string = "Different input dtypes for the multiplexer ({} or {})"
+                            message = string.format(input_.dtype, dtype)
+                            self.log.error(message)
+                        if input_.shape != shape:
+                            string = "Different input shapes for the multiplexer ({} or {})"
+                            message = string.format(input_.shape, shape)
+                            self.log.error(message)
+                    # Configure the output (if everything is consistent).
+                    output.configure(dtype=dtype, shape=shape)
+                else:
+                    raise NotImplementedError()
+
+        return
+
     def _process(self):
 
         # Get token (i.e. which input should we use?).
