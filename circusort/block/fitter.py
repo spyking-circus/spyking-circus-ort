@@ -476,7 +476,7 @@ class Fitter(Block):
 
             elif self._nb_fitters > 1:
 
-                self.get_output('spike').send(self._empty_result)
+                self.get_output('spikes').send(self._empty_result)
 
         elif self._nb_fitters > 1:
 
