@@ -83,6 +83,10 @@ class Template_updater(Block):
         self.template_dictionary = TemplateDictionary(self.template_store, cc_merge=self.cc_merge,
                                                       cc_mixture=self.cc_mixture)
 
+        # Log path.
+        message = "{} records templates into {}".format(self.name, self.data_path)
+        self.log.info(message)
+
         # Define precomputed templates (if necessary).
         if self.precomputed_template_paths is not None:
             precomputed_templates = [
@@ -91,9 +95,22 @@ class Template_updater(Block):
             ]
             self.precomputed_templates = precomputed_templates
 
-        # Log path.
-        message = "{} records templates into {}".format(self.name, self.data_path)
-        self.log.info(message)
+            # Add precomputed templates to the dictionary.
+            accepted = self.template_dictionary.initialize(self.precomputed_templates)
+
+            # Log some information.
+            if len(accepted) > 0:
+                string = "{} added {} precomputed templates."
+                message = string.format(self.name, len(accepted))
+                self.log.debug(message)
+
+                # Send output data.
+            self._precomputed_output = {
+                'templates_file': self.template_store.file_name,
+                'indices': accepted,
+            }
+        else:
+            self._precomputed_output = None
 
         return
 
@@ -132,35 +149,14 @@ class Template_updater(Block):
     def _process(self):
 
         # Send precomputed templates.
-        if self.counter == 0 and self.precomputed_template_paths is not None:
-
-            # Log some information.
-            string = "{} adds precomputed templates..."
-            message = string.format(self.name)
-            self.log.debug(message)
-
-            # Add precomputed templates to the dictionary.
-            accepted = self.template_dictionary.initialize(self.precomputed_templates)
-
-            # Log some information.
-            if len(accepted) > 0:
-                string = "{} added {} precomputed templates."
-                message = string.format(self.name, len(accepted))
-                self.log.debug(message)
-
-            # Send output data.
-            output = {
-                'templates_file': self.template_store.file_name,
-                'indices': accepted,
-            }
-            self.output.send(output)
+        if self.counter == 0 and self._precomputed_output is not None:
+            self.output.send(self._precomputed_output)
 
         # Receive input data.
         data = self.inputs['templates'].receive(blocking=False)
 
         if data is not None:
 
-            offset = data.pop('offset')
             self._measure_time('start', frequency=1)
 
             # Set mode as active (if necessary).

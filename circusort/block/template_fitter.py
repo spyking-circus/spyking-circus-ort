@@ -79,6 +79,9 @@ class Template_fitter(Block):
         message = string.format(self.name, self.overlaps_store.nb_templates, self.init_path)
         self.log.info(message)
 
+        self.log.info("Pre-computing all the overlaps...")
+        self.overlaps_store.precompute_overlaps()
+
         return
 
     @property
@@ -97,7 +100,8 @@ class Template_fitter(Block):
             return 0
 
     def _guess_output_endpoints(self):
-        return
+        if self.init_path is not None:
+            self._init_temp_window()
 
     def _init_temp_window(self):
         self.slice_indices = np.zeros(0, dtype=np.int32)
@@ -346,7 +350,7 @@ class Template_fitter(Block):
 
         updater = self.inputs['updater'].receive(blocking=False, discarding_eoc=self.discarding_eoc_from_updater)
 
-        if updater is not None:
+        if updater is not None and self.init_path is None:
 
             self._measure_time('update_start', frequency=1)
 
@@ -388,8 +392,6 @@ class Template_fitter(Block):
                 self.p = self.p - self.nb_samples
                 self.p = self.p[0 <= self.p]
                 self.p = np.concatenate((self.p, p))
-
-            print('Steps %d we fit from %d peaks with offsets (%d, %d)' % (self.counter, len(p), peaks['offset'], self.offset))
 
             if self.nb_templates > 0:
 

@@ -179,8 +179,11 @@ def main():
             'sampling_rate': sampling_rate,
             'log_level': DEBUG,
             'introspection_path': introspect_path,
-            'init_path': os.path.join(sorting_directory, "templates.h5")
         }
+
+        if preload_templates:
+            fitter_kwargs['init_path'] = os.path.join(sorting_directory, "templates.h5")
+
         writer_kwargs = {
             'name': "writer",
             'data_path': os.path.join(sorting_directory, "spikes.h5"),

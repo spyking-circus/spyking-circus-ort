@@ -185,3 +185,10 @@ class OverlapsDictionary(object):
 
         for template in templates:
             self.add_template(template)
+
+    def precompute_overlaps(self):
+
+        for index in range(self.nb_templates):
+            self.get_overlaps(index, component='1')
+            if self.two_components:
+                self.get_overlaps(index, component='2')
