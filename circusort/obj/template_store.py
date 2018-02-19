@@ -320,7 +320,7 @@ class TemplateStore(object):
     def _open(self, mode='r+'):
 
         if self.h5_file is None:
-            self.h5_file = h5py.File(self.file_name, mode, swmr=True)
+            self.h5_file = h5py.File(self.file_name, mode=mode, swmr=True)
 
         return
 
