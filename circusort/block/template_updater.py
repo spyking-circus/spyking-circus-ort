@@ -6,8 +6,8 @@ from circusort.block.block import Block
 from circusort.io.probe import load_probe
 from circusort.io.template import load_template
 from circusort.obj.template_store import TemplateStore, TemplateComponent, Template
-from circusort.utils.overlaps import TemplateDictionary
-
+from circusort.obj.template_dictionary import TemplateDictionary
+from circusort.io.template import load_template_from_dict
 
 class Template_updater(Block):
     """Template updater
@@ -31,7 +31,7 @@ class Template_updater(Block):
         'data_path': None,
         'precomputed_template_paths': None,
         'sampling_rate': 20e+3,
-        'nb_samples': 1024,
+        'nb_samples': 1024
     }
 
     def __init__(self, **kwargs):
@@ -89,7 +89,7 @@ class Template_updater(Block):
                 load_template(path)
                 for path in self.precomputed_template_paths
             ]
-            self.precomputed_templates = self._templates_to_templates(precomputed_templates)
+            self.precomputed_templates = precomputed_templates
 
         # Log path.
         message = "{} records templates into {}".format(self.name, self.data_path)
@@ -113,97 +113,21 @@ class Template_updater(Block):
     def _data_to_templates(self, data):
 
         all_templates = []
-        for key in data['dat'].keys():
-            for channel in data['dat'][key].keys():
-                ichannel = int(channel)
-                templates = np.array(data['dat'][key][channel]).astype(np.float32)
-                amplitudes = np.array(data['amp'][key][channel]).astype(np.float32)
+        for key in data.keys():
+            for channel in data[key].keys():
+                templates = []
+                for template in data[key][channel].values():
 
-                if self.two_components:
-                    templates2 = np.array(data['two'][key][channel]).astype(np.float32)
-                else:
-                    templates2 = None
-
-                for count in xrange(len(templates)):
-                    first_component = TemplateComponent(templates[count],
-                                                        self.template_store.mappings[ichannel],
-                                                        self.template_store.nb_channels,
-                                                        amplitudes[count])
-                    if self.two_components:
-                        second_component = TemplateComponent(templates2[count],
-                                                             self.template_store.mappings[ichannel],
-                                                             self.template_store.nb_channels)
-                    else:
-                        second_component = None
-
-                    all_templates += [
-                        Template(first_component, ichannel, second_component, creation_time=int(data['offset']))
-                    ]
+                    templates += [load_template_from_dict(template, self.probe)]
 
                 if len(templates) > 0:
                     string = "{} received {} {} templates from electrode {}"
                     message = string.format(self.name, len(templates), key, channel)
                     self.log.debug(message)
 
+                all_templates += templates
+
         return all_templates
-
-    def _templates_to_templates(self, templates):
-        """Convert a list of circusort.obj.Template to a list of circusort.block.template_updater.Template.
-
-        Parameter:
-            templates: list
-        Return
-            templates_: list
-        """
-
-        templates_ = []
-
-        # Find central channels for each template.
-        central_channels = [
-            template.central_channel
-            for template in templates
-        ]
-        channels = np.unique(central_channels)
-        channels = np.sort(channels)
-        for channel in channels:
-            indices = self.template_store.mappings[channel]
-            # Find the templates which are centered on channel.
-            nb_templates = len(templates)
-            masks = [
-                np.array([
-                    channel_ in indices
-                    for channel_ in templates[k].channels
-                ])
-                for k in range(0, nb_templates)
-            ]
-            centered_templates = [
-                templates[k].waveforms[masks[k], :]
-                for k in range(0, nb_templates)
-                if central_channels[k] == channel
-            ]
-            nb_centered_templates = len(centered_templates)
-            # Define the data.
-            data = np.array(centered_templates)
-            # Define the amplitudes.
-            a_min = 0.8
-            a_max = 1.2
-            amplitudes = np.tile([a_min, a_max], (nb_centered_templates, 1))
-            assert not self.two_components
-            # For each template centered on the current channel.
-            for k in range(0, nb_centered_templates):
-                first_component = TemplateComponent(data[k],
-                                                    indices,
-                                                    self.template_store.nb_channels,
-                                                    amplitudes[k])
-                second_component = None
-                template_ = Template(first_component, channel, second_component, creation_time=0)
-                templates_.append(template_)
-
-            string = "{} initialized {} negative templates from electrode {}"
-            message = string.format(self.name, nb_centered_templates, channel)
-            self.log.debug(message)
-
-        return templates_
 
     def _process(self):
 
@@ -236,13 +160,12 @@ class Template_updater(Block):
 
         if data is not None:
 
+            offset = data.pop('offset')
             self._measure_time('start', frequency=1)
 
             # Set mode as active (if necessary).
             if not self.is_active:
                 self._set_active_mode()
-                if self.two_components is None:
-                    self.two_components = 'two' in data
 
             # Add received templates to the dictionary.
             templates = self._data_to_templates(data)

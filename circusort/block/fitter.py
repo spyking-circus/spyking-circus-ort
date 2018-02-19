@@ -3,7 +3,7 @@ import os
 
 from circusort.block.block import Block
 from circusort.obj.template_store import TemplateStore
-from circusort.utils.overlaps import OverlapsDictionary
+from circusort.obj.overlaps_dictionary import OverlapsDictionary
 
 
 class Fitter(Block):

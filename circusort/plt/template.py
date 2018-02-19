@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+import matplotlib.gridspec as gds
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -7,7 +7,7 @@ import os
 from circusort.obj.template_store import TemplateStore
 
 
-def plot_templates(template_store, indices=None, component='first', output=None, x_bar=1.0, y_bar=20.0, show_scale_bar=True):
+def plot_templates(template_store, ax=None, indices=None, component='first', output=None, x_bar=1.0, y_bar=20.0, show_scale_bar=True):
     """Plot template from template store.
 
     Parameters:
@@ -49,7 +49,15 @@ def plot_templates(template_store, indices=None, component='first', output=None,
     templates = template_store.get(indices)
 
     plt.style.use('seaborn-paper')
-    plt.subplots()
+
+    if output is not None:
+        plt.ioff()
+
+    if ax is None:
+        fig = plt.figure()
+        gs = gds.GridSpec(1, 1)
+        ax = plt.subplot(gs[0])
+
     scl = 0.9 * (probe.field_of_view['d'] / 2.0)
     # Plot the generated template.
     x_scl = scl
@@ -73,7 +81,7 @@ def plot_templates(template_store, indices=None, component='first', output=None,
         y_scl = scl * (1.0 / max(np.max(np.abs(data_1)), np.max(np.abs(data_2))))
 
     for count, i in enumerate(indices):
-        color = 'C{}'.format(i)
+        color = 'C{}'.format(i % 10)
         for k in range(0, probe.nb_channels):
             x_prb, y_prb = probe.positions[:, k]
             x = x_prb + x_scl * np.linspace(-1.0, +1.0, num=t.temporal_width)
@@ -81,27 +89,26 @@ def plot_templates(template_store, indices=None, component='first', output=None,
                 y = y_prb + y_scl * data_1[count][k, :]
             if component in ['second', 'both']:
                 y = y_prb + y_scl * data_2[count][k, :]
-            plt.plot(x, y, c=color)
+            ax.plot(x, y, c=color)
     # Plot scale bars.
     x_bar_ = x_scl * (x_bar * 1e-3 * 20e+3) / (float(template_store.temporal_width) / 2.0)
     if show_scale_bar:
-        plt.plot([0.0, x_bar_], 2 * [0.0], c='black')
-        plt.annotate(u"{} ms".format(x_bar), xy=(x_bar_, 0.0))
+        ax.plot([0.0, x_bar_], 2 * [0.0], c='black')
+        ax.annotate(u"{} ms".format(x_bar), xy=(x_bar_, 0.0))
         y_bar_ = y_scl * y_bar
-        plt.plot(2 * [0.0], [0.0, y_bar_], c='black')
-        plt.annotate(u"{} µV".format(y_bar), xy=(0.0, y_bar_))
-    plt.xlabel(u"x (µm)")
-    plt.ylabel(u"y (µm)")
-    plt.axis('scaled')
-    plt.tight_layout()
-    if output is None:
-        plt.show()
-    else:
+        ax.plot(2 * [0.0], [0.0, y_bar_], c='black')
+        ax.annotate(u"{} µV".format(y_bar), xy=(0.0, y_bar_))
+    ax.set_xlabel(u"x (µm)")
+    ax.set_ylabel(u"y (µm)")
+    ax.axis('scaled')
+    gs.tight_layout(fig)
+
+    if output is not None:
         plt.savefig(output)
     return
 
 
-def plot_templates_on_channels(template_store, channels, component='first', output=None,
+def plot_templates_on_channels(template_store, channels, ax=None, component='first', output=None,
                                x_bar=1.0, y_bar=20.0, show_scale_bar=True):
 
     # Expand user's home directory (if necessary).
@@ -116,12 +123,12 @@ def plot_templates_on_channels(template_store, channels, component='first', outp
         if channel in template_store.templates_per_channels:
             indices += template_store.templates_per_channels[channel]
 
-    plot_templates(template_store, indices, component, output, x_bar, y_bar, show_scale_bar)
+    plot_templates(template_store, ax, indices, component, output, x_bar, y_bar, show_scale_bar)
 
     return
 
 
-def plot_templates_history(template_store, output=None):
+def plot_templates_history(template_store, ax=None, output=None):
 
     # Expand user's home directory (if necessary).
     if not isinstance(template_store, TemplateStore):
@@ -132,19 +139,25 @@ def plot_templates_history(template_store, output=None):
     templates = template_store.get(indices)
 
     plt.style.use('seaborn-paper')
-    plt.subplots()
+
+    if output is not None:
+        plt.ioff()
+
+    if ax is None:
+        fig = plt.figure()
+        gs = gds.GridSpec(1, 1)
+        ax = plt.subplot(gs[0])
 
     for count, t in enumerate(templates):
-        color = 'C{}'.format(indices[count])
-        plt.scatter([t.creation_time], [indices[count]], c=color, marker='|')
+        color = 'C{}'.format(indices[count] % 10)
+        ax.scatter([t.creation_time], [indices[count]], c=color, marker='|')
 
-    plt.xlabel(u"Time [step]")
-    plt.ylabel(u"Indices")
+    ax.set_xlabel(u"Time [step]")
+    ax.set_ylabel(u"Indices")
     # plt.axis('scaled')
-    plt.tight_layout()
-    if output is None:
-        plt.show()
-    else:
+    gs.tight_layout(fig)
+
+    if output is not None:
         plt.savefig(output)
 
     return

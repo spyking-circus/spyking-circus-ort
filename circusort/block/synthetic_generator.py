@@ -340,6 +340,8 @@ class Cell(object):
         self.a_dist = a_dist
 
         self.buffered_spike_times = np.array([], dtype='float32')
+        self._waveform = None
+        self._indices = None
 
     def e(self, chunk_number, probe):
         """Nearest electrode for the given chunk.
@@ -447,24 +449,27 @@ class Cell(object):
 
         return spike_steps
 
-    def get_waveform(self):
+    @property
+    def waveform(self):
         """Get spike waveform"""
 
-        tau = 1.5e-3  # s  # characteristic time
-        amp = -80.0  # um  # minimal voltage
+        if self._waveform is None:
+            tau = 1.5e-3  # s  # characteristic time
+            amp = -80.0  # um  # minimal voltage
 
-        i_start = -20
-        i_stop = +60
-        steps = np.arange(i_start, i_stop + 1)
-        times = steps.astype('float32') / self.sr
-        times = times - times[0]
-        u = np.sin(4.0 * np.pi * times / times[-1])
-        u = u * np.power(times * np.exp(- times / tau), 10.0)
-        u = u * (amp / np.amin(u))
+            i_start = -20
+            i_stop = +60
+            steps = np.arange(i_start, i_stop + 1)
+            times = steps.astype('float32') / self.sr
+            times = times - times[0]
+            u = np.sin(4.0 * np.pi * times / times[-1])
+            u = u * np.power(times * np.exp(- times / tau), 10.0)
+            u = u * (amp / np.amin(u))
+            self._waveform = steps, u
 
-        return steps, u
+        return self._waveform
 
-    def get_waveforms(self, chunk_number, probe):
+    def get_waveforms(self, chunk_number, probe, sparse_factor=0.5):
         """Get spike waveforms
 
         Parameters
@@ -473,6 +478,7 @@ class Cell(object):
             Number of the current chunk.
         probe: circusort.io.Probe
             Description of the probe.
+        sparse_factor: percentage of channels that are set to 0 randomly (default is 0.5)
         """
 
         steps, u = self.get_waveform()
@@ -487,7 +493,14 @@ class Cell(object):
         i = np.tile(steps, channels.size)
         j = np.repeat(channels, steps.size)
         v = np.zeros((steps.size, channels.size))
-        for k in range(0, channels.size):
+
+        self._indices = np.arange(channels.size)
+
+        if sparse_factor > 0:
+            if self._indices is None:
+                self._indices = np.random.permutation(self._indices)[:int(channels.size*sparse_factor)]
+
+        for k in self._indices:
             coef = self.a_dist / (1.0 + (distances[k] / self.hf_dist) ** 2.0)  # coefficient of attenuation
             v[:, k] = coef * u
         v = np.transpose(v)
@@ -642,13 +655,13 @@ def pre_syn_gen_target(rpc_queue, queue, nb_channels, nb_samples_per_chunk, samp
         if not queue.full():  # limit memory consumption
             # a. Generate some gaussian noise.
             shape = (nb_samples_per_chunk, nb_channels)
-            data = np.random.normal(loc=mu, scale=sigma, size=shape)
+            data = np.random.normal(loc=mu, scale=sigma, size=shape).astype(np.float32)
             # b. Inject waveforms.
-            for cell in cells.itervalues():
+            for cell in cells:
                 # Collect subtrain with spike events which fall inside the current chunk.
                 subtrain = cell.get_chunk_subtrain(chunk_number, chunk_width=chunk_width)
                 # Retrieve the template to inject.
-                i_ref, j, v = cell.get_template()
+                i_ref, j, v = cell.template.synthetic_export
                 # Inject the template to the correct spatiotemporal locations.
                 for t in subtrain:
                     k = int(t * sampling_rate)
@@ -672,13 +685,13 @@ def pre_syn_gen_target(rpc_queue, queue, nb_channels, nb_samples_per_chunk, samp
             if not queue.full():  # limit memory consumption
                 # a. Generate some gaussian noise.
                 shape = (nb_samples_last_chunk, nb_channels)
-                data = np.random.normal(loc=mu, scale=sigma, size=shape)
+                data = np.random.normal(loc=mu, scale=sigma, size=shape).astype(np.float32)
                 # b. Inject waveforms.
-                for cell in cells.itervalues():
+                for cell in cells:
                     # Collect subtrain with spike events which fall inside the current chunk.
                     subtrain = cell.get_chunk_subtrain(chunk_number, chunk_width=chunk_width)
                     # Retrieve the template to inject.
-                    i_ref, j, v = cell.get_template()
+                    i_ref, j, v = cell.template.synthetic_export
                     # Inject the template to the correct spatiotemporal locations.
                     for t in subtrain:
                         k = int(t * sampling_rate)

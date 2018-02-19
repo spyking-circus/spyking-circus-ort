@@ -121,7 +121,7 @@ def load_position(path):
     y = file_.get('y').value
     file_.close()
 
-    position = Position(x, y, path=path)
+    position = Position(x, y)
 
     return position
 

@@ -26,7 +26,7 @@ class Filter(Block):
         'cut_off': 500.0,  # Hz
         'sampling_rate': 20000.0,  # Hz
         'remove_median': False,
-        'use_gpu' : False,
+        'use_gpu': False,
     }
 
     def __init__(self, **kwargs):
@@ -87,8 +87,8 @@ class Filter(Block):
             #platform_name = 'Intel'
             device = get_first_gpu_device(platform_name)
             assert device is not None, 'No GPU devices for this platform'
-            context            = pyopencl.Context([device])
-            coefficients       = iirfilter(3, [self.cut_off/(self.sampling_rate / 2.), 0.95], btype = 'bandpass', ftype = 'butter', output = 'sos')
+            context = pyopencl.Context([device])
+            coefficients = iirfilter(3, [self.cut_off/(self.sampling_rate / 2.), 0.95], btype = 'bandpass', ftype = 'butter', output = 'sos')
             self.filter_engine = GpuFilter(context, coefficients, self.nb_channels, 'float32', self.nb_samples)
 
 

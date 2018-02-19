@@ -10,7 +10,7 @@ from circusort.utils.path import normalize_path
 class Train(object):
     # TODO add docstring
 
-    def __init__(self, times, t_min=None, t_max=None, path=None):
+    def __init__(self, times, t_min=None, t_max=None):
         # TODO add docstring.
 
         self.times = times
@@ -18,15 +18,24 @@ class Train(object):
         self.times = self.times if t_max is None else self.times[self.times <= t_max]
         self.t_min = min(0.0, np.min(times)) if t_min is None else t_min
         self.t_max = np.max(times) if t_max is None else t_max
-        self.path = path
+
+    def __len__(self):
+
+        return len(self.times)
+
+    def __iter__(self):
+        
+        return self.times.__iter__()
 
     @property
     def nb_times(self):
-        # TODO add docstring.
 
-        nb_times = self.times.size
+        return self.times.size
 
-        return nb_times
+    @property
+    def mean_rate(self):
+
+        return len(self) / (self.t_max - self.t_min)
 
     def reverse(self):
         # TODO add docstring.
@@ -49,6 +58,7 @@ class Train(object):
             t_max = self.t_max
         elif isinstance(t_max, float):
             times = times[times <= t_max]
+
         train = Train(times, t_min=t_min, t_max=t_max)
 
         return train
@@ -60,25 +70,17 @@ class Train(object):
             path: string
                 The path to the file in which to save the train.
         """
-
-        file_ = h5py.File(path, mode='w')
-        file_.create_dataset('times', shape=self.times.shape, dtype=self.times.dtype, data=self.times)
-        file_.close()
-
-        self.path = path
+        with h5py.File(path, mode='w') as file_:
+            file_.create_dataset('times', shape=self.times.shape, dtype=self.times.dtype, data=self.times)
 
         return
 
-    def get_parameters(self):
-        # TODO add docstring.
+    def rate(self, time_bin=1):
 
-        parameters = {
-            'mode': "default",
-            'path': self.path if self.path is not None else "",
-            # TODO complete.
-        }
+        bins = np.arange(self.t_min, self.t_max, time_bin)
+        x, y = np.histogram(self.times, bins=bins)
 
-        return parameters
+        return x/time_bin
 
     def _plot(self, ax, t_min=0.0, t_max=10.0, offset=0, **kwargs):
 

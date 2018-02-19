@@ -5,7 +5,7 @@ import numpy as np
 import os
 import sys
 
-from circusort.obj.template import Template
+from circusort.obj.template import Template, TemplateComponent
 from circusort.obj.position import Position
 
 
@@ -40,7 +40,7 @@ def generate_waveform(width=5.0e-3, amplitude=80.0, sampling_rate=20e+3):
 
 
 def generate_template(probe=None, position=(0.0, 0.0), amplitude=80.0, radius=None,
-                      width=5.0e-3, sampling_rate=20e+3, mode='default', **kwargs):
+                      width=5.0e-3, sampling_rate=20e+3, sparse_factor=0.5, mode='default', **kwargs):
     """Generate a template.
 
     Parameters:
@@ -56,6 +56,8 @@ def generate_template(probe=None, position=(0.0, 0.0), amplitude=80.0, radius=No
             Temporal width [s]. The default value is 5.0e-3.
         sampling_rate: float (optional)
             Sampling rate [Hz]. The default value is 20e+3.
+        sparse_factor: float (optional)
+            Between 0-1: The number of channels that will be randomly set to 0. Default is 0.5
         mode: string (optional)
             Mode of generation. The default value is 'default'.
 
@@ -85,11 +87,18 @@ def generate_template(probe=None, position=(0.0, 0.0), amplitude=80.0, radius=No
         waveforms = np.zeros(shape, dtype=np.float)
         # Initialize waveforms.
         waveform = generate_waveform(width=width, amplitude=amplitude, sampling_rate=sampling_rate)
-        for i, distance in enumerate(distances):
-            gain = (1.0 + distance / 40.0) ** -2.0
+
+        indices = np.arange(len(channels))
+        if sparse_factor is not None:
+            indices = np.random.permutation(indices)[:int(len(channels)*sparse_factor)]
+
+        for i in indices:
+            gain = (1.0 + distances[i] / 40.0) ** -2.0
             waveforms[i, :] = gain * waveform
+
         # Define template.
-        template = Template(channels, waveforms)
+        first_component = TemplateComponent(waveforms, channels, probe.nb_channels, amplitudes=[0.8, 1.2])
+        template = Template(first_component, channel=None, creation_time=0)
 
     else:
 
@@ -134,10 +143,23 @@ def load_template(path):
         raise IOError(message)
 
     f = h5py.File(path, mode='r')
-    channels = f.get('channels').value
-    waveforms = f.get('waveforms').value
+    channels = f.get('indices').value
+    waveforms = f.get('waveforms/1').value
+    amplitudes = f.get('amplitudes').value
+    channel = f.attrs['channel']
+    creation_time = f.attrs['creation_time']
+    nb_channels = f.attrs['nb_channels']
+    compressed = f.attrs['compressed']
+
+    first_component = TemplateComponent(waveforms, channels, nb_channels, amplitudes)
+    second_component = None
+    if '2' in f.get('waveforms').keys():
+        waveforms = f.get('waveforms/2').value
+        second_component = TemplateComponent(waveforms, channels, nb_channels)
+
     f.close()
-    template = Template(channels, waveforms, path=path)
+    template = Template(first_component, channel, second_component, creation_time=creation_time)
+    template.compressed = compressed
 
     return template
 
@@ -163,5 +185,42 @@ def get_template(path=None, **kwargs):
             template = load_template(path)
         except IOError:
             template = generate_template(**kwargs)
+
+    return template
+
+
+def load_component_from_dict(template_dict, indices, nb_channels):
+
+    if nb_channels is None:
+        nb_channels = np.max(indices)
+
+    waveforms = np.array(template_dict['wav'], dtype=np.float32)
+    amplitudes = np.array(template_dict['amp'], dtype=np.float32)
+    component = TemplateComponent(waveforms, indices, nb_channels, amplitudes)
+
+    return component
+
+
+def load_template_from_dict(template_dict, probe):
+
+    channel = int(template_dict['channel'])
+    creation_time = int(template_dict['time'])
+
+    if 'compressed' in template_dict:
+        indices = np.array(template_dict['compressed'], dtype=np.int32)
+        compressed = True
+    else:
+        indices = probe.edges[channel]
+        compressed = False
+
+    first_component = load_component_from_dict(template_dict['0'], indices, probe.nb_channels)
+
+    if '2' in template_dict:
+        second_component = load_component_from_dict(template_dict['1'], indices, probe.nb_channels)
+    else:
+        second_component = None
+
+    template = Template(first_component, channel, second_component, creation_time)
+    template.compressed = compressed
 
     return template

@@ -11,13 +11,53 @@ class Amplitude(object):
     """The amplitude of a cell through time."""
     # TODO complete docstring.
 
-    def __init__(self, amplitudes, times, path=None):
+    def __init__(self, amplitudes, times):
         """Initialization."""
         # TODO complete docstring.
 
         self.amplitudes = amplitudes
         self.times = times
-        self.path = path
+
+    def __iter__(self):
+
+        return self.amplitudes.__iter__()
+
+    def __len__(self):
+
+        return len(self.times)
+
+    @property
+    def two_components(self):
+        res = self.amplitudes.shape[0] == 2
+        return res
+
+    @property
+    def t_min(self):
+        if len(self.times) > 0:
+            return self.times.min()
+        else:
+            return 0
+
+    @property
+    def t_max(self):
+        if len(self.times) > 0:
+            return self.times.max()
+        else:
+            return np.inf
+
+    def slice(self, t_min=None, t_max=None):
+        # TODO add docstring.
+
+        if t_min is None:
+            t_min = self.t_min
+        if t_max is None:
+            t_max = self.t_max
+
+        idx = np.where((self.times >= t_min) & (self.times <= t_max))[0]
+
+        amplitude = Amplitude(self.amplitudes[idx], self.times[idx])
+
+        return amplitude
 
     def save(self, path):
         """Save amplitude to file.
@@ -40,8 +80,6 @@ class Amplitude(object):
                 'data': self.times,
             }
             file_.create_dataset('times', **kwargs)
-
-        self.path = path
 
         return
 

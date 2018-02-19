@@ -1,101 +1,8 @@
 import h5py
 import numpy as np
 import os
-import scipy
-
-from scipy.sparse import csc_matrix
 from circusort.io.utils import append_hdf5
-from circusort.io.probe import load_probe
-
-
-class TemplateComponent(object):
-
-    def __init__(self, waveforms, indices, nb_channels, amplitudes=None):
-        """Initialization.
-
-        Parameters:
-            waveforms
-            indices
-            nb_channels
-            amplitudes (optional)
-        """
-
-        self.waveforms = waveforms
-        self.indices = indices
-        self.nb_channels = nb_channels
-        self.amplitudes = amplitudes
-
-    @property
-    def norm(self):
-        return np.sqrt(np.sum(self.waveforms**2)/(self.nb_channels * self.temporal_width))
-
-    @property
-    def temporal_width(self):
-        return self.waveforms.shape[1]
-
-    def to_sparse(self, method='csc', flatten=False):
-        data = self.to_dense()
-        if method is 'csc':
-            if flatten:
-                data = data.flatten()[None, :]
-            return scipy.sparse.csc_matrix(data, dtype=np.float32)
-        elif method is 'csr':
-            if flatten:
-                data = data.flatten()[:, None]
-            return scipy.sparse.csr_matrix(data, dtype=np.float32)
-
-    def to_dense(self):
-        result = np.zeros((self.nb_channels, self.temporal_width), dtype=np.float32)
-        for count, index in enumerate(self.indices):
-            result[index] = self.waveforms[count]
-        return result
-
-    def normalize(self):
-        self.waveforms /= self.norm
-
-
-class Template(object):
-
-    def __init__(self, first_component, channel, second_component=None, creation_time=0):
-
-        self.first_component = first_component
-        assert self.first_component.amplitudes is not None
-        self.channel = channel
-        self.second_component = second_component
-        self.creation_time = creation_time
-
-    @property
-    def two_components(self):
-
-        return self.second_component is not None
-
-    @property
-    def amplitudes(self):
-
-        return np.array(self.first_component.amplitudes, dtype=np.float32)
-
-    def normalize(self):
-
-        self.first_component.normalize()
-        if self.two_components:
-            self.second_component.normalize()
-
-    @property
-    def temporal_width(self):
-
-        return self.first_component.temporal_width
-
-    def to_template(self):
-        """Convert object from this class to circusort.obj.template.Template."""
-
-        # TODO merge the two following classes: circusort.obj.template.Template & circusort.obj.template_store.Template.
-
-        waveforms = self.first_component.to_dense()
-        nb_channels, _ = waveforms.shape
-        channels = np.arange(0, nb_channels)
-        template = Template(channels, waveforms)
-
-        return template
+from circusort.obj.template import Template, TemplateComponent
 
 
 class TemplateStore(object):
@@ -115,6 +22,7 @@ class TemplateStore(object):
         self._channels = None
 
         self._open(self.mode)
+        from circusort.io.probe import load_probe
 
         if self.mode in ['w']:
 
@@ -162,7 +70,7 @@ class TemplateStore(object):
     def __iter__(self, ):
 
         for index in self.indices:
-            yield index
+            yield self.get(index)
 
         return
 
@@ -297,7 +205,7 @@ class TemplateStore(object):
         self._open('r+')
 
         indices = []
-        if not np.iterable(templates):
+        if isinstance(templates, Template):
             templates = [templates]
 
         for t in templates:
@@ -307,6 +215,9 @@ class TemplateStore(object):
 
             self.h5_file.create_dataset('waveforms/%d/1' % gidx, data=t.first_component.waveforms, chunks=True)
             self.h5_file.create_dataset('amplitudes/%d' % gidx, data=t.amplitudes)
+
+            if t.compressed:
+                self.h5_file.create_dataset('compressed/%d' %gidx, data=t.indices)
 
             if self._temporal_width is None:
                 self._temporal_width = t.temporal_width
@@ -352,17 +263,30 @@ class TemplateStore(object):
 
             waveforms = self.h5_file['waveforms/%d/1' % index][:]
             amplitudes = self.h5_file['amplitudes/%d' % index][:]
+
             channel = channels[idx_pos][0]
-            first_component = TemplateComponent(waveforms, self.mappings[channel], self.nb_channels, amplitudes)
+
+            if 'compressed' in self.h5_file.keys():
+                mapping = self.h5_file['compressed/%d' %index][:]
+                compressed = True
+            else:
+                mapping = self.mappings[channel]
+                compressed = False
+
+            first_component = TemplateComponent(waveforms, mapping, self.nb_channels, amplitudes)
+
             if self.two_components:
                 waveforms2 = self.h5_file['waveforms/%d/2' % index][:]
-                second_component = TemplateComponent(waveforms2, self.mappings[channel], self.nb_channels)
+                second_component = TemplateComponent(waveforms2, mapping, self.nb_channels)
             else:
                 second_component = None
 
-            result += [Template(first_component, channel, second_component, creation_time=int(times[idx_pos]))]
+            template = Template(first_component, channel, second_component, creation_time=int(times[idx_pos]))
+            template.compressed = compressed
+            result += [template]
 
         self._close()
+
         if singleton and len(result) == 1:
             result = result[0]
 
@@ -379,6 +303,8 @@ class TemplateStore(object):
             assert index in indices
             self.h5_file.pop('waveforms/%d' % index)
             self.h5_file.pop('amplitudes/%d' % index)
+            if 'compressed' in self.h5_file.keys():
+                self.h5_file.pop('compressed/%d' % index)
             channels = self.h5_file.pop('channels')
             times = self.h5_file.pop('times')
             indices = self.h5_file.pop('indices')

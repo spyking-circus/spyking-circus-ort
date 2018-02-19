@@ -12,6 +12,7 @@ requires = [
     'scipy',
     'tqdm',
     'zmq',
+    'sklearn',
 ]
 
 def read(fname):

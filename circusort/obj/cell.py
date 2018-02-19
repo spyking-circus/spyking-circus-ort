@@ -48,6 +48,11 @@ class Cell(object):
         self.amplitude = amplitude
         self.position = position
 
+        if amplitude is not None:
+            if len(self.train) > 0 and len(self.amplitude) > 0:
+                assert self.train.t_min <= self.amplitude.t_min, "t_min for Train and Amplitude do not match"
+                assert self.train.t_max >= self.amplitude.t_max, "t_max for Train and Amplitude do not match"
+
         self.parameters = get_cell_parameters() if parameters is None else parameters
 
         self.chunk_width = None
@@ -100,25 +105,39 @@ class Cell(object):
 
         return subtrain
 
-    def get_template(self):
-        """Get the template of the cell."""
+    @property
+    def t_min(self):
 
-        channels = self.template.channels
-        waveforms = self.template.waveforms
-        nb_channels, nb_timestamps = waveforms.shape
+        return self.train.t_min
 
-        timestamps = np.arange(0, nb_timestamps) - (nb_timestamps - 1) // 2
-        timestamps = timestamps[np.newaxis, :]
-        timestamps = np.repeat(timestamps, repeats=nb_channels, axis=0)
+    @property
+    def t_max(self):
 
-        channels = channels[:, np.newaxis]
-        channels = np.repeat(channels, repeats=nb_timestamps, axis=1)
+        return self.train.t_max
 
-        i = timestamps.flatten()
-        j = channels.flatten()
-        v = waveforms.flatten()
+    @property
+    def mean_rate(self):
 
-        return i, j, v
+        return self.train.mean_rate
+
+    def rate(self, time_bin=1):
+
+        bins = np.arange(self.t_min, self.t_max, time_bin)
+        x, y = np.histogram(self.train.times, bins=bins)
+
+        return x/time_bin
+
+    def slice(self, t_min=None, t_max=None):
+        # TODO add docstring.
+
+        if self.amplitude is not None:
+            new_amplitude = self.amplitude.slice(t_min, t_max)
+        else:
+            new_amplitude = None
+
+        cell = Cell(self.template, self.train.slice(t_min, t_max), new_amplitude, self.position)
+
+        return cell
 
     def save(self, directory):
         """Save the cell to file.
@@ -140,8 +159,9 @@ class Cell(object):
 
         # Save the train of the cell.
         self.train_path = os.path.join(directory, "train.h5")
+        self.parameters.add('train', 'path', self.train_path)
+        self.parameters.add('train', 'mode', 'default')
         self.train.save(self.train_path)
-        self.parameters['train'] = self.train.get_parameters()
 
         # Save the amplitude of the cell (if necessary).
         if self.amplitude is not None:
