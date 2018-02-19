@@ -84,9 +84,13 @@ class Block(threading.Thread):
 
     def initialize(self):
 
-        self.log.debug("{n} is initialized".format(n=self.name))
+        string = "{} is initialized."
+        message = string.format(self.name)
+        self.log.debug(message)
+
         self.ready = True
         self.counter = 0
+
         return self._initialize()
 
     @property
@@ -146,7 +150,12 @@ class Block(threading.Thread):
 
         for key, value in kwargs.items():
             self.params[key] = kwargs[key]
-            self.__setattr__(key, value)
+            try:
+                self.__setattr__(key, value)
+            except AttributeError:
+                string = "can't set attribute (key: {}, value: {})"
+                message = string.format(key, value)
+                raise AttributeError(message)
         self.ready = False
 
         string = "{} is configured"
@@ -162,17 +171,21 @@ class Block(threading.Thread):
     def guess_output_endpoints(self, **kwargs):
 
         if self.nb_inputs > 0 and self.nb_outputs > 0:
+
             string = "{} guesses output connections"
             message = string.format(self.name)
             self.log.debug(message)
+
             self._guess_output_endpoints(**kwargs)
 
         return
 
-    def _sync_buffer(self, dictionary, nb_samples):
+    def _sync_buffer(self, dictionary, nb_samples,
+                     nb_parallel_blocks=1, parallel_block_id=0, shift=0):
 
         offset = dictionary['offset']
-        is_synced = self.counter * nb_samples <= offset
+        buffer_id = self.counter * nb_parallel_blocks + parallel_block_id + shift
+        is_synced = buffer_id * nb_samples <= offset
 
         return is_synced
 

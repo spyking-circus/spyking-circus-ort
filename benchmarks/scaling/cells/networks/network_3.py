@@ -18,9 +18,14 @@ block_names = [
     "pca",
     "cluster",
     "updater",
-    "fitter",
+    "fitter_fitter_0",
+    "fitter_fitter_1",
     "writer",
 ]
+block_nb_buffers = {
+    "fitter_fitter_0": 2,
+    "fitter_fitter_1": 2,
+}
 
 
 def sorting(configuration_name):
@@ -141,7 +146,7 @@ def sorting(configuration_name):
     pca = manager.create_block('pca', **pca_kwargs)
     cluster = manager.create_block('density_clustering', **cluster_kwargs)
     updater = manager.create_block('template_updater', **updater_kwargs)
-    fitter = manager.create_block('template_fitter', **fitter_kwargs)
+    fitter = manager.create_network('fitter', **fitter_kwargs)
     writer = manager.create_block('spike_writer', **writer_kwargs)
     # Initialize the elements of the network.
     director.initialize()
@@ -174,7 +179,8 @@ def sorting(configuration_name):
     director.connect(updater.get_output('updater'), [
         fitter.get_input('updater'),
     ])
-    director.connect(fitter.output, [
+    director.connect_network(fitter)
+    director.connect(fitter.get_output('spikes'), [
         writer.input,
     ])
     # Launch the network.

@@ -152,6 +152,17 @@ class Director(object):
 
         return
 
+    def connect_network(self, network):
+        # TODO add docstring.
+
+        string = "{} connects {} network."
+        message = string.format(str(self), network.name)
+        self.log.info(message)
+
+        network._connect()
+
+        return
+
     def initialize(self):
 
         self.log.info("{d} initializes {s}".format(d=str(self), s=", ".join(self.list_managers())))
