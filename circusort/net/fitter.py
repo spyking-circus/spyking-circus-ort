@@ -39,7 +39,7 @@ class Fitter(Network):
                 {
                     'name': "updater",
                     'structure': 'dict',
-                    'policy': 'non_blocking',
+                    'policy': 'non_blocking_broadcast',
                 },
             ],
             'degree': self.degree,

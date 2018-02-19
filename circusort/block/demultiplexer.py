@@ -149,6 +149,14 @@ class Demultiplexer(Block):
                         name_ = self._get_output_name(name, token)
                         self.outputs[name_].send(data)
 
+            elif policy == 'non_blocking_broadcast':
+
+                data = self.get_input(name).receive(blocking=False)
+                if data is not None:
+                    for token in range(0, self.degree):
+                        output_name = self._get_output_name(name, token)
+                        self.get_output(output_name).send(data)
+
             else:
 
                 raise NotImplementedError()  # TODO complete.

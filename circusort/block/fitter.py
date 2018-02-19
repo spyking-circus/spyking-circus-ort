@@ -446,20 +446,26 @@ class Fitter(Block):
         self._collect_data(shift=0)
         self._collect_peaks(shift=0)
         # # Collect current updater buffer.
-        updater = self.inputs['updater'].receive(blocking=False, discarding_eoc=self.discarding_eoc_from_updater)
+        updater = self.get_input('updater').receive(blocking=False,
+                                                    discarding_eoc=self.discarding_eoc_from_updater)
 
         if updater is not None:
 
             self._measure_time('update_start', frequency=1)
 
-            # Create the template dictionary if necessary.
-            if self.overlaps_store is None:
-                self.template_store = TemplateStore(updater['templates_file'], 'r')
-                self.overlaps_store = OverlapsDictionary(self.template_store)
-                self._init_temp_window()
-            else:
-                self.overlaps_store.update(updater['indices'])
-            self.overlaps_store.clear_overlaps()
+            while updater is not None:
+
+                # Create the template dictionary if necessary.
+                if self.overlaps_store is None:
+                    self.template_store = TemplateStore(updater['templates_file'], 'r')
+                    self.overlaps_store = OverlapsDictionary(self.template_store)
+                    self._init_temp_window()
+                else:
+                    self.overlaps_store.update(updater['indices'])
+                self.overlaps_store.clear_overlaps()
+
+                updater = self.get_input('updater').receive(blocking=False,
+                                                            discarding_eoc=self.discarding_eoc_from_updater)
 
             self._measure_time('update_end', frequency=1)
 
