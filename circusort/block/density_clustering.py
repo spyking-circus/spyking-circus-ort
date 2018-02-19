@@ -368,7 +368,8 @@ class Density_clustering(Block):
                         threshold = self.threshold_factor * self.thresholds[0, channel]
                         self.managers[key][channel].set_physical_threshold(threshold)
 
-                        #self.log.debug("We have collected {a} {b} peaks on channel {c}".format(a=len(self.raw_data[key][channel]),b=key,c=channel))
+                        self.log.debug("We have collected {a} {b} peaks on channel {c}".format(
+                                                    a=len(self.raw_data[key][channel]),b=key,c=channel))
 
                         if len(self.raw_data[key][channel]) >=\
                                 self.nb_waveforms and not self.managers[key][channel].is_ready:
@@ -386,10 +387,6 @@ class Density_clustering(Block):
                             templates = self.managers[key][channel].cluster(two_components=self.two_components,
                                                                             tracking=self.tracking)
                             self._prepare_templates(templates, key, channel)
-                        # else:
-                        #     string = "key:{}, channel:{}, test:{} >=? {}"
-                        #     message = string.format(key, channel, len(self.raw_data[key][channel]), self.nb_waveforms)
-                        #     self.log.debug(message)
 
                 if len(self.to_reset) > 0:
                     self.templates['offset'] = self.counter * self.nb_samples

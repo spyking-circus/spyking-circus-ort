@@ -293,16 +293,3 @@ class Peak_detector(Block):
         self.log.info(message)
 
         return
-
-    def __del__(self):
-
-        for key in self.key_peaks:
-            for i in range(self.nb_channels):
-                if i in self.nb_cum_peaks[key]:
-                    string = "{} detected {} {} peaks on channel {}"
-                    message = string.format(self.name, self.nb_cum_peaks[key][i], key, i)
-                    self.log.debug(message)
-                else:
-                    string = "{} detected 0 {} peaks on channel {}"
-                    message = string.format(self.name, key, i)
-                    self.log.debug(message)

@@ -12,7 +12,7 @@ nb_rows = 10
 nb_columns = 10
 nb_cells = 100
 duration = 10 * 60# s
-preload_templates = False
+preload_templates = True
 nb_waveforms_clustering = 100
 
 
@@ -158,6 +158,7 @@ def main():
             'two_components': False,
             'log_level': INFO
         }
+
         if preload_templates:
             cluster_kwargs['channels'] = []
 
@@ -173,12 +174,12 @@ def main():
         if preload_templates:
             updater_kwargs['precomputed_template_paths'] = precomputed_template_paths
 
-
         fitter_kwargs = {
             'name': "fitter",
             'sampling_rate': sampling_rate,
             'log_level': DEBUG,
-            'introspection_path': introspect_path
+            'introspection_path': introspect_path,
+            'init_path': os.path.join(sorting_directory, "templates.h5")
         }
         writer_kwargs = {
             'name': "writer",

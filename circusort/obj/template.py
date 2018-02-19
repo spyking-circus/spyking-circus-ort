@@ -102,7 +102,7 @@ class TemplateComponent(object):
 
 class Template(object):
 
-    def __init__(self, first_component, channel=None, second_component=None, creation_time=0):
+    def __init__(self, first_component, channel=None, second_component=None, creation_time=0, compress=True):
 
         assert isinstance(first_component, TemplateComponent)
         self.first_component = first_component
@@ -123,7 +123,8 @@ class Template(object):
             index = np.argmin(min_voltages)
             self.channel = self.first_component.indices[index]
 
-        self._auto_compression()
+        if compress:
+            self._auto_compression()
 
     def __len__(self):
 

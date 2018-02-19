@@ -120,7 +120,6 @@ class Cells(object):
         
         return t_max
 
-
     def set_t_min(self, t_min):
 
         for c in self:

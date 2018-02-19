@@ -108,27 +108,6 @@ class Template_fitter(Block):
         for idx in range(self.nb_channels):
             self.slice_indices = np.concatenate((self.slice_indices, idx * buffer_size + temp_window))
 
-    def _is_valid(self, peak_step):
-
-        i_min = self._width
-        i_max = self.nb_samples - self._width
-        is_valid = (i_min <= peak_step) & (peak_step < i_max)
-
-        return is_valid
-
-    def _get_all_valid_peaks(self, peak_steps):
-
-        all_peak_steps = set([])
-        for key in peak_steps.keys():
-            for channel in peak_steps[key].keys():
-                all_peak_steps = all_peak_steps.union(peak_steps[key][channel])
-        all_peak_steps = np.array(list(all_peak_steps), dtype=np.int32)
-
-        mask = self._is_valid(all_peak_steps)
-        all_valid_peak_steps = all_peak_steps[mask]
-
-        return all_valid_peak_steps
-
     def _reset_result(self):
 
         self.result = {
@@ -409,6 +388,8 @@ class Template_fitter(Block):
                 self.p = self.p - self.nb_samples
                 self.p = self.p[0 <= self.p]
                 self.p = np.concatenate((self.p, p))
+
+            print('Steps %d we fit from %d peaks with offsets (%d, %d)' % (self.counter, len(p), peaks['offset'], self.offset))
 
             if self.nb_templates > 0:
 

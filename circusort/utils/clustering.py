@@ -5,9 +5,8 @@ import scipy.spatial.distance
 import scipy.stats
 import warnings
 import logging
-
 from circusort.obj.template import Template, TemplateComponent
-from circusort.utils.algorithms import PCAEstimator
+from sklearn.decomposition import PCA
 
 
 warnings.filterwarnings("ignore")
@@ -138,7 +137,7 @@ class OnlineManager(object):
 
         # TODO uncomment the following line.
         self.log.debug("{n} computes local PCA".format(n=self.name))
-        pca = PCAEstimator(self.sub_dim)
+        pca = PCA(self.sub_dim)
         pca.fit(sub_data)
         self.loc_pca = pca.components_.T
 
@@ -409,7 +408,7 @@ class OnlineManager(object):
             data[i, :] -= amplitudes[i] * temp_flat[:, 0]
 
         if len(temp_flat) > 1:
-            pca = PCAEstimator(1)
+            pca = PCA(1)
             pca.fit(data)
             template2 = pca.components_.T.astype(np.float32)
         else:
