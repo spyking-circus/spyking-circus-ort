@@ -130,7 +130,8 @@ class Template_updater(Block):
     def _data_to_templates(self, data):
 
         all_templates = []
-        for key in data.keys():
+        keys = [key for key in data.keys() if key not in ['offset']]
+        for key in keys:
             for channel in data[key].keys():
                 templates = []
                 for template in data[key][channel].values():

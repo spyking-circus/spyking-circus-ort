@@ -478,11 +478,6 @@ class OnlineManager(object):
                 else:
                     second_component = None
 
-                #indices = np.concatenate((indices, [key]))
-                #if two_components:
-                #    template2  = self._compute_template2(data, template)
-                #    templates2 = np.vstack((templates2, template2))
-
                 full_template = Template(first_component, self.channel, second_component)
                 templates[value] = full_template
 

@@ -1,66 +1,11 @@
 # -*- coding: utf-8 -*-
-from scipy.sparse import vstack, csr_matrix
 import numpy as np
+import h5py
 import scipy.sparse
+from circusort.obj.overlaps import Overlaps
 
 
-class Overlaps(object):
-
-    def __init__(self, template, target, _scols, size, temporal_width):
-
-        self._scols = _scols
-        self.size = size
-        self.temporal_width = temporal_width
-        self.new_indices = []
-        self.overlaps = self._get_overlaps(template, target)
-
-    @property
-    def do_update(self):
-
-        return len(self.new_indices) > 0
-
-    def __len__(self):
-
-        return self.overlaps.shape[0]
-
-    def _get_overlaps(self, template, target):
-
-        all_x = np.zeros(0, dtype=np.int32)
-        all_y = np.zeros(0, dtype=np.int32)
-        all_data = np.zeros(0, dtype=np.float32)
-
-        for idelay in self._scols['delays']:
-            tmp_1 = template[:, self._scols['left'][idelay]]
-            tmp_2 = target[:, self._scols['right'][idelay]]
-            data = tmp_1.dot(tmp_2.T)
-            dx, dy = data.nonzero()
-            ones = np.ones(len(dx), dtype=np.int32)
-            all_x = np.concatenate((all_x, dx * target.shape[0] + dy))
-            all_y = np.concatenate((all_y, (idelay - 1) * ones))
-            all_data = np.concatenate((all_data, data.data))
-
-            if idelay < self.temporal_width:
-                tmp_1 = template[:, self._scols['right'][idelay]]
-                tmp_2 = target[:, self._scols['left'][idelay]]
-                data = tmp_1.dot(tmp_2.T)
-                dx, dy = data.nonzero()
-                ones = np.ones(len(dx), dtype=np.int32)
-                all_x = np.concatenate((all_x, dx * target.shape[0] + dy))
-                all_y = np.concatenate((all_y, (self.size - idelay) * ones))
-                all_data = np.concatenate((all_data, data.data))
-
-        shape = (target.shape[0] * template.shape[0], self.size)
-
-        return csr_matrix((all_data, (all_x, all_y)), shape=shape)
-
-    def update(self, template, target):
-
-        new_overlaps = self._get_overlaps(template, target[self.new_indices])
-        self.overlaps = scipy.sparse.vstack((self.overlaps, new_overlaps))
-        self.new_indices = []
-
-
-class OverlapsDictionary(object):
+class OverlapsStore(object):
 
     def __init__(self, template_store=None):
 
@@ -81,6 +26,7 @@ class OverlapsDictionary(object):
             '1': np.zeros(0, dtype=np.float32)
         }
         self.amplitudes = np.zeros((0, 2), dtype=np.float32)
+        self.electrodes = np.zeros(0, dtype=np.int32)
 
         if self.two_components:
             self.second_component = scipy.sparse.csr_matrix((0, self.nb_elements), dtype=np.float32)
@@ -101,6 +47,9 @@ class OverlapsDictionary(object):
         self.update(self.template_store.indices)
         self._all_components = None
 
+        #if overlaps_store is not None:
+        #    self.overlaps = load_overlaps_store(overlaps_store)
+
     def __len__(self):
 
         return self.first_component.shape[0]
@@ -120,14 +69,14 @@ class OverlapsDictionary(object):
             if not self.two_components:
                 self._all_components = self.first_component
             else:
-                self._all_components = vstack((self.first_component, self.second_component), format='csr')
+                self._all_components = scipy.sparse.vstack((self.first_component, self.second_component), format='csr')
 
         return self._all_components
 
     @property
     def nb_templates(self):
 
-        return self.first_component.shape[0]        
+        return self.first_component.shape[0]
 
     def get_overlaps(self, index, component='1'):
 
@@ -168,11 +117,13 @@ class OverlapsDictionary(object):
         template.normalize()
 
         csr_template = template.first_component.to_sparse('csr', flatten=True)
-        self.first_component = vstack((self.first_component, csr_template), format='csr')
+        self.first_component = scipy.sparse.vstack((self.first_component, csr_template), format='csr')
 
         if self.two_components:
             csr_template = template.second_component.to_sparse('csr', flatten=True)
-            self.second_component = vstack((self.second_component, csr_template), format='csr')
+            self.second_component = scipy.sparse.vstack((self.second_component, csr_template), format='csr')
+
+        self.electrodes = np.concatenate((self.electrodes, [template.channel]))
 
         self._all_components = None
         for key, value in self.overlaps.items():
@@ -192,3 +143,23 @@ class OverlapsDictionary(object):
             self.get_overlaps(index, component='1')
             if self.two_components:
                 self.get_overlaps(index, component='2')
+
+    def _open(self, mode='r+'):
+
+        if self.h5_file is None:
+            self.h5_file = h5py.File(self.file_name, mode=mode, swmr=True)
+
+        return
+
+    def _close(self):
+
+        if self.h5_file is not None:
+            self.h5_file.flush()
+            self.h5_file.close()
+            self.h5_file = None
+
+        return
+
+    def __del__(self):
+
+        self._close()
