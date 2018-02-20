@@ -1,7 +1,8 @@
 from __future__ import print_function
 from setuptools import setup, find_packages
 import os
-import sys, re
+import sys
+import re
 
 
 requires = [
@@ -13,10 +14,13 @@ requires = [
     'tqdm',
     'zmq',
     'sklearn',
+    'hdbscan',
 ]
+
 
 def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
+
 
 if sys.version_info < (2, 7):
     raise RuntimeError('Only Python versions >= 2.7 are supported')
@@ -33,6 +37,7 @@ def _package_tree(pkgroot):
                for i in os.walk(os.path.join(path, pkgroot))
                if '__init__.py' in i[2]]
     return subdirs
+
 
 setup(
     name='circusort',

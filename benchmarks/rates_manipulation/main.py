@@ -12,7 +12,7 @@ nb_rows = 10
 nb_columns = 10
 nb_cells = 100
 duration = 10 * 60# s
-preload_templates = False
+preload_templates = True
 nb_waveforms_clustering = 500
 
 
@@ -179,6 +179,7 @@ def main():
             'sampling_rate': sampling_rate,
             'log_level': DEBUG,
             'introspection_path': introspect_path,
+            'discarding_eoc_from_updater': True,
         }
 
         if preload_templates:

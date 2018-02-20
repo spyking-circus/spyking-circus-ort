@@ -75,7 +75,10 @@ class TemplateComponent(object):
 
     def similarity(self, component):
 
-        return np.corrcoef(self.to_dense().flatten(), component.to_dense().flatten())[0, 1]
+        if not np.any(np.in1d(self.indices, component.indices)):
+            return 0
+        else:
+            return np.corrcoef(self.to_dense().flatten(), component.to_dense().flatten())[0, 1]
 
     def to_dict(self, full=True):
 

@@ -112,6 +112,11 @@ def plot_rates(cells, time_bin=1, ax=None, output=None):
     cbar = fig.colorbar(cax)
     ax.set_xlabel(u"Times (s)")
     ax.set_ylabel(u"# Cells")
+
+    x = ax.get_xticks()
+    axis = ['%g' %i for i in np.linspace(cells.t_min, cells.t_max, len(x[1:]))]
+    ax.set_xticks(x[1:], axis)
+
     gs.tight_layout(fig)
 
     if output is not None:

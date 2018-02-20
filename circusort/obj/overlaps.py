@@ -23,15 +23,20 @@ class Overlaps(object):
 
         return self.overlaps.shape[0]
 
-    def _get_overlaps(self, template, target):
+    def _get_overlaps(self, template, target, zeros=None):
 
         all_x = np.zeros(0, dtype=np.int32)
         all_y = np.zeros(0, dtype=np.int32)
         all_data = np.zeros(0, dtype=np.float32)
 
+        if zeros is not None:
+            sub_target = target[zeros]
+        else:
+            sub_target = target[:]
+
         for idelay in self._scols['delays']:
             tmp_1 = template[:, self._scols['left'][idelay]]
-            tmp_2 = target[:, self._scols['right'][idelay]]
+            tmp_2 = sub_target[:, self._scols['right'][idelay]]
             data = tmp_1.dot(tmp_2.T)
             dx, dy = data.nonzero()
             ones = np.ones(len(dx), dtype=np.int32)
@@ -41,7 +46,7 @@ class Overlaps(object):
 
             if idelay < self.temporal_width:
                 tmp_1 = template[:, self._scols['right'][idelay]]
-                tmp_2 = target[:, self._scols['left'][idelay]]
+                tmp_2 = sub_target[:, self._scols['left'][idelay]]
                 data = tmp_1.dot(tmp_2.T)
                 dx, dy = data.nonzero()
                 ones = np.ones(len(dx), dtype=np.int32)

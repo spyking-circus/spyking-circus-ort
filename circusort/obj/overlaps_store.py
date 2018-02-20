@@ -7,12 +7,15 @@ from circusort.obj.overlaps import Overlaps
 
 class OverlapsStore(object):
 
-    def __init__(self, template_store=None):
+    def __init__(self, template_store=None, compress=False):
 
         self.template_store = template_store
         self.two_components = self.template_store.two_components
         self.nb_channels = self.template_store.nb_channels
         self._temporal_width = None
+        self.compress = compress
+        self._indices = []
+        self._masks = {0: {}}
 
         self.overlaps = {
             '1': {}
@@ -47,9 +50,6 @@ class OverlapsStore(object):
         self.update(self.template_store.indices)
         self._all_components = None
 
-        #if overlaps_store is not None:
-        #    self.overlaps = load_overlaps_store(overlaps_store)
-
     def __len__(self):
 
         return self.first_component.shape[0]
@@ -67,9 +67,9 @@ class OverlapsStore(object):
 
         if self._all_components is None:
             if not self.two_components:
-                self._all_components = self.first_component
+                self._all_components = self.first_component.tocsc()
             else:
-                self._all_components = scipy.sparse.vstack((self.first_component, self.second_component), format='csr')
+                self._all_components = scipy.sparse.vstack((self.first_component, self.second_component), format='csr').tocsc()
 
         return self._all_components
 
@@ -77,6 +77,21 @@ class OverlapsStore(object):
     def nb_templates(self):
 
         return self.first_component.shape[0]
+
+    def get_non_zeros(self, index):
+        if self.compress:
+            pass
+        else:
+            return np.arange(self.nb_templates)
+
+    def _update_masks(self, index, new_indices):
+
+        if not np.any(np.in1d(self._indices[index], new_indices)):
+            self._masks[index][self.nb_templates] = False
+        else:
+            self._masks[index][self.nb_templates] = True
+
+        self._masks[self.nb_templates] = {}
 
     def get_overlaps(self, index, component='1'):
 
@@ -116,6 +131,12 @@ class OverlapsStore(object):
 
         template.normalize()
 
+        if self.compress:
+            for index in range(self.nb_templates):
+                self._update_masks(index, template.indices)
+
+            self._indices += [template.indices]
+
         csr_template = template.first_component.to_sparse('csr', flatten=True)
         self.first_component = scipy.sparse.vstack((self.first_component, csr_template), format='csr')
 
@@ -139,10 +160,14 @@ class OverlapsStore(object):
 
     def precompute_overlaps(self):
 
+        import time
+        t_start = time.time()
         for index in range(self.nb_templates):
             self.get_overlaps(index, component='1')
             if self.two_components:
                 self.get_overlaps(index, component='2')
+
+        print time.time() - t_start
 
     def _open(self, mode='r+'):
 
