@@ -270,6 +270,7 @@ class Density_clustering(Block):
                     'noise_thr': self.noise_thr,
                     'name': 'OnlineManager for {p} peak on channel {c}'.format(p=key, c=channel),
                     'logger': self.log,
+                    'two_components': self.two_components
                 }
 
                 if key == 'negative':
@@ -377,15 +378,13 @@ class Density_clustering(Block):
                             message = string.format(n=self.name, k=channel, m=self.nb_waveforms, t=key)
                             self.log.debug(message)
                             templates = self.managers[key][channel].initialize(self.counter,
-                                                                               self.raw_data[key][channel],
-                                                                               self.two_components)
+                                                                               self.raw_data[key][channel])
                             self._prepare_templates(templates, key, channel)
                         elif self.managers[key][channel].time_to_cluster(self.nb_waveforms):
                             string = "{n} Electrode {k} has obtained {m} {t} waveforms: reclustering"
                             message = string.format(n=self.name, k=channel, m=self.nb_waveforms, t=key)
                             self.log.debug(message)
-                            templates = self.managers[key][channel].cluster(two_components=self.two_components,
-                                                                            tracking=self.tracking)
+                            templates = self.managers[key][channel].cluster(tracking=self.tracking)
                             self._prepare_templates(templates, key, channel)
 
                 if len(self.to_reset) > 0:

@@ -13,7 +13,7 @@ nb_columns = 10
 nb_cells = 100
 duration = 10 * 60# s
 preload_templates = True
-nb_waveforms_clustering = 100
+nb_waveforms_clustering = 500
 
 
 def main():
@@ -179,8 +179,12 @@ def main():
             'sampling_rate': sampling_rate,
             'log_level': DEBUG,
             'introspection_path': introspect_path,
-            'init_path': os.path.join(sorting_directory, "templates.h5")
+            'discarding_eoc_from_updater': True,
         }
+
+        if preload_templates:
+            fitter_kwargs['init_path'] = os.path.join(sorting_directory, "templates.h5")
+
         writer_kwargs = {
             'name': "writer",
             'data_path': os.path.join(sorting_directory, "spikes.h5"),

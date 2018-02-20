@@ -1,6 +1,6 @@
 import scipy.optimize
 import numpy as np
-# import pylab
+import hdbscan
 import scipy.spatial.distance
 import scipy.stats
 import warnings
@@ -80,7 +80,7 @@ class MacroCluster(object):
 class OnlineManager(object):
 
     def __init__(self, probe, channel, decay=0.25, mu=10, epsilon=10, theta=-np.log(0.001), dispersion=(5, 5),
-                 n_min=None, noise_thr=0.8, pca=None, logger=None, name=None):
+                 n_min=0.002, noise_thr=0.8, pca=None, logger=None, two_components=False, name=None):
 
         if name is None:
             self.name = "OnlineManager"
@@ -97,7 +97,9 @@ class OnlineManager(object):
         self.glob_pca = pca
         self.probe = probe
         self.channel = channel
-        
+        self.two_components = two_components
+
+        self.time = 0
         self.is_ready = False
         self.abs_n_min = 20
         self.nb_updates = 0
@@ -121,7 +123,7 @@ class OnlineManager(object):
         else:
             return 100
 
-    def initialize(self, time, data, two_components=False):
+    def initialize(self, time, data):
 
         if self.glob_pca is not None:
             sub_data = np.dot(data, self.glob_pca)
@@ -142,22 +144,16 @@ class OnlineManager(object):
         self.loc_pca = pca.components_.T
 
         sub_data = np.dot(sub_data, self.loc_pca)
-        rhos, dist, _ = rho_estimation(sub_data)
-        if len(rhos) == 1:
-            labels, c = np.array([0]), np.array([0])
-        elif len(rhos) > 1:
-            rhos = -rhos + rhos.max()
-            n_min = np.maximum(self.abs_n_min, int(self.n_min*len(data)))
-            labels, c = density_based_clustering(rhos, dist, n_min=n_min)
-        else:
-            labels, c = np.array([]), np.array([])
-        
-        self.log.debug('{s} has no clusters with less than {k} elements'.format(s=self.name, k=n_min))
+
+        n_min = np.maximum(self.abs_n_min, int(self.n_min * len(sub_data)))
+
+        labels = density_clustering(sub_data, n_min=n_min)
 
         mask = labels > -1
-        self.nb_dimensions = sub_data.shape[1]
 
         templates = {}
+
+        self.time = time
 
         self.log.debug("{n} founds {k} initial clusters from {m} datapoints".format(n=self.name,
                                                                                     k=len(np.unique(labels[mask])),
@@ -166,22 +162,25 @@ class OnlineManager(object):
         for count, i in enumerate(np.unique(labels[mask])):
 
             indices = np.where(labels == i)[0]
-            self.clusters[count] = MacroCluster(count, sub_data[indices], data[indices], creation_time=time)
+            data_cluster = data[indices]
+            sub_data_cluster = sub_data[indices]
+
+            self.clusters[count] = MacroCluster(count, sub_data_cluster, data_cluster, creation_time=self.time)
             self.tracking[count] = self.clusters[count].tracking_properties
-            
-            template = np.median(data[indices], 0)
-            amplitudes = self._compute_amplitudes(data[indices], template)
 
-            first_comp = TemplateComponent(template, self.probe.edges[self.channel], self.probe.nb_channels, amplitudes)
+            waveforms = np.median(data_cluster, 0)
+            amplitudes, full_ = self._compute_amplitudes(data_cluster, waveforms)
 
-            if two_components:
-                template2 = self._compute_template2(data[indices], template)
-                second_comp = TemplateComponent(template2, self.probe.edges[self.channel], self.probe.nb_channels)
+            first_comp = TemplateComponent(waveforms, self.probe.edges[self.channel], self.probe.nb_channels, amplitudes)
+
+            if self.two_components:
+                waveforms = self._compute_second_component(data_cluster, waveforms, full_)
+                second_comp = TemplateComponent(waveforms, self.probe.edges[self.channel], self.probe.nb_channels)
             else:
                 second_comp = None
 
-            full_template = Template(first_comp, self.channel, second_comp)
-            templates[count] = full_template
+            template = Template(first_comp, self.channel, second_comp)
+            templates[count] = template
 
         for cluster in self.clusters.values():
             if cluster.density >= self.D_threshold:
@@ -237,7 +236,7 @@ class OnlineManager(object):
             return self.dense_clusters
 
     def _get_centers(self, cluster_type='dense'):
-        centers = np.zeros((0, self.nb_dimensions), dtype=np.float32)
+        centers = np.zeros((0, self.sub_dim), dtype=np.float32)
         for cluster in self._get_clusters(cluster_type):
             centers = np.vstack((centers, [cluster.center]))
         return centers
@@ -308,10 +307,11 @@ class OnlineManager(object):
     def update(self, time, data=None):
         
         self.time = time
-        if self.nb_sparse > 500:
+        if self.nb_sparse > 100:
             self.log.warning('{n} has too many ({s}) sparse clusters'.format(n=self.name, s=self.nb_sparse))
         
-        #self.log.debug("{n} processes time {t} with {s} sparse and {d} dense clusters. Time gap is {g}".format(n=self.name, t=time, s=self.nb_sparse, d=self.nb_dense, g=self.time_gap))
+        self.log.debug("{n} processes time {t} with {s} sparse and {d} dense clusters. Time gap is {g}".format(
+                                            n=self.name, t=time, s=self.nb_sparse, d=self.nb_dense, g=self.time_gap))
         
         if data is not None:
         
@@ -330,14 +330,13 @@ class OnlineManager(object):
                     pca_data = np.dot(data, self.loc_pca)
 
             if self._merged_into(pca_data, data, 'dense'):
-                # self.log.debug("{n} merges the data at time {t} into a dense cluster".format(n=self.name, t=self.time))
-                pass
+                self.log.debug("{n} merges the data at time {t} into a dense cluster".format(n=self.name, t=self.time))
             else:
                 if self._merged_into(pca_data, data, 'sparse'):
-                    pass
-                    # self.log.debug("{n} merges data at time {t} into a sparse cluster".format(n=self.name, t=self.time))
+                    self.log.debug("{n} merges data at time {t} into a sparse cluster".format(n=self.name, t=self.time))
                 else:
-                    # self.log.debug("{n} can not merge data at time {t} and creates a new sparse cluster".format(n=self.name, t=self.time))
+                    self.log.debug("{n} can not merge data at time {t} and creates a new sparse cluster".format(
+                        n=self.name, t=self.time))
                     new_id = self._get_id()
                     new_cluster = MacroCluster(new_id, pca_data, data, creation_time=self.time)
                     new_cluster.set_label('sparse')
@@ -367,13 +366,15 @@ class OnlineManager(object):
                 dist_idx = np.argmin(new_dist)
 
                 if dist_min <= (sigma + all_sigmas[dist_idx]):
-                    self.log.debug("{n} establishes a match between target {t} and source {s}".format(n=self.name, t=key, s=all_indices[dist_idx]))
+                    self.log.debug("{n} establishes a match between target {t} and source {s}".format(n=self.name,
+                                                                                        t=key, s=all_indices[dist_idx]))
                     changes['merged'][key] = all_indices[dist_idx]
                     self.tracking[key] = center, sigma
                 else:
                     idx = self._get_tracking_id()
                     self.tracking[idx] = center, sigma
-                    # self.log.debug("{n} can not found a match for target {t} assigned to {s}".format(n=self.name, t=key, s=idx))
+                    self.log.debug("{n} can not found a match for target {t} assigned to {s}".format(n=self.name,
+                                                                                                     t=key, s=idx))
                     changes['new'][key] = idx
         else:
             self.tracking = new_tracking_data
@@ -396,13 +397,14 @@ class OnlineManager(object):
         amp_min = min(0.8, max(self.physical_threshold, np.median(amplitudes) - self.dispersion[0]*variation))
         amp_max = max(1.2, np.median(amplitudes) + self.dispersion[1]*variation)
 
-        return np.array([amp_min, amp_max], dtype=np.float32)
+        return np.array([amp_min, amp_max], dtype=np.float32), amplitudes
 
-    def _compute_template2(self, data, template):
+    def _compute_second_component(self, data, waveforms, amplitudes=None):
 
-        temp_flat = template.reshape(template.size, 1)
-        amplitudes = np.dot(data, temp_flat)
-        amplitudes /= np.sum(temp_flat ** 2)
+        temp_flat = waveforms.reshape(waveforms.size, 1)
+        if amplitudes is None:
+            amplitudes = np.dot(data, temp_flat)
+            amplitudes /= np.sum(temp_flat ** 2)
 
         for i in range(len(data)):
             data[i, :] -= amplitudes[i] * temp_flat[:, 0]
@@ -410,26 +412,20 @@ class OnlineManager(object):
         if len(temp_flat) > 1:
             pca = PCA(1)
             pca.fit(data)
-            template2 = pca.components_.T.astype(np.float32)
+            waveforms = pca.components_.T.astype(np.float32)
         else:
-            template2 = data / np.sum(data ** 2)
+            waveforms = data / np.sum(data ** 2)
 
-        return template2.reshape(1, template2.size)
+        return waveforms.reshape(1, waveforms.size)
 
-    def cluster(self, tracking=True, two_components=False):
+    def cluster(self, tracking=True):
 
-        self.log.debug('{n} launches clustering with {s} sparse and {t} dense clusters'.format(n=self.name, s=self.nb_sparse, t=self.nb_dense))
+        self.log.debug('{n} launches clustering with {s} sparse and {t} dense clusters'.format(n=self.name,
+                                                                                    s=self.nb_sparse, t=self.nb_dense))
         centers = self._get_centers('dense')
         centers_full = self._get_centers_full('dense')
 
-        rhos, dist, _ = rho_estimation(centers)
-        if len(rhos) == 1:
-            labels, c = np.array([0]), np.array([0])
-        elif len(rhos) > 1:
-            rhos = -rhos + rhos.max()
-            labels, c = density_based_clustering(rhos, dist, n_min=None)
-        else:
-            labels, c = np.array([]), np.array([])
+        labels = density_clustering(centers, n_min=None)
 
         self.nb_updates = 0
 
@@ -446,48 +442,43 @@ class OnlineManager(object):
 
         for key, value in changes['new'].items():
             data = centers_full[labels == key]
-            template = np.median(data, 0)
-            amplitudes = self._compute_amplitudes(data, template)
+            waveforms = np.median(data, 0)
+            amplitudes, full_ = self._compute_amplitudes(data, waveforms)
 
-            first_component = TemplateComponent(template, self.probe.edges[self.channel], self.probe.nb_channels,
+            first_component = TemplateComponent(waveforms, self.probe.edges[self.channel], self.probe.nb_channels,
                                                 amplitudes)
-            if two_components:
-                template2 = self._compute_template2(data, template)
-                second_component = TemplateComponent(template2, self.probe.edges[self.channel], self.probe.nb_channels)
+            if self.two_components:
+                waveforms = self._compute_second_component(data, waveforms, full_)
+                second_component = TemplateComponent(waveforms, self.probe.edges[self.channel], self.probe.nb_channels)
             else:
                 second_component = None
 
-            full_template = Template(first_component, self.channel, second_component)
-            templates[value] = full_template
+            template = Template(first_component, self.channel, second_component)
+            templates[value] = template
 
         self.log.debug('{n} found {a} new templates: {s}'.format(n=self.name, a=len(changes['new']), s=changes['new']))
 
         if tracking:
             for key, value in changes['merged'].items():
                 data = centers_full[labels == value]
-                template = np.median(data, 0)
-                amplitudes = self._compute_amplitudes(data, template)
+                waveforms = np.median(data, 0)
+                amplitudes, full_ = self._compute_amplitudes(data, waveforms)
 
-                first_component = TemplateComponent(template, self.probe.edges[self.channel], self.probe.nb_channels,
+                first_component = TemplateComponent(waveforms, self.probe.edges[self.channel], self.probe.nb_channels,
                                                     amplitudes)
 
-                if two_components:
-                    template2 = self._compute_template2(data, template)
-                    second_component = TemplateComponent(template2, self.probe.edges[self.channel],
+                if self.two_components:
+                    waveforms = self._compute_second_component(data, waveforms, full_)
+                    second_component = TemplateComponent(waveforms, self.probe.edges[self.channel],
                                                          self.probe.nb_channels)
                 else:
                     second_component = None
 
-                #indices = np.concatenate((indices, [key]))
-                #if two_components:
-                #    template2  = self._compute_template2(data, template)
-                #    templates2 = np.vstack((templates2, template2))
+                template = Template(first_component, self.channel, second_component)
+                templates[value] = template
 
-                full_template = Template(first_component, self.channel, second_component)
-                templates[value] = full_template
-
-            self.log.debug('{n} modified {a} templates with tracking: {s}'.format(n=self.name, a=len(changes['merged']), s=changes['merged'].values()))
-
+            self.log.debug('{n} modified {a} templates with tracking: {s}'.format(n=self.name, a=len(changes['merged']),
+                                                                                  s=changes['merged'].values()))
         return templates
 
 
@@ -584,3 +575,39 @@ def density_based_clustering(rho, dist, smart_select=True, n_min=None, max_clust
     halo, NCLUST = assign_halo(clust_idx[:max_clusters+1])
 
     return halo, clust_idx[:max_clusters]
+
+
+def density_clustering(data, n_min=None):
+
+    rhos, dist, _ = rho_estimation(data)
+    if len(rhos) == 1:
+        labels, c = np.array([0]), np.array([0])
+    elif len(rhos) > 1:
+        rhos = -rhos + rhos.max()
+        labels, c = density_based_clustering(rhos, dist, n_min)
+    else:
+        labels, c = np.array([]), np.array([])
+
+    # import pylab
+    # pylab.scatter(data[:, 0], data[:, 1], c=labels)
+    # pylab.show()
+
+    return labels
+
+
+def hdbscan_clustering(data, n_min=None):
+
+    if n_min is not None:
+        cluster_engine = hdbscan.HDBSCAN(min_cluster_size=int(n_min), core_dist_n_jobs=1)
+    else:
+        cluster_engine = hdbscan.HDBSCAN(min_cluster_size=1, core_dist_n_jobs=1)
+
+    labels = cluster_engine.fit_predict(data)
+    idx = np.where(cluster_engine.probabilities_ <= 0.1)
+    labels[idx] = -1
+
+    #import pylab
+    #pylab.scatter(data[:, 0], data[:, 1], c=labels)
+    #pylab.show()
+
+    return labels

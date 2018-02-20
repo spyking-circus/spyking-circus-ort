@@ -3,7 +3,7 @@ import os
 
 from circusort.block.block import Block
 from circusort.obj.template_store import TemplateStore
-from circusort.obj.overlaps_dictionary import OverlapsDictionary
+from circusort.obj.overlaps_store import OverlapsStore
 
 
 class Fitter(Block):
@@ -458,7 +458,7 @@ class Fitter(Block):
                 # Create the template dictionary if necessary.
                 if self.overlaps_store is None:
                     self.template_store = TemplateStore(updater['templates_file'], 'r')
-                    self.overlaps_store = OverlapsDictionary(self.template_store)
+                    self.overlaps_store = OverlapsStore(self.template_store)
                     self._init_temp_window()
                 else:
                     self.overlaps_store.update(updater['indices'])
