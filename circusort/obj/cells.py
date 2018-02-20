@@ -330,3 +330,25 @@ class Cells(object):
         # TODO correct.
 
         return parameters
+
+    def compute_similarities(self, cells):
+        """Compute the similarities between two set of cells.
+
+        Attribute:
+            cells: circusort.obj.Cells
+                The set of cells with which similarities have to be computed.
+        Return:
+            similarities: numpy.ndarray
+                The matrix of similarities between the two set of cells.
+        """
+
+        shape = (self.nb_cells, cells.nb_cells)
+        similarities = np.zeros(shape, dtype=np.float)
+
+        for i, cell_i in self:
+            template_i = cell_i.template
+            for j, cell_j in cells:
+                template_j = cell_j.template
+                similarities[i][j] = template_i.similarity(template_j)
+
+        return similarities
