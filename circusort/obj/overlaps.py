@@ -6,39 +6,41 @@ import scipy.sparse
 
 class Overlaps(object):
 
-    def __init__(self, template, target, _scols, size, temporal_width):
+    def __init__(self, _scols, size, temporal_width):
 
         self._scols = _scols
         self.size = size
         self.temporal_width = temporal_width
-        self.new_indices = []
-        self.overlaps = self._get_overlaps(template, target)
+        self._indices = []
+        self.overlaps = None
 
     @property
     def do_update(self):
 
-        return len(self.new_indices) > 0
+        return len(self._indices) > 0
 
     def __len__(self):
 
         return self.overlaps.shape[0]
 
-    def _get_overlaps(self, template, target, zeros=None):
+    def _get_overlaps(self, template, target, non_zeros=None):
 
         all_x = np.zeros(0, dtype=np.int32)
         all_y = np.zeros(0, dtype=np.int32)
         all_data = np.zeros(0, dtype=np.float32)
 
-        if zeros is not None:
-            sub_target = target[zeros]
+        if non_zeros is not None:
+            sub_target = target[non_zeros]
         else:
-            sub_target = target[:]
+            sub_target = target
 
         for idelay in self._scols['delays']:
             tmp_1 = template[:, self._scols['left'][idelay]]
             tmp_2 = sub_target[:, self._scols['right'][idelay]]
             data = tmp_1.dot(tmp_2.T)
             dx, dy = data.nonzero()
+            if non_zeros is not None:
+                dx = non_zeros[dx]
             ones = np.ones(len(dx), dtype=np.int32)
             all_x = np.concatenate((all_x, dx * target.shape[0] + dy))
             all_y = np.concatenate((all_y, (idelay - 1) * ones))
@@ -49,6 +51,8 @@ class Overlaps(object):
                 tmp_2 = sub_target[:, self._scols['left'][idelay]]
                 data = tmp_1.dot(tmp_2.T)
                 dx, dy = data.nonzero()
+                if non_zeros is not None:
+                    dx = non_zeros[dx]
                 ones = np.ones(len(dx), dtype=np.int32)
                 all_x = np.concatenate((all_x, dx * target.shape[0] + dy))
                 all_y = np.concatenate((all_y, (self.size - idelay) * ones))
@@ -58,11 +62,18 @@ class Overlaps(object):
 
         return scipy.sparse.csr_matrix((all_data, (all_x, all_y)), shape=shape)
 
-    def update(self, template, target):
+    def update(self, template, target, non_zeros=None):
 
-        new_overlaps = self._get_overlaps(template, target[self.new_indices])
+        if non_zeros is not None:
+            pass
+        
+        new_overlaps = self._get_overlaps(template, target[self._indices], non_zeros)
         self.overlaps = scipy.sparse.vstack((self.overlaps, new_overlaps))
-        self.new_indices = []
+        self._indices = []
+
+    def initialize(self, template, target, non_zeros=None):
+
+        self.overlaps = self._get_overlaps(template, target, non_zeros)
 
     def save(self, path):
 
@@ -71,7 +82,7 @@ class Overlaps(object):
             file_.create_dataset('data', data=self.overlaps.data, chunks=True)
             file_.create_dataset('indices', data=self.overlaps.indices, chunks=True)
             file_.create_dataset('indptr', data=self.overlaps.indptr, chunks=True)
-            file_.attrs['new_indices'] = self.new_indices
+            file_.attrs['indices'] = self._indices
             file_.attrs['temporal_width'] = self.temporal_width
             file_.attrs['size'] = self.size
 

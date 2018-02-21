@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 import numpy as np
-import h5py
 import scipy.sparse
 from circusort.obj.overlaps import Overlaps
 
 
 class OverlapsStore(object):
 
-    def __init__(self, template_store=None, compress=False):
+    def __init__(self, template_store=None, compress=True):
 
         self.template_store = template_store
         self.two_components = self.template_store.two_components
@@ -15,7 +14,7 @@ class OverlapsStore(object):
         self._temporal_width = None
         self.compress = compress
         self._indices = []
-        self._masks = {0: {}}
+        self._masks = {}
 
         self.overlaps = {
             '1': {}
@@ -45,7 +44,8 @@ class OverlapsStore(object):
 
         for idelay in self._scols['delays']:
             self._scols['left'][idelay] = np.where(self._cols % self.temporal_width < idelay)[0]
-            self._scols['right'][idelay] = np.where(self._cols % self.temporal_width >= (self.temporal_width - idelay))[0]
+            self._scols['right'][idelay] = np.where(self._cols % self.temporal_width >=
+                                                    (self.temporal_width - idelay))[0]
 
         self.update(self.template_store.indices)
         self._all_components = None
@@ -69,7 +69,8 @@ class OverlapsStore(object):
             if not self.two_components:
                 self._all_components = self.first_component.tocsc()
             else:
-                self._all_components = scipy.sparse.vstack((self.first_component, self.second_component), format='csr').tocsc()
+                self._all_components = scipy.sparse.vstack((self.first_component,
+                                                            self.second_component), format='csr').tocsc()
 
         return self._all_components
 
@@ -78,33 +79,38 @@ class OverlapsStore(object):
 
         return self.first_component.shape[0]
 
-    def get_non_zeros(self, index):
+    def non_zeros(self, index):
         if self.compress:
-            pass
+            res = np.zeros(0, dtype=np.bool)
+            for i in range(index + 1):
+                res = np.concatenate((res, [self._masks[i, index]]))
+            for i in range(index + 1, self.nb_templates):
+                res = np.concatenate((res, [self._masks[index, i]]))
+            return np.where(res == True)[0]
         else:
-            return np.arange(self.nb_templates)
+            return None
 
     def _update_masks(self, index, new_indices):
 
         if not np.any(np.in1d(self._indices[index], new_indices)):
-            self._masks[index][self.nb_templates] = False
+            self._masks[index, self.nb_templates] = False
         else:
-            self._masks[index][self.nb_templates] = True
+            self._masks[index, self.nb_templates] = True
 
-        self._masks[self.nb_templates] = {}
+        self._masks[index, index] = True
 
     def get_overlaps(self, index, component='1'):
 
         if index not in self.overlaps[component]:
             target = self.all_components
             template = self.all_components[index]
-            self.overlaps[component][index] = Overlaps(template, target, self._scols, self.size, self.temporal_width)
-
+            self.overlaps[component][index] = Overlaps(self._scols, self.size, self.temporal_width)
+            self.overlaps[component][index].initialize(template, target, self.non_zeros(index))
         else:
             if self.overlaps[component][index].do_update:
                 target = self.all_components
                 template = self.all_components[index]
-                self.overlaps[component][index].update(template, target)
+                self.overlaps[component][index].update(template, target, self.non_zeros(index))
 
         return self.overlaps[component][index].overlaps
 
@@ -160,31 +166,7 @@ class OverlapsStore(object):
 
     def precompute_overlaps(self):
 
-        import time
-        t_start = time.time()
         for index in range(self.nb_templates):
             self.get_overlaps(index, component='1')
             if self.two_components:
                 self.get_overlaps(index, component='2')
-
-        print time.time() - t_start
-
-    def _open(self, mode='r+'):
-
-        if self.h5_file is None:
-            self.h5_file = h5py.File(self.file_name, mode=mode, swmr=True)
-
-        return
-
-    def _close(self):
-
-        if self.h5_file is not None:
-            self.h5_file.flush()
-            self.h5_file.close()
-            self.h5_file = None
-
-        return
-
-    def __del__(self):
-
-        self._close()
