@@ -97,8 +97,6 @@ class OverlapsStore(object):
         else:
             self._masks[index, self.nb_templates] = True
 
-        self._masks[index, index] = True
-
     def get_overlaps(self, index, component='1'):
 
         if index not in self.overlaps[component]:
@@ -138,6 +136,9 @@ class OverlapsStore(object):
         template.normalize()
 
         if self.compress:
+
+            self._masks[self.nb_templates, self.nb_templates] = True
+
             for index in range(self.nb_templates):
                 self._update_masks(index, template.indices)
 
@@ -155,7 +156,7 @@ class OverlapsStore(object):
         self._all_components = None
         for key, value in self.overlaps.items():
             for index in value.keys():
-                self.overlaps[key][index].new_indices += [len(self) - 1]
+                self.overlaps[key][index].indices_ += [len(self) - 1]
 
     def update(self, indices):
 

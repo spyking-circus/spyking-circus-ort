@@ -11,13 +11,13 @@ class Overlaps(object):
         self._scols = _scols
         self.size = size
         self.temporal_width = temporal_width
-        self._indices = []
+        self.indices_ = []
         self.overlaps = None
 
     @property
     def do_update(self):
 
-        return len(self._indices) > 0
+        return len(self.indices_) > 0
 
     def __len__(self):
 
@@ -65,11 +65,16 @@ class Overlaps(object):
     def update(self, template, target, non_zeros=None):
 
         if non_zeros is not None:
-            pass
+            indices = np.in1d(self.indices_, non_zeros)
+            indices = np.where(indices == True)[0]
+            if len(indices) > 0:
+                non_zeros = np.arange(len(self.indices_))[indices]
+            else:
+                non_zeros = None
         
-        new_overlaps = self._get_overlaps(template, target[self._indices], non_zeros)
+        new_overlaps = self._get_overlaps(template, target[self.indices_], non_zeros)
         self.overlaps = scipy.sparse.vstack((self.overlaps, new_overlaps))
-        self._indices = []
+        self.indices_ = []
 
     def initialize(self, template, target, non_zeros=None):
 
@@ -82,7 +87,7 @@ class Overlaps(object):
             file_.create_dataset('data', data=self.overlaps.data, chunks=True)
             file_.create_dataset('indices', data=self.overlaps.indices, chunks=True)
             file_.create_dataset('indptr', data=self.overlaps.indptr, chunks=True)
-            file_.attrs['indices'] = self._indices
+            file_.attrs['indices'] = self.indices_
             file_.attrs['temporal_width'] = self.temporal_width
             file_.attrs['size'] = self.size
 

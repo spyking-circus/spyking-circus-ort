@@ -31,6 +31,7 @@ class Reader(Block):
         'nb_samples': 1024,
         'sampling_rate': 20e+3,
         'is_realistic': True,
+        'nb_replay': 1,
     }
 
     def __init__(self, **kwargs):
@@ -70,7 +71,8 @@ class Reader(Block):
         """Initialization of the processing block."""
 
         data = np.memmap(self.data_path, dtype=self.dtype, mode='r')
-        self.shape = (data.size / self.nb_channels, self.nb_channels)
+        self.real_shape = (data.size / self.nb_channels, self.nb_channels)
+        self.shape = (self.real_shape[0] * self.nb_replay, self.real_shape[1])
         self.output.configure(dtype=self.output_dtype, shape=(self.nb_samples, self.nb_channels))
 
         return
@@ -83,13 +85,14 @@ class Reader(Block):
         self._measure_time(label='start', frequency=100)
 
         # Read data from the file on disk.
-        data = np.memmap(self.data_path, dtype=self.dtype, mode='r', shape=self.shape)
+        data = np.memmap(self.data_path, dtype=self.dtype, mode='r', shape=self.real_shape)
 
-        i_min = self.nb_samples * self.counter
-        i_max = self.nb_samples * (self.counter + 1)
+        g_min = (self.nb_samples * self.counter)
 
-        if i_max <= self.shape[0]:
+        if g_min < self.shape[0]:
             # Get chunk.
+            i_min = (self.nb_samples * self.counter) % self.real_shape[0]
+            i_max = (self.nb_samples * (self.counter + 1)) % self.real_shape[0]
             chunk = data[i_min:i_max, :]
             # Dequantize chunk.
             if self.dtype == 'float32':
