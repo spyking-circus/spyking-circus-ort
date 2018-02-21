@@ -92,8 +92,8 @@ class Reader(Block):
         if g_min < self.shape[0]:
             # Get chunk.
             i_min = (self.nb_samples * self.counter) % self.real_shape[0]
-            i_max = (self.nb_samples * (self.counter + 1)) % self.real_shape[0]
-            chunk = data[i_min:i_max, :]
+
+            chunk = data[i_min:i_min + self.nb_samples, :]
             # Dequantize chunk.
             if self.dtype == 'float32':
                 pass

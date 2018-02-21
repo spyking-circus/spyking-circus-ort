@@ -82,7 +82,7 @@ def generate_mea_probe(nb_columns=4, nb_rows=4, interelectrode_distance=30.0, ra
 
     probe_kwargs = {
         'total_nb_channels': nb_electrodes,
-        'radius': radius,  # µm
+        'radius': float(radius),  # µm
         'channel_groups': {1: channel_group},
     }
 
