@@ -6,7 +6,7 @@ import scipy.sparse
 
 class TemplateDictionary(object):
 
-    def __init__(self, template_store=None, cc_merge=None, cc_mixture=None):
+    def __init__(self, template_store=None, cc_merge=None, cc_mixture=None, optimize=False):
 
         self.template_store = template_store
         self.mappings = self.template_store.mappings
@@ -16,6 +16,7 @@ class TemplateDictionary(object):
         self.cc_mixture = cc_mixture
         self._duplicates = None
         self._mixtures = None
+        self.optimize = optimize
 
     def _init_from_template(self, template):
 

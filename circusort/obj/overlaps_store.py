@@ -6,13 +6,13 @@ from circusort.obj.overlaps import Overlaps
 
 class OverlapsStore(object):
 
-    def __init__(self, template_store=None, compress=True):
+    def __init__(self, template_store=None, optimize=True):
 
         self.template_store = template_store
         self.two_components = self.template_store.two_components
         self.nb_channels = self.template_store.nb_channels
         self._temporal_width = None
-        self.compress = compress
+        self.optimize = optimize
         self._indices = []
         self._masks = {}
 
@@ -80,7 +80,7 @@ class OverlapsStore(object):
         return self.first_component.shape[0]
 
     def non_zeros(self, index):
-        if self.compress:
+        if self.optimize:
             res = np.zeros(0, dtype=np.bool)
             for i in range(index + 1):
                 res = np.concatenate((res, [self._masks[i, index]]))
@@ -135,7 +135,7 @@ class OverlapsStore(object):
 
         template.normalize()
 
-        if self.compress:
+        if self.optimize:
 
             self._masks[self.nb_templates, self.nb_templates] = True
 
@@ -171,3 +171,4 @@ class OverlapsStore(object):
             self.get_overlaps(index, component='1')
             if self.two_components:
                 self.get_overlaps(index, component='2')
+
