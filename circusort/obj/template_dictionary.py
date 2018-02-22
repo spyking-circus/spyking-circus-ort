@@ -6,7 +6,7 @@ import scipy.sparse
 
 class TemplateDictionary(object):
 
-    def __init__(self, template_store=None, cc_merge=None, cc_mixture=None, optimize=False):
+    def __init__(self, template_store=None, cc_merge=None, cc_mixture=None, optimize=True):
 
         self.template_store = template_store
         self.mappings = self.template_store.mappings
@@ -17,6 +17,7 @@ class TemplateDictionary(object):
         self._duplicates = None
         self._mixtures = None
         self.optimize = optimize
+        self._indices = []
 
     def _init_from_template(self, template):
 
@@ -124,11 +125,23 @@ class TemplateDictionary(object):
 
         pass  # TODO implement or remove this method?
 
-    def _get_csr_template(self, template):
+    @staticmethod
+    def _get_csr_template(template):
+
         csr_template = template.first_component.to_sparse('csr', flatten=True)
         norm = template.first_component.norm
         csr_template /= norm
+
         return csr_template
+
+    def non_zeros(self, indices):
+
+        res = np.zeros(0, dtype=np.int32)
+        for count, i in enumerate(self._indices):
+            if np.any(np.in1d(i, indices)):
+                res = np.concatenate((res, [count]))
+
+        return res
 
     def initialize(self, templates):
 
@@ -159,8 +172,13 @@ class TemplateDictionary(object):
 
                 csr_template = self._get_csr_template(t)
 
-                is_present = self._is_present(csr_template)
-                is_mixture = self._is_mixture(csr_template)
+                if self.optimize:
+                    non_zeros = self.non_zeros(t.indices)
+                else:
+                    non_zeros = None
+
+                is_present = self._is_present(csr_template, non_zeros)
+                is_mixture = self._is_mixture(csr_template, non_zeros)
 
                 if is_present:
                     nb_duplicates += 1
@@ -173,69 +191,39 @@ class TemplateDictionary(object):
                 if not is_present and not is_mixture:
                     accepted += self._add_template(t, csr_template)
 
+                    if self.optimize:
+                        self._indices += [t.indices]
+
         return accepted, nb_duplicates, nb_mixtures
 
-    def _is_present(self, csr_template):
+    def _is_present(self, csr_template, non_zeros=None):
 
         if (self.cc_merge is None) or (self.nb_templates == 0):
             return False
 
+        if non_zeros is not None:
+            sub_target = self.first_component[non_zeros]
+        else:
+            sub_target = self.first_component
+
         for idelay in self._delays:
             tmp_1 = csr_template[:, self._scols['left'][idelay]]
-            tmp_2 = self.first_component[:, self._scols['right'][idelay]]
+            tmp_2 = sub_target[:, self._scols['right'][idelay]]
             data = tmp_1.dot(tmp_2.T)
             if np.any(data.data >= self.cc_merge):
                 return True
 
             if idelay < self._spike_width:
                 tmp_1 = csr_template[:, self._scols['right'][idelay]]
-                tmp_2 = self.first_component[:, self._scols['left'][idelay]]
+                tmp_2 = sub_target[:, self._scols['left'][idelay]]
                 data = tmp_1.dot(tmp_2.T)
                 if np.any(data.data >= self.cc_merge):
                     return True
         return False
 
-    def _is_mixture(self, csr_template):
+    def _is_mixture(self, csr_template, non_zeros=None):
         
         if (self.cc_mixture is None) or (self.nb_templates == 0):
             return False
-
-        all_x = np.zeros(0, dtype=np.int32)
-        all_y = np.zeros(0, dtype=np.int32)
-        all_data = np.zeros(0, dtype=np.float32)
-
-        for idelay in self._delays:
-            tmp_1 = csr_template[:, self._scols['left'][idelay]]
-            tmp_2 = self.first_component[:, self._scols['right'][idelay]]
-            data = tmp_1.dot(tmp_2.T)
-            dx, dy = data.nonzero()
-            ones = np.ones(len(dx), dtype=np.int32)
-            all_x = np.concatenate((all_x, dx * self.nb_templates + dy))
-            all_y = np.concatenate((all_y, (idelay - 1) * ones))
-            all_data = np.concatenate((all_data, data.data))
-
-            if idelay < self._spike_width:
-                tmp_1 = csr_template[:, self._scols['right'][idelay]]
-                tmp_2 = self.first_component[:, self._scols['left'][idelay]]
-                data = tmp_1.dot(tmp_2.T)
-                dx, dy = data.nonzero()
-                ones = np.ones(len(dx), dtype=np.int32)
-                all_x = np.concatenate((all_x, dx * self.nb_templates + dy))
-                all_y = np.concatenate((all_y, (self._overlap_size - idelay) * ones))
-                all_data = np.concatenate((all_data, data.data))
-
-        shape = (self.nb_templates, self._overlap_size)
-        overlap = csr_matrix((all_data, (all_x, all_y)), shape=shape)
-        distances = np.argmax(overlap.toarray(), 1)
-        _ = distances
-
-        # for i in xrange(self.nb_templates):
-        #     M[0, 0] = overlap[i, i]
-        #     V[0, 0] = overlap_k[0, distances[0, i]]
-        #     for j in xrange(self.nb_templates):
-        #         M[1, 1]  = overlap[j, j]
-        #         M[1, 0]  = overlap_i[j, distances[k, i] - distances[k, j]]
-        #         M[0, 1]  = M[1, 0]
-        #         V[1, 0]  = overlap_k[j, distances[k, j]]
 
         return False
