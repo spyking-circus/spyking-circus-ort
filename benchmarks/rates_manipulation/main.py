@@ -11,9 +11,10 @@ from circusort.io.cells import list_cells
 nb_rows = 10
 nb_columns = 10
 nb_cells = 100
-duration = 10 * 60# s
+duration = 10 * 60
+radius = 100
 preload_templates = False
-nb_waveforms_clustering = 1000
+nb_waveforms_clustering = 500
 nb_replay = 3
 
 
@@ -57,7 +58,7 @@ def main():
                 'mode': 'mea',
                 'nb_rows': nb_rows,
                 'nb_columns': nb_columns,
-                'radius': 100
+                'radius': radius
             },
             'cells': {
                 'mode': "default",
@@ -155,7 +156,8 @@ def main():
             'nb_waveforms': nb_waveforms_clustering,
             'probe_path': probe_path,
             'two_components': False,
-            'log_level': INFO
+            'log_level': INFO,
+            'debug_plots': os.path.join(directory, 'clustering_plots')
         }
 
         if preload_templates:
