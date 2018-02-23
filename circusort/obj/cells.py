@@ -1,6 +1,7 @@
 import matplotlib.gridspec as gds
 import matplotlib.pyplot as plt
 import os
+import numpy as np
 
 from circusort.io.parameter.cells import get_cells_parameters
 from circusort.utils.path import normalize_path
@@ -29,7 +30,15 @@ class Cells(object):
         self.parameters = get_cells_parameters() if parameters is None else parameters
 
         self._mode = None
-        self._path = None
+
+    def __len__(self):
+
+        return len(self.cells)
+
+    @property
+    def ids(self):
+
+        return self.cells.keys()
 
     def __getitem__(self, identifier):
         # TODO add docstring.
@@ -41,18 +50,25 @@ class Cells(object):
     def __iter__(self):
         # TODO add docstring.
 
-        iterator = self.cells.itervalues()
+        iterator = self.values()
 
         return iterator
 
-    def itervalues(self):
+    def keys(self):
+        # TODO add docstring.
+
+        iterator = self.cells.iterkeys()
+
+        return iterator
+
+    def values(self):
         # TODO add docstring.
 
         iterator = self.cells.itervalues()
 
         return iterator
 
-    def iteritems(self):
+    def items(self):
         # TODO add docstring.
 
         iterator = self.cells.iteritems()
@@ -66,6 +82,53 @@ class Cells(object):
         nb_cells = len(self.cells)
 
         return nb_cells
+
+    def slice_by_ids(self, indices):
+        
+        cells = {}
+        for key in indices:
+            if key in self.ids:
+                cells[key] = self.cells[key]
+        
+        return Cells(cells)
+
+    def slice_by_time(self, t_min=None, t_max=None):
+
+        cells = {}
+        for key, value in self.items():
+            cells[key] = value.slice(t_min, t_max)
+
+        return Cells(cells)
+
+    @property
+    def t_min(self):
+        
+        t_min = np.inf 
+        for c in self:
+            if c.train.t_min < t_min:
+                t_min = c.train.t_min
+        
+        return t_min
+
+    @property
+    def t_max(self):
+        
+        t_max = 0 
+        for c in self:
+            if c.train.t_max > t_max:
+                t_max = c.train.t_max
+        
+        return t_max
+
+    def set_t_min(self, t_min):
+
+        for c in self:
+            c.train = c.train.slice(t_min, self.t_max)
+
+    def set_t_max(self, t_max):
+
+        for c in self:
+            c.train = c.train.slice(self.t_min, t_max)
 
     def save(self, path, mode='default', **kwargs):
         """Save cells to files.
@@ -83,13 +146,12 @@ class Cells(object):
             path = normalize_path(path, **kwargs)
             cells_directory = os.path.join(path, "cells")
             self.parameters.save(cells_directory, **kwargs)
-            for k, cell in self.iteritems():
+            for k, cell in self.items():
                 cell_directory = os.path.join(cells_directory, "{}".format(k))
                 cell.save(cell_directory)
 
             # Update private attributes.
             self._mode = 'default'
-            self._path = path
 
         elif mode == 'by components':
 
@@ -101,6 +163,23 @@ class Cells(object):
             raise ValueError(message)
 
         return
+
+    @property
+    def mean_rate(self):
+
+        mean_rate = np.mean([c.mean_rate for c in self])
+
+        return mean_rate
+
+    def rate(self, time_bin=1):
+
+        bins = np.arange(self.t_min, self.t_max, time_bin)
+        result = np.zeros((len(self), len(bins) - 1))
+
+        for count, c in enumerate(self):
+            result[count, :] = c.rate(time_bin)
+
+        return result
 
     def plot(self, output=None, **kwargs):
         # TODO add docstring.
@@ -119,7 +198,7 @@ class Cells(object):
             self.plot_trains(output=cells_directory, **kwargs)
             # TODO plot amplitudes.
             self.plot_positions(output=cells_directory, **kwargs)
-            for k, cell in self.iteritems():
+            for k, cell in self.items():
                 cell_directory = os.path.join(cells_directory, "{}".format(k))
                 cell.plot(output=cell_directory, **kwargs)
 
@@ -127,7 +206,7 @@ class Cells(object):
 
     def _plot_rates(self, ax, **kwargs):
 
-        for k, cell in self.iteritems():
+        for k, cell in self.items():
             cell.plot_rate(ax=ax, **kwargs)
         ax.set_title(u"Rates")
 
@@ -162,7 +241,7 @@ class Cells(object):
 
     def _plot_trains(self, ax, **kwargs):
 
-        for k, cell in self.iteritems():
+        for k, cell in self.items():
             cell.train.plot(ax=ax, offset=k, **kwargs)
         ax.set_yticks([i for i in range(0, self.nb_cells)])
         ax.set_yticklabels([str(k) for k in range(0, self.nb_cells)])
@@ -202,7 +281,7 @@ class Cells(object):
 
         if probe is not None:
             probe.plot(ax=ax, **kwargs)
-        for k, cell in self.iteritems():
+        for k, cell in self.items():
             if cell.position is not None:  # TODO be able to remove this line.
                 color = 'C{}'.format(1 + k % 9)
                 cell.position.plot(ax=ax, color=color, set_ax=False, **kwargs)
@@ -245,13 +324,9 @@ class Cells(object):
                 A dictionary which contains the parameters of the cells.
         """
 
-        if self._path is None:
-            parameters = {}
-        else:
-            parameters = {
-                'mode': self._mode,
-                'path': self._path
-            }
+        parameters = {
+            'mode': self._mode
+        }
         # TODO correct.
 
         return parameters

@@ -1,6 +1,5 @@
 import h5py
 import os
-import scipy.sparse
 import numpy
 from circusort.io.utils import append_hdf5
 
@@ -10,10 +9,10 @@ class SyntheticStore(object):
 
     def __init__(self, file_name, mode='w'):
 
-        self.file_name      = os.path.abspath(file_name)
-        self.initialized    = {}
-        self.mode           = mode
-        self.is_created     = False
+        self.file_nam= os.path.abspath(file_name)
+        self.initialized = {}
+        self.mode = mode
+        self.is_created = False
 
     def add(self, data):
 

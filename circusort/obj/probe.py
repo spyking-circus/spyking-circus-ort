@@ -39,6 +39,10 @@ class Probe(object):
         self._path = None
         self._nb_channels = None
 
+    def __len__(self):
+
+        return self._nb_channels
+
     def _get_edges(self, i, channel_groups):
         # TODO add docstring.
 

@@ -6,8 +6,8 @@ from circusort.obj.template_store import TemplateStore
 from circusort.obj.overlaps_store import OverlapsStore
 
 
-class Template_fitter(Block):
-    """Template fitter
+class Fitter(Block):
+    """Fitter
 
     Attributes:
 
@@ -18,13 +18,15 @@ class Template_fitter(Block):
     """
     # TODO complete docstring.
 
-    name = "Template fitter"
+    name = "Fitter"
 
     params = {
         'init_path': None,
         'with_rejected_times': False,
         'sampling_rate': 20e+3,
         'discarding_eoc_from_updater': False,
+        '_nb_fitters': 1,
+        '_fitter_id': 0,
     }
 
     def __init__(self, **kwargs):
@@ -36,6 +38,8 @@ class Template_fitter(Block):
         self.with_rejected_times = self.with_rejected_times
         self.sampling_rate = self.sampling_rate
         self.discarding_eoc_from_updater = self.discarding_eoc_from_updater
+        self._nb_fitters = self._nb_fitters
+        self._fitter_id = self._fitter_id
 
         self.add_input('updater')
         self.add_input('data')
@@ -56,12 +60,11 @@ class Template_fitter(Block):
         # Variables used to handle buffer edges.
         self.x = None  # voltage signal
         self.p = None  # peak time steps
-        self.r = {
+        self.r = {  # temporary result
             'spike_times': np.zeros(0, dtype=np.int32),
             'amplitudes': np.zeros(0, dtype=np.float32),
             'templates': np.zeros(0, dtype=np.int32),
-        }  # temporary result
-
+        }
         if self.with_rejected_times:
             self.r.update({
                 'rejected_times': np.zeros(0, dtype=np.int32),
@@ -73,23 +76,22 @@ class Template_fitter(Block):
     def _initialize_templates(self):
 
         self.template_store = TemplateStore(self.init_path, mode='r')
-        self.overlaps_store = OverlapsStore(self.template_store)
+        self.overlaps_store = OverlapsDictionary(self.template_store)
 
         string = "{} is initialized with {} templates from {}"
         message = string.format(self.name, self.overlaps_store.nb_templates, self.init_path)
         self.log.info(message)
 
-        self.log.info("Pre-computing all the overlaps...")
-        self.overlaps_store.precompute_overlaps()
-
         return
 
     @property
     def nb_channels(self):
+
         return self.inputs['data'].shape[1]
 
     @property
     def nb_samples(self):
+
         return self.inputs['data'].shape[0]
 
     @property
@@ -100,8 +102,7 @@ class Template_fitter(Block):
             return 0
 
     def _guess_output_endpoints(self):
-        if self.init_path is not None:
-            self._init_temp_window()
+        return
 
     def _init_temp_window(self):
         self.slice_indices = np.zeros(0, dtype=np.int32)
@@ -112,23 +113,43 @@ class Template_fitter(Block):
         for idx in range(self.nb_channels):
             self.slice_indices = np.concatenate((self.slice_indices, idx * buffer_size + temp_window))
 
-    def _reset_result(self):
+    def _is_valid(self, peak_step):
 
-        self.result = {
-            'spike_times': self.r['spike_times'],
-            'amplitudes': self.r['amplitudes'],
-            'templates': self.r['templates'],
+        i_min = self._width
+        i_max = self.nb_samples - self._width
+        is_valid = (i_min <= peak_step) & (peak_step < i_max)
+
+        return is_valid
+
+    def _get_all_valid_peaks(self, peak_steps):
+
+        all_peak_steps = set([])
+        for key in peak_steps.keys():
+            for channel in peak_steps[key].keys():
+                all_peak_steps = all_peak_steps.union(peak_steps[key][channel])
+        all_peak_steps = np.array(list(all_peak_steps), dtype=np.int32)
+
+        mask = self._is_valid(all_peak_steps)
+        all_valid_peak_steps = all_peak_steps[mask]
+
+        return all_valid_peak_steps
+
+    @property
+    def _empty_result(self):
+
+        r = {
             'offset': self.offset,
         }
-        if self.with_rejected_times:
-            self.result.update({
-                'rejected_times': self.r['rejected_times'],
-                'rejected_amplitudes': self.r['rejected_amplitudes']
-            })
+
+        return r
+
+    def _reset_result(self):
+
         self.r = {
             'spike_times': np.zeros(0, dtype=np.int32),
             'amplitudes': np.zeros(0, dtype=np.float32),
             'templates': np.zeros(0, dtype=np.int32),
+            'offset': self.offset,
         }
         if self.with_rejected_times:
             self.r.update({
@@ -153,7 +174,7 @@ class Template_fitter(Block):
 
         batch = self.x.T.flatten()
         nb_peaks = len(peak_time_steps)
-        waveforms = np.zeros((self.overlaps_store.nb_elements, nb_peaks), dtype=np.float32)
+        waveforms = np.zeros((self.overlaps_store._nb_elements, nb_peaks), dtype=np.float32)
         for k, peak_time_step in enumerate(peak_time_steps):
             waveforms[:, k] = batch[self.slice_indices + peak_time_step]
 
@@ -162,17 +183,18 @@ class Template_fitter(Block):
     def _fit_chunk(self):
 
         # Log some information.
-        #string = "{} fits spikes... ({} templates)"
-        #message = string.format(self.name_and_counter, self.nb_templates)
-        #self.log.debug(message)
+        string = "{} fits spikes... ({} templates)"
+        message = string.format(self.name_and_counter, self.nb_templates)
+        self.log.debug(message)
 
         # Reset result.
         self._reset_result()
 
         # Compute the number of peaks in the current chunk.
-        p_min = 1 * self.nb_samples - self._width  # start index of the work area
-        p_max = 2 * self.nb_samples - self._width  # end index of the work area
-        is_in_work_area = np.logical_and(p_min <= self.p, self.p < p_max)
+        is_in_work_area = np.logical_and(
+            self.work_area_start <= self.p,
+            self.p < self.work_area_end
+        )
         nb_peaks = np.count_nonzero(is_in_work_area)
         peaks = self.p[is_in_work_area]
 
@@ -210,10 +232,10 @@ class Template_fitter(Block):
                     best_template_index = np.argmax(peak_scalar_products, axis=0)
 
                     # Compute the best amplitude.
-                    best_amplitude = sub_b[best_template_index, peak_index] / self.overlaps_store.nb_elements
+                    best_amplitude = sub_b[best_template_index, peak_index] / self.overlaps_store._nb_elements
                     if self.overlaps_store.two_components:
                         best_scalar_product = scalar_products[best_template_index + self.nb_templates, peak_index]
-                        best_amplitude_2 = best_scalar_product / self.overlaps_store.nb_elements
+                        best_amplitude_2 = best_scalar_product / self.overlaps_store._nb_elements
 
                     # Compute the best normalized amplitude.
                     best_amplitude_ = best_amplitude / self.overlaps_store.norms['1'][best_template_index]
@@ -238,15 +260,15 @@ class Template_fitter(Block):
                         tmp -= np.array([[peak_time_step]])
                         is_neighbor = np.abs(tmp) <= self._2_width
                         ytmp = tmp[0, is_neighbor[0, :]] + self._2_width
-                        indices = np.zeros((self.overlaps_store.size, len(ytmp)), dtype=np.int32)
+                        indices = np.zeros((self.overlaps_store._overlap_size, len(ytmp)), dtype=np.int32)
                         indices[ytmp, np.arange(len(ytmp))] = 1
 
-                        tmp1_ = self.overlaps_store.get_overlaps(best_template_index, '1')
+                        tmp1_ = self.overlaps_store.get_overlaps(best_template_index, 'first_component')
                         tmp1 = tmp1_.multiply(-best_amplitude).dot(indices)
                         scalar_products[:, is_neighbor[0, :]] += tmp1
 
                         if self.overlaps_store.two_components:
-                            tmp2_ = self.overlaps_store.get_overlaps(best_template_index, '2')
+                            tmp2_ = self.overlaps_store.get_overlaps(best_template_index, 'second_component')
                             tmp2 = tmp2_.multiply(-best_amplitude_2).dot(indices)
                             scalar_products[:, is_neighbor[0, :]] += tmp2
 
@@ -273,34 +295,25 @@ class Template_fitter(Block):
                                                                             [best_amplitude_]))
 
             # Handle result.
-            is_in_result = self.r['spike_times'] < self.nb_samples
-            self.result['spike_times'] = np.concatenate((self.result['spike_times'],
-                                                         self.r['spike_times'][is_in_result]))
-            self.result['amplitudes'] = np.concatenate((self.result['amplitudes'],
-                                                        self.r['amplitudes'][is_in_result]))
-            self.result['templates'] = np.concatenate((self.result['templates'],
-                                                       self.r['templates'][is_in_result]))
-            self.r['spike_times'] = self.r['spike_times'][~is_in_result] - self.nb_samples
-            self.r['amplitudes'] = self.r['amplitudes'][~is_in_result]
-            self.r['templates'] = self.r['templates'][~is_in_result]
+            keys = ['spike_times', 'amplitudes', 'templates']
             if self.with_rejected_times:
-                is_in_result = self.r['rejected_times'] < self.nb_samples
-                self.result['rejected_times'] = np.concatenate((self.result['rejected_times'],
-                                                                self.r['rejected_times'][is_in_result]))
-                self.result['rejected_amplitudes'] = np.concatenate((self.result['rejected_amplitudes'],
-                                                                     self.r['rejected_amplitudes'][is_in_result]))
-                self.r['rejected_times'] = self.r['rejected_times'][~is_in_result] - self.nb_samples
-                self.r['rejected_amplitudes'] = self.r['rejected_amplitudes'][~is_in_result]
-            indices = np.argsort(self.result['spike_times'])
-            for key in ['spike_times', 'amplitudes', 'templates']:
-                self.result[key] = self.result[key][indices]
-            if self.with_rejected_times:
-                indices = np.argsort(self.result['rejected_times'])
-                for key in ['rejected_times', 'rejected_amplitudes']:
-                    self.result[key] = self.result[key][indices]
+                keys += ['rejected_times', 'rejected_amplitudes']
+            # # Keep only spikes in the result area.
+            is_in_result = np.logical_and(
+                self.result_area_start <= self.r['spike_times'],
+                self.r['spike_times'] < self.result_area_end
+            )
+            for key in keys:
+                self.r[key] = self.r[key][is_in_result]
+            # # Sort spike.
+            indices = np.argsort(self.r['spike_times'])
+            for key in keys:
+                self.r[key] = self.r[key][indices]
+            # # Modify spike time reference.
+            self.r['spike_times'] = self.r['spike_times'] - self.nb_samples
 
             # Log fitting result.
-            nb_spike_times = len(self.result['spike_times'])
+            nb_spike_times = len(self.r['spike_times'])
             if nb_spike_times > 0:
                 string = "{} fitted {} spikes ({} templates)"
                 message = string.format(self.name_and_counter, nb_spike_times, self.nb_templates)
@@ -332,87 +345,159 @@ class Template_fitter(Block):
 
         return time_steps
 
-    def _process(self):
+    @property
+    def nb_buffers(self):
 
-        # Update internal variables to handle buffer edges.
-        if self.counter == 0:
-            shape = (2 * self.nb_samples, self.nb_channels)
-            self.x = np.zeros(shape, dtype=np.float32)
-            self.x[self.nb_samples:, :] = self.inputs['data'].receive()
-        else:
-            self.x[:self.nb_samples, :] = self.x[self.nb_samples:, :]
-            self.x[self.nb_samples:, :] = self.inputs['data'].receive()
+        return self.x.shape[0] / self.nb_samples
+
+    @property
+    def result_area_start(self):
+
+        return (self.nb_buffers - 1) * self.nb_samples - self.nb_samples / 2
+
+    @property
+    def result_area_end(self):
+
+        return (self.nb_buffers - 1) * self.nb_samples + self.nb_samples / 2
+
+    @property
+    def work_area_start(self):
+
+        return self.result_area_start - self._width
+
+    @property
+    def work_area_end(self):
+
+        return self.result_area_end + self._width
+
+    @property
+    def buffer_id(self):
+
+        return self.counter * self._nb_fitters + self._fitter_id
+
+    @property
+    def first_buffer_id(self):
+        return self.buffer_id - 1
+
+    @property
+    def offset(self):
+
+        return self.first_buffer_id * self.nb_samples + self.result_area_start
+
+    def _collect_data(self, shift=0):
+
+        k = (self.nb_buffers - 1) + shift
+
+        self.x[k * self.nb_samples:(k + 1) * self.nb_samples, :] = \
+            self.get_input('data').receive(blocking=True)
+
+        return
+
+    def _handle_peaks(self, peaks):
+
+        p = self.nb_samples + self._merge_peaks(peaks)
+        self.p = self.p - self.nb_samples
+        self.p = self.p[0 <= self.p]
+        self.p = np.concatenate((self.p, p))
+
+        return
+
+    def _collect_peaks(self, shift=0):
 
         if self.is_active:
-            peaks = self.inputs['peaks'].receive()
+            peaks = self.get_input('peaks').receive(blocking=True)
+            self._handle_peaks(peaks)
         else:
             peaks = self.inputs['peaks'].receive(blocking=False)
-
-        updater = self.inputs['updater'].receive(blocking=False, discarding_eoc=self.discarding_eoc_from_updater)
-
-        if updater is not None and self.init_path is None:
-
-            self._measure_time('update_start', frequency=1)
-
-            # Create the template dictionary if necessary.
-            if self.overlaps_store is None:
-                self.template_store = TemplateStore(updater['templates_file'], 'r')
-                self.overlaps_store = OverlapsStore(self.template_store)
-                self._init_temp_window()
+            if peaks is None:
+                self.p = None
             else:
-                self.overlaps_store.update(updater['indices'])
-
-            self._measure_time('update_end', frequency=1)
-
-        if peaks is not None:
-
-            if self.nb_templates > 0:
-                self._measure_time('start', frequency=100)
-
-            self.offset = (self.counter - 1) * self.nb_samples
-
-            if not self.is_active:
-                # Handle peaks.
                 p = self.nb_samples + self._merge_peaks(peaks)
                 self.p = p
                 # Synchronize peak reception.
-                while not self._sync_buffer(peaks, self.nb_samples):
-                    peaks = self.inputs['peaks'].receive()
-                    p = self.nb_samples + self._merge_peaks(peaks)
-                    self.p = self.p - self.nb_samples
-                    self.p = self.p[0 <= self.p]
-                    self.p = np.concatenate((self.p, p))
+                while not self._sync_buffer(peaks, self.nb_samples, nb_parallel_blocks=self._nb_fitters,
+                                            parallel_block_id=self._fitter_id, shift=shift):
+                    peaks = self.inputs['peaks'].receive(blocking=True)
+                    self._handle_peaks(peaks)
                 # Set active mode.
                 self._set_active_mode()
-            else:
 
-                # Handle peaks.
-                p = self.nb_samples + self._merge_peaks(peaks)
-                self.p = self.p - self.nb_samples
-                self.p = self.p[0 <= self.p]
-                self.p = np.concatenate((self.p, p))
+        return
 
-            if (peaks['offset'] - self.offset) != self.nb_samples:
-                self.log.info('Fitter and peaks not in sync!')
+    def _process(self):
 
-            elif self.nb_templates > 0:
+        # First, collect all the buffers we need.
+        # # Prepare everything to collect buffers.
+        if self.counter == 0:
+            # Initialize 'self.x'.
+            shape = (2 * self.nb_samples, self.nb_channels)
+            self.x = np.zeros(shape, dtype=np.float32)
+        elif self._nb_fitters == 1:
+            # Copy the end of 'self.x' at its beginning.
+            self.x[0 * self.nb_samples:1 * self.nb_samples, :] = \
+                self.x[1 * self.nb_samples:2 * self.nb_samples, :]
+        else:
+            pass
+        # # Collect precedent data and peaks buffers.
+        if self._nb_fitters > 1 and not(self.counter == 0 and self._fitter_id == 0):
+            self._collect_data(shift=-1)
+            self._collect_peaks(shift=-1)
+        # # Collect current data and peaks buffers.
+        self._collect_data(shift=0)
+        self._collect_peaks(shift=0)
+        # # Collect current updater buffer.
+        updater = self.get_input('updater').receive(blocking=False,
+                                                    discarding_eoc=self.discarding_eoc_from_updater)
+
+        if updater is not None:
+
+            self._measure_time('update_start', frequency=1)
+
+            while updater is not None:
+
+                # Create the template dictionary if necessary.
+                if self.overlaps_store is None:
+                    self.template_store = TemplateStore(updater['templates_file'], 'r')
+                    self.overlaps_store = OverlapsStore(self.template_store)
+                    self._init_temp_window()
+                else:
+                    self.overlaps_store.update(updater['indices'])
+                self.overlaps_store.clear_overlaps()
+
+                updater = self.get_input('updater').receive(blocking=False,
+                                                            discarding_eoc=self.discarding_eoc_from_updater)
+
+            self._measure_time('update_end', frequency=1)
+
+        if self.p is not None:
+
+            if self.nb_templates > 0:
+
+                self._measure_time('start', frequency=100)
 
                 self._fit_chunk()
-                if 0 < self.counter:
-                    self.output.send(self.result)
+                self.get_output('spikes').send(self.r)
 
                 self._measure_time('end', frequency=100)
+
+            elif self._nb_fitters > 1:
+
+                self.get_output('spikes').send(self._empty_result)
+
+        elif self._nb_fitters > 1:
+
+            self.get_output('spikes').send(self._empty_result)
 
         return
 
     def _introspect(self):
-        # TODO add docstring.
+        """Introspection."""
 
         nb_buffers = self.counter - self.start_step
         start_times = np.array(self._measured_times.get('start', []))
         end_times = np.array(self._measured_times.get('end', []))
         durations = end_times - start_times
-        data_duration = float(self.nb_samples) / self.sampling_rate
+        data_duration = float(self._nb_fitters * self.nb_samples) / self.sampling_rate
         ratios = data_duration / durations
 
         min_ratio = np.min(ratios) if ratios.size > 0 else np.nan

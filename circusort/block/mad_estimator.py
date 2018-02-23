@@ -43,8 +43,6 @@ class Mad_estimator(Block):
         self.epsilon = self.epsilon
 
         self._n = 0
-        self._tau = self.time_constant
-        self._gamma = np.exp(- 1.0 / self._tau)
         self._medians = None
         self._mads = None
         self._last_mads = None
@@ -71,6 +69,9 @@ class Mad_estimator(Block):
         self._mads = np.zeros(shape, dtype=np.float32)
         self._last_mads = np.zeros(shape, dtype=np.float32)
 
+        self._tau = self.time_constant * self.sampling_rate / self.nb_samples
+        self._gamma = np.exp(- 1.0 / self._tau)
+
         self.outputs['mads'].configure(dtype='float32', shape=shape)
 
         return
@@ -81,7 +82,7 @@ class Mad_estimator(Block):
         # TODO check the statistics behind this test value.
         test = self._mads / self._last_mads
         test[np.isnan(test)] = 0.0
-        test = np.median(np.abs(test - 1.0))
+        test = np.mean(np.abs(test - 1.0))
         if test < self.epsilon:
             message = "{} has converged".format(self.name_and_counter)
             self.log.info(message)

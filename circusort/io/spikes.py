@@ -11,14 +11,14 @@ def load_spikes(*args, **kwargs):
 
     Parameters:
         path: string
-        nb_units: none | integer (optional)
+        nb_cells: none | integer (optional)
         mode: none | string (optional)
     Return:
         spikes: circusort.obj.Spikes
     """
     # TODO complete docstring.
 
-    nb_units = kwargs.pop('nb_units', None)
+    nb_cells = kwargs.pop('nb_cells', None)
     mode = kwargs.pop('mode', None)
     if mode is None:
         if len(args) == 1:
@@ -91,6 +91,14 @@ def load_spikes(*args, **kwargs):
         raise ValueError(message)
 
     # Instantiate object.
-    spikes = Spikes(nb_units=nb_units, **data)
+    spikes = Spikes(nb_cells=nb_cells, **data)
 
     return spikes
+
+def spikes2cells(spikes, template_store):
+
+    cells = spikes.to_cells()
+    for id in cells.ids:
+        cells[id].template = template_store.get(id)
+
+    return cells

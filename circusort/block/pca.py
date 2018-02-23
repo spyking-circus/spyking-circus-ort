@@ -1,8 +1,7 @@
 from .block import Block
 import numpy as np
 import scipy.interpolate
-
-from circusort.utils.algorithms import PCAEstimator
+from sklearn.decomposition import PCA
 
 
 class Pca(Block):
@@ -128,7 +127,7 @@ class Pca(Block):
 
         batch = self.inputs['data'].receive()
         if self.is_active:
-            peaks = self.inputs['peaks'].receive(blocking=True)
+            peaks = self.inputs['peaks'].receive()
         else:
             peaks = self.inputs['peaks'].receive(blocking=False)
 
@@ -163,8 +162,8 @@ class Pca(Block):
                         string = "{n} computes the PCA matrix from {k} {m} spikes"
                         message = string.format(n=self.name_and_counter, k=len(self.waveforms[key]), m=key)
                         self.log.info(message)
-                        pca = PCAEstimator(self.output_dim, copy=False)
-                        _ = pca.fit_transform(self.waveforms[key])
+                        pca = PCA(self.output_dim)
+                        pca.fit(self.waveforms[key])
 
                         if key == 'negative':
                             self.pcs[0] = pca.components_.T

@@ -8,6 +8,7 @@ from circusort.base.utils import find_interface_address_towards
 
 
 def create_director(host='127.0.0.1', **kwargs):
+    # type: (object, object) -> object
     """Create a new director in this process.
 
     Parameter:
@@ -148,6 +149,17 @@ class Director(object):
                                             t=(input_endpoint.name, input_endpoint.structure),
                                             a=output_endpoint.block.name, b=input_endpoint.block.name)
                     self.log.debug(message)
+
+        return
+
+    def connect_network(self, network):
+        # TODO add docstring.
+
+        string = "{} connects {} network."
+        message = string.format(str(self), network.name)
+        self.log.info(message)
+
+        network._connect()
 
         return
 

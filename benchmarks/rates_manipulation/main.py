@@ -3,13 +3,19 @@ import os
 
 import circusort
 
-from logging import DEBUG
+from logging import DEBUG, INFO
+
+from circusort.io.cells import list_cells
 
 
 nb_rows = 10
 nb_columns = 10
-nb_cells = 50
-duration = 5.0 * 60.0  # s
+nb_cells = 100
+duration = 10 * 60
+radius = 100
+preload_templates = False
+nb_waveforms_clustering = 500
+nb_replay = 3
 
 
 def main():
@@ -52,6 +58,7 @@ def main():
                 'mode': 'mea',
                 'nb_rows': nb_rows,
                 'nb_columns': nb_columns,
+                'radius': radius
             },
             'cells': {
                 'mode': "default",
@@ -72,12 +79,11 @@ def main():
             cell_directory = os.path.join(cells_directory, str(k))
             cell_parameters = [
                 ('train', [
-                    ('rate', "1 + 5.0*(t > %g)" %((k + 0.5)*duration/float(nb_cells))),
+                    ('rate', "2 + 5.0*(t > %g)" %((k + 0.5)*(2*duration/3.)/float(nb_cells))),
                 ]),
                 ('position', []),  # TODO be able to remove this line.
                 ('template', []),  # TODO be able to remove this line.
             ]
-            print cell_parameters
             cell_parameters = circusort.obj.Parameters(cell_parameters)
             cell_parameters.save(cell_directory)
 
@@ -96,7 +102,7 @@ def main():
 
         # Load generation parameters.
         parameters = circusort.io.get_data_parameters(generation_directory)
-
+        introspect_path = os.path.join(directory, 'introspection')
         # Define parameters.
         host = '127.0.0.1'  # i.e. run the test locally
         dtype = parameters['general']['dtype']
@@ -107,8 +113,8 @@ def main():
         probe_path = os.path.join(generation_directory, "probe.prb")
         probe = circusort.io.load_probe(probe_path)
         precomputed_template_paths = [
-            cell.template.path
-            for cell in circusort.io.load_cells(generation_directory, probe=probe)
+            os.path.join(e, 'template.h5')
+            for e in list_cells(os.path.join(generation_directory, 'cells'))
         ]
 
         # Create sorting directory (if necessary).
@@ -124,57 +130,67 @@ def main():
             'nb_samples': nb_samples,
             'sampling_rate': sampling_rate,
             'is_realistic': True,
+            'nb_replay' : nb_replay
         }
         filter_kwargs = {
             'name': "filter",
             'cut_off': 0.1,  # Hz
-            'log_level': DEBUG,
         }
         mad_kwargs = {
             'name': "mad",
             'time_constant': 10.0,
-            'log_level': DEBUG,
         }
         detector_kwargs = {
             'name': "detector",
             'threshold_factor': threshold_factor,
             'sampling_rate': sampling_rate,
-            'log_level': DEBUG,
         }
         pca_kwargs = {
             'name': "pca",
-            'nb_waveforms': 1000,
-            'log_level': DEBUG,
+            'nb_waveforms': 10000,
         }
         cluster_kwargs = {
             'name': "cluster",
             'threshold_factor': threshold_factor,
             'sampling_rate': sampling_rate,
-            'nb_waveforms': 100,
+            'nb_waveforms': nb_waveforms_clustering,
             'probe_path': probe_path,
             'two_components': False,
-            'log_level': DEBUG,
+            'log_level': INFO,
+            'debug_plots': os.path.join(directory, 'clustering_plots')
         }
+
+        if preload_templates:
+            cluster_kwargs['channels'] = []
+
         updater_kwargs = {
             'name': "updater",
             'probe_path': probe_path,
             'data_path': os.path.join(sorting_directory, "templates.h5"),
-            #'precomputed_template_paths': precomputed_template_paths,
             'sampling_rate': sampling_rate,
             'nb_samples': nb_samples,
             'log_level': DEBUG,
         }
+
+        if preload_templates:
+            updater_kwargs['precomputed_template_paths'] = precomputed_template_paths
+
         fitter_kwargs = {
             'name': "fitter",
             'sampling_rate': sampling_rate,
             'log_level': DEBUG,
+            'introspection_path': introspect_path,
+            'discarding_eoc_from_updater': True,
         }
+
+        if preload_templates:
+            fitter_kwargs['init_path'] = os.path.join(sorting_directory, "templates.h5")
+
         writer_kwargs = {
             'name': "writer",
             'data_path': os.path.join(sorting_directory, "spikes.h5"),
             'sampling_rate': sampling_rate,
             'nb_samples': nb_samples,
-            'log_level': DEBUG,
         }
 
         # Define the elements of the network.

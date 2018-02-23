@@ -14,13 +14,12 @@ class Position(object):
     """The position of a cell through time."""
     # TODO complete docstring.
 
-    def __init__(self, x, y, path=None):
+    def __init__(self, x, y):
         """Initialization."""
         # TODO complete docstring.
 
         self.x = x
         self.y = y
-        self.path = path
 
     def save(self, path):
         """Save position to file.
@@ -33,8 +32,6 @@ class Position(object):
         with h5py.File(path, mode='w') as file_:
             file_.create_dataset('x', shape=self.x.shape, dtype=self.x.dtype, data=self.x)
             file_.create_dataset('y', shape=self.y.shape, dtype=self.y.dtype, data=self.y)
-
-        self.path = path
 
         return
 

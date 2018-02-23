@@ -51,7 +51,7 @@ class Peak_writer(Block):
         elif self.data_path is not None:
             self._mode = 'hdf5'
         else:
-            raise NotImplementedError()  # TODO complete.
+            self._mode = 'raw'  # TODO complete.
 
         self._h5_file = None
 

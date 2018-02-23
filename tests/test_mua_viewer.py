@@ -24,7 +24,7 @@ cells_params = {
     'r_ref': sampling_rate / float(nb_samples),  # Hz
 }
 hdf5_path = None
-probe_path = "mea_4_copy.prb"
+probe_path = "mea_4.prb"
 
 generator = manager.create_block('synthetic_generator', cells_args=cells_args, cells_params=cells_params,
                                  hdf5_path=hdf5_path, probe=probe_path, log_level=DEBUG)
