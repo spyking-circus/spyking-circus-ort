@@ -106,7 +106,7 @@ class OnlineManager(object):
 
         if self.debug_plots is not None:
             self.fig_name = os.path.join(self.debug_plots, '{n}_{t}.png')
-            self.fig_name_2 = os.path.join(self.debug_plots, '{n}_{t}_tracking.png')
+            self.fig_name_2 = os.path.join(self.debug_plots, '{n}_{t}.png')
 
         self.time = 0
         self.is_ready = False
@@ -115,7 +115,7 @@ class OnlineManager(object):
         self.sub_dim = 5
         self.loc_pca = None
         self.tracking = {}
-        self.beta = 0.2
+        self.beta = 0.1
         if logger is None:
             self.log = logging.getLogger(__name__)
         else:
@@ -225,9 +225,6 @@ class OnlineManager(object):
         for cluster in self.clusters.values():
             cluster.update(self.time, self.decay_factor)
 
-    def time_to_cluster(self, nb_updates):
-        return self.is_ready and self.nb_updates >= nb_updates
-
     def _get_id(self):
         if len(self.clusters) > 0:
             return np.max(self.clusters.keys()) + 1
@@ -334,6 +331,9 @@ class OnlineManager(object):
         # TODO uncomment the following line.
         if count > 0:
             self.log.debug("{n} prunes {m} sparse clusters...".format(n=self.name, m=count))
+
+    def time_to_cluster(self, nb_updates):
+        return self.is_ready and self.nb_updates >= nb_updates
 
     def update(self, time, data=None):
         
@@ -467,10 +467,15 @@ class OnlineManager(object):
 
         new_tracking_data = {}
         mask = labels > -1
+        clusters = []
         for l in np.unique(labels[mask]):
             idx = np.where(labels == l)[0]
             cluster = MacroCluster(-1, centers[idx], centers_full[idx])
             new_tracking_data[l] = cluster.tracking_properties
+            clusters += [cluster]
+
+        if self.debug_plots is not None:
+            plot_tracking(clusters, self.fig_name_2.format(n=self.name, t=self.time))
 
         changes = self._perform_tracking(new_tracking_data)
 

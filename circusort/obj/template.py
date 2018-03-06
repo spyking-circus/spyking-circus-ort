@@ -255,8 +255,9 @@ class Template(object):
         if len(indices) > 0:
             for component in self:
                 component._compress(indices)
-            self.compressed = True
-            self._synthetic_export = None
+
+        self.compressed = True
+        self._synthetic_export = None
 
         return
 

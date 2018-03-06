@@ -9,9 +9,9 @@ from circusort.io.datafile import load_datafile
 from circusort.plt.cells import *
 from circusort.io.probe import load_probe
 
-p=load_probe('/home/pierre/.spyking-circus-ort/benchmarks/rates_manipulation/generation/probe.prb')
+p=load_probe('/home/pierre/.spyking-circus-ort/benchmarks/rates_manipulation_2/generation/probe.prb')
 
-generation_directory = os.path.join("~", ".spyking-circus-ort", "benchmarks", "rates_manipulation")
+generation_directory = os.path.join("~", ".spyking-circus-ort", "benchmarks", "rates_manipulation_2")
 probe_path = os.path.join(generation_directory, "probe.prb")
 
 similarity_thresh = 0.9

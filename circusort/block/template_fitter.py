@@ -354,8 +354,6 @@ class Template_fitter(Block):
 
             self._measure_time('update_start', frequency=1)
 
-            print updater['indices']
-
             # Create the template dictionary if necessary.
             if self.overlaps_store is None:
                 self.template_store = TemplateStore(updater['templates_file'], 'r')
