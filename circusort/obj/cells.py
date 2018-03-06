@@ -171,6 +171,16 @@ class Cells(object):
 
         return mean_rate
 
+    @property
+    def trains(self):
+
+        trains = np.array([
+            cell.train
+            for cell in self
+        ])
+
+        return trains
+
     def rate(self, time_bin=1):
 
         bins = np.arange(self.t_min, self.t_max, time_bin)
@@ -345,10 +355,53 @@ class Cells(object):
         shape = (self.nb_cells, cells.nb_cells)
         similarities = np.zeros(shape, dtype=np.float)
 
-        for i, cell_i in self:
+        for i, cell_i in enumerate(self):
             template_i = cell_i.template
-            for j, cell_j in cells:
+            for j, cell_j in enumerate(cells):
                 template_j = cell_j.template
                 similarities[i][j] = template_i.similarity(template_j)
 
         return similarities
+
+    def compute_matches(self, cells, threshold=0.9):
+        """Compute the matches between two set of cells.
+
+        Attribute:
+            cells: circusort.obj.Cells
+                The set of cells with which matches have to be computed.
+            threshold: float (optional)
+                The similarity threshold to use to detect potential matches.
+                The default value is 0.9.
+        Return:
+            matches: tuple
+                The matches between the two set of cells.
+        """
+
+        similarities = self.compute_similarities(cells)
+
+        indices = np.zeros(self.nb_cells, dtype=np.int)
+        errors = np.zeros(self.nb_cells, dtype=np.float)
+
+        for i, cell in enumerate(self):
+            potential_indices = np.where(similarities[i, :] > threshold)[0]
+            potential_cells = cells.slice_by_ids(potential_indices)
+            if len(potential_cells) > 0:
+                train = cell.train.slice(potential_cells.t_min, potential_cells.t_max)
+                # TODO remove the 3 following lines.
+                string = "Computing errors for cell {} in [{}, {}] with {} spikes."
+                message = string.format(i, train.t_min, train.t_max, len(train))
+                print(message)
+                potential_errors = np.array([
+                    train.compute_difference(potential_train)
+                    for potential_train in potential_cells.trains
+                ])
+                index = np.argmin(potential_errors)
+                indices[i] = potential_indices[index]
+                errors[i] = potential_errors[index]
+            else:
+                indices[i] = -1
+                errors[i] = -1.0
+
+        matches = (indices, errors)
+
+        return matches
