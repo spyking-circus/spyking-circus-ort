@@ -1,6 +1,7 @@
 import scipy.optimize
 import numpy as np
 import hdbscan
+import os
 import scipy.spatial.distance
 import scipy.stats
 import warnings
@@ -80,7 +81,8 @@ class MacroCluster(object):
 class OnlineManager(object):
 
     def __init__(self, probe, channel, decay=0.25, mu=10, epsilon=10, theta=-np.log(0.001), dispersion=(5, 5),
-                 n_min=0.002, noise_thr=0.8, pca=None, logger=None, two_components=False, name=None):
+                 n_min=0.002, noise_thr=0.8, pca=None, logger=None, two_components=False, name=None, debug_plots=None,
+                 local_merges=3):
 
         if name is None:
             self.name = "OnlineManager"
@@ -98,6 +100,12 @@ class OnlineManager(object):
         self.probe = probe
         self.channel = channel
         self.two_components = two_components
+        self.debug_plots=debug_plots
+        self.local_merges = local_merges
+
+        if self.debug_plots is not None:
+            self.fig_name = os.path.join(self.debug_plots, '{n}_{t}.png')
+            self.data_name = os.path.join(self.debug_plots, '{n}_{t}')
 
         self.time = 0
         self.is_ready = False
@@ -147,7 +155,12 @@ class OnlineManager(object):
 
         n_min = np.maximum(self.abs_n_min, int(self.n_min * len(sub_data)))
 
-        labels = density_clustering(sub_data, n_min=n_min)
+        if self.debug_plots is not None:
+            output = self.fig_name.format(n=self.name, t=self.time)
+            np.save(self.data_name.format(n=self.name, t=self.time), sub_data)
+        else:
+            output = None
+        labels = density_clustering(sub_data, n_min=n_min, output=output, local_merges=self.local_merges)
 
         mask = labels > -1
 
@@ -425,7 +438,12 @@ class OnlineManager(object):
         centers = self._get_centers('dense')
         centers_full = self._get_centers_full('dense')
 
-        labels = density_clustering(centers, n_min=None)
+        if self.debug_plots is not None:
+            output = self.fig_name.format(n=self.name, t=self.time)
+        else:
+            output = None
+
+        labels = density_clustering(centers, n_min=None, output=output, local_merges=self.local_merges)
 
         self.nb_updates = 0
 
@@ -577,7 +595,52 @@ def density_based_clustering(rho, dist, smart_select=True, n_min=None, max_clust
     return halo, clust_idx[:max_clusters]
 
 
-def density_clustering(data, n_min=None):
+def greedy_merges(data, labels, local_merges):
+
+    def do_merging(data, labels, clusters, local_merges):
+
+        dmin = np.inf
+        to_merge = [None, None]
+
+        for ic1 in xrange(len(clusters)):
+            idx1 = np.where(labels == clusters[ic1])[0]
+            sd1 = np.take(data, idx1, axis=0)
+            m1 = np.median(sd1, 0)
+            for ic2 in xrange(ic1 + 1, len(clusters)):
+                idx2 = np.where(labels == clusters[ic2])[0]
+                sd2 = np.take(data, idx2, axis=0)
+                m2 = np.median(sd2, 0)
+                v_n = m1 - m2
+                pr_1 = np.dot(sd1, v_n)
+                pr_2 = np.dot(sd2, v_n)
+
+                norm = np.median(np.abs(pr_1 - np.median(pr_1))) ** 2 + np.median(
+                    np.abs(pr_2 - np.median(pr_2))) ** 2
+                dist = np.sum(v_n ** 2) / np.sqrt(norm)
+
+                if dist < dmin:
+                    dmin = dist
+                    to_merge = [ic1, ic2]
+
+        if dmin < local_merges:
+            labels[np.where(labels == clusters[to_merge[1]])[0]] = clusters[to_merge[0]]
+            return True, labels
+
+        return False, labels
+
+    has_been_merged = True
+    mask = np.where(labels > -1)[0]
+    clusters = np.unique(labels[mask])
+    merged = [len(clusters), 0]
+
+    while has_been_merged:
+        has_been_merged, labels = do_merging(data, labels, clusters, local_merges)
+        if has_been_merged:
+            merged[1] += 1
+    return labels, merged
+
+
+def density_clustering(data, n_min=None, output=None, local_merges=None):
 
     rhos, dist, _ = rho_estimation(data)
     if len(rhos) == 1:
@@ -588,26 +651,47 @@ def density_clustering(data, n_min=None):
     else:
         labels, c = np.array([]), np.array([])
 
-    # import pylab
-    # pylab.scatter(data[:, 0], data[:, 1], c=labels)
-    # pylab.show()
+    if output is not None:
+        import pylab
+        pylab.subplot(221)
+        pylab.scatter(data[:, 0], data[:, 1], c=labels)
+        pylab.subplot(222)
+        pylab.scatter(data[:, 1], data[:, 2], c=labels)
+        pylab.subplot(223)
+        pylab.scatter(data[:, 0], data[:, 2], c=labels)
+
+    if local_merges is not None:
+        labels, merged = greedy_merges(data, labels, local_merges)
+        if output is not None:
+            pylab.subplot(224)
+            pylab.title('%s' %merged)
+            pylab.scatter(data[:, 0], data[:, 1], c=labels)
+
+    if output is not None:
+        pylab.savefig(output)
+        pylab.close()
 
     return labels
 
 
-def hdbscan_clustering(data, n_min=None):
+def hdbscan_clustering(data, n_min=None, output=None):
 
     if n_min is not None:
-        cluster_engine = hdbscan.HDBSCAN(min_cluster_size=int(n_min), core_dist_n_jobs=1)
+        cluster_engine = hdbscan.HDBSCAN(min_cluster_size=int(n_min), core_dist_n_jobs=1, allow_single_cluster=True)
     else:
-        cluster_engine = hdbscan.HDBSCAN(min_cluster_size=1, core_dist_n_jobs=1)
+        cluster_engine = hdbscan.HDBSCAN(min_cluster_size=1, core_dist_n_jobs=1, allow_single_cluster=True)
 
     labels = cluster_engine.fit_predict(data)
-    idx = np.where(cluster_engine.probabilities_ <= 0.1)
-    labels[idx] = -1
 
-    #import pylab
-    #pylab.scatter(data[:, 0], data[:, 1], c=labels)
-    #pylab.show()
+    if output is not None:
+        import pylab
+        pylab.subplot(221)
+        pylab.scatter(data[:, 0], data[:, 1], c=labels)
+        pylab.subplot(222)
+        pylab.scatter(data[:, 1], data[:, 2], c=labels)
+        pylab.subplot(223)
+        pylab.scatter(data[:, 0], data[:, 2], c=labels)
+        pylab.savefig(output)
+        pylab.close()
 
     return labels

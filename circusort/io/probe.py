@@ -46,7 +46,7 @@ def resolve_probe_path(path, logger=None):
     return path
 
 
-def generate_mea_probe(nb_columns=4, nb_rows=4, interelectrode_distance=30.0, **kwargs):
+def generate_mea_probe(nb_columns=4, nb_rows=4, interelectrode_distance=30.0, radius=250, **kwargs):
     """Generate a multielectrode array probe.
 
     Parameters:
@@ -82,7 +82,7 @@ def generate_mea_probe(nb_columns=4, nb_rows=4, interelectrode_distance=30.0, **
 
     probe_kwargs = {
         'total_nb_channels': nb_electrodes,
-        'radius': 250.0,  # µm
+        'radius': float(radius),  # µm
         'channel_groups': {1: channel_group},
     }
 

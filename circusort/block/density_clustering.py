@@ -1,6 +1,8 @@
 from .block import Block
 import numpy as np
 import scipy.interpolate
+import os
+import shutil
 
 from circusort.io.probe import load_probe
 from circusort.utils.clustering import OnlineManager
@@ -45,7 +47,9 @@ class Density_clustering(Block):
         'theta': -np.log(0.001),
         'tracking': True,
         'safety_time': 'auto',
-        'compression': 0.5
+        'compression': 0.5,
+        'local_merges': 3,
+        'debug_plots': None
     }
 
     def __init__(self, **kwargs):
@@ -78,6 +82,13 @@ class Density_clustering(Block):
         else:
             self.probe = load_probe(self.probe_path, radius=self.radius, logger=self.log)
             self.log.info("{n} reads the probe layout".format(n=self.name))
+
+        if self.debug_plots is not None:
+
+            if os.path.exists(self.debug_plots):
+                shutil.rmtree(self.debug_plots)
+
+            os.makedirs(self.debug_plots)
 
         self.add_input('data')
         self.add_input('pcs')
@@ -270,7 +281,9 @@ class Density_clustering(Block):
                     'noise_thr': self.noise_thr,
                     'name': 'OnlineManager for {p} peak on channel {c}'.format(p=key, c=channel),
                     'logger': self.log,
-                    'two_components': self.two_components
+                    'two_components': self.two_components,
+                    'debug_plots': self.debug_plots,
+                    'local_merges': self.local_merges
                 }
 
                 if key == 'negative':

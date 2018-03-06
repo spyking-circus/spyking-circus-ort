@@ -26,7 +26,7 @@ class Template_updater(Block):
     params = {
         'probe_path': None,
         'radius': None,
-        'cc_merge': 0.975,
+        'cc_merge': 0.95,
         'cc_mixture': None,
         'data_path': None,
         'precomputed_template_paths': None,

@@ -78,10 +78,14 @@ class TemplateComponent(object):
 
     def similarity(self, component):
 
-        if not np.any(np.in1d(self.indices, component.indices)):
+        if not self.intersect(component):
             return 0
         else:
             return np.corrcoef(self.to_dense().flatten(), component.to_dense().flatten())[0, 1]
+
+    def intersect(self, component):
+
+        return np.any(np.in1d(self.indices, component.indices))
 
     def to_dict(self, full=True):
 
@@ -226,6 +230,10 @@ class Template(object):
 
         for component in self:
             component.normalize()
+
+    def intersect(self, template):
+
+        return self.first_component.intersect(template)
 
     def similarity(self, template):
 

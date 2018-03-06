@@ -11,9 +11,11 @@ from circusort.io.cells import list_cells
 nb_rows = 10
 nb_columns = 10
 nb_cells = 100
-duration = 10 * 60# s
-preload_templates = True
+duration = 10 * 60
+radius = 100
+preload_templates = False
 nb_waveforms_clustering = 500
+nb_replay = 3
 
 
 def main():
@@ -56,6 +58,7 @@ def main():
                 'mode': 'mea',
                 'nb_rows': nb_rows,
                 'nb_columns': nb_columns,
+                'radius': radius
             },
             'cells': {
                 'mode': "default",
@@ -127,27 +130,24 @@ def main():
             'nb_samples': nb_samples,
             'sampling_rate': sampling_rate,
             'is_realistic': True,
+            'nb_replay' : nb_replay
         }
         filter_kwargs = {
             'name': "filter",
             'cut_off': 0.1,  # Hz
-            'log_level': DEBUG,
         }
         mad_kwargs = {
             'name': "mad",
             'time_constant': 10.0,
-            'log_level': DEBUG,
         }
         detector_kwargs = {
             'name': "detector",
             'threshold_factor': threshold_factor,
             'sampling_rate': sampling_rate,
-            'log_level': DEBUG,
         }
         pca_kwargs = {
             'name': "pca",
             'nb_waveforms': 10000,
-            'log_level': DEBUG,
         }
         cluster_kwargs = {
             'name': "cluster",
@@ -156,7 +156,8 @@ def main():
             'nb_waveforms': nb_waveforms_clustering,
             'probe_path': probe_path,
             'two_components': False,
-            'log_level': INFO
+            'log_level': INFO,
+            'debug_plots': os.path.join(directory, 'clustering_plots')
         }
 
         if preload_templates:
@@ -190,7 +191,6 @@ def main():
             'data_path': os.path.join(sorting_directory, "spikes.h5"),
             'sampling_rate': sampling_rate,
             'nb_samples': nb_samples,
-            'log_level': DEBUG,
         }
 
         # Define the elements of the network.
