@@ -130,7 +130,7 @@ class Train(object):
 
         return
 
-    def compute_fp_rates(self, train, jitter=2e-3):
+    def compute_fp_rates(self, train, jitter=2e-3, t_min=None, t_max=None):
         """Compute the false positive rates.
 
         Return the false positive rates between a given spike train and
@@ -144,31 +144,49 @@ class Train(object):
             train: circusort.obj.Train
                 The train with which the difference has to be computed.
             jitter: float (optional)
-                The jitter to use to compare the trains. The default value is 2e-3.
+                The jitter to use to compare the trains.
+                The default value is 2e-3.
+            t_min: none | float (optional)
+                The start time of the window to use for the computation.
+                The default value is None.
+            t_max: none | float (optional)
+                The end time of the window to use for the computation.
+                The default value is None.
         Return:
             fp_rates: numpy.ndarray
                 The computed false positive rates.
         """
 
+        if t_min is None:
+            t_min = max(self.t_min, train.t_min)
+        if t_max is None:
+            t_max = min(self.t_max, train.t_max)
+
+        message = "Impossible to compare trains with disjoint temporal support."
+        assert t_min <= t_max, message
+
+        train_1 = self.slice(t_min=t_min, t_max=t_max)
+        train_2 = train.slice(t_min=t_min, t_max=t_max)
+
         # Compute the true positive rate of the 1st train compared to the 2nd.
         count = 0
-        for spike in self:
-            idx = np.where(np.abs(train.times - spike) < jitter)[0]
+        for spike in train_1:
+            idx = np.where(np.abs(train_2.times - spike) < jitter)[0]
             if len(idx) > 0:
                 count += 1
-        if len(self) > 0:
-            tp_rate_1 = float(count) / float(len(self))
+        if len(train_1) > 0:
+            tp_rate_1 = float(count) / float(len(train_1))
         else:
             tp_rate_1 = 0.0
 
         # Compute the true positive rate of the 2nd train compared to the 1st.
         count = 0
-        for spike in train:
-            idx = np.where(np.abs(self.times - spike) < jitter)[0]
+        for spike in train_2:
+            idx = np.where(np.abs(train_1.times - spike) < jitter)[0]
             if len(idx) > 0:
                 count += 1
-        if len(train) > 0:
-            tp_rate_2 = float(count) / float(len(train))
+        if len(train_2) > 0:
+            tp_rate_2 = float(count) / float(len(train_2))
         else:
             tp_rate_2 = 0.0
 

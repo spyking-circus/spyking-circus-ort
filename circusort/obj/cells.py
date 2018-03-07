@@ -363,7 +363,7 @@ class Cells(object):
 
         return similarities
 
-    def compute_matches(self, cells, threshold=0.9):
+    def compute_matches(self, cells, threshold=0.9, t_min=None, t_max=None):
         """Compute the matches between two set of cells.
 
         Attribute:
@@ -372,6 +372,12 @@ class Cells(object):
             threshold: float (optional)
                 The similarity threshold to use to detect potential matches.
                 The default value is 0.9.
+            t_min: none | float (optional)
+                The start time of the window to use to compare trains.
+                The default value is None.
+            t_max: none | float (optional)
+                The end time of the window to use to compare trains.
+                The default value is None.
         Return:
             matches: tuple
                 The matches between the two set of cells.
@@ -385,11 +391,15 @@ class Cells(object):
         for i, cell in enumerate(self):
             potential_indices = np.where(similarities[i, :] > threshold)[0]
             potential_cells = cells.slice_by_ids(potential_indices)
+            if t_min is None:
+                t_min = potential_cells.t_min
+            if t_max is None:
+                t_max = potential_cells.t_max
             if len(potential_cells) > 0:
-                train = cell.train.slice(potential_cells.t_min, potential_cells.t_max)
+                train = cell.train.slice(t_min, t_max)
                 # TODO remove the 3 following lines.
                 string = "Computing errors for cell {} in [{}, {}] with {} spikes."
-                message = string.format(i, train.t_min, train.t_max, len(train))
+                message = string.format(i, t_min, t_max, len(train))
                 print(message)
                 potential_errors = np.array([
                     train.compute_difference(potential_train)
