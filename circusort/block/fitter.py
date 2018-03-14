@@ -377,12 +377,15 @@ class Fitter(Block):
 
     @property
     def first_buffer_id(self):
-        return self.buffer_id - 1
+
+        # TODO check if the comment fix the "offset bug".
+        return self.buffer_id  # - 1
 
     @property
     def offset(self):
 
-        return self.first_buffer_id * self.nb_samples + self.result_area_start
+        # TODO check if the comment fix the "offset bug".
+        return self.first_buffer_id * self.nb_samples  # + self.result_area_start
 
     def _collect_data(self, shift=0):
 
