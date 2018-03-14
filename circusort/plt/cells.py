@@ -6,7 +6,8 @@ import numpy as np
 import sys
 
 
-def plot_reconstruction(cells, t_min, t_max, sampling_rate, data_file, ax=None, output=None, channels=None):
+def plot_reconstruction(cells, t_min, t_max, sampling_rate, data_file, ax=None, output=None, channels=None,
+                        mads=None, peaks=None):
 
     sampling_rate = float(sampling_rate)
     gmin = int(t_min * sampling_rate)
@@ -58,6 +59,21 @@ def plot_reconstruction(cells, t_min, t_max, sampling_rate, data_file, ax=None, 
         if data_file is not None:
             ax.plot(x, y_scale * snippet[:, i] + y_offset, '0.5')
         ax.plot(x, y_scale * result[:, i] + y_offset, 'r')
+
+    if mads is not None:
+        mads_snippet = mads.get_snippet(t_min, t_max)
+        x = mads.get_snippet_times(t_min, t_max)
+        for k, channel in enumerate(channels):
+            y_offset = float(k)
+            y = y_scale * (-7.0 * mads_snippet[:, channel]) + y_offset
+            ax.plot(x, y, color='C0')
+
+    if peaks is not None:
+        for k, channel in enumerate(channels):
+            y_offset = float(k)
+            x = peaks.get_times(t_min=t_min, t_max=t_max, channels=[channel])
+            y = y_offset * np.ones_like(x)
+            ax.scatter(x, y, color='C1', marker='.', zorder=3)
 
     ax.set_xlabel(u"Times (s)")
     ax.set_ylabel(u"Channels")
