@@ -79,7 +79,13 @@ class Manager(object):
         if log_level is None:
             log_level = self.log_level
 
-        module = getattr(network_module, network_type)
+        try:
+            module = getattr(network_module, network_type)
+        except AttributeError as error:
+            string = "Error: {}"
+            message = string.format(str(error))
+            self.log.info(message)
+            raise error
         class_ = getattr(module, network_type.capitalize())
         network = class_(self, name=name, log_address=self.log_address, log_level=log_level, **kwargs)
 
