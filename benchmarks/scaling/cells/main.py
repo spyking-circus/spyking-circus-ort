@@ -25,18 +25,22 @@ def main():
     parser.add_argument('--generation', dest='pending_generation', action='store_true', default=None)
     parser.add_argument('--sorting', dest='pending_sorting', action='store_true', default=None)
     parser.add_argument('--introspection', dest='pending_introspection', action='store_true', default=None)
+    parser.add_argument('--validation', dest='pending_validation', action='store_true', default=None)
     args = parser.parse_args()
     if args.pending_configuration is None and args.pending_generation is None \
-            and args.pending_sorting is None and args.pending_introspection is None:
+            and args.pending_sorting is None and args.pending_introspection is None \
+            and args.pending_validation is None:
         args.pending_configuration = True
         args.pending_generation = True
         args.pending_sorting = True
         args.pending_introspection = True
+        args.pending_validation = False
     else:
         args.pending_configuration = args.pending_configuration is True
         args.pending_generation = args.pending_generation is True
         args.pending_sorting = args.pending_sorting is True
         args.pending_introspection = args.pending_introspection is True
+        args.pending_validation = args.pending_validation is True
 
     # Define the working directory.
     directory = network.directory
@@ -236,6 +240,91 @@ def main():
         ax_.legend()
         fig.tight_layout()
         fig.savefig(output_path)
+
+    # Validate sorting (if necessary).
+    if args.pending_validation:
+
+        configuration_names = [
+            configuration['general']['name']
+            for configuration in configurations
+        ]
+
+        # Load data from each configuration.
+        for configuration_name in configuration_names:
+
+            generation_directory = os.path.join(directory, "generation", configuration_name)
+            sorting_directory = os.path.join(directory, "sorting", configuration_name)
+
+            # Load generation parameters.
+            parameters = circusort.io.get_data_parameters(generation_directory)
+
+            # Define parameters.
+            nb_channels = nb_rows * nb_columns
+            sampling_rate = parameters['general']['sampling_rate']
+
+            print("# Loading data...")
+
+            injected_cells = circusort.io.load_cells(generation_directory)
+
+            from circusort.io.spikes import spikes2cells
+            from circusort.io.template_store import load_template_store
+
+            detected_spikes_path = os.path.join(sorting_directory, "spikes.h5")
+            detected_spikes = circusort.io.load_spikes(detected_spikes_path)
+
+            detected_templates_path = os.path.join(sorting_directory, "templates.h5")
+            detected_templates = load_template_store(detected_templates_path)
+
+            detected_cells = spikes2cells(detected_spikes, detected_templates)
+
+            # Load the data.
+            data_path = os.path.join(generation_directory, "data.raw")
+            from circusort.io.datafile import load_datafile
+            data = load_datafile(data_path, sampling_rate, nb_channels, 'int16', 0.1042)
+
+            # Load the MADs (if possible).
+            mads_path = os.path.join(sorting_directory, "mad.raw")
+            if os.path.isfile(mads_path):
+                from circusort.io.madfile import load_madfile
+                mads = load_madfile(mads_path, 'float32', nb_channels, 1024, sampling_rate)
+            else:
+                mads = None
+
+            # Load the peaks (if possible).
+            peaks_path = os.path.join(sorting_directory, "peaks.h5")
+            if os.path.isfile(peaks_path):
+                from circusort.io.peaks import load_peaks
+                peaks = load_peaks(peaks_path)
+            else:
+                peaks = None
+
+            # Load the filtered data (if possible).
+            filtered_data_path = os.path.join(sorting_directory, "data.raw")
+            if os.path.isfile(filtered_data_path):
+                from circusort.io.datafile import load_datafile
+                filtered_data = load_datafile(filtered_data_path, sampling_rate, nb_channels, 'float32', 1.0)
+            else:
+                filtered_data = None
+
+            # Compute the similarities between detected and injected cells.
+            print("# Computing similarities...")
+            similarities = injected_cells.compute_similarities(detected_cells)
+            print(similarities)
+
+            # Compute the matches between detected and injected cells.
+            print("# Computing matches...")
+            t_min = 1.0 * 60.0  # s  # discard the 1st minute
+            t_max = None
+            matches = injected_cells.compute_matches(detected_cells, t_min=t_min, t_max=t_max)
+            print(matches)
+
+            from circusort.plt.cells import plot_reconstruction
+
+            t = 3.0 * 60.0  # s  # start time of the reconstruction plot
+            d = 1.0  # s  # duration of the reconstruction plot
+            plot_reconstruction(detected_cells, t, t + d, sampling_rate, data,
+                                mads=mads, peaks=peaks, filtered_data=filtered_data)
+            plt.show()
 
 
 if __name__ == '__main__':
