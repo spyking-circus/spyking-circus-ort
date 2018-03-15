@@ -146,3 +146,32 @@ def plot_rates(cells, time_bin=1, ax=None, output=None):
         plt.savefig(output)
 
     return
+
+
+def plot_mean_rate(cells, time_bin=1, ax=None, output=None):
+
+    plt.style.use('seaborn-paper')
+
+    if output is not None:
+        plt.ioff()
+
+    if ax is None:
+        fig = plt.figure()
+        gs = gds.GridSpec(1, 1)
+        ax = plt.subplot(gs[0])
+
+    rates = cells.rate(time_bin)
+    ax.plot(np.mean(rates, 0))
+    ax.set_xlabel(u"Times (s)")
+    ax.set_ylabel(u"Firing Rate [Hz]")
+
+    x = ax.get_xticks()
+    axis = ['%g' %i for i in np.linspace(cells.t_min, cells.t_max, len(x[1:]))]
+    ax.set_xticks(x[1:], axis)
+
+    gs.tight_layout(fig)
+
+    if output is not None:
+        plt.savefig(output)
+
+    return

@@ -192,7 +192,7 @@ class OnlineManager(object):
             else:
                 second_comp = None
 
-            template = Template(first_comp, self.channel, second_comp)
+            template = Template(first_comp, self.channel, second_comp, creation_time=self.time)
             templates[count] = template
 
         for cluster in self.clusters.values():
@@ -471,7 +471,7 @@ class OnlineManager(object):
             else:
                 second_component = None
 
-            template = Template(first_component, self.channel, second_component)
+            template = Template(first_component, self.channel, second_component, creation_time=self.time)
             templates[value] = template
 
         self.log.debug('{n} found {a} new templates: {s}'.format(n=self.name, a=len(changes['new']), s=changes['new']))
