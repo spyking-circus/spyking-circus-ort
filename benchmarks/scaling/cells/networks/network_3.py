@@ -77,16 +77,27 @@ def sorting(configuration_name):
     }
     filter_kwargs = {
         'name': "filter",
-        'cut_off': 0.0,  # Hz
+        'cut_off': 1.0,  # Hz
         'introspection_path': introspection_directory,
         'log_level': DEBUG,
     }
+    # filter_writer_kwargs = {
+    #     'name': "filter_writer",
+    #     'data_path': os.path.join(sorting_directory, "data.raw"),
+    #     'introspection_path': introspection_directory,
+    #     'log_level': DEBUG,
+    # }
     mad_kwargs = {
         'name': "mad",
         'time_constant': 10.0,
         'introspection_path': introspection_directory,
         'log_level': DEBUG,
     }
+    # mad_writer_kwargs = {
+    #     'data_path': os.path.join(sorting_directory, "mad.raw"),
+    #     'introspection_path': introspection_directory,
+    #     'log_level': DEBUG,
+    # }
     detector_kwargs = {
         'name': "detector",
         'threshold_factor': threshold_factor,
@@ -94,6 +105,11 @@ def sorting(configuration_name):
         'introspection_path': introspection_directory,
         'log_level': DEBUG,
     }
+    # peak_writer_kwargs = {
+    #     'data_path': os.path.join(sorting_directory, "peaks.h5"),
+    #     'introspection_path': introspection_directory,
+    #     'log_level': DEBUG,
+    # }
     pca_kwargs = {
         'name': "pca",
         'nb_waveforms': 100000,
@@ -141,8 +157,11 @@ def sorting(configuration_name):
     manager = director.create_manager(host=host)
     reader = manager.create_block('reader', **reader_kwargs)
     filter_ = manager.create_block('filter', **filter_kwargs)
+    # filter_writer = manager.create_block('writer', **filter_writer_kwargs)
     mad = manager.create_block('mad_estimator', **mad_kwargs)
+    # mad_writer = manager.create_block('writer', **mad_writer_kwargs)
     detector = manager.create_block('peak_detector', **detector_kwargs)
+    # peak_writer = manager.create_block('peak_writer', **peak_writer_kwargs)
     pca = manager.create_block('pca', **pca_kwargs)
     cluster = manager.create_block('density_clustering', **cluster_kwargs)
     updater = manager.create_block('template_updater', **updater_kwargs)
@@ -160,15 +179,18 @@ def sorting(configuration_name):
         pca.get_input('data'),
         cluster.get_input('data'),
         fitter.get_input('data'),
+        # filter_writer.get_input('data'),
     ])
     director.connect(mad.output, [
         detector.get_input('mads'),
         cluster.get_input('mads'),
+        # mad_writer.get_input('data'),
     ])
     director.connect(detector.get_output('peaks'), [
         pca.get_input('peaks'),
         cluster.get_input('peaks'),
         fitter.get_input('peaks'),
+        # peak_writer.get_input('peaks'),
     ])
     director.connect(pca.get_output('pcs'), [
         cluster.get_input('pcs'),
