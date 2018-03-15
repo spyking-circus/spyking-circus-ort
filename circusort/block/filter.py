@@ -46,10 +46,15 @@ class Filter(Block):
         self.add_output('data')
         self.add_input('data')
 
-        # Line useful to solve PyCharm warnings.
+        # Lines useful to solve PyCharm warnings.
         self.cut_off = self.cut_off
         self.sampling_rate = self.sampling_rate
         self.remove_median = self.remove_median
+        self.use_gpu = self.use_gpu
+
+        if self.cut_off < 0.1:
+            # Check that the cut off frequency is at least 0.1 Hz.
+            self.cut_off = 0.1  # Hz
 
     def _initialize(self):
 
@@ -84,13 +89,13 @@ class Filter(Block):
             from circusort.utils.gpu.filter import GpuFilter
             from circusort.utils.gpu.utils import get_first_gpu_device
             platform_name = 'NVIDIA'
-            #platform_name = 'Intel'
+            # platform_name = 'Intel'
             device = get_first_gpu_device(platform_name)
             assert device is not None, 'No GPU devices for this platform'
             context = pyopencl.Context([device])
-            coefficients = iirfilter(3, [self.cut_off/(self.sampling_rate / 2.), 0.95], btype = 'bandpass', ftype = 'butter', output = 'sos')
+            coefficients = iirfilter(3, [self.cut_off / (self.sampling_rate / 2.0), 0.95],
+                                     btype='bandpass', ftype='butter', output='sos')
             self.filter_engine = GpuFilter(context, coefficients, self.nb_channels, 'float32', self.nb_samples)
-
 
     def _process(self):
 

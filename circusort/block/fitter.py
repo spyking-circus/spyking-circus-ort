@@ -76,7 +76,7 @@ class Fitter(Block):
     def _initialize_templates(self):
 
         self.template_store = TemplateStore(self.init_path, mode='r')
-        self.overlaps_store = OverlapsDictionary(self.template_store)
+        self.overlaps_store = OverlapsStore(self.template_store)
 
         string = "{} is initialized with {} templates from {}"
         message = string.format(self.name, self.overlaps_store.nb_templates, self.init_path)
@@ -174,7 +174,7 @@ class Fitter(Block):
 
         batch = self.x.T.flatten()
         nb_peaks = len(peak_time_steps)
-        waveforms = np.zeros((self.overlaps_store._nb_elements, nb_peaks), dtype=np.float32)
+        waveforms = np.zeros((self.overlaps_store.nb_elements, nb_peaks), dtype=np.float32)
         for k, peak_time_step in enumerate(peak_time_steps):
             waveforms[:, k] = batch[self.slice_indices + peak_time_step]
 
@@ -232,10 +232,10 @@ class Fitter(Block):
                     best_template_index = np.argmax(peak_scalar_products, axis=0)
 
                     # Compute the best amplitude.
-                    best_amplitude = sub_b[best_template_index, peak_index] / self.overlaps_store._nb_elements
+                    best_amplitude = sub_b[best_template_index, peak_index] / self.overlaps_store.nb_elements
                     if self.overlaps_store.two_components:
                         best_scalar_product = scalar_products[best_template_index + self.nb_templates, peak_index]
-                        best_amplitude_2 = best_scalar_product / self.overlaps_store._nb_elements
+                        best_amplitude_2 = best_scalar_product / self.overlaps_store.nb_elements
 
                     # Compute the best normalized amplitude.
                     best_amplitude_ = best_amplitude / self.overlaps_store.norms['1'][best_template_index]
@@ -260,15 +260,15 @@ class Fitter(Block):
                         tmp -= np.array([[peak_time_step]])
                         is_neighbor = np.abs(tmp) <= self._2_width
                         ytmp = tmp[0, is_neighbor[0, :]] + self._2_width
-                        indices = np.zeros((self.overlaps_store._overlap_size, len(ytmp)), dtype=np.int32)
+                        indices = np.zeros((self.overlaps_store.size, len(ytmp)), dtype=np.int32)
                         indices[ytmp, np.arange(len(ytmp))] = 1
 
-                        tmp1_ = self.overlaps_store.get_overlaps(best_template_index, 'first_component')
+                        tmp1_ = self.overlaps_store.get_overlaps(best_template_index, '1')
                         tmp1 = tmp1_.multiply(-best_amplitude).dot(indices)
                         scalar_products[:, is_neighbor[0, :]] += tmp1
 
                         if self.overlaps_store.two_components:
-                            tmp2_ = self.overlaps_store.get_overlaps(best_template_index, 'second_component')
+                            tmp2_ = self.overlaps_store.get_overlaps(best_template_index, '2')
                             tmp2 = tmp2_.multiply(-best_amplitude_2).dot(indices)
                             scalar_products[:, is_neighbor[0, :]] += tmp2
 
@@ -377,12 +377,15 @@ class Fitter(Block):
 
     @property
     def first_buffer_id(self):
-        return self.buffer_id - 1
+
+        # TODO check if the comment fix the "offset bug".
+        return self.buffer_id  # - 1
 
     @property
     def offset(self):
 
-        return self.first_buffer_id * self.nb_samples + self.result_area_start
+        # TODO check if the comment fix the "offset bug".
+        return self.first_buffer_id * self.nb_samples  # + self.result_area_start
 
     def _collect_data(self, shift=0):
 
