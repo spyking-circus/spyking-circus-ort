@@ -1,18 +1,32 @@
 from __future__ import print_function
-from argparse import ArgumentParser
+
 import json
-from logging import basicConfig, getLogger, makeLogRecord
-# from logging.handlers import DEFAULT_TCP_LOGGING_PORT
-# from threading import Event, Thread
-from threading import Thread
 import zmq
 
-# from circusort.base import utils
+from argparse import ArgumentParser
+from logging import Formatter, StreamHandler, FileHandler, getLogger, makeLogRecord
+from threading import Thread
 
 
-def receive_log(context, interface):
+def receive_log(context, interface, path=None):
 
-    basicConfig(format='%(relativeCreated)5d %(name)-15s %(levelname)-8s %(message)s')
+    # Create the root logger.
+    root_logger = getLogger()
+    # Create formatter.
+    formatter = Formatter('%(relativeCreated)5d %(name)-15s %(levelname)-8s %(message)s')
+    # Create console handler.
+    console_handler = StreamHandler()
+    # Add formatter to the console handler.
+    console_handler.setFormatter(formatter)
+    # Add console handler to root logger.
+    root_logger.addHandler(console_handler)
+    if path is not None:
+        # Create file handler.
+        file_handler = FileHandler(path)
+        # Add formatter to the file handler.
+        file_handler.setFormatter(formatter)
+        # Add file handler to root logger.
+        root_logger.addHandler(file_handler)
 
     # Connect to the temporary socket.
     log_address = 'inproc://circusort_cli_logger'
@@ -73,6 +87,7 @@ def main(arguments):
     configuration = arguments
     tmp_endpoint = configuration['endpoint']
     interface = configuration['interface']
+    path = configuration['path']
 
     context = zmq.Context()
 
@@ -106,7 +121,7 @@ def main(arguments):
     log_socket = context.socket(zmq.PAIR)
     log_socket.bind(log_address)
     # Start thread...
-    t = Thread(target=receive_log, args=(context, interface))
+    t = Thread(target=receive_log, args=(context, interface), kwargs={'path': path})
     t.setDaemon(True)
     t.start()
     # Get log endpoint from temporary socket.
@@ -149,6 +164,7 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('-e', '--endpoint', required=True)
     parser.add_argument('-i', '--interface', required=True)
+    parser.add_argument('-p', '--path', default=None, required=False)
 
     args = parser.parse_args()
     args = vars(args)

@@ -8,7 +8,6 @@ from circusort.base.utils import find_interface_address_towards
 
 
 def create_director(host='127.0.0.1', **kwargs):
-    # type: (object, object) -> object
     """Create a new director in this process.
 
     Parameter:
@@ -29,12 +28,12 @@ def create_director(host='127.0.0.1', **kwargs):
 
 class Director(object):
 
-    def __init__(self, host='127.0.0.1', name=None, log_level=logging.INFO):
+    def __init__(self, host='127.0.0.1', name=None, log_level=logging.INFO, log_path=None):
 
         # Start logging server
         self.name = name or "Director"
         self.log_level = log_level
-        self.logger = Logger(interface=host)
+        self.logger = Logger(interface=host, path=log_path)
         # Get logger instance
         self.log = get_log(self.logger.address, name=__name__, log_level=self.log_level)
 
@@ -66,7 +65,7 @@ class Director(object):
         if self.nb_managers == 0:
             self.create_manager(log_level=self.log_level)
 
-        block = self.get_manager[self.list_managers[0]].create_block(block_type, name, log_level, **kwargs)
+        block = self.get_manager(self.list_managers()[0]).create_block(block_type, name, log_level, **kwargs)
 
         return block
 
@@ -228,5 +227,6 @@ class Director(object):
 
     def get_manager(self, key):
 
-        assert key in self.list_managers(), self.log.warning("%s is not a valid manager" %key)
+        assert key in self.list_managers(), self.log.warning("{} is not a valid manager".format(key))
+
         return self.managers[key]
