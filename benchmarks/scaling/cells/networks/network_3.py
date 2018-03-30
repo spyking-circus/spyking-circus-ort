@@ -40,6 +40,7 @@ def sorting(configuration_name):
     generation_directory = os.path.join(directory, "generation", configuration_name)
     sorting_directory = os.path.join(directory, "sorting", configuration_name)
     introspection_directory = os.path.join(directory, "introspection", configuration_name)
+    log_directory = os.path.join(directory, "log", configuration_name)
 
     # Load generation parameters.
     parameters = circusort.io.get_data_parameters(generation_directory)
@@ -62,8 +63,13 @@ def sorting(configuration_name):
         os.makedirs(sorting_directory)
     if not os.path.isdir(introspection_directory):
         os.makedirs(introspection_directory)
+    if not os.path.isdir(log_directory):
+        os.makedirs(log_directory)
 
     # Define keyword arguments.
+    director_kwargs = {
+        'log_path': os.path.join(log_directory, "log.txt"),
+    }
     reader_kwargs = {
         'name': "reader",
         'data_path': os.path.join(generation_directory, "data.raw"),
@@ -153,7 +159,7 @@ def sorting(configuration_name):
     }
 
     # Define the elements of the network.
-    director = circusort.create_director(host=host)
+    director = circusort.create_director(host=host, **director_kwargs)
     manager = director.create_manager(host=host)
     reader = manager.create_block('reader', **reader_kwargs)
     filter_ = manager.create_block('filter', **filter_kwargs)

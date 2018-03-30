@@ -3,7 +3,7 @@ import zmq
 import logging
 import time
 
-from circusort.base.endpoint import Endpoint, EOCError
+from circusort.base.endpoint import Endpoint, EOCError, LOCError
 from circusort.base.utils import get_log
 from circusort.io.time_measurements import save_time_measurements
 
@@ -140,7 +140,9 @@ class Block(threading.Thread):
         self.log.debug(message)
 
         self.get_input(key).socket = self.context.socket(zmq.SUB)
-        self.get_input(key).socket.setsockopt(zmq.RCVTIMEO, 5000)  # Timeout after 5 s.
+        # TODO clean the 2 following lines.
+        # self.get_input(key).socket.setsockopt(zmq.RCVTIMEO, 5000)  # Timeout after 5 s.
+        self.get_input(key).socket.setsockopt(zmq.RCVTIMEO, 10000)  # Timeout after 10 s.
         self.get_input(key).socket.connect(self.get_input(key).addr)
         self.get_input(key).socket.setsockopt(zmq.SUBSCRIBE, "")
 
@@ -211,7 +213,7 @@ class Block(threading.Thread):
                 while self.running and not self.stop_pending:
                     self._process()
                     self.counter += 1
-            except EOCError:
+            except (LOCError, EOCError):
                 for output in self.outputs.itervalues():
                     output.send_end_connection()
                 self.stop_pending = True
@@ -227,7 +229,7 @@ class Block(threading.Thread):
                     self.counter += 1
                     # if numpy.mod(self.counter, self.check_interval) == 0:
                     #     self._check_real_time_ratio()
-            except EOCError:
+            except (LOCError, EOCError):
                 for output in self.outputs.itervalues():
                     output.send_end_connection()
                 self.running = False

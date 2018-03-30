@@ -323,6 +323,9 @@ class Density_clustering(Block):
         if self.receive_pcs:
             self.pcs = self.inputs['pcs'].receive(blocking=False)
 
+        # TODO remove the following line.
+        self.thresholds = None  # This is a hacky solution to skip all the computations done by this block.
+
         if self.pcs is not None:  # (i.e. we have already received some principal components).
 
             if self.receive_pcs:  # (i.e. we need to initialize the block with the principal components).

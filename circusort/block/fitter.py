@@ -182,10 +182,10 @@ class Fitter(Block):
 
     def _fit_chunk(self):
 
-        # Log some information.
-        string = "{} fits spikes... ({} templates)"
-        message = string.format(self.name_and_counter, self.nb_templates)
-        self.log.debug(message)
+        # # Log some information.
+        # string = "{} fits spikes... ({} templates)"
+        # message = string.format(self.name_and_counter, self.nb_templates)
+        # self.log.debug(message)
 
         # Reset result.
         self._reset_result()
@@ -312,22 +312,24 @@ class Fitter(Block):
             # # Modify spike time reference.
             self.r['spike_times'] = self.r['spike_times'] - self.nb_samples
 
-            # Log fitting result.
-            nb_spike_times = len(self.r['spike_times'])
-            if nb_spike_times > 0:
-                string = "{} fitted {} spikes ({} templates)"
-                message = string.format(self.name_and_counter, nb_spike_times, self.nb_templates)
-                self.log.debug(message)
-            else:
-                string = "{} fitted no spikes ({} templates)"
-                message = string.format(self.name_and_counter, self.nb_templates)
-                self.log.debug(message)
+            # # Log fitting result.
+            # nb_spike_times = len(self.r['spike_times'])
+            # if nb_spike_times > 0:
+            #     string = "{} fitted {} spikes ({} templates)"
+            #     message = string.format(self.name_and_counter, nb_spike_times, self.nb_templates)
+            #     self.log.debug(message)
+            # else:
+            #     string = "{} fitted no spikes ({} templates)"
+            #     message = string.format(self.name_and_counter, self.nb_templates)
+            #     self.log.debug(message)
 
         else:  # nb_peaks == 0
 
-            string = "{} can't fit spikes ({} templates)"
-            message = string.format(self.name_and_counter, self.nb_templates)
-            self.log.debug(message)
+            # string = "{} can't fit spikes ({} templates)"
+            # message = string.format(self.name_and_counter, self.nb_templates)
+            # self.log.debug(message)
+
+            pass
 
         return
 

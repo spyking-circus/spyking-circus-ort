@@ -1,3 +1,5 @@
+import numpy as np
+
 from circusort.block.block import Block
 
 
@@ -17,6 +19,8 @@ class Multiplexer(Block):
         # or
         # 'output_specs': ["data"],
         'degree': 2,
+        'nb_samples': 1024,
+        'sampling_rate': 20e+3,  # Hz
     }
 
     def __init__(self, **kwargs):
@@ -26,6 +30,8 @@ class Multiplexer(Block):
         # The following lines are useful to avoid some PyCharms's warnings.
         self.output_specs = self.output_specs
         self.degree = self.degree
+        self.nb_samples = self.nb_samples
+        self.sampling_rate = self.sampling_rate
 
         # Declare output names and structures.
         self._output_names = []
@@ -99,19 +105,64 @@ class Multiplexer(Block):
 
     def _process(self):
 
-        # Get token (i.e. which input should we use?).
-        token = self.counter % self.degree
+        # TODO remove try: ... except: ...
+        try:
 
-        for output_name in self._output_names:
+            # Get token (i.e. which input should we use?).
+            token = self.counter % self.degree
 
-            input_name = self._get_input_name(output_name, token)
-            data = self.inputs[input_name].receive(blocking=True)
-            self.outputs[output_name].send(data)
+            # Get data.
+            input_data = {}
+            for output_name in self._output_names:
+                input_name = self._get_input_name(output_name, token)
+                input_ = self.inputs[input_name]
+                input_data[output_name] = input_.receive(blocking=True)
+
+            # TODO clean the 2 following lines.
+            # self._measure_time('start', frequency=100)
+            self._measure_time('start', frequency=1)
+
+            # Send data.
+            for output_name, data in input_data.iteritems():
+
+                self.outputs[output_name].send(data)
+
+            # TODO clean the 2 following lines.
+            # self._measure_time('end', frequency=100)
+            self._measure_time('end', frequency=1)
+
+        except Exception as exception:
+
+            string = "Exception: {}"
+            message = string.format(exception)
+            self.log.debug(message)
+            raise exception
 
         return
 
     def _introspect(self):
+        """Introspection of the demultiplexing."""
 
-        pass
+        # TODO remove try: ... except: ...
+        try:
+            nb_buffers = self.counter - self.start_step
+            start_times = np.array(self._measured_times.get('start', []))
+            end_times = np.array(self._measured_times.get('end', []))
+            durations = end_times - start_times
+            data_duration = float(self.nb_samples) / self.sampling_rate
+            ratios = data_duration / durations
+
+            min_ratio = np.min(ratios) if ratios.size > 0 else np.nan
+            mean_ratio = np.mean(ratios) if ratios.size > 0 else np.nan
+            max_ratio = np.max(ratios) if ratios.size > 0 else np.nan
+        except Exception as exception:
+            string = "Exception: {}"
+            message = string.format(exception)
+            self.log.debug(message)
+            raise exception
+
+        string = "{} processed {} buffers [speed:x{:.2f} (min:x{:.2f}, max:x{:.2f})]"
+        message = string.format(self.name, nb_buffers, mean_ratio, min_ratio, max_ratio)
+        self.log.info(message)
 
         return

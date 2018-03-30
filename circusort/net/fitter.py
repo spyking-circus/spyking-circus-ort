@@ -47,6 +47,11 @@ class Fitter(Network):
             'nb_samples': self.nb_samples,
             'log_level': self.log_level,
         }
+        demultiplexer_kwargs.update({
+            key: value
+            for key, value in self.params.iteritems()
+            if key in ['introspection_path']
+        })
         fitters_kwargs = {
             k: {
                 'name': "{} fitter {}".format(self.name, k),
@@ -73,6 +78,11 @@ class Fitter(Network):
             'degree': self.degree,
             'log_level': self.log_level,
         }
+        multiplexer_kwargs.update({
+            key: value
+            for key, value in self.params.iteritems()
+            if key in ['introspection_path']
+        })
 
         demultiplexer = self._create_block('demultiplexer', **demultiplexer_kwargs)
         fitters = {

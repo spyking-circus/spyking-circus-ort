@@ -138,6 +138,15 @@ class Encoder(json.JSONEncoder):
                 raise TypeError("Type {t} is not serializable.".format(t=type(obj)))
         return obj
 
+class LOCError(Exception):
+    """Loss of connection error."""
+
+    def __init__(self, msg=None):
+
+        if msg is None:
+            msg = "Loss of connection"
+
+        super(LOCError, self).__init__(msg)
 
 class EOCError(Exception):
     """End of connection error."""
@@ -192,8 +201,8 @@ class Endpoint(Connection):
             try:
                 batch = self.socket.recv()
             except zmq.Again:
-                # Resource temporarily unavailable (with respect to a 5 s timeout).
-                raise EOCError()
+                # Loss of connection (because of the socket timeout).
+                raise LOCError()
         else:
             try:
                 batch = self.socket.recv(flags=zmq.NOBLOCK)

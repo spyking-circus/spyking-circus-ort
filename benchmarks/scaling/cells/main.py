@@ -9,11 +9,13 @@ import circusort
 from collections import OrderedDict
 
 from networks import network_4 as network
+# from networks import network_3 as network
 
 
 nb_rows = 16
 nb_columns = 16
-nb_cells_range = [3, 12, 48, 192]
+# nb_cells_range = [3, 12, 48, 192]
+nb_cells_range = [192]
 duration = 5.0 * 60.0  # s
 
 

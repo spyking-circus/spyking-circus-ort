@@ -1,3 +1,5 @@
+import numpy as np
+
 from circusort.block.block import Block
 
 
@@ -20,6 +22,7 @@ class Demultiplexer(Block):
         'degree': 2,
         'overlap': 1,
         'nb_samples': 1024,
+        'sampling_rate': 20e+3,  # Hz
     }
 
     def __init__(self, **kwargs):
@@ -31,6 +34,7 @@ class Demultiplexer(Block):
         self.degree = self.degree
         self.overlap = self.overlap
         self.nb_samples = self.nb_samples
+        self.sampling_rate = self.sampling_rate
 
         assert self.degree >= self.overlap  # TODO add docstring.
 
@@ -99,15 +103,17 @@ class Demultiplexer(Block):
 
         for input_name, structure in zip(self._input_names, self._input_structures):
             if structure == 'array':
-                input = self.get_input(input_name)
+                input_ = self.get_input(input_name)
                 for k in range(0, self.degree):
                     output_name = self._get_output_name(input_name, k)
                     output = self.get_output(output_name)
-                    output.configure(dtype=input.dtype, shape=input.shape)
+                    output.configure(dtype=input_.dtype, shape=input_.shape)
 
         return
 
     def _process(self):
+
+        self._measure_time('start', frequency=100)
 
         # Get tokens (i.e. which outputs should we use?).
         tokens = [
@@ -161,10 +167,26 @@ class Demultiplexer(Block):
 
                 raise NotImplementedError()  # TODO complete.
 
+        self._measure_time('end', frequency=100)
+
         return
 
     def _introspect(self):
+        """Introspection of the demultiplexing."""
 
-        pass
+        nb_buffers = self.counter - self.start_step
+        start_times = np.array(self._measured_times.get('start', []))
+        end_times = np.array(self._measured_times.get('end', []))
+        durations = end_times - start_times
+        data_duration = float(self.nb_samples) / self.sampling_rate
+        ratios = data_duration / durations
+
+        min_ratio = np.min(ratios) if ratios.size > 0 else np.nan
+        mean_ratio = np.mean(ratios) if ratios.size > 0 else np.nan
+        max_ratio = np.max(ratios) if ratios.size > 0 else np.nan
+
+        string = "{} processed {} buffers [speed:x{:.2f} (min:x{:.2f}, max:x{:.2f})]"
+        message = string.format(self.name, nb_buffers, mean_ratio, min_ratio, max_ratio)
+        self.log.info(message)
 
         return
