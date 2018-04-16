@@ -92,10 +92,10 @@ class OverlapsStore(object):
 
     def _update_masks(self, index, new_indices):
 
-        if not np.any(np.in1d(self._indices[index], new_indices)):
-            self._masks[index, self.nb_templates] = False
-        else:
+        if np.any(np.in1d(self._indices[index], new_indices)):
             self._masks[index, self.nb_templates] = True
+        else:
+            self._masks[index, self.nb_templates] = False
 
     def get_overlaps(self, index, component='1'):
 
