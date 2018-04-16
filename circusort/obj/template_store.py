@@ -1,6 +1,8 @@
 import h5py
 import numpy as np
 import os
+import time
+
 from circusort.io.utils import append_hdf5
 from circusort.obj.template import Template, TemplateComponent
 
@@ -319,8 +321,12 @@ class TemplateStore(object):
 
     def _open(self, mode='r+'):
 
-        if self.h5_file is None:
-            self.h5_file = h5py.File(self.file_name, mode=mode, swmr=True)
+        while self.h5_file is None:
+            try:
+                self.h5_file = h5py.File(self.file_name, mode=mode, swmr=True)
+            except IOError:
+                duration = 50e-3  # s
+                time.sleep(duration)
 
         return
 

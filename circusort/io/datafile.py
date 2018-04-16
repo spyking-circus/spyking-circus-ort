@@ -1,5 +1,7 @@
-from ..obj import DataFile
 import os
+
+from ..obj import DataFile
+
 
 def load_datafile(path, sampling_rate, nb_channels, dtype, gain=1.):
     """Load datafile from path.
