@@ -28,7 +28,10 @@ class TemplateComponent(object):
 
         self.nb_channels = nb_channels
         self.amplitudes = np.array(amplitudes, dtype=np.float32)
-        assert len(self.waveforms) == len(self.indices), "%s different from %s" %(self.waveforms.shape, len(self.indices))
+
+        string = "{} different from {}"
+        message = string.format(self.waveforms.shape, len(self.indices))
+        assert len(self.waveforms) == len(self.indices), message
 
     @property
     def norm(self):
@@ -42,7 +45,7 @@ class TemplateComponent(object):
 
     def __str__(self):
 
-        return 'TemplateComponent for %d channels with amplitudes %s' %(self.nb_channels, self.amplitudes)
+        return 'TemplateComponent for %d channels with amplitudes %s' % (self.nb_channels, self.amplitudes)
 
     def _compress(self, indices):
 
@@ -109,7 +112,7 @@ class TemplateComponent(object):
 
 class Template(object):
 
-    def __init__(self, first_component, channel=None, second_component=None, creation_time=0, compress=True):
+    def __init__(self, first_component, channel=None, second_component=None, creation_time=0, compress=True, path=None):
 
         assert isinstance(first_component, TemplateComponent)
         self.first_component = first_component
@@ -132,6 +135,8 @@ class Template(object):
 
         if compress:
             self._auto_compression()
+
+        self.path = path
 
     def __len__(self):
 
@@ -156,7 +161,7 @@ class Template(object):
         else:
             str_comp = 'Non Compressed'
 
-        return '%s template on channel %d (%d indices)\n' %(str_comp, self.channel, len(self.indices))
+        return '%s template on channel %d (%d indices)\n' % (str_comp, self.channel, len(self.indices))
 
     def __iter__(self):
 
@@ -285,6 +290,8 @@ class Template(object):
             if self.two_components:
                 file_.create_dataset('waveforms/2', data=self.second_component.waveforms, chunks=True)
 
+        self.path = path
+
         return
 
     def plot(self, output=None, probe=None, **kwargs):
@@ -345,7 +352,8 @@ class Template(object):
 
         res = {}
         for count, component in enumerate(self):
-            res['%d' %count] = component.to_dict(False)
+            key = "{}".format(count)
+            res[key] = component.to_dict(False)
 
         if self.compressed:
             res['compressed'] = self.indices

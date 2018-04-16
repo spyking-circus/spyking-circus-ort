@@ -477,7 +477,6 @@ class OnlineManager(object):
         templates = {}
 
         for key, value in changes['new'].items():
-
             data = centers_full[labels == key]
             templates[value] = self._get_template(data)
 

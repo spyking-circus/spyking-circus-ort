@@ -9,3 +9,5 @@ from .template_store import TemplateStore
 from .template_dictionary import TemplateDictionary
 from .overlaps_store import OverlapsStore
 from .datafile import DataFile
+from .madfile import MADFile
+from .peaks import Peaks
