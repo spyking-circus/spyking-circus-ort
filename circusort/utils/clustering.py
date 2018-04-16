@@ -81,7 +81,7 @@ class MacroCluster(object):
 
 class OnlineManager(object):
 
-    def __init__(self, probe, channel, decay=0.25, mu='auto', epsilon=1, theta=-np.log(0.001), dispersion=(5, 5),
+    def __init__(self, probe, channel, decay=0.5, mu=2, epsilon=1, theta=-np.log(0.001), dispersion=(5, 5),
                  n_min=0.002, noise_thr=0.8, pca=None, logger=None, two_components=False, name=None, debug_plots=None,
                  local_merges=3):
 
@@ -127,14 +127,11 @@ class OnlineManager(object):
 
     @property
     def D_threshold(self):
-        return self.mu * self.beta
+        return self.mu * 1 #/ (self.nb_clusters*(1 - 2**(-self.decay_factor)))
 
     @property
     def time_gap(self):
-        if self.D_threshold > 1:
-            return np.ceil((1 / self.decay_factor) * np.log(self.D_threshold / (self.D_threshold - 1)))
-        else:
-            return 100
+        return np.ceil((1 / self.decay_factor) * np.log(self.D_threshold / (self.D_threshold - 1)))
 
     def initialize(self, time, data):
 
@@ -765,3 +762,5 @@ def hdbscan_clustering(data, n_min=None, output=None):
         pylab.close()
 
     return labels
+
+#def view_mini_clusters(dense, sparse, output=None):
