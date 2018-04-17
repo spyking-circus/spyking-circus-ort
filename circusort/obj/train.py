@@ -63,6 +63,20 @@ class Train(object):
 
         return train
 
+    def sample(self, size=None):
+        # TODO add docstring.
+
+        if size is None:
+            size = 1
+        if len(self) < size:
+            size = len(self)
+
+        indices = np.random.choice(len(self), size=size, replace=False)
+        indices = np.sort(indices)
+        times = self.times[indices]
+
+        return times
+
     def save(self, path):
         """Save train to file.
 
@@ -130,6 +144,23 @@ class Train(object):
 
         return
 
+    def check_temporal_support(self, train, t_min=None, t_max=None):
+        """Check temporal support."""
+        # TODO add docstring.
+
+        if t_min is None:
+            t_min = max(self.t_min, train.t_min)
+        if t_max is None:
+            t_max = min(self.t_max, train.t_max)
+
+        message = "Impossible to compare trains with disjoint temporal support."
+        assert t_min <= t_max, message
+
+        train_pred = self.slice(t_min=t_min, t_max=t_max)
+        train_true = train.slice(t_min=t_min, t_max=t_max)
+
+        return train_pred, train_true
+
     def compute_fp_rates(self, train, jitter=2e-3, t_min=None, t_max=None):
         """Compute the false positive rates.
 
@@ -157,16 +188,7 @@ class Train(object):
                 The computed false positive rates.
         """
 
-        if t_min is None:
-            t_min = max(self.t_min, train.t_min)
-        if t_max is None:
-            t_max = min(self.t_max, train.t_max)
-
-        message = "Impossible to compare trains with disjoint temporal support."
-        assert t_min <= t_max, message
-
-        train_1 = self.slice(t_min=t_min, t_max=t_max)
-        train_2 = train.slice(t_min=t_min, t_max=t_max)
+        train_1, train_2 = self.check_temporal_support(train, t_min=t_min, t_max=t_max)
 
         # Compute the true positive rate of the 1st train compared to the 2nd.
         count = 0
@@ -177,9 +199,9 @@ class Train(object):
         if len(train_1) > 0:
             tp_rate_1 = float(count) / float(len(train_1))
         else:
-            tp_rate_1 = 0.0
+            tp_rate_1 = 1.0
 
-        # Compute the true positive rate of the 2nd train compared to the 1st.
+        # Compute the true positive rate of the 2nd train compared to the 1st one.
         count = 0
         for spike in train_2:
             idx = np.where(np.abs(train_1.times - spike) < jitter)[0]
@@ -188,7 +210,7 @@ class Train(object):
         if len(train_2) > 0:
             tp_rate_2 = float(count) / float(len(train_2))
         else:
-            tp_rate_2 = 0.0
+            tp_rate_2 = 1.0
 
         fp_rate_1 = 1.0 - tp_rate_1
         fp_rate_2 = 1.0 - tp_rate_2
@@ -196,6 +218,165 @@ class Train(object):
         fp_rates = np.array([fp_rate_1, fp_rate_2])
 
         return fp_rates
+
+    def compute_true_positive(self, train, jitter=2e-3, t_min=None, t_max=None):
+        """Compute the number of true positives."""
+        # TODO complete docstring.
+
+        train_pred, train_true = self.check_temporal_support(train, t_min=t_min, t_max=t_max)
+
+        # Compute the number of true positives of the predicted train compared to the true one.
+        nb_tp_pred = 0  # i.e. number of true positives
+        for spike_time in train_pred:
+            indices = np.where(np.abs(train_true.times - spike_time) < jitter)[0]
+            if len(indices) > 0:  # i.e. this is a true positive
+                nb_tp_pred += 1
+        # Compute the number of true positives of the true train compared to the predicted one.
+        nb_tp_true = 0  # i.e. number of true positives
+        for spike_time in train_true:
+            indices = np.where(np.abs(train_pred.times - spike_time) < jitter)[0]
+            if len(indices) > 0:  # i.e. this is a true positive
+                nb_tp_true += 1
+        # Compute the number of true positives.
+        nb_tp = np.mean([nb_tp_pred, nb_tp_true])
+
+        return nb_tp
+
+    def compute_false_positive(self, train, jitter=2e-3, t_min=None, t_max=None):
+        """Compute the number of false positives."""
+        # TODO complete docstring.
+
+        train_pred, train_true = self.check_temporal_support(train, t_min=t_min, t_max=t_max)
+
+        # Compute the number of false positives of the predicted train compared to the true one.
+        nb_fp = 0  # i.e. number of false positives
+        for spike_time in train_pred:
+            indices = np.where(np.abs(train_true.times - spike_time) < jitter)[0]
+            if len(indices) == 0:  # i.e. this is a false positive
+                nb_fp += 1
+
+        return nb_fp
+
+    def collect_false_positives(self, train, jitter=2e-3, t_min=None, t_max=None):
+        """Collect the false positives."""
+        # TODO complete docstring.
+
+        train_pred, train_true = self.check_temporal_support(train, t_min=t_min, t_max=t_max)
+
+        # Collect the false positives of the predicted train compared to the true one.
+        times = []  # times associated to false positives
+        for time in train_pred:
+            indices = np.where(np.abs(train_true.times - time) < jitter)[0]
+            if len(indices) == 0:  # i.e. this is a false positive
+                times.append(time)
+        times = np.array(times)
+        t_min = train_pred.t_min
+        t_max = train_pred.t_max
+        train = Train(times, t_min=t_min, t_max=t_max)
+
+        return train
+
+    def compute_false_negative(self, train, jitter=2e-3, t_min=None, t_max=None):
+        """Compute the number of false negatives."""
+        # TODO complete docstring.
+
+        train_pred, train_true = self.check_temporal_support(train, t_min=t_min, t_max=t_max)
+
+        # Compute the number of false negatives of the predicted train compared to the true one.
+        nb_fn = 0  # i.e. number of false negatives
+        for spike_time in train_true:
+            indices = np.where(np.abs(train_pred.times - spike_time) < jitter)[0]
+            if len(indices) == 0:  # i.e. this is a false negative
+                nb_fn += 1
+
+        return nb_fn
+
+    def collect_false_negatives(self, train, jitter=2e-3, t_min=None, t_max=None):
+        """Collect the false negatives."""
+        # TODO complete docstring.
+
+        train_pred, train_true = self.check_temporal_support(train, t_min=t_min, t_max=t_max)
+
+        # Collect the false negatives of the predicted train compared to the true one.
+        times = []  # i.e. times associated to false negatives
+        for time in train_true:
+            indices = np.where(np.abs(train_pred.times - time) < jitter)[0]
+            if len(indices) == 0:  # i.e. this is a false negative
+                times.append(time)
+        times = np.array(times)
+        t_min = train_true.t_min
+        t_max = train_true.t_max
+        train = Train(times, t_min=t_min, t_max=t_max)
+
+        return train
+
+    def compute_true_positive_rate(self, train, jitter=2e-3, t_min=None, t_max=None):
+        """Compute the true positive rate."""
+        # TODO complete docstring.
+
+        train_pred, train_true = self.check_temporal_support(train, t_min=t_min, t_max=t_max)
+
+        # Compute the true positive rate of the predicted train compared to the true one.
+        nb_tp = train_pred.compute_true_positive(train_true, jitter=jitter, t_min=t_min, t_max=t_max)
+        nb_p = len(train_true)  # i.e. number of positives
+        if nb_p > 0:
+            r_tp = float(nb_tp) / float(nb_p)
+            r_tp = min(1.0, r_tp)  # correct (if necessary)
+        else:
+            r_tp = 1.0
+
+        return r_tp
+
+    def compute_false_negative_rate(self, train, jitter=2e-3, t_min=None, t_max=None):
+        """Compute the false negative rate."""
+        # TODO complete docstring.
+
+        train_pred, train_true = self.check_temporal_support(train, t_min=t_min, t_max=t_max)
+
+        # Compute the false negative rate of the predicted train compared to the true one.
+        nb_fn = train_pred.compute_false_negative(train_true, jitter=jitter, t_min=t_min, t_max=t_max)
+        nb_p = len(train_true)  # i.e. number of positives
+        if nb_p > 0:
+            r_fn = float(nb_fn) / float(nb_p)
+            r_fn = min(1.0, r_fn)  # correct (if necessary)
+        else:
+            r_fn = 0.0
+
+        return r_fn
+
+    def compute_positive_predictive_value(self, train, jitter=2e-3, t_min=None, t_max=None):
+        """Compute the positive predictive value."""
+        # TODO complete docstring.
+
+        train_pred, train_true = self.check_temporal_support(train, t_min=t_min, t_max=t_max)
+
+        # Compute the positive predictive value of the predicted train compared to the true one.
+        nb_tp = train_pred.compute_true_positive(train_true, jitter=jitter, t_min=t_min, t_max=t_max)
+        nb_t = len(train_pred)  # i.e. number of trues
+        if nb_t > 0:
+            v_pp = float(nb_tp) / float(nb_t)
+            v_pp = min(1.0, v_pp)  # correct (if necessary)
+        else:
+            v_pp = 1.0
+
+        return v_pp
+
+    def compute_false_discovery_rate(self, train, jitter=2e-3, t_min=None, t_max=None):
+        """Compute the false discovery rate."""
+        # TODO complete docstring.
+
+        train_pred, train_true = self.check_temporal_support(train, t_min=t_min, t_max=t_max)
+
+        # Compute the false discovery rate of the predicted train compared to the true one.
+        nb_fp = train_pred.compute_false_positive(train_true, jitter=jitter, t_min=t_min, t_max=t_max)
+        nb_t = len(train_pred)  # i.e. number of trues
+        if nb_t > 0:
+            r_fd = float(nb_fp) / float(nb_t)
+            r_fd = min(1.0, r_fd)  # correct (if necessary)
+        else:
+            r_fd = 0.0
+
+        return r_fd
 
     def compute_difference(self, train, **kwargs):
         """Compute the difference between two trains.
@@ -212,9 +393,11 @@ class Train(object):
             arguments.
         """
 
-        fp_rates = self.compute_fp_rates(train, **kwargs)
-        difference = np.mean(fp_rates)
+        # fp_rates = self.compute_fp_rates(train, **kwargs)
+        # difference = np.mean(fp_rates)
+
+        r_fn = self.compute_false_negative_rate(train, **kwargs)
+        r_fd = self.compute_false_discovery_rate(train, **kwargs)
+        difference = np.mean([r_fn, r_fd])
 
         return difference
-
-    # TODO complete.
