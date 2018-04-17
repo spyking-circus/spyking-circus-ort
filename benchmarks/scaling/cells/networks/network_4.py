@@ -10,6 +10,8 @@ name = "network_4"
 directory = os.path.join("~", ".spyking-circus-ort", "benchmarks", "scaling", "cells", name)
 directory = os.path.expanduser(directory)
 
+nb_fitters = 4
+
 block_names = [
     "reader",
     "filter",
@@ -18,13 +20,14 @@ block_names = [
     "pca",
     "cluster",
     "updater",
-    "fitter_fitter_0",
-    "fitter_fitter_1",
     "writer",
+] + [
+    "fitter_fitter_{}".format(k)
+    for k in range(0, nb_fitters)
 ]
 block_nb_buffers = {
-    "fitter_fitter_0": 2,
-    "fitter_fitter_1": 2,
+    "fitter_fitter_{}".format(k): nb_fitters
+    for k in range(0, nb_fitters)
 }
 
 
@@ -49,16 +52,14 @@ def sorting(configuration_name):
     hosts = {
         'master': '192.168.0.254',
         'slave_1': '192.168.0.1',
-        'slave_2': '192.168.0.2',
-        # TODO uncomment the following line.
-        # 'slave_3': '192.168.0.3',
+        'slave_2': '192.168.0.4',
+        'slave_3': '192.168.0.7',
     }
     hosts_keys = [  # ordered
         'master',
         'slave_1',
         'slave_2',
-        # TODO uncomment the following line.
-        # 'slave_3',
+        'slave_3',
     ]
     dtype = parameters['general']['dtype']
     nb_channels = parameters['probe']['nb_channels']
@@ -113,6 +114,12 @@ def sorting(configuration_name):
         'introspection_path': introspection_directory,
         'log_level': DEBUG,
     }
+    peak_writer_kwargs = {
+        'name': "peak_writer",
+        'data_path': os.path.join(sorting_directory, "peaks.h5"),
+        'introspection_path': introspection_directory,
+        'log_level': DEBUG,
+    }
     pca_kwargs = {
         'name': "pca",
         'nb_waveforms': 100000,
@@ -141,7 +148,9 @@ def sorting(configuration_name):
     }
     fitter_kwargs = {
         'name': "fitter",
-        'degree': 4,
+        'degree': nb_fitters,
+        'init_path': os.path.join(sorting_directory, "templates.h5"),
+        'overlaps_init_path': os.path.join(sorting_directory, "overlaps_dict.pkl"),
         'sampling_rate': sampling_rate,
         'discarding_eoc_from_updater': True,
         'introspection_path': introspection_directory,
@@ -166,15 +175,11 @@ def sorting(configuration_name):
     filter_ = managers['slave_1'].create_block('filter', **filter_kwargs)
     mad = managers['slave_1'].create_block('mad_estimator', **mad_kwargs)
     detector = managers['slave_1'].create_block('peak_detector', **detector_kwargs)
+    peak_writer = managers['slave_1'].create_block('peak_writer', **peak_writer_kwargs)
     pca = managers['slave_1'].create_block('pca', **pca_kwargs)
-    # TODO clean the 4 following lines.
-    # cluster = managers['slave_2'].create_block('density_clustering', **cluster_kwargs)
-    # updater = managers['slave_2'].create_block('template_updater', **updater_kwargs)
-    cluster = managers['slave_1'].create_block('density_clustering', **cluster_kwargs)
-    updater = managers['slave_1'].create_block('template_updater', **updater_kwargs)
-    # TODO clean the 2 following lines.
-    # fitter = managers['slave_3'].create_network('fitter', **fitter_kwargs)
-    fitter = managers['slave_2'].create_network('fitter', **fitter_kwargs)
+    cluster = managers['slave_2'].create_block('density_clustering', **cluster_kwargs)
+    updater = managers['slave_2'].create_block('template_updater', **updater_kwargs)
+    fitter = managers['slave_3'].create_network('fitter', **fitter_kwargs)
     writer = managers['master'].create_block('spike_writer', **writer_kwargs)
     # Initialize the elements of the network.
     director.initialize()
@@ -194,6 +199,7 @@ def sorting(configuration_name):
         cluster.get_input('mads'),
     ])
     director.connect(detector.get_output('peaks'), [
+        peak_writer.get_input('peaks'),
         pca.get_input('peaks'),
         cluster.get_input('peaks'),
         fitter.get_input('peaks'),
