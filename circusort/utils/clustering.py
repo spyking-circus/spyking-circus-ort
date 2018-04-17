@@ -107,7 +107,7 @@ class OnlineManager(object):
 
         if self.debug_plots is not None:
             self.fig_name = os.path.join(self.debug_plots, '{n}_{t}.png')
-            self.fig_name_2 = os.path.join(self.debug_plots, 'tracking_{n}_{t}.png')
+            self.fig_name_2 = os.path.join(self.debug_plots, '{n}_{t}_tracking.png')
 
         self.time = 0
         self.is_ready = False
@@ -116,7 +116,7 @@ class OnlineManager(object):
         self.sub_dim = 5
         self.loc_pca = None
         self.tracking = {}
-        self.beta = 0.2
+        self.beta = 0.5
         if logger is None:
             self.log = logging.getLogger(__name__)
         else:
@@ -176,7 +176,6 @@ class OnlineManager(object):
         self.log.debug("{n} founds {k} initial clusters from {m} datapoints".format(n=self.name,
                                                                                     k=len(np.unique(labels[mask])),
                                                                                     m=len(sub_data)))
-
         epsilon = np.inf
 
         for count, cluster_id in enumerate(np.unique(labels[mask])):
@@ -195,7 +194,7 @@ class OnlineManager(object):
             templates[count] = self._get_template(data_cluster)
 
         if self.epsilon == 'auto':
-            self.epsilon = epsilon
+            self.epsilon = epsilon/5.
 
         for cluster in self.clusters.values():
             if cluster.density >= self.D_threshold:
@@ -497,7 +496,7 @@ class OnlineManager(object):
             data = centers_full[labels == key]
             templates[value] = self._get_template(data)
 
-        self.log.info('{n} found {a} new templates: {s}'.format(n=self.name, a=len(changes['new']), s=new_templates.keys()))
+        self.log.info('{n} found {a} new templates: {s}'.format(n=self.name, a=len(new_templates), s=new_templates.keys()))
 
         if tracking:
             for key, value in modified_templates.items():
@@ -705,9 +704,9 @@ def plot_tracking(dense_clusters, output):
 
     centers = np.array(centers)
     sigmas = np.array(sigmas)
-    colors = np.array(colors)
+    colors = np.array(colors, dtype=np.int32)
 
-    colormap = pylab.cm.YlOrBr
+    pylab.style.use('seaborn-paper')
 
     if len(centers) > 0:
     
@@ -715,10 +714,10 @@ def plot_tracking(dense_clusters, output):
 
         for center, sigma, color in zip(centers, sigmas, colors):
             ax = pylab.subplot(2, 2, 1)
-            c = colormap(c)
+            c = 'C{}'.format(color % 10)
             circle = pylab.Circle((center[0], center[1]), sigma, color=c, fill=False)
             ax.add_artist(circle)
-            pylab.scatter(centers[:, 0], centers[:, 1], c=colormap(colors))
+            pylab.scatter(centers[:, 0], centers[:, 1], c='k')
 
             x_min = centers[:, 0].min()
             x_max = centers[:, 0].max()
@@ -731,12 +730,12 @@ def plot_tracking(dense_clusters, output):
             ax.set_xticks([])
             ax.set_yticks([])
 
-        for center, sigma in zip(centers, sigmas, colors):
+        for center, sigma, color in zip(centers, sigmas, colors):
             ax = pylab.subplot(2, 2, 2)
-            c = colormap(c)
+            c = 'C{}'.format(color % 10)
             circle = pylab.Circle((center[1], center[2]), sigma, color=c, fill=False)
             ax.add_artist(circle)
-            pylab.scatter(centers[:, 1], centers[:, 2], c=colormap(colors))
+            pylab.scatter(centers[:, 1], centers[:, 2], c='k')
 
             x_min = centers[:, 1].min()
             x_max = centers[:, 1].max()
@@ -749,12 +748,12 @@ def plot_tracking(dense_clusters, output):
             ax.set_xticks([])
             ax.set_yticks([])
 
-        for center, sigma in zip(centers, sigmas, colors):
+        for center, sigma, color in zip(centers, sigmas, colors):
             ax = pylab.subplot(2, 2, 3)
-            c = colormap(c)
+            c = 'C{}'.format(color % 10)
             circle = pylab.Circle((center[0], center[2]), sigma, color=c, fill=False)
             ax.add_artist(circle)
-            pylab.scatter(centers[:, 0], centers[:, 2], c=colormap(colors))
+            pylab.scatter(centers[:, 0], centers[:, 2], c='k')
 
             x_min = centers[:, 0].min()
             x_max = centers[:, 0].max()
