@@ -27,6 +27,7 @@ class MacroCluster(object):
         self.creation_time = creation_time
         self.last_update = creation_time
         self.label = 'sparse'
+        self.cluster_id = -1
 
     def set_label(self, label):
         assert label in ['sparse', 'dense']
@@ -75,7 +76,7 @@ class MacroCluster(object):
         return np.sqrt((self.sum_pca_sq / self.density - self.center ** 2).max())
 
     @property
-    def tracking_properties(self):
+    def description(self):
         return [self.center, self.radius]
 
 
@@ -122,14 +123,6 @@ class OnlineManager(object):
             self.log = logger
         self.log.debug('{n} is created'.format(n=self.name))
 
-        self.W = (1./(1 - 2**(-self.decay_factor)))
-
-        print "Decay time is initialized to", self.decay_factor
-        print "Mu is initialized to", self.mu
-        print "Beta is initialized to", self.beta
-        print "Max number of micro clusters", self.W/self.D_threshold
-        print "Max number of macro clusters", self.W/self.mu
-
     @property
     def D_threshold(self):
         return self.mu * self.beta
@@ -139,6 +132,8 @@ class OnlineManager(object):
         return np.ceil((1 / self.decay_factor) * np.log(self.D_threshold / (self.D_threshold - 1)))
 
     def initialize(self, time, data):
+
+        self.time = time
 
         if self.glob_pca is not None:
             sub_data = np.dot(data, self.glob_pca)
@@ -169,6 +164,11 @@ class OnlineManager(object):
 
         labels = density_clustering(sub_data, n_min=n_min, output=output, local_merges=self.local_merges)
 
+        self.W = len(sub_data)/float(self.time/20000.)
+        print "Speed of the event", self.W
+        print "Max number of micro clusters", int(self.W / self.D_threshold)
+        print "Max number of macro clusters", int(self.W / self.mu)
+
         mask = labels > -1
 
         templates = {}
@@ -179,18 +179,19 @@ class OnlineManager(object):
 
         epsilon = np.inf
 
-        for count, i in enumerate(np.unique(labels[mask])):
+        for count, cluster_id in enumerate(np.unique(labels[mask])):
 
-            indices = np.where(labels == i)[0]
+            indices = np.where(labels == cluster_id)[0]
             data_cluster = data[indices]
             sub_data_cluster = sub_data[indices]
 
             self.clusters[count] = MacroCluster(count, sub_data_cluster, data_cluster, creation_time=self.time)
+            self.clusters[count].cluster_id = count
 
             if self.clusters[count].radius < epsilon:
                 epsilon = self.clusters[count].radius
 
-            self.tracking[count] = self.clusters[count].tracking_properties
+            self.tracking[count] = self.clusters[count].description
             templates[count] = self._get_template(data_cluster)
 
         if self.epsilon == 'auto':
@@ -387,42 +388,48 @@ class OnlineManager(object):
         if np.mod(self.time, self.time_gap) < 1:
             self._prune()
 
-    def _perform_tracking(self, new_tracking_data):
+    def _perform_tracking(self, new_clusters):
 
-        changes = {
-            'new': {},
-            'merged': {}
-        }
+        new_templates = {}
+        modified_templates = {}
 
         if len(self.tracking) > 0:
             all_centers = np.array([i[0] for i in self.tracking.values()], dtype=np.float32)
             all_sigmas = np.array([i[1] for i in self.tracking.values()], dtype=np.float32)
             all_indices = self.tracking.keys()
 
-            for key, value in new_tracking_data.items():
-                center, sigma = value
+            for cluster in new_clusters:
+                cluster_id = cluster.cluster_id
+                center, sigma = cluster.description
                 new_dist = scipy.spatial.distance.cdist(np.array([center]), all_centers, 'euclidean')
                 dist_min = np.min(new_dist)
                 dist_idx = np.argmin(new_dist)
 
                 if dist_min <= (sigma + all_sigmas[dist_idx]):
+                    self.tracking[all_indices[dist_idx]] = center, sigma
+                    modified_templates[cluster_id] = all_indices[dist_idx]
+                    cluster.cluster_id = all_indices[dist_idx]
                     self.log.debug("{n} establishes a match between target {t} and source {s}".format(n=self.name,
-                                                                                        t=key, s=all_indices[dist_idx]))
-                    changes['merged'][key] = all_indices[dist_idx]
-                    self.tracking[key] = center, sigma
+                                                                                                      t=cluster_id,
+                                                                                                      s=all_indices[
+                                                                                                          dist_idx]))
                 else:
                     idx = self._get_tracking_id()
                     self.tracking[idx] = center, sigma
-                    self.log.debug("{n} can not found a match for target {t} assigned to {s}".format(n=self.name,
-                                                                                                     t=key, s=idx))
-                    changes['new'][key] = idx
+                    new_templates[cluster_id] = idx
+                    cluster.cluster_id = idx
+                    self.log.debug("{n} can not found a match for target {t}, so creating new template {s}".format(n=self.name,
+                                                                                                     t=cluster_id, s=idx))
         else:
-            self.tracking = new_tracking_data
-            for key, value in new_tracking_data.items():
+            for cluster in new_clusters:
                 idx = self._get_tracking_id()
-                changes['new'][key] = idx
+                self.tracking[idx] = cluster.description
+                new_templates[cluster_id] = idx
+                cluster.cluster_id = idx
 
-        return changes
+            self.log.debug("no tracking: {n} found {k} new templates".format(n=self.name, k=len(new_clusters)))
+
+        return new_templates, modified_templates
 
     def set_physical_threshold(self, threshold):
         self.physical_threshold = self.noise_thr * threshold
@@ -474,33 +481,32 @@ class OnlineManager(object):
 
         self.nb_updates = 0
 
-        new_tracking_data = {}
         mask = labels > -1
         clusters = []
         for l in np.unique(labels[mask]):
             idx = np.where(labels == l)[0]
             cluster = MacroCluster(-1, centers[idx], centers_full[idx])
-            new_tracking_data[l] = cluster.tracking_properties
+            cluster.cluster_id = l
             clusters += [cluster]
 
-        changes = self._perform_tracking(new_tracking_data)
+        new_templates, modified_templates = self._perform_tracking(clusters)
 
         templates = {}
 
-        for key, value in changes['new'].items():
+        for key, value in new_templates.items():
             data = centers_full[labels == key]
             templates[value] = self._get_template(data)
 
-        self.log.debug('{n} found {a} new templates: {s}'.format(n=self.name, a=len(changes['new']), s=changes['new']))
+        self.log.info('{n} found {a} new templates: {s}'.format(n=self.name, a=len(changes['new']), s=new_templates.keys()))
 
         if tracking:
-            for key, value in changes['merged'].items():
+            for key, value in modified_templates.items():
 
                 data = centers_full[labels == value]
                 templates[value] = self._get_template(data)
 
-            self.log.debug('{n} modified {a} templates with tracking: {s}'.format(n=self.name, a=len(changes['merged']),
-                                                                                  s=changes['merged'].values()))
+            self.log.info('{n} found {a} modified templates with tracking: {s}'.format(n=self.name, a=len(modified_templates),
+                                                                                  s=modified_templates.values()))
 
         if self.debug_plots is not None:
             plot_tracking(clusters, self.fig_name_2.format(n=self.name, t=self.time))
@@ -691,22 +697,28 @@ def plot_tracking(dense_clusters, output):
 
     centers = []
     sigmas = []
+    colors = []
     for item in dense_clusters:
-        centers += [item.tracking_properties[0]]
-        sigmas += [item.tracking_properties[1]]
+        colors += [item.cluster_id]
+        centers += [item.description[0]]
+        sigmas += [item.description[1]]
 
     centers = np.array(centers)
     sigmas = np.array(sigmas)
+    colors = np.array(colors)
+
+    colormap = pylab.cm.YlOrBr
 
     if len(centers) > 0:
     
         s_max = sigmas.max()
 
-        for center, sigma in zip(centers, sigmas):
+        for center, sigma, color in zip(centers, sigmas, colors):
             ax = pylab.subplot(2, 2, 1)
-            circle = pylab.Circle((center[0], center[1]), sigma, color='b', fill=False)
+            c = colormap(c)
+            circle = pylab.Circle((center[0], center[1]), sigma, color=c, fill=False)
             ax.add_artist(circle)
-            pylab.scatter(centers[:, 0], centers[:, 1], c='r')
+            pylab.scatter(centers[:, 0], centers[:, 1], c=colormap(colors))
 
             x_min = centers[:, 0].min()
             x_max = centers[:, 0].max()
@@ -719,11 +731,12 @@ def plot_tracking(dense_clusters, output):
             ax.set_xticks([])
             ax.set_yticks([])
 
-        for center, sigma in zip(centers, sigmas):
+        for center, sigma in zip(centers, sigmas, colors):
             ax = pylab.subplot(2, 2, 2)
-            circle = pylab.Circle((center[1], center[2]), sigma, color='b', fill=False)
+            c = colormap(c)
+            circle = pylab.Circle((center[1], center[2]), sigma, color=c, fill=False)
             ax.add_artist(circle)
-            pylab.scatter(centers[:, 1], centers[:, 2], c='r')
+            pylab.scatter(centers[:, 1], centers[:, 2], c=colormap(colors))
 
             x_min = centers[:, 1].min()
             x_max = centers[:, 1].max()
@@ -736,11 +749,12 @@ def plot_tracking(dense_clusters, output):
             ax.set_xticks([])
             ax.set_yticks([])
 
-        for center, sigma in zip(centers, sigmas):
+        for center, sigma in zip(centers, sigmas, colors):
             ax = pylab.subplot(2, 2, 3)
-            circle = pylab.Circle((center[0], center[2]), sigma, color='b', fill=False)
+            c = colormap(c)
+            circle = pylab.Circle((center[0], center[2]), sigma, color=c, fill=False)
             ax.add_artist(circle)
-            pylab.scatter(centers[:, 0], centers[:, 2], c='r')
+            pylab.scatter(centers[:, 0], centers[:, 2], c=colormap(colors))
 
             x_min = centers[:, 0].min()
             x_max = centers[:, 0].max()
