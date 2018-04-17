@@ -4,7 +4,15 @@ from circusort.block.block import Block
 
 
 class Demultiplexer(Block):
-    """Demultiplexer"""
+    """Demultiplexer.
+
+    Attributes:
+        input_specs
+        degree: integer
+        overlap: integer
+        nb_samples: integer
+        sampling_rate: float
+    """
     # TODO complete docstring.
 
     name = "Demultiplexer"
@@ -26,6 +34,8 @@ class Demultiplexer(Block):
     }
 
     def __init__(self, **kwargs):
+        """Initialize block."""
+        # TODO complete docstring.
 
         Block.__init__(self, **kwargs)
 
@@ -140,7 +150,7 @@ class Demultiplexer(Block):
                 else:
                     data = self.inputs[name].receive(blocking=False)
                     if data is not None:
-                        while self._sync_buffer(data, self.nb_samples):
+                        while not self._sync_buffer(data, self.nb_samples):
                             data = self.inputs[name].receive(blocking=True)
                         self._set_synced(name)
                         for token in tokens:
@@ -185,6 +195,7 @@ class Demultiplexer(Block):
         mean_ratio = np.mean(ratios) if ratios.size > 0 else np.nan
         max_ratio = np.max(ratios) if ratios.size > 0 else np.nan
 
+        # Log info message.
         string = "{} processed {} buffers [speed:x{:.2f} (min:x{:.2f}, max:x{:.2f})]"
         message = string.format(self.name, nb_buffers, mean_ratio, min_ratio, max_ratio)
         self.log.info(message)
