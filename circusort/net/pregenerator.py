@@ -3,6 +3,7 @@ import os
 from circusort import io
 from circusort.base import create_director
 
+
 def find_or_generate_probe(path=None, directory=None):
     """Find or generate probe to use during the pregeneration.
 
@@ -181,13 +182,15 @@ def save_parameters(working_directory, parameters):
     return
 
 
-def pregenerator(working_directory=None, configuration_directory=None, generation_directory=None):
+def pregenerator(working_directory=None, configuration_directory=None, generation_directory=None,
+                 with_plots=False):
     """Pregenerate synthetic signal.
 
     Parameters:
         working_directory: none | string (optional)
         configuration_directory: none | string (optional)
         generation_directory: none | string (optional)
+        with_plots: boolean (optional)
     """
     # TODO complete docstring.
 
@@ -204,12 +207,12 @@ def pregenerator(working_directory=None, configuration_directory=None, generatio
 
     probe = io.get_probe(**parameters['probe'])
     probe.save(generation_directory)
-    probe.plot(generation_directory)
+    probe.plot(generation_directory) if with_plots else None
     parameters['probe'] = probe.get_parameters()
 
     cells = io.get_cells(probe=probe, **parameters['cells'])
     cells.save(generation_directory)
-    cells.plot(generation_directory, probe=probe)
+    cells.plot(generation_directory, probe=probe) if with_plots else None
     parameters['cells'] = cells.get_parameters()
 
     # Save parameters.

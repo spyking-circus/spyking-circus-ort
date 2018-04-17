@@ -1,7 +1,7 @@
+import exceptions
 import json
 import paramiko
 import subprocess
-import sys
 import zmq
 import logging
 
@@ -11,7 +11,19 @@ from circusort.base.serializer import Serializer
 
 
 def create_process(host=None, log_address=None, name=None, log_level=logging.INFO):
-    """TODO add docstring"""
+    """Create a process (local or remote host)
+
+    Arguments:
+        host: none | string (optional)
+            The default value is None.
+        log_address: none | string (optional)
+            The default value is None.
+        name: none | string (optional)
+            The default value is None.
+        log_level: integer (optional)
+            The default value is logging.INFO.
+    """
+    # TODO complete docstring.
 
     process = Process(host=host, log_address=log_address, name=name, log_level=log_level)
     proxy = process.get_proxy()
@@ -22,15 +34,32 @@ def create_process(host=None, log_address=None, name=None, log_level=logging.INF
 class Process(object):
     """Spawn a process (local or remote host) and return a proxy.
 
-    Parameter
-    ---------
-    host: string
-        Host (i.e. machine) {None, '127.0.0.1', 'X.X.X.X'}
-    log_address: None or string
-        Log address {None, 'tcp://X.X.X.X:X'}
+    Attributes:
+        log_level: integer
+        logger
+        host: string
+        name: string
+        last_request_id: int
+        serializer
+        context
+        socket
     """
+    # TODO complete docstring.
 
     def __init__(self, host=None, log_address=None, name=None, log_level=logging.INFO):
+        """Initialize Process.
+
+        Arguments:
+            host: string (optional)
+                Host (i.e. machine) {None, '127.0.0.1', 'X.X.X.X'}
+            log_address: none | string (optional)
+                Log address {None, 'tcp://X.X.X.X:X'}
+            name: none | string (optional)
+                The default value is None.
+            log_level: integer
+                The default value is logging.INFO.
+        """
+        # TODO complete docstring.
 
         object.__init__(self)
 
@@ -65,7 +94,7 @@ class Process(object):
             address = socket.getsockopt(zmq.LAST_ENDPOINT)
             self.logger.debug("tmp socket binded at {a}".format(a=address))
             # 2. Spawn remote process on local host
-            command = [sys.executable]
+            command = ['/usr/bin/python2']
             command += ['-m', 'circusort.cli.spawn_process']
             command += ['--host', self.host]
             command += ['--address', address]
@@ -98,7 +127,7 @@ class Process(object):
             address = socket.getsockopt(zmq.LAST_ENDPOINT)
             self.logger.debug("tmp socket binded at {a}".format(a=address))
             # 2. Spawn remote process on remote host
-            command = ['/usr/bin/python']
+            command = ['/usr/bin/python2']
             command += ['-m', 'circusort.cli.spawn_process']
             command += ['--host', self.host]
             command += ['--address', address]
@@ -147,11 +176,16 @@ class Process(object):
             socket.close()
 
     def __del__(self):
+        # TODO add docstring.
 
+        # Log debug message.
         if self.name is None:
-            self.logger.debug("delete process on {h}".format(h=self.host))
+            string = "delete process on {}"
+            message = string.format(self.host)
         else:
-            self.logger.debug("delete process {n} on {h}".format(n=self.name, h=self.host))
+            string = "delete process {} on {}"
+            message = string.format(self.name, self.host)
+        self.logger.debug(message)
 
         request = 'finish'
         response = self.send(request)
@@ -161,36 +195,47 @@ class Process(object):
     def get_proxy(self):
         # TODO add docstring.
 
-        self.logger.debug("get proxy")
+        # Log debug message.
+        message = "get proxy"
+        self.logger.debug(message)
 
+        # Send request to get the proxy.
         request = 'get_proxy'
         response = self.send(request)
 
         return response
 
-    def get_module(self, name, **kwds):
+    def get_module(self, name, **kwargs):
         # TODO add docstring.
 
-        self.logger.debug("get module {n}".format(n=name))
+        # Log debug message.
+        string = "get module {}"
+        message = string.format(name)
+        self.logger.debug(message)
 
+        # Sen request to get the module.
         request = 'get_module'
         options = {
             'name': name,
         }
-        response = self.send(request, options=options, **kwds)
+        response = self.send(request, options=options, **kwargs)
 
         return response
 
-    def call_obj(self, obj, args, kwds):
+    def call_obj(self, obj, args, kwargs):
         # TODO add docstring.
 
-        self.logger.debug("call object {o}".format(o=obj))
+        # Log debug message.
+        string = "call object {}"
+        message = string.format(obj)
+        self.logger.debug(message)
 
+        # Send request to get the object.
         request = 'call_obj'
         options = {
             'obj': obj,
             'args': args,
-            'kwds': kwds,
+            'kwds': kwargs,
         }
         response = self.send(request, options=options)
 
@@ -199,8 +244,12 @@ class Process(object):
     def get_attr(self, obj, name):
         # TODO add docstring.
 
-        self.logger.debug("get attribute '{n}' of object {o}".format(n=name, o=obj))
+        # Log debug message.
+        string = "get attribute {} of object {}"
+        message = string.format(name, obj)
+        self.logger.debug(message)
 
+        # Send request to get the attribute.
         request = 'get_attr'
         options = {
             'obj': obj,
@@ -213,8 +262,12 @@ class Process(object):
     def set_attr(self, obj, name, value):
         # TODO add docstring.
 
-        self.logger.debug("set attribute {n} of object {o}".format(n=name, o=obj))
+        # Log debug message.
+        string = "set attribute {} of object {}"
+        message = string.format(name, obj)
+        self.logger.debug(message)
 
+        # Send request to set the attribute.
         request = 'set_attr'
         options = {
             'obj': obj,
@@ -228,8 +281,11 @@ class Process(object):
     def new_request_id(self):
         # TODO add docstring.
 
-        self.logger.debug("generate new request identifier")
+        # Log debug message.
+        message = "generate new request identifier"
+        self.logger.debug(message)
 
+        # Compute the new request identifier.
         request_id = self.last_request_id + 1
         self.last_request_id += 1
 
@@ -238,7 +294,9 @@ class Process(object):
     def serialize_options(self, options):
         # TODO add docstring.
 
-        self.logger.debug("serialize options")
+        # Log debug message.
+        message = "serialize options"
+        self.logger.debug(message)
 
         if options is None:
             serialized_options = b""
@@ -250,27 +308,31 @@ class Process(object):
     def send(self, request, options=None, **kwargs):
         """Send a request to the process and return the response result.
 
-        Parameters
-        ----------
-        request: string
-            The request to invoke on the process.
-        options: dictionary
-            The options to be sent with the request.
+        Arguments:
+            request: string
+                The request to invoke on the process.
+            options: dictionary
+                The options to be sent with the request.
         """
         # TODO complete docstring.
 
-        _ = kwargs
+        _ = kwargs  # i.e. discard additional keyword arguments
 
-        message = {
+        # Set request.
+        data = {
             'request_id': self.new_request_id(),
             'request': request,
             'options': options,
         }
-        message = self.serializer.dumps(message)
+        data = self.serializer.dumps(data)
 
-        self.logger.debug("send request {m}".format(m=message))
-        self.socket.send_multipart(message)
+        # Lod debug message.
+        string = "send request {}"
+        message = string.format(data)
+        self.logger.debug(message)
 
+        # Send request and receive result.
+        self.socket.send_multipart(data)
         result = self.process_until_result()
 
         return result
@@ -278,12 +340,14 @@ class Process(object):
     def decode(self, dct):
         # TODO add docstring.
 
-        self.logger.debug("decode")
+        # Log debug message.
+        message = "decode"
+        self.logger.debug(message)
 
         if isinstance(dct, dict):
-            # Retrieve object type
+            # Retrieve object type.
             obj_type = dct.get('__type__', None)
-            # Process object according to type
+            # Process object according to type.
             if obj_type is None:
                 return dct
             elif obj_type == 'proxy':
@@ -292,18 +356,28 @@ class Process(object):
                 proxy = Proxy(**dct)
                 return proxy
             else:
-                self.logger.debug("unknown object type {t}".format(t=obj_type))
+                # Log debug message.
+                string = "unknown object type {}"
+                message = string.format(obj_type)
+                self.logger.debug(message)
+                # Raise error.
                 raise NotImplementedError()
         else:
-            self.logger.debug("invalid type {t}".format(t=type(dct)))
+            # Log debug message.
+            string = "invalid type {}"
+            message = string.format(type(dct))
+            self.logger.debug(message)
+            # Raise error.
             raise NotImplementedError()
 
-    def loads(self, message):
+    def loads(self, data):
         # TODO add docstring.
 
-        self.logger.debug("loads")
+        # Log debug message.
+        message = "loads"
+        self.logger.debug(message)
 
-        s = message.decode()
+        s = data.decode()
         obj = json.loads(s, object_hook=self.decode)
 
         return obj
@@ -311,39 +385,54 @@ class Process(object):
     def receive(self):
         # TODO add docstring.
 
-        self.logger.debug("receive")
+        # Log debug message.
+        message = "receive"
+        self.logger.debug(message)
 
-        message = self.socket.recv()
-        message = self.loads(message)
+        # Receive and load data.
+        data = self.socket.recv()
+        data = self.loads(data)
 
-        return message
+        return data
 
     def process_until_result(self):
         # TODO add docstring.
 
-        self.logger.debug("process until result")
+        # Log debug message.
+        message = "process until result"
+        self.logger.debug(message)
 
-        # TODO receive and read message
-        message = self.receive()
-        # # TODO remove following line
-        # self.logger.debug("message received and read: {m}".format(m=message))
+        # Receive and set data.
+        data = self.receive()
 
-        # TODO process message
-        if message['response'] == 'return':
-            if message['exception'] is None:
-                # TODO set and return result
-                result = message['result']
-                self.logger.debug("result: {r}".format(r=result))
+        # Log debug message.
+        string = "data received and read: {}"
+        message = string.format(data)
+        self.logger.debug(message)
+
+        # Process data.
+        if data['response'] == 'return':
+            if data['exception'] is None:
+                # Extract result.
+                result = data['result']
+                # Log debug message.
+                string = "result: {}"
+                message = string.format(result)
+                self.logger.debug(message)
+                # Return result.
                 return result
             else:
-                self.logger.debug("message: {m}".format(m=message))
-                raise NotImplementedError()
-                # TODO set and raise exception
-                # exception = message['exception']
-                # raise exception
-        elif message['response'] == 'disconnect':
+                # Extract exception name and trace.
+                exception_name = data['exception']
+                exception_trace = data['result']  # i.e. exception trace
+                # Log debug message.
+                string = "exception: {} {}"
+                message = string.format(exception_name, exception_trace)
+                self.logger.debug(message)
+                # Raise exception.
+                exception_class = getattr(exceptions, exception_name)
+                raise exception_class(exception_trace)
+        elif data['response'] == 'disconnect':
             raise NotImplementedError()
-            # TODO remote process asks for disconnection
         else:
             raise NotImplementedError()
-            # TODO complete

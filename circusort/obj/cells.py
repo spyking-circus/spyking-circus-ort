@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import os
 import numpy as np
 
+from circusort.obj.matches import Matches
+from circusort.obj.similarities import Similarities
 from circusort.io.parameter.cells import get_cells_parameters
 from circusort.utils.path import normalize_path
 
@@ -344,7 +346,7 @@ class Cells(object):
     def compute_similarities(self, cells):
         """Compute the similarities between two set of cells.
 
-        Attribute:
+        Argument:
             cells: circusort.obj.Cells
                 The set of cells with which similarities have to be computed.
         Return:
@@ -352,14 +354,7 @@ class Cells(object):
                 The matrix of similarities between the two set of cells.
         """
 
-        shape = (self.nb_cells, cells.nb_cells)
-        similarities = np.zeros(shape, dtype=np.float)
-
-        for i, cell_i in enumerate(self):
-            template_i = cell_i.template
-            for j, cell_j in enumerate(cells):
-                template_j = cell_j.template
-                similarities[i][j] = template_i.similarity(template_j)
+        similarities = Similarities(self, cells)
 
         return similarities
 
@@ -383,35 +378,6 @@ class Cells(object):
                 The matches between the two set of cells.
         """
 
-        similarities = self.compute_similarities(cells)
-
-        indices = np.zeros(self.nb_cells, dtype=np.int)
-        errors = np.zeros(self.nb_cells, dtype=np.float)
-
-        for i, cell in enumerate(self):
-            potential_indices = np.where(similarities[i, :] > threshold)[0]
-            potential_cells = cells.slice_by_ids(potential_indices)
-            if t_min is None:
-                t_min = potential_cells.t_min
-            if t_max is None:
-                t_max = potential_cells.t_max
-            if len(potential_cells) > 0:
-                train = cell.train.slice(t_min, t_max)
-                # TODO remove the 3 following lines.
-                string = "Computing errors for cell {} in [{}, {}] with {} spikes."
-                message = string.format(i, t_min, t_max, len(train))
-                print(message)
-                potential_errors = np.array([
-                    train.compute_difference(potential_train)
-                    for potential_train in potential_cells.trains
-                ])
-                index = np.argmin(potential_errors)
-                indices[i] = potential_indices[index]
-                errors[i] = potential_errors[index]
-            else:
-                indices[i] = -1
-                errors[i] = -1.0
-
-        matches = (indices, errors)
+        matches = Matches(self, cells, threshold=threshold, t_min=t_min, t_max=t_max)
 
         return matches
