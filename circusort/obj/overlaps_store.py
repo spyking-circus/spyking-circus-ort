@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 import numpy as np
+import os
+import pickle  # TODO check if we should use cPickle instead.
 import scipy.sparse
+
 from circusort.obj.overlaps import Overlaps
 
 
@@ -98,6 +101,7 @@ class OverlapsStore(object):
             self._masks[index, self.nb_templates] = True
 
     def get_overlaps(self, index, component='1'):
+        # TODO add docstring.
 
         if index not in self.overlaps[component]:
             target = self.all_components
@@ -113,6 +117,7 @@ class OverlapsStore(object):
         return self.overlaps[component][index].overlaps
 
     def clear_overlaps(self):
+        # TODO add docstring.
 
         for key in self.overlaps.keys():
             self.overlaps[key] = {}
@@ -120,12 +125,14 @@ class OverlapsStore(object):
         return
 
     def dot(self, waveforms):
+        # TODO add docstring.
 
         scalar_products = self.all_components.dot(waveforms)
 
         return scalar_products
 
     def add_template(self, template):
+        # TODO add docstring.
 
         # Add new and updated templates to the dictionary.
         self.norms['1'] = np.concatenate((self.norms['1'], [template.first_component.norm]))
@@ -159,16 +166,56 @@ class OverlapsStore(object):
                 self.overlaps[key][index].indices_ += [len(self) - 1]
 
     def update(self, indices):
+        # TODO add docstring.
 
         templates = self.template_store.get(indices)
 
         for template in templates:
             self.add_template(template)
 
+        return
+
     def precompute_overlaps(self):
+        # TODO add docstring.
 
         for index in range(self.nb_templates):
             self.get_overlaps(index, component='1')
             if self.two_components:
                 self.get_overlaps(index, component='2')
 
+        return
+
+    def save_internal_overlaps_dictionary(self, path):
+        """Save the internal dictionary of the overlaps store to file.
+
+        Parameter:
+            path: string
+        """
+        # TODO complete docstring.
+
+        # Normalize path.
+        path = os.path.expanduser(path)
+        path = os.path.abspath(path)
+
+        with open(path, mode='wb') as file_:
+            pickle.dump(self.overlaps, file_)
+
+        return
+
+    def load_internal_overlaps_dictionary(self, path):
+        """Load the internal dictionary of the overlaps store from file.
+
+        Parameter:
+            path: string
+        """
+        # TODO complete docstring.
+
+        # Normalize path.
+        path = os.path.expanduser(path)
+        path = os.path.abspath(path)
+
+        with open(path, mode='rb') as file_:
+            overlaps = pickle.load(file_)
+            self.overlaps = overlaps
+
+        return
