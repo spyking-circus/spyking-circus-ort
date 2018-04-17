@@ -291,7 +291,7 @@ class Director(object):
             manager.join()
 
         # Log info message.
-        string = "{d} joins {s}"
+        string = "{} joins {}"
         message = string.format(str(self), ", ".join(self.list_managers()))
         self.log.info(message)
 
