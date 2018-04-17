@@ -22,7 +22,7 @@ fitted_spikes = load_spikes(os.path.join(os.path.join(generation_directory, 'sor
 found_templates = load_template_store(os.path.join(os.path.join(generation_directory, 'sorting'), 'templates.h5'))
 fitted_cells = spikes2cells(fitted_spikes, found_templates)
 filename = os.path.join(os.path.join(generation_directory, 'generation'), 'data.raw')
-data_file = load_datafile(filename, 20000, 100, 'int16', 0.1042)
+data_file = load_datafile(filename, 20000, 9, 'int16', 0.1042)
 
 
 print('Computing similarities...')

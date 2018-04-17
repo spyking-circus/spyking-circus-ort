@@ -41,9 +41,9 @@ class Density_clustering(Block):
         'sub_dim': 5,
         'extraction': 'median-raw',
         'two_components': False,
-        'decay_factor': 0.5,
-        'mu': 'auto',
-        'epsilon': 1,
+        'decay_factor': 0.1,
+        'mu': 10.,
+        'epsilon': 'auto',
         'theta': -np.log(0.001),
         'tracking': True,
         'safety_time': 'auto',
@@ -70,7 +70,7 @@ class Density_clustering(Block):
         self.n_min = self.n_min
         self.dispersion = self.dispersion
         self.two_components = self.two_components
-        self.decay_factor = self.decay_factor
+        self.decay_factor = self.decay_factor / float(self.sampling_rate)
         self.mu = self.mu
         self.epsilon = self.epsilon
         self.theta = self.theta
@@ -276,6 +276,7 @@ class Density_clustering(Block):
                     'mu': self.mu,
                     'decay': self.decay_time,
                     'epsilon': self.epsilon,
+                    'decay': self.decay_time,
                     'theta': self.theta,
                     'n_min': self.n_min,
                     'noise_thr': self.noise_thr,

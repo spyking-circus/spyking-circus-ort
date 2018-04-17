@@ -81,7 +81,7 @@ class MacroCluster(object):
 
 class OnlineManager(object):
 
-    def __init__(self, probe, channel, decay=0.5, mu=2, epsilon=1, theta=-np.log(0.001), dispersion=(5, 5),
+    def __init__(self, probe, channel, decay=0.05, mu=2, epsilon='auto', theta=-np.log(0.001), dispersion=(5, 5),
                  n_min=0.002, noise_thr=0.8, pca=None, logger=None, two_components=False, name=None, debug_plots=None,
                  local_merges=3):
 
@@ -106,7 +106,7 @@ class OnlineManager(object):
 
         if self.debug_plots is not None:
             self.fig_name = os.path.join(self.debug_plots, '{n}_{t}.png')
-            self.fig_name_2 = os.path.join(self.debug_plots, '{n}_{t}.png')
+            self.fig_name_2 = os.path.join(self.debug_plots, 'tracking_{n}_{t}.png')
 
         self.time = 0
         self.is_ready = False
@@ -115,19 +115,24 @@ class OnlineManager(object):
         self.sub_dim = 5
         self.loc_pca = None
         self.tracking = {}
-        self.beta = 0.1
+        self.beta = 0.2
         if logger is None:
             self.log = logging.getLogger(__name__)
         else:
             self.log = logger
         self.log.debug('{n} is created'.format(n=self.name))
 
-        if self.mu == 'auto':
-            self.mu = 1. / (1 - 2**(-self.decay_factor))
+        self.W = (1./(1 - 2**(-self.decay_factor)))
+
+        print "Decay time is initialized to", self.decay_factor
+        print "Mu is initialized to", self.mu
+        print "Beta is initialized to", self.beta
+        print "Max number of micro clusters", self.W/self.D_threshold
+        print "Max number of macro clusters", self.W/self.mu
 
     @property
     def D_threshold(self):
-        return self.mu * 1 #/ (self.nb_clusters*(1 - 2**(-self.decay_factor)))
+        return self.mu * self.beta
 
     @property
     def time_gap(self):
@@ -157,8 +162,6 @@ class OnlineManager(object):
 
         n_min = np.maximum(self.abs_n_min, int(self.n_min * len(sub_data)))
 
-        self.time = time
-
         if self.debug_plots is not None:
             output = self.fig_name.format(n=self.name, t=self.time)
         else:
@@ -174,6 +177,8 @@ class OnlineManager(object):
                                                                                     k=len(np.unique(labels[mask])),
                                                                                     m=len(sub_data)))
 
+        epsilon = np.inf
+
         for count, i in enumerate(np.unique(labels[mask])):
 
             indices = np.where(labels == i)[0]
@@ -181,8 +186,15 @@ class OnlineManager(object):
             sub_data_cluster = sub_data[indices]
 
             self.clusters[count] = MacroCluster(count, sub_data_cluster, data_cluster, creation_time=self.time)
+
+            if self.clusters[count].radius < epsilon:
+                epsilon = self.clusters[count].radius
+
             self.tracking[count] = self.clusters[count].tracking_properties
             templates[count] = self._get_template(data_cluster)
+
+        if self.epsilon == 'auto':
+            self.epsilon = epsilon
 
         for cluster in self.clusters.values():
             if cluster.density >= self.D_threshold:
@@ -335,7 +347,7 @@ class OnlineManager(object):
     def update(self, time, data=None):
         
         self.time = time
-        if self.nb_sparse > 100:
+        if self.nb_sparse > 1000:
             self.log.warning('{n} has too many ({s}) sparse clusters'.format(n=self.name, s=self.nb_sparse))
         
         self.log.debug("{n} processes time {t} with {s} sparse and {d} dense clusters. Time gap is {g}".format(
@@ -471,9 +483,6 @@ class OnlineManager(object):
             new_tracking_data[l] = cluster.tracking_properties
             clusters += [cluster]
 
-        if self.debug_plots is not None:
-            plot_tracking(clusters, self.fig_name_2.format(n=self.name, t=self.time))
-
         changes = self._perform_tracking(new_tracking_data)
 
         templates = {}
@@ -492,6 +501,10 @@ class OnlineManager(object):
 
             self.log.debug('{n} modified {a} templates with tracking: {s}'.format(n=self.name, a=len(changes['merged']),
                                                                                   s=changes['merged'].values()))
+
+        if self.debug_plots is not None:
+            plot_tracking(clusters, self.fig_name_2.format(n=self.name, t=self.time))
+
         return templates
 
 
@@ -684,58 +697,61 @@ def plot_tracking(dense_clusters, output):
 
     centers = np.array(centers)
     sigmas = np.array(sigmas)
-    s_max = sigmas.max()
 
-    for center, sigma in zip(centers, sigmas):
-        ax = pylab.subplot(2, 2, 1)
-        circle = pylab.Circle((center[0], center[1]), sigma, color='b', fill=False)
-        ax.add_artist(circle)
-        pylab.scatter(centers[:, 0], centers[:, 1], c='r')
+    if len(centers) > 0:
+    
+        s_max = sigmas.max()
 
-        x_min = centers[:, 0].min()
-        x_max = centers[:, 0].max()
+        for center, sigma in zip(centers, sigmas):
+            ax = pylab.subplot(2, 2, 1)
+            circle = pylab.Circle((center[0], center[1]), sigma, color='b', fill=False)
+            ax.add_artist(circle)
+            pylab.scatter(centers[:, 0], centers[:, 1], c='r')
 
-        y_min = centers[:, 1].min()
-        y_max = centers[:, 1].max()
+            x_min = centers[:, 0].min()
+            x_max = centers[:, 0].max()
 
-        ax.set_xlim(x_min - s_max, x_max + s_max)
-        ax.set_ylim(y_min - s_max, y_max + s_max)
-        ax.set_xticks([])
-        ax.set_yticks([])
+            y_min = centers[:, 1].min()
+            y_max = centers[:, 1].max()
 
-    for center, sigma in zip(centers, sigmas):
-        ax = pylab.subplot(2, 2, 2)
-        circle = pylab.Circle((center[1], center[2]), sigma, color='b', fill=False)
-        ax.add_artist(circle)
-        pylab.scatter(centers[:, 1], centers[:, 2], c='r')
+            ax.set_xlim(x_min - s_max, x_max + s_max)
+            ax.set_ylim(y_min - s_max, y_max + s_max)
+            ax.set_xticks([])
+            ax.set_yticks([])
 
-        x_min = centers[:, 1].min()
-        x_max = centers[:, 1].max()
+        for center, sigma in zip(centers, sigmas):
+            ax = pylab.subplot(2, 2, 2)
+            circle = pylab.Circle((center[1], center[2]), sigma, color='b', fill=False)
+            ax.add_artist(circle)
+            pylab.scatter(centers[:, 1], centers[:, 2], c='r')
 
-        y_min = centers[:, 2].min()
-        y_max = centers[:, 2].max()
+            x_min = centers[:, 1].min()
+            x_max = centers[:, 1].max()
 
-        ax.set_xlim(x_min - s_max, x_max + s_max)
-        ax.set_ylim(y_min - s_max, y_max + s_max)
-        ax.set_xticks([])
-        ax.set_yticks([])
+            y_min = centers[:, 2].min()
+            y_max = centers[:, 2].max()
 
-    for center, sigma in zip(centers, sigmas):
-        ax = pylab.subplot(2, 2, 3)
-        circle = pylab.Circle((center[0], center[2]), sigma, color='b', fill=False)
-        ax.add_artist(circle)
-        pylab.scatter(centers[:, 0], centers[:, 2], c='r')
+            ax.set_xlim(x_min - s_max, x_max + s_max)
+            ax.set_ylim(y_min - s_max, y_max + s_max)
+            ax.set_xticks([])
+            ax.set_yticks([])
 
-        x_min = centers[:, 0].min()
-        x_max = centers[:, 0].max()
+        for center, sigma in zip(centers, sigmas):
+            ax = pylab.subplot(2, 2, 3)
+            circle = pylab.Circle((center[0], center[2]), sigma, color='b', fill=False)
+            ax.add_artist(circle)
+            pylab.scatter(centers[:, 0], centers[:, 2], c='r')
 
-        y_min = centers[:, 2].min()
-        y_max = centers[:, 2].max()
+            x_min = centers[:, 0].min()
+            x_max = centers[:, 0].max()
 
-        ax.set_xlim(x_min - s_max, x_max + s_max)
-        ax.set_ylim(y_min - s_max, y_max + s_max)
-        ax.set_xticks([])
-        ax.set_yticks([])
+            y_min = centers[:, 2].min()
+            y_max = centers[:, 2].max()
+
+            ax.set_xlim(x_min - s_max, x_max + s_max)
+            ax.set_ylim(y_min - s_max, y_max + s_max)
+            ax.set_xticks([])
+            ax.set_yticks([])
 
     pylab.savefig(output)
     pylab.close()

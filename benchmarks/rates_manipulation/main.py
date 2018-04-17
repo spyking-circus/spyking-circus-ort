@@ -13,10 +13,10 @@ nb_columns = 3
 nb_cells = 10
 duration = 5 * 60
 radius = 100
-preload_templates = True
+preload_templates = False
 nb_waveforms_clustering = 500
-nb_waveforms_pca = 1000
-nb_replay = 3
+nb_waveforms_pca = 500
+nb_replay = 1
 
 
 def main():
