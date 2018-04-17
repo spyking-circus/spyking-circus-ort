@@ -1,5 +1,6 @@
 import numpy as np
 import os
+import time
 
 from circusort.block.block import Block
 from circusort.obj.template_store import TemplateStore
@@ -22,6 +23,7 @@ class Fitter(Block):
 
     params = {
         'init_path': None,
+        'overlaps_init_path': None,
         'with_rejected_times': False,
         'sampling_rate': 20e+3,
         'discarding_eoc_from_updater': False,
@@ -35,6 +37,7 @@ class Fitter(Block):
 
         # The following lines are useful to avoid some PyCharm's warnings.
         self.init_path = self.init_path
+        self.overlaps_init_path = self.overlaps_init_path
         self.with_rejected_times = self.with_rejected_times
         self.sampling_rate = self.sampling_rate
         self.discarding_eoc_from_updater = self.discarding_eoc_from_updater
@@ -75,12 +78,46 @@ class Fitter(Block):
 
     def _initialize_templates(self):
 
+        # # TODO remove the following lines.
+        # string = "{} is initialized with templates from {}"
+        # message = string.format(self.name, self.init_path)
+        # self.log.info(message)
+        # import os
+        # string = "{} os.path.isfile(self.init_path): {}"
+        # message = string.format(self.name, os.path.isfile(self.init_path))
+        # self.log.info(message)
+
         self.template_store = TemplateStore(self.init_path, mode='r')
         self.overlaps_store = OverlapsStore(self.template_store)
 
         string = "{} is initialized with {} templates from {}"
         message = string.format(self.name, self.overlaps_store.nb_templates, self.init_path)
         self.log.info(message)
+
+        # TODO precompute all the overlaps?
+        if self.overlaps_init_path is None:
+            # Log info.
+            string = "{} precomputes all the overlaps..."
+            message = string.format(self.name)
+            self.log.info(message)
+            # Precompute all the overlaps.
+            self.overlaps_store.precompute_overlaps(logger=self.log, name=self.name)
+        else:
+            if os.path.isfile(self.overlaps_init_path):
+                # Log info.
+                string = "{} loads precomputed overlaps from {}..."
+                message = string.format(self.name, self.overlaps_init_path)
+                self.log.info(message)
+                # Load precomputed overlaps.
+                self.overlaps_store.load_internal_overlaps_dictionary(self.overlaps_init_path)
+            else:
+                # Log info.
+                string = "{} precomputes and saves all the overlaps in {}..."
+                message = string.format(self.name, self.overlaps_init_path)
+                self.log.info(message)
+                # Precompute and save all the overlaps.
+                self.overlaps_store.precompute_overlaps(logger=self.log, name=self.name)
+                self.overlaps_store.save_internal_overlaps_dictionary(self.overlaps_init_path)
 
         return
 
@@ -102,6 +139,10 @@ class Fitter(Block):
             return 0
 
     def _guess_output_endpoints(self):
+
+        if self.init_path is not None:
+            self._init_temp_window()
+
         return
 
     def _init_temp_window(self):
@@ -198,14 +239,26 @@ class Fitter(Block):
         nb_peaks = np.count_nonzero(is_in_work_area)
         peaks = self.p[is_in_work_area]
 
+        # # TODO remove the following 3 lines.
+        # string = "{} has {} peaks in the work area among {} peaks"
+        # message = string.format(self.name, nb_peaks, len(self.p))
+        # self.log.debug(message)
+
+        # # TODO remove the following 3 lines.
+        # string = "{} peaks: {}"
+        # message = string.format(self.name, peaks)
+        # self.log.debug(message)
+
         # If there is at least one peak in the work area...
         if 0 < nb_peaks:
 
             # Extract waveforms from buffer.
             waveforms = self._extract_waveforms(peaks)
 
+            self._measure_time('scalar_products_start', frequency=10)  # TODO remove this line.
             # Compute the scalar products between waveforms and templates.
             scalar_products = self.overlaps_store.dot(waveforms)
+            self._measure_time('scalar_products_end', frequency=10)  # TODO remove this line.
 
             # Initialize the failure counter of each peak.
             nb_failures = np.zeros(nb_peaks, dtype=np.int32)
@@ -214,6 +267,12 @@ class Fitter(Block):
             # Filter scalar products of the first component of each template.
             sub_b = scalar_products[:self.overlaps_store.nb_templates, :]
 
+            # # TODO remove the following 3 lines.
+            # string = "{} buffer offset: {}"
+            # message = string.format(self.name, self.offset)
+            # self.log.debug(message)
+
+            self._measure_time('while_loop_start', frequency=10)  # TODO remove this line.
             # TODO rewrite condition according to the 3 last lines of the nested while loop.
             # while not np.all(nb_failures == self.max_nb_trials):
             while np.mean(nb_failures) < self.nb_chances:
@@ -225,8 +284,10 @@ class Fitter(Block):
                 # TODO remove peaks with scalar products equal to zero?
                 # TODO consider the absolute values of the scalar products?
 
+                self._measure_time('for_loop_start', frequency=10)  # TODO remove this line.
                 for peak_index in peak_indices:
 
+                    self._measure_time('for_loop_preamble_start', frequency=10)  # TODO remove this line.
                     # Find the best template.
                     peak_scalar_products = np.take(sub_b, peak_index, axis=1)
                     best_template_index = np.argmax(peak_scalar_products, axis=0)
@@ -246,14 +307,23 @@ class Fitter(Block):
                     # Verify amplitude constraint.
                     a_min = self.overlaps_store.amplitudes[best_template_index, 0]
                     a_max = self.overlaps_store.amplitudes[best_template_index, 1]
+                    self._measure_time('for_loop_preamble_end', frequency=10)  # TODO remove this line.
 
+                    self._measure_time('for_loop_process_start', frequency=10)  # TODO remove this line.
                     if (a_min <= best_amplitude_) & (best_amplitude_ <= a_max):
+                        # # TODO remove the following 3 lines.
+                        # string = "{} processes (p {}, t {}) -> (a {}, keep)"
+                        # message = string.format(self.name, peak_index, best_template_index, best_amplitude)
+                        # self.log.debug(message)
+                        self._measure_time('for_loop_accept_start', frequency=10)  # TODO remove this line.
                         # Keep the matching.
                         peak_time_step = peaks[peak_index]
                         # # Compute the neighboring peaks.
                         # # TODO use this definition of `is_neighbor` instead of the other.
                         # is_neighbor = np.abs(peaks - peak_index) <= 2 * self._width
 
+                        self._measure_time('for_loop_update_start', frequency=10)  # TODO remove this line.
+                        self._measure_time('for_loop_update_1_start', frequency=10) # TODO remove this line.
                         # Update scalar products.
                         # TODO simplify the following 11 lines.
                         tmp = np.dot(np.ones((1, 1), dtype=np.int32), np.reshape(peaks, (1, nb_peaks)))
@@ -262,23 +332,37 @@ class Fitter(Block):
                         ytmp = tmp[0, is_neighbor[0, :]] + self._2_width
                         indices = np.zeros((self.overlaps_store.size, len(ytmp)), dtype=np.int32)
                         indices[ytmp, np.arange(len(ytmp))] = 1
+                        self._measure_time('for_loop_update_1_end', frequency=10)  # TODO remove this line.
 
-                        tmp1_ = self.overlaps_store.get_overlaps(best_template_index, '1')
+                        self._measure_time('for_loop_update_2_start', frequency=10)  # TODO remove this line.
+                        self._measure_time('for_loop_overlaps_start', frequency=10)  # TODO remove this line.
+                        tmp1_ = self.overlaps_store.get_overlaps(best_template_index, '1', block_ref=self)  # TODO remove 'block_ref'.
+                        self._measure_time('for_loop_overlaps_end', frequency=10)  # TODO remove this line.
                         tmp1 = tmp1_.multiply(-best_amplitude).dot(indices)
                         scalar_products[:, is_neighbor[0, :]] += tmp1
+                        self._measure_time('for_loop_update_2_end', frequency=10)  # TODO remove this line.
 
                         if self.overlaps_store.two_components:
                             tmp2_ = self.overlaps_store.get_overlaps(best_template_index, '2')
                             tmp2 = tmp2_.multiply(-best_amplitude_2).dot(indices)
                             scalar_products[:, is_neighbor[0, :]] += tmp2
+                        self._measure_time('for_loop_update_end', frequency=10)  # TODO remove this line.
 
+                        self._measure_time('for_loop_concatenate_start', frequency=10)  # TODO remove this line.
                         # Add matching to the result.
                         self.r['spike_times'] = np.concatenate((self.r['spike_times'], [peak_time_step]))
                         self.r['amplitudes'] = np.concatenate((self.r['amplitudes'], [best_amplitude_]))
                         self.r['templates'] = np.concatenate((self.r['templates'], [best_template_index]))
+                        self._measure_time('for_loop_concatenate_end', frequency=10)  # TODO remove this line.
                         # Mark current matching as tried.
                         mask[best_template_index, peak_index] = 0
+                        self._measure_time('for_loop_accept_end', frequency=10)  # TODO remove this line.
                     else:
+                        # # TODO remove the following 3 lines.
+                        # string = "{} processes (p {}, t {}) -> (a {}, reject)"
+                        # message = string.format(self.name, peak_index, best_template_index, best_amplitude)
+                        # self.log.debug(message)
+                        self._measure_time('for_loop_reject_start', frequency=10)  # TODO remove this line.
                         # Reject the matching.
                         # Update failure counter of the peak.
                         nb_failures[peak_index] += 1
@@ -293,6 +377,10 @@ class Fitter(Block):
                                                                        [peaks[peak_index]]))
                             self.r['rejected_amplitudes'] = np.concatenate((self.r['rejected_amplitudes'],
                                                                             [best_amplitude_]))
+                        self._measure_time('for_loop_reject_end', frequency=10)  # TODO remove this line.
+                    self._measure_time('for_loop_process_end', frequency=10)  # TODO remove this line.
+                self._measure_time('for_loop_end', frequency=10)  # TODO remove this line.
+            self._measure_time('while_loop_end', frequency=10)  # TODO remove this line.
 
             # Handle result.
             keys = ['spike_times', 'amplitudes', 'templates']
@@ -412,6 +500,10 @@ class Fitter(Block):
         if self.is_active:
             peaks = self.get_input('peaks').receive(blocking=True)
             self._handle_peaks(peaks)
+            # # TODO remove the 3 following lines.
+            # string = "{} collects peaks {} (shift {}, reg)"
+            # message = string.format(self.name, peaks['offset'], shift)
+            # self.log.debug(message)
         else:
             peaks = self.inputs['peaks'].receive(blocking=False)
             if peaks is None:
@@ -419,17 +511,31 @@ class Fitter(Block):
             else:
                 p = self.nb_samples + self._merge_peaks(peaks)
                 self.p = p
+                # # TODO remove the 3 following lines.
+                # string = "{} collects peaks {} (shift {}, init)"
+                # message = string.format(self.name, peaks['offset'], shift)
+                # self.log.debug(message)
+                # # TODO remove the 3 following lines.
+                # string = "{} synchronizes peaks ({}, {}, {}, {}, {})"
+                # message = string.format(self.name, self.nb_samples, self._nb_fitters, self._fitter_id, shift, self.counter)
+                # self.log.debug(message)
                 # Synchronize peak reception.
                 while not self._sync_buffer(peaks, self.nb_samples, nb_parallel_blocks=self._nb_fitters,
                                             parallel_block_id=self._fitter_id, shift=shift):
                     peaks = self.inputs['peaks'].receive(blocking=True)
                     self._handle_peaks(peaks)
+                    # # TODO remove the 3 following lines.
+                    # string = "{} collects peaks {} (shift {}, sync)"
+                    # message = string.format(self.name, peaks['offset'], shift)
+                    # self.log.debug(message)
                 # Set active mode.
                 self._set_active_mode()
 
         return
 
     def _process(self):
+
+        self._measure_time('preamble_start', frequency=10)  # TODO remove this line.
 
         # First, collect all the buffers we need.
         # # Prepare everything to collect buffers.
@@ -454,6 +560,8 @@ class Fitter(Block):
         updater = self.get_input('updater').receive(blocking=False,
                                                     discarding_eoc=self.discarding_eoc_from_updater)
 
+        self._measure_time('preamble_end', frequency=10)  # TODO remove this line.
+
         if updater is not None:
 
             self._measure_time('update_start', frequency=1)
@@ -466,8 +574,9 @@ class Fitter(Block):
                     self.overlaps_store = OverlapsStore(self.template_store)
                     self._init_temp_window()
                 else:
-                    self.overlaps_store.update(updater['indices'])
-                self.overlaps_store.clear_overlaps()
+                    self.overlaps_store.update(updater['indices'], logger=self.log, name=self.name)  # TODO remove the 'logger' and 'name' keyword arguments.
+                # TODO comment the following line?
+                # self.overlaps_store.clear_overlaps()
 
                 updater = self.get_input('updater').receive(blocking=False,
                                                             discarding_eoc=self.discarding_eoc_from_updater)
@@ -478,12 +587,16 @@ class Fitter(Block):
 
             if self.nb_templates > 0:
 
-                self._measure_time('start', frequency=100)
+                self._measure_time('start', frequency=10)  # TODO set frequency to 100.
 
+                self._measure_time('fit_start', frequency=10)  # TODO remove this line.
                 self._fit_chunk()
+                self._measure_time('fit_end', frequency=10)  # TODO remove this line.
+                self._measure_time('output_start', frequency=10)  # TODO remove this line.
                 self.get_output('spikes').send(self.r)
+                self._measure_time('output_end', frequency=10)  # TODO remove this line.
 
-                self._measure_time('end', frequency=100)
+                self._measure_time('end', frequency=10)  # TODO set frequency to 100.
 
             elif self._nb_fitters > 1:
 
