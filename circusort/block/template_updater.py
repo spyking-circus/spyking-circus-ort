@@ -5,23 +5,19 @@ import tempfile
 from circusort.block.block import Block
 from circusort.io.probe import load_probe
 from circusort.io.template import load_template
-from circusort.obj.template_store import TemplateStore
+from circusort.obj.template_store import TemplateStore, TemplateComponent, Template
 from circusort.obj.template_dictionary import TemplateDictionary
 from circusort.io.template import load_template_from_dict
-
 
 class Template_updater(Block):
     """Template updater
 
     Attributes:
-        probe_path: string
-        radius: float
-        cc_merge: float
-        cc_mixture: float
-        data_path: string
-        precomputed_template_paths: none | list
-        sampling_rate: float
-        nb_samples: integer
+        probe_path: string (optional)
+        radius: float (optional)
+        cc_merge: float (optional)
+        cc_mixture: float (optional)
+        data_path: string (optional)
     """
     # TODO complete docstring.
 
@@ -39,19 +35,6 @@ class Template_updater(Block):
     }
 
     def __init__(self, **kwargs):
-        """Initialize template updater.
-
-        Arguments:
-            probe_path: none | string (optional)
-            radius: none | float (optional)
-            cc_merge: float (optional)
-            cc_mixture: none | float (optional)
-            data_path: none | string (optional)
-            precomputed_template_paths: none | list (optional)
-            sampling_rate: float (optional)
-            nb_samples: integer (optional)
-        """
-        # TODO complete docstring.
 
         Block.__init__(self, **kwargs)
 
@@ -67,13 +50,11 @@ class Template_updater(Block):
 
         if self.probe_path is None:
             self.probe = None
-            # Log error message.
             string = "{}: the probe file must be specified!"
             message = string.format(self.name)
             self.log.error(message)
         else:
             self.probe = load_probe(self.probe_path, radius=self.radius, logger=self.log)
-            # Log info message.
             string = "{} reads the probe layout"
             message = string.format(self.name)
             self.log.info(message)
@@ -84,8 +65,6 @@ class Template_updater(Block):
         self.two_components = None
 
     def _initialize(self):
-        """Initialize template updater."""
-        # TODO complete docstring.
 
         # Initialize path to save the templates.
         if self.data_path is None:
@@ -104,9 +83,8 @@ class Template_updater(Block):
         self.template_dictionary = TemplateDictionary(self.template_store, cc_merge=self.cc_merge,
                                                       cc_mixture=self.cc_mixture)
 
-        # Log info message.
-        string = "{} records templates into {}"
-        message = string.format(self.name, self.data_path)
+        # Log path.
+        message = "{} records templates into {}".format(self.name, self.data_path)
         self.log.info(message)
 
         # Define precomputed templates (if necessary).
@@ -126,11 +104,10 @@ class Template_updater(Block):
                 message = string.format(self.name, len(accepted))
                 self.log.debug(message)
 
-            # Send output data.
+                # Send output data.
             self._precomputed_output = {
                 'templates_file': self.template_store.file_name,
-                # 'indices': accepted,  # TODO check if the benchmarks still work with this modification.
-                'indices': [],
+                'indices': accepted,
             }
         else:
             self._precomputed_output = None
@@ -139,7 +116,6 @@ class Template_updater(Block):
 
     @staticmethod
     def _get_tmp_path():
-        # TODO add docstring.
 
         tmp_directory = tempfile.gettempdir()
         tmp_basename = "templates.h5"
@@ -148,12 +124,10 @@ class Template_updater(Block):
         return tmp_path
 
     def _guess_output_endpoints(self):
-        # TODO add docstring.
 
         return
 
     def _data_to_templates(self, data):
-        # TODO add docstring.
 
         all_templates = []
         keys = [key for key in data.keys() if key not in ['offset']]
@@ -174,7 +148,6 @@ class Template_updater(Block):
         return all_templates
 
     def _process(self):
-        # TODO add docstring.
 
         # Send precomputed templates.
         if self.counter == 0 and self._precomputed_output is not None:
@@ -197,17 +170,14 @@ class Template_updater(Block):
 
             # Log some information.
             if nb_duplicates > 0:
-                # Log debug message.
                 string = "{} rejected {} duplicated templates"
                 message = string.format(self.name, nb_duplicates)
                 self.log.debug(message)
             if nb_mixtures > 0:
-                # Log debug message.
                 string = "{} rejected {} composite templates"
                 message = string.format(self.name, nb_mixtures)
                 self.log.debug(message)
             if len(accepted) > 0:
-                # Log debug message.
                 string = "{} accepted {} templates"
                 message = string.format(self.name, len(accepted))
                 self.log.debug(message)
@@ -237,7 +207,6 @@ class Template_updater(Block):
         mean_ratio = np.mean(ratios) if ratios.size > 0 else np.nan
         max_ratio = np.max(ratios) if ratios.size > 0 else np.nan
 
-        # Log info message.
         string = "{} processed {} buffers [speed:x{:.2f} (min:x{:.2f}, max:x{:.2f})]"
         message = string.format(self.name, nb_buffers, mean_ratio, min_ratio, max_ratio)
         self.log.info(message)

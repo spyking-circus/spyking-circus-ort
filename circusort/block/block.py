@@ -1,10 +1,9 @@
 import threading
-import traceback
 import zmq
 import logging
 import time
 
-from circusort.base.endpoint import Endpoint, EOCError, LOCError
+from circusort.base.endpoint import Endpoint, EOCError
 from circusort.base.utils import get_log
 from circusort.io.time_measurements import save_time_measurements
 
@@ -19,17 +18,6 @@ class Block(threading.Thread):
     outputs = {}
 
     def __init__(self, name=None, log_address=None, log_level=logging.INFO, **kwargs):
-        """Initialize block.
-
-        Arguments:
-            name: none | string (optional)
-                The default value is None.
-            log_address: none | string (optional)
-                The default value is None.
-            log_level: integer (optional)
-                The default value is logging.INFO.
-        """
-        # TODO add docstring.
 
         threading.Thread.__init__(self)
 
@@ -59,7 +47,6 @@ class Block(threading.Thread):
         self.counter = 0
         self.mpl_display = False
         self.introspection_path = None
-        self._timeout = 60000  # ms
 
         self.context = zmq.Context()
         self.params.update(kwargs)
@@ -71,12 +58,9 @@ class Block(threading.Thread):
 
     def __del__(self):
 
-        # Log debug message.
         string = "{} is destroyed"
         message = string.format(self.name)
         self.log.debug(message)
-
-        return
 
     def set_manager(self, manager_name):
 
@@ -100,7 +84,6 @@ class Block(threading.Thread):
 
     def initialize(self):
 
-        # Log debug message.
         string = "{} is initialized."
         message = string.format(self.name)
         self.log.debug(message)
@@ -114,45 +97,23 @@ class Block(threading.Thread):
     def input(self):
 
         if len(self.inputs) == 1:
-            input_ = self.inputs[self.inputs.keys()[0]]
+            return self.inputs[self.inputs.keys()[0]]
         elif len(self.inputs) == 0:
-            # Log error message.
-            string = "{} has no inputs"
-            message = string.format(self.name)
-            self.log.error(message)
-            # Raise error.
-            raise AttributeError()
+            self.log.error('{n} has no Inputs'.format(n=self.name))
         else:
-            # Log error message.
-            string = "{} has multiple inputs:{}, you must be more explicit"
-            message = string.format(self.name, self.inputs.keys())
-            self.log.error(message)
-            # Raise error.
-            raise AttributeError()
-
-        return input_
+            error_msg = "{n} has multiple Inputs:{i}, you must be more explicit"
+            self.log.error(error_msg.format(n=self.name, i=self.inputs.keys()))
 
     @property
     def output(self):
 
         if len(self.outputs) == 1:
-            output = self.outputs[self.outputs.keys()[0]]
+            return self.outputs[self.outputs.keys()[0]]
         elif len(self.outputs) == 0:
-            # Log error message.
-            string = "{} has no outputs"
-            message = string.format(self.name)
-            self.log.error(message)
-            # Raise error.
-            raise AttributeError()
+            self.log.error('{n} has no Outputs'.format(n=self.name))
         else:
-            # Log error message.
-            string = "{} has multiple outputs:{}, you must be more explicit"
-            message = string.format(self.name, self.outputs.keys())
-            self.log.error(message)
-            # Raise error.
-            raise AttributeError()
-
-        return output
+            error_msg = "{n} has multiple Outputs:{o}, you must be more explicit"
+            self.log.error(error_msg.format(n=self.name, o=self.outputs.keys()))
 
     @property
     def nb_inputs(self):
@@ -174,13 +135,12 @@ class Block(threading.Thread):
 
     def connect(self, key):
 
-        # Log debug message.
         string = "{} establishes connections"
         message = string.format(self.name)
         self.log.debug(message)
 
         self.get_input(key).socket = self.context.socket(zmq.SUB)
-        self.get_input(key).socket.setsockopt(zmq.RCVTIMEO, self._timeout)
+        self.get_input(key).socket.setsockopt(zmq.RCVTIMEO, 5000)  # Timeout after 5 s.
         self.get_input(key).socket.connect(self.get_input(key).addr)
         self.get_input(key).socket.setsockopt(zmq.SUBSCRIBE, "")
 
@@ -198,7 +158,6 @@ class Block(threading.Thread):
                 raise AttributeError(message)
         self.ready = False
 
-        # Log debug message.
         string = "{} is configured"
         message = string.format(self.name)
         self.log.debug(message)
@@ -213,7 +172,6 @@ class Block(threading.Thread):
 
         if self.nb_inputs > 0 and self.nb_outputs > 0:
 
-            # Log debug message.
             string = "{} guesses output connections"
             message = string.format(self.name)
             self.log.debug(message)
@@ -236,64 +194,44 @@ class Block(threading.Thread):
         if not self.ready:
             self.initialize()
 
-        # Log debug message.
-        string = "{} is running"
-        message = string.format(self.name)
+        message = "{} is running".format(self.name)
         self.log.debug(message)
 
         self.running = True
         self._set_start_step()
 
-        try:
-
-            if self.nb_steps is not None:
-                while self.counter < self.nb_steps:
+        if self.nb_steps is not None:
+            while self.counter < self.nb_steps:
+                self._process()
+                self.counter += 1
+                # if numpy.mod(self.counter, self.check_interval) == 0:
+                #     self._check_real_time_ratio()
+        else:
+            try:
+                while self.running and not self.stop_pending:
+                    self._process()
+                    self.counter += 1
+            except EOCError:
+                for output in self.outputs.itervalues():
+                    output.send_end_connection()
+                self.stop_pending = True
+                self.running = False
+            if self.running and self.stop_pending and self.nb_inputs == 0:
+                # In this condition, the block is a source block.
+                for output in self.outputs.itervalues():
+                    output.send_end_connection()
+                self.running = False
+            try:
+                while self.running and self.stop_pending:
                     self._process()
                     self.counter += 1
                     # if numpy.mod(self.counter, self.check_interval) == 0:
                     #     self._check_real_time_ratio()
-            else:
-                try:
-                    while self.running and not self.stop_pending:
-                        self._process()
-                        self.counter += 1
-                except (LOCError, EOCError):
-                    for output in self.outputs.itervalues():
-                        output.send_end_connection()
-                    self.stop_pending = True
-                    self.running = False
-                if self.running and self.stop_pending and self.nb_inputs == 0:
-                    # In this condition, the block is a source block.
-                    for output in self.outputs.itervalues():
-                        output.send_end_connection()
-                    self.running = False
-                try:
-                    while self.running and self.stop_pending:
-                        self._process()
-                        self.counter += 1
-                        # if numpy.mod(self.counter, self.check_interval) == 0:
-                        #     self._check_real_time_ratio()
-                except (LOCError, EOCError):
-                    for output in self.outputs.itervalues():
-                        output.send_end_connection()
-                    self.running = False
+            except EOCError:
+                for output in self.outputs.itervalues():
+                    output.send_end_connection()
+                self.running = False
 
-        except Exception as e:  # i.e. unexpected exception
-
-            # Send EOC signal through each output.
-            for output in self.outputs.itervalues():
-                output.send_end_connection()
-            # Switch running flag.
-            self.running = False
-            # Log exception name and trace.
-            exception_name = e.__name__
-            exception_trace = traceback.format_exc()
-            # Log debug message.
-            string = "{} in block {}: {}"
-            message = string.format(exception_name, self.name, exception_trace)
-            self.log.debug(message)
-
-        # Log debug message.
         string = "{} is stopped"
         message = string.format(self.name)
         self.log.debug(message)
@@ -312,15 +250,15 @@ class Block(threading.Thread):
     def _introspect(self):
         """Introspection of this block."""
 
-        # Log info message.
         nb_buffers = self.counter - self.start_step
         if self.real_time_ratio is not None:
             string = "{} processed {} buffers [{} x real time]"
             message = string.format(self.name, nb_buffers, self.real_time_ratio)
+            self.log.info(message)
         else:
             string = "{} processed {} buffers"
             message = string.format(self.name, nb_buffers)
-        self.log.info(message)
+            self.log.info(message)
 
         return
 
@@ -362,7 +300,6 @@ class Block(threading.Thread):
 
         data = self.real_time_ratio
         if data is not None and data <= 1 and self.is_active:
-            # Log warning message.
             string = "{} is lagging, running at {} x real time"
             message = string.format(self.name_and_counter, data)
             self.log.warning(message)
@@ -419,12 +356,9 @@ class Block(threading.Thread):
 
     def _set_active_mode(self):
 
-        # Log debug message.
-        string = "{} is now active"
-        message = string.format(self.name_and_counter)
-        self.log.debug(message)
-
         self.is_active = True
+        message = "{} is now active".format(self.name_and_counter)
+        self.log.debug(message)
         self._set_start_step()
 
         return

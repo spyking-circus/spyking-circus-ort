@@ -5,11 +5,11 @@ import tempfile
 import os
 
 
-class Logger(object):
-    """Logging server."""
-    # TODO complete docstring.
 
-    def __init__(self, interface='127.0.0.1', path=None):
+class Logger(object):
+    '''Logging server.'''
+
+    def __init__(self, interface='127.0.0.1'):
 
         zmq_context = zmq.Context.instance()
 
@@ -27,10 +27,8 @@ class Logger(object):
         command += ['-m', 'circusort.cli.logger']
         command += ['-e', tmp_endpoint]
         command += ['-i', interface]
-        if path is not None:
-            command += ['-p', path]
-        # print(' '.join(command))
-        self.process = Popen(command)
+        #print(' '.join(command))
+        process = Popen(command)
 
         # 3. receive greetings
         message = tmp_socket.recv_json()

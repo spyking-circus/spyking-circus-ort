@@ -1,4 +1,3 @@
-import collections
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np
@@ -78,30 +77,11 @@ class TemplateComponent(object):
         self.waveforms /= self.norm
 
     def similarity(self, component):
-        """Compute the correlation coefficient between two template components.
 
-        Argument:
-            component: circusort.obj.TemplateComponent
-                The template component with which the correlation coefficient has to be computed.
-        Return:
-            coefficient: float
-                The correlation coefficient between the to template components. A value between +1.0 and -1.0.
-        """
-
-        if self.intersect(component):
-            # Format 1st component.
-            c1 = self.to_dense()
-            c1 = c1.flatten()
-            # Format 2nd component.
-            c2 = component.to_dense()
-            c2 = c2.flatten()
-            # Compute the Pearson product-moment correlation coefficients (2 x 2 matrix).
-            r = np.corrcoef(c1, c2)
-            coefficient = r[0, 1]
+        if not self.intersect(component):
+            return 0
         else:
-            coefficient = 0.0
-
-        return coefficient
+            return np.corrcoef(self.to_dense().flatten(), component.to_dense().flatten())[0, 1]
 
     def intersect(self, component):
 
@@ -256,29 +236,14 @@ class Template(object):
         return self.first_component.intersect(template)
 
     def similarity(self, template):
-        """Compute the similarities between templates.
 
-        Argument:
-            template: circusort.obj.Template | collections.Iterable
-                The templates with which similarities have to be computed.
-        Return:
-            coefficient: float | numpy.ndarray
-                The similarities between templates.
-        """
-
-        if isinstance(template, Template):
-            coefficient = self.first_component.similarity(template.first_component)
-        elif isinstance(template, collections.Iterable):
-            coefficient = np.array([
-                self.first_component.similarity(t.first_component)
-                for t in template
-            ])
+        if type(template) == list:
+            res = []
+            for t in template:
+                res += [self.first_component.similarity(t.first_component)]
+            return res
         else:
-            string = "Unexpected type: {}"
-            message = string.format(type(template))
-            raise TypeError(message)
-
-        return coefficient
+            return self.first_component.similarity(template.first_component)
 
     def _auto_compression(self):
 

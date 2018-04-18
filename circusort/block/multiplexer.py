@@ -1,17 +1,8 @@
-import numpy as np
-
 from circusort.block.block import Block
 
 
 class Multiplexer(Block):
-    """Multiplexer.
-
-    Attributes:
-        output_specs
-        degree: integer
-        nb_samples: integer
-        sampling_rate: float
-    """
+    """Multiplexer"""
     # TODO complete docstring.
 
     name = "Multiplexer"
@@ -26,31 +17,15 @@ class Multiplexer(Block):
         # or
         # 'output_specs': ["data"],
         'degree': 2,
-        'nb_samples': 1024,
-        'sampling_rate': 20e+3,  # Hz
     }
 
     def __init__(self, **kwargs):
-        """Initialize multiplexer.
-
-        Arguments:
-            output_specs: list (optional)
-            degree: integer (optional)
-                The default value is 2.
-            nb_samples: integer (optional)
-                The default value is 1024.
-            sampling_rate: float (optional)
-                The default value is 20e+3.
-        """
-        # TODO complete docstring.
 
         Block.__init__(self, **kwargs)
 
         # The following lines are useful to avoid some PyCharms's warnings.
         self.output_specs = self.output_specs
         self.degree = self.degree
-        self.nb_samples = self.nb_samples
-        self.sampling_rate = self.sampling_rate
 
         # Declare output names and structures.
         self._output_names = []
@@ -81,21 +56,18 @@ class Multiplexer(Block):
 
     @staticmethod
     def _get_input_name(name, k):
-        # TODO add docstring.
 
         input_name = "{}_{}".format(name, k)
 
         return input_name
 
     def _initialize(self):
-        # TODO add docstring.
 
         pass
 
         return
 
     def _guess_output_endpoints(self):
-        # TODO add docstring.
 
         for output_name, structure in zip(self._output_names, self._output_structures):
             if structure == 'array':
@@ -111,12 +83,10 @@ class Multiplexer(Block):
                         input_name = self._get_input_name(output_name, k)
                         input_ = self.get_input(input_name)
                         if input_.dtype != dtype:
-                            # Log error message.
                             string = "Different input dtypes for the multiplexer ({} or {})"
                             message = string.format(input_.dtype, dtype)
                             self.log.error(message)
                         if input_.shape != shape:
-                            # Log error message.
                             string = "Different input shapes for the multiplexer ({} or {})"
                             message = string.format(input_.shape, shape)
                             self.log.error(message)
@@ -128,69 +98,20 @@ class Multiplexer(Block):
         return
 
     def _process(self):
-        # TODO add docstring.
 
-        try:
+        # Get token (i.e. which input should we use?).
+        token = self.counter % self.degree
 
-            # Get token (i.e. which input should we use?).
-            token = self.counter % self.degree
+        for output_name in self._output_names:
 
-            # Get data.
-            input_data = {}
-            for output_name in self._output_names:
-                input_name = self._get_input_name(output_name, token)
-                input_ = self.inputs[input_name]
-                input_data[output_name] = input_.receive(blocking=True)
-
-            self._measure_time('start', frequency=100)
-
-            # Send data.
-            for output_name, data in input_data.iteritems():
-
-                self.outputs[output_name].send(data)
-
-            self._measure_time('end', frequency=100)
-
-        except Exception as exception:
-
-            # Log error message.
-            string = "{} raises {} in _process"
-            message = string.format(self.name, exception)
-            self.log.error(message)
-            # Reraise the exception.
-            raise exception
+            input_name = self._get_input_name(output_name, token)
+            data = self.inputs[input_name].receive(blocking=True)
+            self.outputs[output_name].send(data)
 
         return
 
     def _introspect(self):
-        """Introspection of the multiplexing."""
-        # TODO complete docstring.
 
-        try:
-
-            nb_buffers = self.counter - self.start_step
-            start_times = np.array(self._measured_times.get('start', []))
-            end_times = np.array(self._measured_times.get('end', []))
-            durations = end_times - start_times
-            data_duration = float(self.nb_samples) / self.sampling_rate
-            ratios = data_duration / durations
-
-            min_ratio = np.min(ratios) if ratios.size > 0 else np.nan
-            mean_ratio = np.mean(ratios) if ratios.size > 0 else np.nan
-            max_ratio = np.max(ratios) if ratios.size > 0 else np.nan
-
-            # Log info message.
-            string = "{} processed {} buffers [speed:x{:.2f} (min:x{:.2f}, max:x{:.2f})]"
-            message = string.format(self.name, nb_buffers, mean_ratio, min_ratio, max_ratio)
-            self.log.info(message)
-
-        except Exception as exception:
-
-            # Log error message.
-            string = "{} raises {} in _introspect"
-            message = string.format(exception)
-            self.log.error(message)
-            # Reraise the exception.
-            raise exception
+        pass
 
         return

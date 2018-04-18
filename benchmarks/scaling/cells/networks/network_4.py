@@ -10,8 +10,6 @@ name = "network_4"
 directory = os.path.join("~", ".spyking-circus-ort", "benchmarks", "scaling", "cells", name)
 directory = os.path.expanduser(directory)
 
-nb_fitters = 4
-
 block_names = [
     "reader",
     "filter",
@@ -20,14 +18,13 @@ block_names = [
     "pca",
     "cluster",
     "updater",
+    "fitter_fitter_0",
+    "fitter_fitter_1",
     "writer",
-] + [
-    "fitter_fitter_{}".format(k)
-    for k in range(0, nb_fitters)
 ]
 block_nb_buffers = {
-    "fitter_fitter_{}".format(k): nb_fitters
-    for k in range(0, nb_fitters)
+    "fitter_fitter_0": 2,
+    "fitter_fitter_1": 2,
 }
 
 
@@ -43,7 +40,6 @@ def sorting(configuration_name):
     generation_directory = os.path.join(directory, "generation", configuration_name)
     sorting_directory = os.path.join(directory, "sorting", configuration_name)
     introspection_directory = os.path.join(directory, "introspection", configuration_name)
-    log_directory = os.path.join(directory, "log", configuration_name)
 
     # Load generation parameters.
     parameters = circusort.io.get_data_parameters(generation_directory)
@@ -52,15 +48,10 @@ def sorting(configuration_name):
     hosts = {
         'master': '192.168.0.254',
         'slave_1': '192.168.0.1',
-        'slave_2': '192.168.0.4',
-        'slave_3': '192.168.0.7',
+        'slave_2': '192.168.0.2',
+        'slave_3': '192.168.0.3',
     }
-    hosts_keys = [  # ordered
-        'master',
-        'slave_1',
-        'slave_2',
-        'slave_3',
-    ]
+    hosts_keys = ['master', 'slave_1', 'slave_2', 'slave_3']  # ordered
     dtype = parameters['general']['dtype']
     nb_channels = parameters['probe']['nb_channels']
     nb_samples = parameters['general']['buffer_width']
@@ -77,13 +68,8 @@ def sorting(configuration_name):
         os.makedirs(sorting_directory)
     if not os.path.isdir(introspection_directory):
         os.makedirs(introspection_directory)
-    if not os.path.isdir(log_directory):
-        os.makedirs(log_directory)
 
     # Define keyword arguments.
-    director_kwargs = {
-        'log_path': os.path.join(log_directory, "log.txt"),
-    }
     reader_kwargs = {
         'name': "reader",
         'data_path': os.path.join(generation_directory, "data.raw"),
@@ -97,7 +83,7 @@ def sorting(configuration_name):
     }
     filter_kwargs = {
         'name': "filter",
-        'cut_off': 1.0,  # Hz
+        'cut_off': 0.0,  # Hz
         'introspection_path': introspection_directory,
         'log_level': DEBUG,
     }
@@ -111,12 +97,6 @@ def sorting(configuration_name):
         'name': "detector",
         'threshold_factor': threshold_factor,
         'sampling_rate': sampling_rate,
-        'introspection_path': introspection_directory,
-        'log_level': DEBUG,
-    }
-    peak_writer_kwargs = {
-        'name': "peak_writer",
-        'data_path': os.path.join(sorting_directory, "peaks.h5"),
         'introspection_path': introspection_directory,
         'log_level': DEBUG,
     }
@@ -148,9 +128,6 @@ def sorting(configuration_name):
     }
     fitter_kwargs = {
         'name': "fitter",
-        'degree': nb_fitters,
-        'init_path': os.path.join(sorting_directory, "templates.h5"),
-        'overlaps_init_path': os.path.join(sorting_directory, "overlaps_dict.pkl"),
         'sampling_rate': sampling_rate,
         'discarding_eoc_from_updater': True,
         'introspection_path': introspection_directory,
@@ -166,7 +143,7 @@ def sorting(configuration_name):
     }
 
     # Define the elements of the network.
-    director = circusort.create_director(host=hosts['master'], **director_kwargs)
+    director = circusort.create_director(host=hosts['master'])
     managers = {
         key: director.create_manager(host=hosts[key])
         for key in hosts_keys
@@ -175,11 +152,11 @@ def sorting(configuration_name):
     filter_ = managers['slave_1'].create_block('filter', **filter_kwargs)
     mad = managers['slave_1'].create_block('mad_estimator', **mad_kwargs)
     detector = managers['slave_1'].create_block('peak_detector', **detector_kwargs)
-    peak_writer = managers['slave_1'].create_block('peak_writer', **peak_writer_kwargs)
     pca = managers['slave_1'].create_block('pca', **pca_kwargs)
     cluster = managers['slave_2'].create_block('density_clustering', **cluster_kwargs)
     updater = managers['slave_2'].create_block('template_updater', **updater_kwargs)
-    fitter = managers['slave_3'].create_network('fitter', **fitter_kwargs)
+    # fitter = managers['slave_3'].create_block('template_fitter', **fitter_kwargs)
+    fitter = managers['slave_3'].create_network('template_fitter', **fitter_kwargs)
     writer = managers['master'].create_block('spike_writer', **writer_kwargs)
     # Initialize the elements of the network.
     director.initialize()
@@ -199,7 +176,6 @@ def sorting(configuration_name):
         cluster.get_input('mads'),
     ])
     director.connect(detector.get_output('peaks'), [
-        peak_writer.get_input('peaks'),
         pca.get_input('peaks'),
         cluster.get_input('peaks'),
         fitter.get_input('peaks'),
@@ -213,9 +189,9 @@ def sorting(configuration_name):
     director.connect(updater.get_output('updater'), [
         fitter.get_input('updater'),
     ])
-    director.connect_network(fitter)
-    director.connect(fitter.get_output('spikes'), [
-        writer.get_input('spikes'),
+    director.connect_subnetwork(fitter)
+    director.connect(fitter.output, [
+        writer.input,
     ])
     # Launch the network.
     director.start()

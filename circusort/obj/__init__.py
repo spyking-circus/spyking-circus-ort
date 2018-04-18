@@ -11,5 +11,3 @@ from .overlaps_store import OverlapsStore
 from .datafile import DataFile
 from .madfile import MADFile
 from .peaks import Peaks
-from .similarities import Similarities
-from .matches import Matches

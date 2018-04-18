@@ -2,14 +2,7 @@ from circusort.net.network import Network
 
 
 class Fitter(Network):
-    """Fitter.
-
-    Attributes:
-        degree: integer
-        nb_samples: integer
-        init_path: none | string
-        overlaps_init_path: none | string
-    """
+    """Fitter"""
     # TODO complete docstring.
 
     name = "Fitter network"
@@ -17,36 +10,18 @@ class Fitter(Network):
     params = {
         'degree': 2,
         'nb_samples': 1024,
-        'init_path': None,
-        'overlaps_init_path': None,
     }
 
     def __init__(self, *args, **kwargs):
-        """Initialize fitter.
-
-        Arguments:
-            degree: integer (optional)
-                The default value is 2.
-            nb_samples: integer (optional)
-                The default value is 1024.
-            init_path: none | string (optional)
-                The default value is None.
-            overlaps_init_pat: none | string (optional)
-                The default value is None.
-        """
-        # TODO complete docstring.
 
         Network.__init__(self, *args, **kwargs)
 
         # The following lines are useful to avoid some Pycharm's warnings.
         self.degree = self.degree
         self.nb_samples = self.nb_samples
-        self.init_path = self.init_path
-        self.overlaps_init_path = self.overlaps_init_path
 
     def _create_blocks(self):
         """Create the blocks of the network."""
-        # TODO complete docstring.
 
         demultiplexer_kwargs = {
             'name': 'demultiplexer',
@@ -72,16 +47,9 @@ class Fitter(Network):
             'nb_samples': self.nb_samples,
             'log_level': self.log_level,
         }
-        demultiplexer_kwargs.update({
-            key: value
-            for key, value in self.params.iteritems()
-            if key in ['introspection_path']
-        })
         fitters_kwargs = {
             k: {
                 'name': "{} fitter {}".format(self.name, k),
-                'init_path': self.init_path,
-                'overlap_init_path': self.overlaps_init_path,
                 '_nb_fitters': self.degree,
                 '_fitter_id': k,
                 'log_level': self.log_level,
@@ -105,11 +73,6 @@ class Fitter(Network):
             'degree': self.degree,
             'log_level': self.log_level,
         }
-        multiplexer_kwargs.update({
-            key: value
-            for key, value in self.params.iteritems()
-            if key in ['introspection_path']
-        })
 
         demultiplexer = self._create_block('demultiplexer', **demultiplexer_kwargs)
         fitters = {
@@ -133,14 +96,12 @@ class Fitter(Network):
 
     @staticmethod
     def _get_name(name, k):
-        # TODO add docstring.
 
         name = "{}_{}".format(name, k)
 
         return name
 
     def _connect(self):
-        # TODO add docstring.
 
         demultiplexer = self.get_block('demultiplexer')
         fitters = self.get_block('fitters')
