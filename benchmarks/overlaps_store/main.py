@@ -69,47 +69,83 @@ def main():
     if not os.path.isdir(directory):
         os.makedirs(directory)
 
-    # Define the path to the templates.
-    templates_filename = "templates.h5"
-    templates_path = os.path.join(directory, templates_filename)
-    if not os.path.isfile(templates_path):
-        string = "Provide a file  of templates named {} in {}"
-        message = string.format(templates_filename, templates_path)
-        raise NotImplementedError(message)
-
-    # Initialize the templates store.
-    template_store = TemplateStore(templates_path, mode='r')
-
-    # Initialize the overlaps store.
-    overlaps_store = OverlapsStore(template_store)
-
-    # Print info message.
-    string = "The overlaps store is initialized with {} templates from {}"
-    message = string.format(overlaps_store.nb_templates, templates_path)
-    print(message)
-
     # Define the path to the answer.
     ans_filename = "answer.p"
     ans_path = os.path.join(directory, ans_filename)
 
-    # Get the answer.
     if not os.path.isfile(ans_path):
-        # Precompute all the overlaps.
-        ans = precompute_overlap_(overlaps_store)
-        # Save the answer.
+
+        # Define the path to the input templates.
+        input_templates_filename = "input_templates.h5"
+        input_templates_path = os.path.join(directory, input_templates_filename)
+        if not os.path.isfile(input_templates_path):
+            string = "Provide a file of input templates named {} in {}"
+            message = string.format(input_templates_filename, directory)
+            raise IOError(message)
+
+        # Initialize the input template store.
+        input_template_store = TemplateStore(input_templates_path, mode='r')
+
+        start_times = np.zeros(input_template_store.nb_templates)
+        end_times = np.zeros(input_template_store.nb_templates)
+
+        # Define the path to the output templates.
+        templates_filename = "templates.h5"
+        templates_path = os.path.join(directory, templates_filename)
+
+        # Define the path to the probe.
+        probe_filename = "probe.prb"
+        probe_path = os.path.join(directory, probe_filename)
+        if not os.path.isfile(probe_path):
+            string = "Provide a probe file names {} in {}"
+            message = string.format(probe_filename, directory)
+            raise IOError(message)
+
+        # Create the output template store.
+        template_store = TemplateStore(templates_path, probe_file=probe_path, mode='w')
+        template = input_template_store[0]
+        template_store.add(template)
+        if not os.path.isfile(templates_path):
+            string = "Create a file of templates named {} in {}."
+            message = string.format(templates_filename, directory)
+            raise NotImplementedError(message)
+        del template_store
+
+        # Initialize the output template store.
+        template_store = TemplateStore(templates_path, mode='r+')
+
+        # Initialize the output overlaps store.
+        start_times[0] = time.time()
+        overlaps_store = OverlapsStore(template_store)
+        overlaps_store.precompute_overlaps()
+        end_times[0] = time.time()
+
+        # Print info message.
+        string = "The overlaps store is initialized with {} templates from {}"
+        message = string.format(overlaps_store.nb_templates, input_templates_path)
+        print(message)
+
+        for i in range(1, input_template_store.nb_templates):
+            print("{}/{}".format(i, input_template_store.nb_templates))
+            template = input_template_store[i]
+            template_store.add(template)
+            start_times[i] = time.time()
+            overlaps_store.update([i])
+            _ = overlaps_store.get_overlaps(i, component='1')
+            end_times[i] = time.time()
+
+        ans = {
+            'indices': np.arange(0, input_template_store.nb_templates),
+            'durations': end_times - start_times,
+        }
+
         with open(ans_path, mode='wb') as ans_file:
             pickle.dump(ans, ans_file)
+
     else:
-        # Load the answer.
+
         with open(ans_path, mode='rb') as ans_file:
             ans = pickle.load(ans_file)
-
-    # # Define the path to the overlaps.
-    # overlaps_filename = "overlaps.h5"
-    # overlaps_path = os.path.join(directory, overlaps_filename)
-
-    # Save all the overlaps.
-    # overlaps_store.save_internal_overlaps_dictionary(overlaps_path)
 
     # Define the path to the plot.
     plot_filename = "answer.pdf"
