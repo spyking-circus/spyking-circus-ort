@@ -1,9 +1,8 @@
 import os
 
 
-
 def list_modules():
-    '''TODO add docstring'''
+    # TODO add docstring.
 
     path = os.path.abspath(__file__)
     path = os.path.dirname(path)
