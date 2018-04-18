@@ -428,7 +428,7 @@ class Process(object):
                 # Log debug message.
                 string = "exception: {} {}"
                 message = string.format(exception_name, exception_trace)
-                self.logger.debug(message)
+                self.logger.error(message)
                 # Raise exception.
                 exception_class = getattr(exceptions, exception_name)
                 raise exception_class(exception_trace)

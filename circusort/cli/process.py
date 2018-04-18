@@ -330,7 +330,7 @@ class Process(object):
 
             result = traceback.format_exc()  # Exception trace as a string.
 
-            exception = e.__name__  # Exception name as a string.
+            exception = e.__class__.__name__  # Exception name as a string.
 
         result = self.wrap_proxy(result)
 
