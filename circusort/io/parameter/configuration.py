@@ -18,6 +18,7 @@ default_types = {
         'nb_rows': 'integer',
         'nb_columns': 'integer',
         'interelectrode_distance': 'float',
+        'radius': 'float',
         'path': 'string',
     },
     'cells': {
@@ -40,6 +41,7 @@ defaults = {
         'nb_rows': 4,
         'nb_columns': 4,
         'interelectrode_distance': 30.0,
+        'radius': 250.0,
         'path': "",
     },
     'cells': {

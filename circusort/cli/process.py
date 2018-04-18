@@ -1,4 +1,5 @@
 import json
+import traceback
 import zmq
 
 from circusort.base.utils import get_log
@@ -7,10 +8,30 @@ from circusort.block.block import Block
 
 
 class Process(object):
-    """Process object."""
-    # TODO add docstring.
+    """Process object.
+
+    Attributes:
+        logger
+        encoder
+        context
+        socket
+        address: string
+        last_obj_id: integer
+        objs
+        poller
+        running: boolean
+    """
+    # TODO complete docstring.
 
     def __init__(self, host, address, log_address):
+        """Initialize process.
+
+        Arguments:
+            host: string
+            address: string
+            log_address: string
+        """
+        # TODO complete docstring.
 
         object.__init__(self)
 
@@ -19,7 +40,7 @@ class Process(object):
             # TODO remove
         self.logger = get_log(log_address, name=__name__)
 
-        # TODO find proper space to define following class
+        # TODO find proper space to define following class.
         class Encoder(json.JSONEncoder):
 
             def default(self_, obj):
@@ -36,43 +57,58 @@ class Process(object):
         self.encoder = Encoder
 
         self.context = zmq.Context()
-        # TODO connect tmp socket
-        self.logger.debug("connect tmp socket at {a}".format(a=address))
+        # Log debug message.
+        string = "connect temporary socket at {}"
+        message = string.format(address)
+        self.logger.debug(message)
+        # Connect temporary socket.
         socket = self.context.socket(zmq.PAIR)
         socket.connect(address)
-        # TODO bind rpc socket
+        # Bind RPC socket.
         transport = 'tcp'
         port = '*'
         endpoint = '{h}:{p}'.format(h=host, p=port)
         address = '{t}://{e}'.format(t=transport, e=endpoint)
-        self.logger.debug("bind rpc socket at {a}".format(a=address))
+        # Log debug message
+        string = "bind RPC socket at {}"
+        message = string.format(address)
+        self.logger.debug(message)
+        # Bind RPC socket (bis).
         self.socket = self.context.socket(zmq.PAIR)
         # self.socket.setsockopt(zmq.RCVTIMEO, 10000)
         self.socket.bind(address)
+        # Get RPC address.
         self.address = self.socket.getsockopt(zmq.LAST_ENDPOINT)
-        self.logger.debug("rpc socket binded at {a}".format(a=self.address))
-        # TODO send rpc address
-        self.logger.debug("send back rpc address")
+        # Log debug message.
+        string = "RPC socket binded at {}"
+        message = string.format(self.address)
+        self.logger.debug(message)
+        # Send RPC address.
         message = {
             'address': self.address,
         }
         socket.send_json(message)
 
+        # Define additional attributes.
         self.last_obj_id = -1
         self.objs = {}
         self.poller = zmq.Poller()
         self.poller.register(self.socket, zmq.POLLIN)
+        self.running = False
 
     def get_attr(self, obj, name):
-        '''TODO add docstring'''
+        # TODO add docstring.
 
         raise NotImplementedError("name: {n}".format(n=name))
 
     def run(self):
-        '''TODO add docstring'''
+        # TODO add docstring.
 
-        self.logger.debug("run process")
+        # Log debug message.
+        message = "run process"
+        self.logger.debug(message)
 
+        # Run main loop.
         self.running = True
         while self.running:
             socks = self.poller.poll(timeout=1)
@@ -80,39 +116,54 @@ class Process(object):
                 message = self.receive()
                 self.process(message)
             else:
-                # print self.objs
                 for obj in self.objs.itervalues():
-                    if isinstance(obj, Block) and obj.mpl_display == True:
+                    if isinstance(obj, Block) and obj.mpl_display is True:
                         obj._plot()
                         import matplotlib.pyplot as plt
                         plt.pause(0.01)
+
         return
 
     def unwrap_proxy(self, proxy):
-        '''TODO add docstring'''
+        # TODO add docstring.
 
-        self.logger.debug("unwrap proxy")
+        # Log debug message.
+        message = "unwrap proxy"
+        self.logger.debug(message)
 
         obj_id = proxy.obj_id
         obj = self.objs[obj_id]
 
         for attr in proxy.attributes:
-            self.logger.debug("object's type {t}".format(t=type(obj)))
-            self.logger.debug("object's representation {r}".format(r=repr(obj)))
-            self.logger.debug("object's attributes {d}".format(d=dir(obj)))
-            self.logger.debug("attribute {a}".format(a=attr))
+            # Log debug message.
+            string = "object's type {}"
+            message = string.format(type(obj))
+            self.logger.debug(message)
+            # Log debug message.
+            string = "object's representation {}"
+            message = string.format(repr(obj))
+            self.logger.debug(message)
+            # Log debug message.
+            string = "object's attributes {}"
+            message = string.format(dir(obj))
+            self.logger.debug(message)
+            # Log debug message.
+            string = "attribute {}"
+            message = string.format(attr)
+            self.logger.debug(message)
+            # Get attribute.
             obj = getattr(obj, attr)
-
-        # # TODO remove following line
-        # self.logger.debug(dir(obj))
 
         return obj
 
     def unwrap_object(self, obj):
-        '''TODO add docstring'''
+        # TODO add docstring.
 
-        self.logger.debug("unwrap object")
+        # Log debug message.
+        message = "unwrap object"
+        self.logger.debug(message)
 
+        # Unwrap object.
         if isinstance(obj, list):
             obj = [self.unwrap_object(v) for v in obj]
         elif isinstance(obj, dict):
@@ -125,43 +176,56 @@ class Process(object):
         return obj
 
     def decode(self, dct):
-        '''TODO add docstring'''
+        # TODO add docstring.
 
-        self.logger.debug("decode")
+        # Log debug message.
+        message = "decode"
+        self.logger.debug(message)
 
         if isinstance(dct, dict):
-            # TODO retrieve obj_type
             obj_type = dct.get('__type__', None)
             if obj_type is None:
                 return dct
             elif obj_type == 'proxy':
                 dct['attributes'] = tuple(dct['attributes'])
-                dct['process'] = self # TODO correct
+                dct['process'] = self  # TODO correct.
                 proxy = Proxy(**dct)
                 if self.address == proxy.address:
                     return self.unwrap_proxy(proxy)
                 else:
                     return proxy
             else:
-                self.logger.debug("unknown object type {t}".format(t=obj_type))
+                # Log debug message.
+                string = "unknown object type {}"
+                message = string.format(obj_type)
+                self.logger.debug(message)
+                # Raise error.
                 raise NotImplementedError()
         else:
-            self.logger.debug("invalid type {t}".format(t=type(dct)))
+            # Log debug message.
+            string = "invalid type {t}"
+            message = string.format(t=type(dct))
+            self.logger.debug(message)
+            # Raise error.
             raise NotImplementedError()
 
     def loads(self, options):
-        '''TODO add docstring'''
+        # TODO add docstring.
 
-        self.logger.debug("loads")
+        # Log debug message.
+        message = "loads"
+        self.logger.debug(message)
 
         options = json.loads(options.decode(), object_hook=self.decode)
 
         return options
 
     def receive(self):
-        '''TODO add docstring'''
+        # TODO add docstring.
 
-        self.logger.debug("receive message")
+        # Log debug message.
+        message = "receive message"
+        self.logger.debug(message)
 
         request_id, request, serialization_type, options = self.socket.recv_multipart()
 
@@ -173,27 +237,29 @@ class Process(object):
         else:
             options = self.loads(options)
 
-        message = {
+        data = {
             'request_id': request_id,
             'request': request.decode(),
             'serialization_type': serialization_type.decode(),
             'options': options,
         }
 
-        return message
+        return data
 
     def new_object_identifier(self):
-        '''TODO add docstring'''
+        # TODO add docstring.
 
         obj_id = self.last_obj_id + 1
-        self.last_obj_id +=1
+        self.last_obj_id += 1
 
         return obj_id
 
     def wrap_proxy(self, obj):
-        '''TODO add docstring'''
+        # TODO add docstring.
 
-        self.logger.debug("wrap proxy")
+        # Log debug message.
+        message = "wrap proxy"
+        self.logger.debug(message)
 
         for t in [type(None), str, unicode, int, float, tuple, list, dict]:
             if isinstance(obj, t):
@@ -208,71 +274,88 @@ class Process(object):
 
         return proxy
 
-    def process(self, message):
-        '''TODO add docstring'''
+    def process(self, data):
+        # TODO add docstring.
 
-        self.logger.debug("process message")
+        # Log debug message.
+        message = "process message"
+        self.logger.debug(message)
 
-        request_id = message['request_id']
-        request = message['request']
-        options = message['options']
+        request_id = data['request_id']
+        request = data['request']
+        options = data['options']
 
-        if request == 'get_proxy':
-            result = self
-        elif request == 'get_module':
-            self.logger.debug("request of module")
-            name = options['name']
-            parts = name.split('.')
-            result = __import__(parts[0])
-            for part in parts[1:]:
-                result = getattr(result, part)
-        elif request == 'call_obj':
-            self.logger.debug("request of object call")
-            obj = options['obj']
-            args = options['args']
-            kwds = options['kwds']
-            self.logger.debug("obj: {o}".format(o=obj))
-            self.logger.debug("args: {a}".format(a=args))
-            self.logger.debug("kwds: {k}".format(k=kwds))
-            result = obj(*args, **kwds)
-        elif request == 'get_attr':
-            self.logger.debug("request to get object attribute")
-            obj = options['obj']
-            name = options['name']
-            result = getattr(obj, name)
-        elif request == 'set_attr':
-            self.logger.debug("request to set object attribute")
-            obj = options['obj']
-            name = options['name']
-            value = options['value']
-            result = setattr(obj, name, value)
-        elif request == 'finish':
-            self.running = False
-            result = None
-        else:
-            self.logger.debug("unknown request {r}".format(r=request))
-            raise NotImplementedError()
-            # TODO correct
+        try:
+
+            if request == 'get_proxy':
+                result = self
+            elif request == 'get_module':
+                self.logger.debug("request of module")
+                name = options['name']
+                parts = name.split('.')
+                result = __import__(parts[0])
+                for part in parts[1:]:
+                    result = getattr(result, part)
+            elif request == 'call_obj':
+                self.logger.debug("request of object call")
+                obj = options['obj']
+                args = options['args']
+                kwds = options['kwds']
+                self.logger.debug("obj: {o}".format(o=obj))
+                self.logger.debug("args: {a}".format(a=args))
+                self.logger.debug("kwds: {k}".format(k=kwds))
+                result = obj(*args, **kwds)
+            elif request == 'get_attr':
+                self.logger.debug("request to get object attribute")
+                obj = options['obj']
+                name = options['name']
+                result = getattr(obj, name)
+            elif request == 'set_attr':
+                self.logger.debug("request to set object attribute")
+                obj = options['obj']
+                name = options['name']
+                value = options['value']
+                setattr(obj, name, value)
+                result = None
+            elif request == 'finish':
+                self.running = False
+                result = None
+            else:
+                self.logger.debug("unknown request {r}".format(r=request))
+                raise NotImplementedError()
+
+            exception = None
+
+        except Exception as e:
+
+            result = traceback.format_exc()  # Exception trace as a string.
+
+            exception = e.__name__  # Exception name as a string.
 
         result = self.wrap_proxy(result)
 
-        # TODO send result or exception back to proxy
-        message = {
+        # Send result or exception back to proxy.
+        data = {
             'response': 'return',
             'request_id': request_id,
             'serialization_type': 'json',
             'result': result,
-            'exception': None,
+            'exception': exception,
         }
-        message = self.dumps(message)
-        self.socket.send_multipart([message])
+        data = self.dumps(data)
+        self.socket.send_multipart([data])
 
         return
 
-    def get_module(self, name, **kwds):
-        '''TODO add docstring'''
+    def get_module(self, name, **kwargs):
+        # TODO add docstring.
 
-        self.logger.debug("get module {n}".format(n=name))
+        # Log debug message.
+        string = "get module {}"
+        message = string.format(name)
+        self.logger.debug(message)
+
+        _ = kwargs  # i.e. discard keyword arguments
 
         parts = name.split('.')
         result = __import__(parts[0])
@@ -281,43 +364,17 @@ class Process(object):
 
         return result
 
-    # def dumps(self, message):
-    #     '''TODO add docstring'''
-    #
-    #     dumped_response = str(message['response']).encode()
-    #     dumped_request_id = str(message['request_id']).encode()
-    #     dumped_serialization_type = str('json').encode()
-    #     if message['result'] is None:
-    #         dumped_result = b""
-    #     else:
-    #         dumped_result = json.dumps(message['result'], cls=self.encoder).encode()
-    #     if message['exception'] is None:
-    #         dumped_exception = b""
-    #     else:
-    #         raise NotImplementedError()
-    #
-    #     message = [
-    #         dumped_response,
-    #         dumped_request_id,
-    #         dumped_serialization_type,
-    #         dumped_result,
-    #         dumped_exception,
-    #     ]
-    #
-    #     return message
-
     def dumps(self, obj):
-        '''TODO add docstring'''
+        # TODO add docstring.
 
-        self.logger.debug("dumps")
+        # Log debug message.
+        message = "dumps"
+        self.logger.debug(message)
 
         dumped_obj = json.dumps(obj, cls=self.encoder)
-        message = dumped_obj.encode()
+        data = dumped_obj.encode()
 
-        # # TODO remove following line
-        # self.logger.debug("message: {m}".format(m=message))
-
-        return message
+        return data
 
 
 def main(args):
