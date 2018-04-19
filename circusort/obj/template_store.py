@@ -169,6 +169,11 @@ class TemplateStore(object):
         return self._2_components
 
     @property
+    def is_empty(self):
+
+        return self.nb_templates == 0
+
+    @property
     def temporal_width(self):
 
         if self._temporal_width is None:
@@ -219,7 +224,7 @@ class TemplateStore(object):
             self.h5_file.create_dataset('amplitudes/%d' % gidx, data=t.amplitudes)
 
             if t.compressed:
-                self.h5_file.create_dataset('compressed/%d' %gidx, data=t.indices)
+                self.h5_file.create_dataset('compressed/%d' % gidx, data=t.indices)
 
             if self._temporal_width is None:
                 self._temporal_width = t.temporal_width
@@ -269,7 +274,7 @@ class TemplateStore(object):
             channel = channels[idx_pos][0]
 
             if 'compressed' in self.h5_file.keys():
-                mapping = self.h5_file['compressed/%d' %index][:]
+                mapping = self.h5_file['compressed/%d' % index][:]
                 compressed = True
             else:
                 mapping = self.mappings[channel]
