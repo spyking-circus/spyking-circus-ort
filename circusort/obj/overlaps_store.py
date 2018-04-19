@@ -8,14 +8,49 @@ from circusort.obj.overlaps import Overlaps
 
 
 class OverlapsStore(object):
+    """Overlap store.
 
-    def __init__(self, template_store=None, optimize=True):
+    Attributes:
+        templates_store: none | circusort.obj.TemplateStore
+        optimize
+        path: none | string
+        two_components
+        nb_channels
+        overlaps
+        nb_elements
+        size
+        first_component
+        norms
+        amplitudes
+        electrodes
+        second_component
+        temporal_width
+        all_components
+        nb_templates
+    """
+    # TODO complete docstring.
+
+    def __init__(self, template_store=None, optimize=True, path=None):
+        """Initialize overlap store.
+
+        Arguments:
+            template_store: none | circusort.obj.TemplateStore (optional)
+                The default value is None.
+            optimize: boolean (optional)
+                The default value is True.
+            path: none | string (optional)
+                The default value is True.
+        """
+        # TODO complete docstring.
 
         self.template_store = template_store
+        self.optimize = optimize
+        self.path = path
+
         self.two_components = self.template_store.two_components
         self.nb_channels = self.template_store.nb_channels
+
         self._temporal_width = None
-        self.optimize = optimize
         self._indices = []
         self._masks = {}
 
@@ -23,10 +58,10 @@ class OverlapsStore(object):
             '1': {}
         }
 
-        self.nb_elements = self.nb_channels * self.temporal_width
-        self.size = 2 * self.temporal_width - 1
+        self.nb_elements = None  # initialized later
+        self.size = None  # initialized later
 
-        self.first_component = scipy.sparse.csr_matrix((0, self.nb_elements), dtype=np.float32)
+        self.first_component = None  # initialized later
         self.norms = {
             '1': np.zeros(0, dtype=np.float32)
         }
@@ -34,9 +69,36 @@ class OverlapsStore(object):
         self.electrodes = np.zeros(0, dtype=np.int32)
 
         if self.two_components:
-            self.second_component = scipy.sparse.csr_matrix((0, self.nb_elements), dtype=np.float32)
+            self.second_component = None  # initialized later
             self.norms['2'] = np.zeros(0, dtype=np.float32)
             self.overlaps['2'] = {}
+
+        self._cols = None  # initialized later
+        self._scols = None  # initialized later
+
+        self._is_initialized = False
+        if not self.template_store.is_empty:
+            self._initialize()
+            self.update(self.template_store.indices, laziness=False)
+
+        self._all_components = None
+
+        return
+
+    def __len__(self):
+
+        return self.first_component.shape[0]
+
+    def _initialize(self):
+        # TODO add docstring.
+
+        self.nb_elements = self.nb_channels * self.temporal_width
+        self.size = 2 * self.temporal_width - 1
+
+        self.first_component = scipy.sparse.csr_matrix((0, self.nb_elements), dtype=np.float32)
+
+        if self.two_components:
+            self.second_component = scipy.sparse.csr_matrix((0, self.nb_elements), dtype=np.float32)
 
         self._cols = np.arange(self.nb_channels * self._temporal_width).astype(np.int32)
         self._scols = {
@@ -50,12 +112,9 @@ class OverlapsStore(object):
             self._scols['right'][idelay] = np.where(self._cols % self.temporal_width >=
                                                     (self.temporal_width - idelay))[0]
 
-        self.update(self.template_store.indices)
-        self._all_components = None
+        self._is_initialized = True
 
-    def __len__(self):
-
-        return self.first_component.shape[0]
+        return
 
     @property
     def temporal_width(self):
@@ -165,55 +224,78 @@ class OverlapsStore(object):
             for index in value.keys():
                 self.overlaps[key][index].indices_ += [len(self) - 1]
 
-    def update(self, indices):
+    def update(self, indices, laziness=True):
         # TODO add docstring.
+
+        if not self._is_initialized and not self.template_store.is_empty:
+            self._initialize()
 
         templates = self.template_store.get(indices)
 
         for template in templates:
             self.add_template(template)
 
+        if not laziness:
+            if self.path is not None and os.path.isfile(self.path):
+                # Load precomputed overlaps.
+                self.load_internal_overlaps_dictionary(self.path)
+            else:
+                # Precompute overlaps.
+                self.precompute_overlaps()
+
         return
 
     def precompute_overlaps(self):
         # TODO add docstring.
 
-        for index in range(self.nb_templates):
+        for index in range(0, self.nb_templates):
             self.get_overlaps(index, component='1')
             if self.two_components:
                 self.get_overlaps(index, component='2')
 
         return
 
-    def save_internal_overlaps_dictionary(self, path):
+    def save_internal_overlaps_dictionary(self, path=None):
         """Save the internal dictionary of the overlaps store to file.
 
-        Parameter:
-            path: string
+        Argument:
+            path: none | string (optional)
         """
         # TODO complete docstring.
+
+        # Check argument.
+        if path is None:
+            path = self.path
+        assert path is not None, "Missing argument: path"
 
         # Normalize path.
         path = os.path.expanduser(path)
         path = os.path.abspath(path)
 
+        # Dump overlaps.
         with open(path, mode='wb') as file_:
             pickle.dump(self.overlaps, file_)
 
         return
 
-    def load_internal_overlaps_dictionary(self, path):
+    def load_internal_overlaps_dictionary(self, path=None):
         """Load the internal dictionary of the overlaps store from file.
 
-        Parameter:
-            path: string
+        Argument:
+            path: none | string
         """
         # TODO complete docstring.
+
+        # Check argument.
+        if path is None:
+            path = self.path
+        assert path is not None, "Missing argument: path"
 
         # Normalize path.
         path = os.path.expanduser(path)
         path = os.path.abspath(path)
 
+        # Load overlaps.
         with open(path, mode='rb') as file_:
             overlaps = pickle.load(file_)
             self.overlaps = overlaps
