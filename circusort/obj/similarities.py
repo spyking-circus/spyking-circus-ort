@@ -64,7 +64,7 @@ class Similarities(object):
 
         return self._ordered_indices
 
-    def plot(self, ax=None, ordering=False):
+    def plot(self, ax=None, ordering=False, path=None):
 
         if ax is None:
             fig, ax = plt.subplots()
@@ -95,5 +95,8 @@ class Similarities(object):
         bar.ax.set_yticklabels(["$-1$", "$0$", "$+1$"])
 
         fig.tight_layout()
+
+        if path is not None:
+            fig.savefig(path)
 
         return
