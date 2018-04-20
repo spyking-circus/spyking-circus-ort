@@ -26,6 +26,7 @@ class Manager(object):
             raise NotImplementedError("no logger address")
         self.log = get_log(self.log_address, name=__name__, log_level=self.log_level)
 
+        # Log info message.
         string = "{} is created."
         message = string.format(str(self))
         self.log.info(message)
@@ -46,19 +47,33 @@ class Manager(object):
         if log_level is None:
             log_level = self.log_level
 
+        # Create process.
         process = Process(log_address=self.log_address, name="{n}".format(n=block_type), log_level=self.log_level)
-        module = process.get_module('circusort.block.{n}'.format(n=block_type))
-        block = getattr(module, block_type.capitalize())(log_address=self.log_address, log_level=log_level, **kwargs)
-
+        # Set module name.
+        module_name = 'circusort.block.{}'.format(block_type)
+        # Get module.
+        module = process.get_module(module_name)
+        # Get/set class name.
+        try:
+            class_name = getattr(module, '__classname__')
+        except AttributeError:
+            class_name = block_type.capitalize()
+        # Get class.
+        class_ = getattr(module, class_name)
+        # Create block.
+        block = class_(log_address=self.log_address, log_level=log_level, **kwargs)
+        # Set block name.
         if name is None:
             block.name = "{} {}".format(block.name, suffix)
         else:
             block.name = name
 
+        # Log info message.
         string = "{} creates block {}[{}]"
         message = string.format(str(self), block.name, block_type)
         self.log.info(message)
 
+        # Register block.
         self.register_block(block)
 
         return block
@@ -79,21 +94,24 @@ class Manager(object):
         if log_level is None:
             log_level = self.log_level
 
+        # Get module.
+        module = getattr(network_module, network_type)
+        # Get/set class name.
         try:
-            module = getattr(network_module, network_type)
-        except AttributeError as error:
-            string = "Error: {}"
-            message = string.format(str(error))
-            self.log.info(message)
-            raise error
-        class_ = getattr(module, network_type.capitalize())
+            class_name = getattr(module, '__classname__')
+        except AttributeError:
+            class_name = network_type.capitalize()
+        # Get class.
+        class_ = getattr(module, class_name)
+        # Create network.
         network = class_(self, name=name, log_address=self.log_address, log_level=log_level, **kwargs)
-
+        # Set network name.
         if name is None:
             network.name = "{} {}".format(network.name, suffix)
         else:
             network.name = name
 
+        # Log info message.
         string = "{} creates network {}[{}]"
         message = string.format(str(self), network.name, network_type)
         self.log.info(message)
@@ -113,10 +131,12 @@ class Manager(object):
         for input_endpoint in input_endpoints:
             for output_endpoint in output_endpoints:
                 if show_log:
+                    # Log info message.
                     string = "{} connects {} to {}."
                     message = string.format(str(self), output_endpoint.block.name, input_endpoint.block.name)
                     self.log.info(message)
                 else:
+                    # Log debug message.
                     string = "{} connects {} to {}."
                     message = string.format(str(self), output_endpoint.block.name, input_endpoint.block.name)
                     self.log.debug(message)
@@ -158,12 +178,14 @@ class Manager(object):
         block.set_manager(self.name)
         block.set_host(self.host)
 
+        # Assert unique block name.
         string = "Two blocks with the same name {}"
         message = string.format(block.name)
         assert block.name not in self.blocks.keys(), self.log.error(message)
 
         self.blocks.update({block.name: block})
 
+        # Log debug message.
         string = "{} registers {}."
         message = string.format(str(self), block.name)
         self.log.debug(message)
@@ -176,6 +198,7 @@ class Manager(object):
 
     def get_block(self, key):
 
+        # Assert block key exists.
         string = "{} is not a valid block."
         message = string.format(key)
         assert key in self.list_blocks(), self.log.error(message)
@@ -184,10 +207,12 @@ class Manager(object):
 
     def initialize(self):
 
+        # Log info message.
         string = "{} initializes {}."
         message = string.format(str(self), ", ".join(self.list_blocks()))
         self.log.info(message)
 
+        # Initialize each block.
         for block in self.blocks.itervalues():
             block.initialize()
 
@@ -195,13 +220,16 @@ class Manager(object):
 
     def join(self):
 
+        # Log debug message.
         string = "{} joins {}."
         message = string.format(str(self), ", ".join(self.list_blocks()))
         self.log.debug(message)
 
+        # Join each block.
         for block in self.blocks.itervalues():
             block.join()
 
+        # Log info message.
         self.log.info(message)
 
         return
@@ -240,6 +268,7 @@ class Manager(object):
 
         if nb_steps is None:
 
+            # Log info message.
             string = "{} starts {}"
             message = string.format(str(self), ", ".join(self.list_blocks()))
             self.log.info(message)
@@ -250,6 +279,7 @@ class Manager(object):
 
         else:
 
+            # Log info message.
             string = "{} runs {} for {} steps"
             message = string.format(str(self), ", ".join(self.list_blocks()), nb_steps)
             self.log.info(message)
@@ -264,22 +294,29 @@ class Manager(object):
 
     def stop(self):
 
+        # Log debug message.
         string = "{} stops {}."
         message = string.format(str(self), ", ".join(self.list_blocks()))
         self.log.debug(message)
 
+        # Stop each block.
         for block in self.blocks.itervalues():
             block.stop()
 
+        # Log info message.
         self.log.info(message)
 
         return
 
     def __del__(self):
 
+        # Delete each block.
         for block in self.blocks.itervalues():
             block.__del__()
 
+        # Log info message.
         string = "{} is destroyed."
         message = string.format(str(self))
         self.log.info(message)
+
+        return

@@ -115,6 +115,17 @@ class TemplateDictionary(object):
         return
 
     def _add_template(self, template, csr_template):
+        """Add a template to the template dictionary.
+
+        Arguments:
+            template
+            csr_template
+
+        Return:
+            indices: list
+                A list which contains the indices of templates successfully added to the underlying template store.
+        """
+        # TODO complete docstring.
 
         self.first_component = scipy.sparse.vstack((self.first_component, csr_template), format='csr')
         indices = self.template_store.add(template)
@@ -144,12 +155,36 @@ class TemplateDictionary(object):
         return res
 
     def initialize(self, templates):
+        """Initialize the template dictionary with templates.
+
+        Argument:
+            templates
+        Return:
+            accepted: list
+                A list which contains the indices of templates successfully added to the underlying template store.
+        """
+        # TODO complete docstring.
 
         accepted, _, _ = self.add(templates, force=True)
 
         return accepted
 
     def add(self, templates, force=False):
+        """Add templates to the template dictionary.
+
+        Arguments:
+            templates
+            force: boolean (optional)
+                The default value is False.
+        Returns:
+            accepted: list
+                A list which contains the indices of templates successfully added to the underlying template store.
+            nb_duplicates: integer
+                The number of duplicates.
+            nb_mixtures: integer
+                The number of mixtures.
+        """
+        # TODO complete docstring.
 
         nb_duplicates = 0
         nb_mixtures = 0

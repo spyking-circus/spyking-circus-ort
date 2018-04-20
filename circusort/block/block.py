@@ -291,7 +291,7 @@ class Block(threading.Thread):
             # Log debug message.
             string = "{} in block {}: {}"
             message = string.format(exception_name, self.name, exception_trace)
-            self.log.debug(message)
+            self.log.error(message)
 
         # Log debug message.
         string = "{} is stopped"
@@ -431,6 +431,12 @@ class Block(threading.Thread):
 
     def __str__(self):
 
-        string = "Block object {} with params {}".format(self.name, self.params)
+        lines = [
+            "Block object {} with params:".format(self.name),
+        ] + [
+            "    {}: {}".format(key, value)
+            for key, value in self.params.iteritems()
+        ]
+        string = "\n".join(lines)
 
         return string

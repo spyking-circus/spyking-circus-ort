@@ -144,7 +144,7 @@ class Matches(object):
 
         return
 
-    def plot(self, ax=None, ordering=False):
+    def plot(self, ax=None, ordering=False, path=None):
 
         if ax is None:
             fig, ax = plt.subplots(nrows=4)
@@ -157,6 +157,9 @@ class Matches(object):
         self.plot_true_positive_absolute_differences(ax=ax[3], ordering=ordering)
 
         fig.tight_layout()
+
+        if path is not None:
+            fig.savefig(path)
 
         return
 

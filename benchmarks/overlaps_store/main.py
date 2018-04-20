@@ -50,10 +50,10 @@ def plot_answer(ans, path=None):
     y = ans['durations']
 
     fig, ax = plt.subplots()
-    ax.scatter(x, y)
-    ax.set_xlabel("index")
+    ax.scatter(x, y, s=10)
+    ax.set_xlabel("template index")
     ax.set_ylabel("duration (s)")
-    ax.set_title("Overlap computation times")
+    ax.set_title("Execution times (overlaps)")
 
     if path is not None:
         fig.savefig(path)
@@ -153,6 +153,10 @@ def main():
 
     # Plot the answer.
     plot_answer(ans, path=plot_path)
+
+    # Print the total execution time.
+    total_duration = np.sum(ans['durations'])
+    print("total duration: {}".format(total_duration))
 
     return
 

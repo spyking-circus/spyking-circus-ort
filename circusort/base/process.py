@@ -425,10 +425,6 @@ class Process(object):
                 # Extract exception name and trace.
                 exception_name = data['exception']
                 exception_trace = data['result']  # i.e. exception trace
-                # Log debug message.
-                string = "exception: {} {}"
-                message = string.format(exception_name, exception_trace)
-                self.logger.debug(message)
                 # Raise exception.
                 exception_class = getattr(exceptions, exception_name)
                 raise exception_class(exception_trace)
