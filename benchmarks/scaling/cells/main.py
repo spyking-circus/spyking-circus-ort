@@ -110,6 +110,12 @@ def main():
     if args.pending_introspection:
 
         block_names = network.block_names
+        block_labels = {
+            network.block_labels.get(block_name, block_name)
+            for block_name in block_names
+        }
+        _ = block_labels
+        # TODO use the block_labels.
         try:
             block_nb_buffers = network.block_nb_buffers
         except AttributeError:
@@ -119,7 +125,7 @@ def main():
         output_directory = os.path.join(directory, "output")
         if not os.path.isdir(output_directory):
             os.makedirs(output_directory)
-        image_format = 'png'
+        image_format = 'pdf'
 
         configuration_names = [
             configuration['general']['name']

@@ -18,8 +18,8 @@ block_names = [
     "mad",
     "detector",
     "pca",
-    "cluster",
-    "updater",
+    # "cluster",
+    # "updater",
     "writer",
 ] + [
     "fitter_fitter_{}".format(k)
@@ -27,6 +27,10 @@ block_names = [
 ]
 block_nb_buffers = {
     "fitter_fitter_{}".format(k): nb_fitters
+    for k in range(0, nb_fitters)
+}
+block_labels = {
+    "fitter_fitter_{}".format(k): "fitter {}".format(k)
     for k in range(0, nb_fitters)
 }
 
