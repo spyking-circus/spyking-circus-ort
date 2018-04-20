@@ -18,15 +18,19 @@ block_names = [
     "mad",
     "detector",
     "pca",
-    "cluster",
-    "updater_bis",
+    # "cluster",
+    # "updater_bis",
     "writer",
 ] + [
-    "fitter_bis_fitter_{}".format(k)
+    "fitter_bis_fitter_bis_{}".format(k)
     for k in range(0, nb_fitters)
 ]
 block_nb_buffers = {
-    "fitter_bis_fitter_{}".format(k): nb_fitters
+    "fitter_bis_fitter_bis_{}".format(k): nb_fitters
+    for k in range(0, nb_fitters)
+}
+block_labels = {
+    "fitter_bis_fitter_bis_{}".format(k): "fitter {}".format(k)
     for k in range(0, nb_fitters)
 }
 
@@ -140,6 +144,7 @@ def sorting(configuration_name):
         'name': "updater_bis",
         'probe_path': probe_path,
         'data_path': os.path.join(sorting_directory, "templates.h5"),
+        'overlaps_path': os.path.join(sorting_directory, "overlaps.p"),
         'precomputed_template_paths': precomputed_template_paths,
         'sampling_rate': sampling_rate,
         'nb_samples': nb_samples,
@@ -149,8 +154,8 @@ def sorting(configuration_name):
     fitter_bis_kwargs = {
         'name': "fitter_bis",
         'degree': nb_fitters,
-        'init_path': os.path.join(sorting_directory, "templates.h5"),
-        'overlaps_init_path': os.path.join(sorting_directory, "overlaps_dict.pkl"),
+        # 'templates_init_path': os.path.join(sorting_directory, "templates.h5"),
+        # 'overlaps_init_path': os.path.join(sorting_directory, "overlaps.p"),
         'sampling_rate': sampling_rate,
         'discarding_eoc_from_updater': True,
         'introspection_path': introspection_directory,

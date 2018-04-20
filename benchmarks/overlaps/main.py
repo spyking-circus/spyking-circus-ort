@@ -14,8 +14,7 @@ import network
 nb_rows = 16
 nb_columns = 16
 radius = 100.0  # µm
-# nb_cells_range = [3, 12, 48, 192]
-nb_cells_range = [3]
+nb_cells_range = [3, 12, 48, 192, 768]
 duration = 5.0 * 60.0  # s
 
 
@@ -110,6 +109,10 @@ def main():
     if args.pending_introspection:
 
         block_names = network.block_names
+        block_labels = {
+            block_name: network.block_labels.get(block_name, block_name)
+            for block_name in block_names
+        }
         try:
             block_nb_buffers = network.block_nb_buffers
         except AttributeError:
@@ -159,6 +162,10 @@ def main():
                 for block_name in block_names
             ]
 
+            labels = [
+                block_labels[block_name]
+                for block_name in block_names
+            ]
             flierprops = {
                 'marker': 's',
                 'markersize': 1,
@@ -171,7 +178,7 @@ def main():
             fig, ax = plt.subplots(1, 1, num=0, clear=True)
             ax.set(yscale='log')
             ax_ = ax.twinx()
-            ax_.boxplot(data, notch=True, whis=1.5, labels=block_names,
+            ax_.boxplot(data, notch=True, whis=1.5, labels=labels,
                         flierprops=flierprops, showfliers=showfliers)
             ax_.set_yticks([])
             ax_.set_yticklabels([])
@@ -299,7 +306,8 @@ def main():
                 np.median(duration_factors[configuration_name][block_name])
                 for configuration_name in configuration_names
             ]
-            ax_.plot(x, y, marker='o', label=block_name)
+            label = block_labels[block_name]
+            ax_.plot(x, y, marker='o', label=label)
         ax_.set_yticks([])
         ax_.set_yticklabels([])
         ax_.set_ylabel("")
@@ -379,18 +387,24 @@ def main():
                 filtered_data = None
 
             ordering = True
+            output_directory = os.path.join(directory, "output")
+            image_format = 'pdf'
 
             # Compute the similarities between detected and injected cells.
             print("# Computing similarities...")
             similarities = detected_cells.compute_similarities(injected_cells)
-            similarities.plot(ordering=ordering)
+            output_filename = "similarities_{}.{}".format(configuration_name, image_format)
+            output_path = os.path.join(output_directory, output_filename)
+            similarities.plot(ordering=ordering, path=output_path)
 
             # Compute the matches between detected and injected cells.
             print("# Computing matches...")
             t_min = 1.0 * 60.0  # s  # discard the 1st minute
             t_max = None
             matches = detected_cells.compute_matches(injected_cells, t_min=t_min, t_max=t_max)
-            matches.plot(ordering=ordering)
+            output_filename = "matches_{}.{}".format(configuration_name, image_format)
+            output_path = os.path.join(output_directory, output_filename)
+            matches.plot(ordering=ordering, path=output_path)
 
             # Consider the match with the worst error.
             sorted_indices = np.argsort(matches.errors)
@@ -416,7 +430,7 @@ def main():
             plot_reconstruction(detected_cells, t, t + d, sampling_rate, data,
                                 mads=mads, peaks=peaks, filtered_data=filtered_data)
 
-            plt.show()
+        plt.show()
 
 
 if __name__ == '__main__':
