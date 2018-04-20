@@ -7,6 +7,7 @@ from circusort.io.probe import load_probe
 from circusort.io.template import load_template
 from circusort.obj.template_store import TemplateStore
 from circusort.obj.template_dictionary import TemplateDictionary
+from circusort.obj.overlaps_store import OverlapsStore
 from circusort.io.template import load_template_from_dict
 
 
@@ -22,6 +23,7 @@ class TemplateUpdaterBis(Block):
         cc_merge: float
         cc_mixture: float
         data_path: string
+        overlaps_path: string
         precomputed_template_paths: none | list
         sampling_rate: float
         nb_samples: integer
@@ -36,6 +38,7 @@ class TemplateUpdaterBis(Block):
         'cc_merge': 0.95,
         'cc_mixture': None,
         'data_path': None,
+        'overlaps_path': None,
         'precomputed_template_paths': None,
         'sampling_rate': 20e+3,
         'nb_samples': 1024
@@ -50,6 +53,7 @@ class TemplateUpdaterBis(Block):
             cc_merge: float (optional)
             cc_mixture: none | float (optional)
             data_path: none | string (optional)
+            overlaps_path: none | string (optional)
             precomputed_template_paths: none | list (optional)
             sampling_rate: float (optional)
             nb_samples: integer (optional)
@@ -64,10 +68,12 @@ class TemplateUpdaterBis(Block):
         self.cc_merge = self.cc_merge
         self.cc_mixture = self.cc_mixture
         self.data_path = self.data_path
+        self.overlaps_path = self.overlaps_path
         self.precomputed_template_paths = self.precomputed_template_paths
         self.sampling_rate = self.sampling_rate
         self.nb_samples = self.nb_samples
 
+        # Initialize private attributes.
         if self.probe_path is None:
             self.probe = None
             # Log error message.
@@ -80,11 +86,13 @@ class TemplateUpdaterBis(Block):
             string = "{} reads the probe layout"
             message = string.format(self.name)
             self.log.info(message)
+        self._template_store = None
+        self._template_dictionary = None
+        self._overlap_store = None
+        self._two_components = None
 
         self.add_input('templates')
         self.add_output('updater', 'dict')
-
-        self.two_components = None
 
     def _initialize(self):
         """Initialize template updater."""
@@ -103,9 +111,11 @@ class TemplateUpdaterBis(Block):
             os.makedirs(data_directory)
 
         # Create object to handle templates.
-        self.template_store = TemplateStore(self.data_path, probe_file=self.probe_path, mode='w')
-        self.template_dictionary = TemplateDictionary(self.template_store, cc_merge=self.cc_merge,
-                                                      cc_mixture=self.cc_mixture)
+        self._template_store = TemplateStore(self.data_path, probe_file=self.probe_path, mode='w')
+        self._template_dictionary = TemplateDictionary(self._template_store, cc_merge=self.cc_merge,
+                                                       cc_mixture=self.cc_mixture)
+        # Create object to handle overlaps.
+        self._overlap_store = OverlapsStore(template_store=self._template_store, path=self.overlaps_path)
 
         # Log info message.
         string = "{} records templates into {}"
@@ -114,14 +124,15 @@ class TemplateUpdaterBis(Block):
 
         # Define precomputed templates (if necessary).
         if self.precomputed_template_paths is not None:
+
+            # Load precomputed templates.
             precomputed_templates = [
                 load_template(path)
                 for path in self.precomputed_template_paths
             ]
-            self.precomputed_templates = precomputed_templates
 
             # Add precomputed templates to the dictionary.
-            accepted = self.template_dictionary.initialize(self.precomputed_templates)
+            accepted = self._template_dictionary.initialize(precomputed_templates)
 
             # Log some information.
             if len(accepted) > 0:
@@ -129,13 +140,28 @@ class TemplateUpdaterBis(Block):
                 message = string.format(self.name, len(accepted))
                 self.log.debug(message)
 
+            # Update precomputed overlaps.
+            self._overlap_store.update(accepted)
+            self._overlap_store.precompute_overlaps()
+
+            # Save precomputed overlaps to disk.
+            self._overlap_store.save_internal_overlaps_dictionary()
+
+            # Log some information.
+            if len(accepted) > 0:
+                string = "{} precomputed overlaps."
+                message = string.format(self.name)
+                self.log.debug(message)
+
             # Send output data.
             self._precomputed_output = {
-                'templates_file': self.template_store.file_name,
-                # 'indices': accepted,  # TODO check if the benchmarks still work with this modification.
-                'indices': [],
+                'indices': accepted,
+                'templates_file': self._template_store.file_name,
+                'overlaps_path': self._overlap_store.path,
             }
+
         else:
+
             self._precomputed_output = None
 
         return
@@ -168,6 +194,7 @@ class TemplateUpdaterBis(Block):
                     templates += [load_template_from_dict(template, self.probe)]
 
                 if len(templates) > 0:
+                    # Log debug message.
                     string = "{} received {} {} templates from electrode {}"
                     message = string.format(self.name, len(templates), key, channel)
                     self.log.debug(message)
@@ -196,7 +223,7 @@ class TemplateUpdaterBis(Block):
 
             # Add received templates to the dictionary.
             templates = self._data_to_templates(data)
-            accepted, nb_duplicates, nb_mixtures = self.template_dictionary.add(templates)
+            accepted, nb_duplicates, nb_mixtures = self._template_dictionary.add(templates)
 
             # Log some information.
             if nb_duplicates > 0:
@@ -215,10 +242,18 @@ class TemplateUpdaterBis(Block):
                 message = string.format(self.name, len(accepted))
                 self.log.debug(message)
 
+            # Update and precompute the overlaps.
+            self._overlap_store.update(accepted)
+            self._overlap_store.precompute_overlaps()
+
+            # Save precomputed overlaps to disk.
+            self._overlap_store.save_internal_overlaps_dictionary()
+
             # Send output data.
             output = {
-                'templates_file': self.template_store.file_name,
                 'indices': accepted,
+                'templates_file': self._template_store.file_name,
+                'overlaps_path': self._overlap_store.path,
             }
             self.output.send(output)
 

@@ -10,7 +10,7 @@ class FitterBis(Network):
     Attributes:
         degree: integer
         nb_samples: integer
-        init_path: none | string
+        templates_init_path: none | string
         overlaps_init_path: none | string
     """
     # TODO complete docstring.
@@ -20,7 +20,7 @@ class FitterBis(Network):
     params = {
         'degree': 2,
         'nb_samples': 1024,
-        'init_path': None,
+        'templates_init_path': None,
         'overlaps_init_path': None,
     }
 
@@ -32,7 +32,7 @@ class FitterBis(Network):
                 The default value is 2.
             nb_samples: integer (optional)
                 The default value is 1024.
-            init_path: none | string (optional)
+            templates_init_path: none | string (optional)
                 The default value is None.
             overlaps_init_pat: none | string (optional)
                 The default value is None.
@@ -44,7 +44,7 @@ class FitterBis(Network):
         # The following lines are useful to avoid some Pycharm's warnings.
         self.degree = self.degree
         self.nb_samples = self.nb_samples
-        self.init_path = self.init_path
+        self.templates_init_path = self.templates_init_path
         self.overlaps_init_path = self.overlaps_init_path
 
     def _create_blocks(self):
@@ -83,7 +83,7 @@ class FitterBis(Network):
         fitters_bis_kwargs = {
             k: {
                 'name': "{} fitter_bis {}".format(self.name, k),
-                'init_path': self.init_path,
+                'templates_init_path': self.templates_init_path,
                 'overlap_init_path': self.overlaps_init_path,
                 '_nb_fitters': self.degree,
                 '_fitter_id': k,
