@@ -44,7 +44,7 @@ class Filter(Block):
 
         Block.__init__(self, **kwargs)
         self.add_output('data')
-        self.add_input('data')
+        self.add_input('data', structure='dict')
 
         # Lines useful to solve PyCharm warnings.
         self.cut_off = self.cut_off
@@ -68,16 +68,22 @@ class Filter(Block):
     @property
     def nb_channels(self):
 
-        return self.input.shape[1]
+        # return self.input.shape[1]
+        return 9
 
     @property
     def nb_samples(self):
 
-        return self.input.shape[0]
+        # return self.input.shape[0]
+        return 1024
 
     def _guess_output_endpoints(self):
 
-        self.output.configure(dtype=self.input.dtype, shape=self.input.shape)
+        # TODO clean the following code replacement.
+        # self.output.configure(dtype=self.input.dtype, shape=self.input.shape)
+        dtype = 'float32'
+        shape = (self.nb_samples, self.nb_channels)
+        self.output.configure(dtype=dtype, shape=shape)
         self.z = {}
         m = max(len(self.a), len(self.b)) - 1
         for i in xrange(self.nb_channels):
@@ -100,23 +106,31 @@ class Filter(Block):
     def _process(self):
 
         # Receive input data.
-        batch = self.input.receive()
+        data_packet = self.get_input('data').receive()
+        batch = data_packet['payload']
+
         self._measure_time('start', frequency=100)
 
+        # Preallocation of filtered data.
+        filtered_batch = np.empty(batch.shape, dtype=batch.dtype)
+
+        # Process data.
         if self.use_gpu:
-            batch = self.filter_engine.compute_one_chunk(batch)
+            filtered_batch = self.filter_engine.compute_one_chunk(batch)
         else:
-            # Process data.
-            for i in xrange(self.nb_channels):
-                batch[:, i], self.z[i] = signal.lfilter(self.b, self.a, batch[:, i], zi=self.z[i])
-                batch[:, i] -= np.median(batch[:, i])
+            for i in range(0, self.nb_channels):
+                # Filter data (locally).
+                filtered_batch[:, i], self.z[i] = signal.lfilter(self.b, self.a, batch[:, i], zi=self.z[i])
+                # Center data (locally).
+                local_median = np.median(filtered_batch[:, i])
+                filtered_batch[:, i] -= local_median
             if self.remove_median:
-                global_median = np.median(batch, 1)
-                for i in xrange(self.nb_channels):
-                    batch[:, i] -= global_median
+                # Center data (globally).
+                global_median = np.median(filtered_batch, 1)
+                filtered_batch[:, :] -= global_median
 
         # Send output data.
-        self.output.send(batch)
+        self.output.send(filtered_batch)
 
         self._measure_time('end', frequency=100)
 

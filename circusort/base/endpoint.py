@@ -1,3 +1,4 @@
+import base64
 import numpy
 import zmq
 import tempfile
@@ -59,7 +60,7 @@ class Connection(object):
 
         return
 
-    def _get_data(self, blocking=True):
+    def _get_data(self, blocking=True, discarding_eoc=False):
         """Abstract method to get data from this connection."""
 
         raise NotImplementedError()
@@ -129,14 +130,48 @@ class Connection(object):
 class Encoder(json.JSONEncoder):
 
     def default(self, obj):
-        if obj is None:
-            obj = json.JSONEncoder.default(self, obj)
-        else:
-            if isinstance(obj, numpy.ndarray):
-                obj = obj.tolist()
+        """Encode numpy arrays.
+
+        See also:
+            https://stackoverflow.com/questions/3488934/simplejson-and-numpy-array/24375113#24375113
+        """
+
+        if isinstance(obj, numpy.ndarray):
+            # Prepare data.
+            if obj.flags['C_CONTIGUOUS']:
+                obj_data = obj.data
             else:
-                raise TypeError("Type {t} is not serializable.".format(t=type(obj)))
-        return obj
+                cont_obj = numpy.ascontiguousarray(obj)
+                assert(cont_obj.flags['C_CONTIGUOUS'])
+                obj_data = cont_obj.data
+            # Prepare serialized object.
+            ser_obj = {
+                '__ndarray__': base64.b64encode(obj_data),
+                '__dtype__': str(obj.dtype),
+                '__shape__': obj.shape,
+            }
+        else:
+            ser_obj = json.JSONEncoder.default(self, obj)
+
+        return ser_obj
+
+
+def object_hook(ser_obj):
+    """Decode numpy arrays.
+
+    See also:
+        https://stackoverflow.com/questions/3488934/simplejson-and-numpy-array/24375113#24375113
+    """
+
+    if isinstance(ser_obj, dict) and '__ndarray__' in ser_obj and '__dtype__' in ser_obj and '__shape__' in ser_obj:
+        data = base64.b64decode(ser_obj['__ndarray__'])
+        obj = numpy.frombuffer(data, dtype=ser_obj['__dtype__'])
+        obj = obj.reshape(ser_obj['__shape__'])
+    else:
+        obj = ser_obj
+
+    return obj
+
 
 class LOCError(Exception):
     """Loss of connection error."""
@@ -147,6 +182,7 @@ class LOCError(Exception):
             msg = "Loss of connection"
 
         super(LOCError, self).__init__(msg)
+
 
 class EOCError(Exception):
     """End of connection error."""
@@ -219,7 +255,7 @@ class Endpoint(Connection):
             batch = numpy.fromstring(batch, dtype=self.dtype)
             batch = numpy.reshape(batch, self.shape)
         elif self.structure == 'dict':
-            batch = json.loads(batch)
+            batch = json.loads(batch, object_hook=object_hook)
         elif self.structure == 'boolean':
             batch = bool(batch)
 
