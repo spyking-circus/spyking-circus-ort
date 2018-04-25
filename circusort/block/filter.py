@@ -32,18 +32,23 @@ class Filter(Block):
     def __init__(self, **kwargs):
         """Initialization.
 
-        Parameters:
-            sampling_rate: float
-                The sampling rate used to record the signal [Hz]. The default value is 20e+3.
+        Arguments:
+            sampling_rate: float (optional)
+                The sampling rate used to record the signal [Hz].
+                The default value is 20e+3.
             cut_off: float
-                The cutoff frequency used to define the high-pass filter [Hz]. The default value is 500.0.
+                The cutoff frequency used to define the high-pass filter [Hz].
+                The default value is 500.0.
             remove_median: boolean
-                The option to remove the median over all the channels for each time step. The default value is False.
-
+                The option to remove the median over all the channels for each time step.
+                The default value is False.
+            use_gpu: boolean
+                The default value is False.
         """
+        # TODO complete docstring.
 
         Block.__init__(self, **kwargs)
-        self.add_output('data')
+        self.add_output('data', structure='dict')
         self.add_input('data', structure='dict')
 
         # Lines useful to solve PyCharm warnings.
@@ -52,42 +57,38 @@ class Filter(Block):
         self.remove_median = self.remove_median
         self.use_gpu = self.use_gpu
 
+        # Check that the cut off frequency is at least 0.1 Hz.
         if self.cut_off < 0.1:
-            # Check that the cut off frequency is at least 0.1 Hz.
             self.cut_off = 0.1  # Hz
 
-    def _initialize(self):
+        self._nb_samples = None
+        self._nb_channels = None
+        self._dtype = None
+        self._b = None
+        self._a = None
+        self._z = None
+        self._filter_engine = None
 
-        cut_off = np.array([self.cut_off, 0.95 * (self.sampling_rate / 2.0)])
-        filter_ = signal.butter(3, cut_off / (self.sampling_rate / 2.0), 'pass')
-        self.b = filter_[0]
-        self.a = filter_[1]
-        self.z = {}
+    def _initialize(self):
+        # TODO add docstring.
+
+        if self.use_gpu:
+            pass
+        else:
+            cut_offs = np.array([self.cut_off, 0.95 * (self.sampling_rate / 2.0)])
+            order = 3
+            critical_frequencies = cut_offs / (self.sampling_rate / 2.0)  # half-cycles / samples
+            filter_ = signal.butter(order, critical_frequencies, btype='bandpass', analog=False, output='ba')
+            self._b = filter_[0]
+            self._a = filter_[1]
+            self._z = {}
+
         return
 
-    @property
-    def nb_channels(self):
+    def _finish_initialization(self, shape):
+        # TODO add docstring.
 
-        # return self.input.shape[1]
-        return 9
-
-    @property
-    def nb_samples(self):
-
-        # return self.input.shape[0]
-        return 1024
-
-    def _guess_output_endpoints(self):
-
-        # TODO clean the following code replacement.
-        # self.output.configure(dtype=self.input.dtype, shape=self.input.shape)
-        dtype = 'float32'
-        shape = (self.nb_samples, self.nb_channels)
-        self.output.configure(dtype=dtype, shape=shape)
-        self.z = {}
-        m = max(len(self.a), len(self.b)) - 1
-        for i in xrange(self.nb_channels):
-            self.z[i] = np.zeros(m, dtype=np.float32)
+        self._nb_samples, self._nb_channels = shape
 
         if self.use_gpu:
             from scipy.signal import iirfilter
@@ -101,36 +102,56 @@ class Filter(Block):
             context = pyopencl.Context([device])
             coefficients = iirfilter(3, [self.cut_off / (self.sampling_rate / 2.0), 0.95],
                                      btype='bandpass', ftype='butter', output='sos')
-            self.filter_engine = GpuFilter(context, coefficients, self.nb_channels, 'float32', self.nb_samples)
+            self._filter_engine = GpuFilter(context, coefficients, self._nb_channels, 'float32', self._nb_samples)
+        else:
+            self._z = {}
+            m = max(len(self._a), len(self._b)) - 1
+            for i in range(0, self._nb_channels):
+                self._z[i] = np.zeros(m, dtype=np.float32)
+
+        return
 
     def _process(self):
+        # TODO add docstring.
 
         # Receive input data.
         data_packet = self.get_input('data').receive()
         batch = data_packet['payload']
 
+        # Finish initialization (if necessary).
+        if data_packet['number'] == 0:
+            self._finish_initialization(batch.shape)
+
         self._measure_time('start', frequency=100)
 
-        # Preallocation of filtered data.
+        # Preallocate filtered data.
         filtered_batch = np.empty(batch.shape, dtype=batch.dtype)
 
         # Process data.
         if self.use_gpu:
-            filtered_batch = self.filter_engine.compute_one_chunk(batch)
+            filtered_batch = self._filter_engine.compute_one_chunk(batch)
         else:
-            for i in range(0, self.nb_channels):
-                # Filter data (locally).
-                filtered_batch[:, i], self.z[i] = signal.lfilter(self.b, self.a, batch[:, i], zi=self.z[i])
-                # Center data (locally).
-                local_median = np.median(filtered_batch[:, i])
-                filtered_batch[:, i] -= local_median
+            for j in range(0, self._nb_channels):
+                # Filter data.
+                filtered_batch[:, j], self._z[j] = signal.lfilter(self._b, self._a, batch[:, j], zi=self._z[j])
+            # Center data channel by channel.
+            channel_medians = np.median(filtered_batch, axis=0)
+            for j in range(0, self._nb_channels):
+                filtered_batch[:, j] -= channel_medians[j]
+            # Center data sample by sample (if necessary).
             if self.remove_median:
-                # Center data (globally).
-                global_median = np.median(filtered_batch, 1)
-                filtered_batch[:, :] -= global_median
+                sample_medians = np.median(filtered_batch, axis=1)
+                for i in range(0, self._nb_samples):
+                    filtered_batch[i, :] -= sample_medians[i]
 
-        # Send output data.
-        self.output.send(filtered_batch)
+        # Prepare output data packet.
+        packet = {
+            'number': data_packet['number'],
+            'payload': filtered_batch,
+        }
+
+        # Send output data packet.
+        self.get_output('data').send(packet)
 
         self._measure_time('end', frequency=100)
 
@@ -143,13 +164,14 @@ class Filter(Block):
         start_times = np.array(self._measured_times.get('start', []))
         end_times = np.array(self._measured_times.get('end', []))
         durations = end_times - start_times
-        data_duration = float(self.nb_samples) / self.sampling_rate
+        data_duration = float(self._nb_samples) / self.sampling_rate
         ratios = data_duration / durations
 
         min_ratio = np.min(ratios) if ratios.size > 0 else np.nan
         mean_ratio = np.mean(ratios) if ratios.size > 0 else np.nan
         max_ratio = np.max(ratios) if ratios.size > 0 else np.nan
 
+        # Log info message.
         string = "{} processed {} buffers [speed:x{:.2f} (min:x{:.2f}, max:x{:.2f})]"
         message = string.format(self.name, nb_buffers, mean_ratio, min_ratio, max_ratio)
         self.log.info(message)
