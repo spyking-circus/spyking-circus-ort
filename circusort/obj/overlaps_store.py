@@ -54,29 +54,8 @@ class OverlapsStore(object):
         self._indices = []
         self._masks = {}
 
-        self.overlaps = {
-            '1': {}
-        }
-
-        self.nb_elements = None  # initialized later
-        self.size = None  # initialized later
-
-        self.first_component = None  # initialized later
-        self.norms = {
-            '1': np.zeros(0, dtype=np.float32)
-        }
-        self.amplitudes = np.zeros((0, 2), dtype=np.float32)
-        self.electrodes = np.zeros(0, dtype=np.int32)
-
-        if self.two_components:
-            self.second_component = None  # initialized later
-            self.norms['2'] = np.zeros(0, dtype=np.float32)
-            self.overlaps['2'] = {}
-
-        self._cols = None  # initialized later
-        self._scols = None  # initialized later
-
         self._is_initialized = False
+
         if not self.template_store.is_empty:
             self._initialize()
             self.update(self.template_store.indices, laziness=False)
@@ -193,6 +172,9 @@ class OverlapsStore(object):
     def add_template(self, template):
         # TODO add docstring.
 
+        if not self._is_initialized:
+            self._init_from_template(template)
+
         # Add new and updated templates to the dictionary.
         self.norms['1'] = np.concatenate((self.norms['1'], [template.first_component.norm]))
         self.amplitudes = np.vstack((self.amplitudes, template.amplitudes))
@@ -241,11 +223,11 @@ class OverlapsStore(object):
                 self.load_internal_overlaps_dictionary(self.path)
             else:
                 # Precompute overlaps.
-                self.precompute_overlaps()
+                self.compute_overlaps()
 
         return
 
-    def precompute_overlaps(self):
+    def compute_overlaps(self):
         # TODO add docstring.
 
         for index in range(0, self.nb_templates):
@@ -289,6 +271,7 @@ class OverlapsStore(object):
         # Check argument.
         if path is None:
             path = self.path
+
         assert path is not None, "Missing argument: path"
 
         # Normalize path.
@@ -297,7 +280,38 @@ class OverlapsStore(object):
 
         # Load overlaps.
         with open(path, mode='rb') as file_:
-            overlaps = pickle.load(file_)
-            self.overlaps = overlaps
+            self.overlaps = pickle.load(file_)
 
         return
+
+    def is_present(self, csr_template, cc_merge, non_zeros=None):
+
+        if non_zeros is not None:
+            sub_target = self.first_component[non_zeros]
+            norms = self.norms['1'][non_zeros]
+        else:
+            sub_target = self.first_component
+            norms = self.norms['1']
+
+        for idelay in self._scols['delays']:
+            tmp_1 = csr_template[:, self._scols['left'][idelay]]
+            tmp_2 = sub_target[:, self._scols['right'][idelay]]
+            data = tmp_1.dot(tmp_2.T)
+            if np.any(data.data >= cc_merge):
+                return True
+
+            if idelay < self.temporal_width:
+                tmp_1 = csr_template[:, self._scols['right'][idelay]]
+                tmp_2 = sub_target[:, self._scols['left'][idelay]]
+                data = tmp_1.dot(tmp_2.T)
+                if np.any(data.data >= cc_merge):
+                    return True
+
+        return False
+
+    def _is_mixture(self, csr_template, non_zeros=None):
+
+        if (self.cc_mixture is None) or (self.nb_templates == 0):
+            return False
+
+        return False

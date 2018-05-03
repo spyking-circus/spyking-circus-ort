@@ -6,10 +6,9 @@ import scipy.sparse
 
 class TemplateDictionary(object):
 
-    def __init__(self, template_store=None, cc_merge=None, cc_mixture=None, optimize=True):
+    def __init__(self, template_store=None, cc_merge=None, cc_mixture=None, optimize=True, overlap_path=None):
 
         self.template_store = template_store
-        self.mappings = self.template_store.mappings
         self.nb_channels = self.template_store.nb_channels
         self.first_component = None
         self.cc_merge = cc_merge
@@ -18,29 +17,25 @@ class TemplateDictionary(object):
         self._mixtures = None
         self.optimize = optimize
         self._indices = []
+        self.overlaps_store = OverlapsStore(self.template_store, optimize=self.optimize, path=overlap_path)
+
+    @property
+    def first_component(self):
+        return self.overlaps_store.first_component
+
+    @property
+    def shared_memory(self):
+        return self.storage == 'shared_memory'
 
     def _init_from_template(self, template):
 
-        self._nb_elements = self.nb_channels * template.temporal_width
-        self._delays = np.arange(1, template.temporal_width + 1)
-        self._spike_width = template.temporal_width
-        self._overlap_size = 2 * self._spike_width - 1
-        self._cols = np.arange(self.nb_channels * self._spike_width).astype(np.int32)
-        self.first_component = scipy.sparse.csr_matrix((0, self._nb_elements), dtype=np.float32)
-        self._scols = {
-            'left': {},
-            'right': {}
-        }
-
-        for idelay in self._delays:
-            self._scols['left'][idelay] = np.where(self._cols % self._spike_width < idelay)[0]
-            self._scols['right'][idelay] = np.where(self._cols % self._spike_width >= (self._spike_width - idelay))[0]
+        self.nb_elements = self.nb_channels * template.temporal_width
 
         if self.cc_merge is not None:
-            self.cc_merge *= self._nb_elements
+            self.cc_merge *= self.nb_elements
 
         if self.cc_mixture is not None:
-            self.cc_mixture *= self._nb_elements
+            self.cc_mixture *= self.nb_elements
 
     def __str__(self):
 
@@ -114,7 +109,7 @@ class TemplateDictionary(object):
 
         return
 
-    def _add_template(self, template, csr_template):
+    def _add_template(self, template):
         """Add a template to the template dictionary.
 
         Arguments:
@@ -127,23 +122,19 @@ class TemplateDictionary(object):
         """
         # TODO complete docstring.
 
-        self.first_component = scipy.sparse.vstack((self.first_component, csr_template), format='csr')
+        self.overlaps_store.add_template(template)
         indices = self.template_store.add(template)
-
         return indices
 
-    def _remove_template(self, template, index):
+    def compute_overlaps(self):
 
-        pass  # TODO implement or remove this method?
+        self.overlaps_store.compute_overlaps()
 
-    @staticmethod
-    def _get_csr_template(template):
+    def dot(self, waveforms):
 
-        csr_template = template.first_component.to_sparse('csr', flatten=True)
-        norm = template.first_component.norm
-        csr_template /= norm
+        scalar_products = self.overlaps_store.all_components.dot(waveforms)
 
-        return csr_template
+        return scalar_products
 
     def non_zeros(self, indices):
 
@@ -196,8 +187,7 @@ class TemplateDictionary(object):
                 if self.first_component is None:
                     self._init_from_template(t)
 
-                csr_template = self._get_csr_template(t)
-                accepted += self._add_template(t, csr_template)
+                accepted += self._add_template(t)
 
         else:
             for t in templates:
@@ -205,7 +195,9 @@ class TemplateDictionary(object):
                 if self.first_component is None:
                     self._init_from_template(t)
 
-                csr_template = self._get_csr_template(t)
+                csr_template = t.first_component.to_sparse('csr', flatten=True)
+                norm = t.first_component.norm
+                csr_template /= norm
 
                 if self.optimize:
                     non_zeros = self.non_zeros(t.indices)
@@ -224,7 +216,7 @@ class TemplateDictionary(object):
                     self._add_mixtures(t)
 
                 if not is_present and not is_mixture:
-                    accepted += self._add_template(t, csr_template)
+                    accepted += self._add_template(t)
 
                     if self.optimize:
                         self._indices += [t.indices]
@@ -236,28 +228,10 @@ class TemplateDictionary(object):
         if (self.cc_merge is None) or (self.nb_templates == 0):
             return False
 
-        if non_zeros is not None:
-            sub_target = self.first_component[non_zeros]
-        else:
-            sub_target = self.first_component
-
-        for idelay in self._delays:
-            tmp_1 = csr_template[:, self._scols['left'][idelay]]
-            tmp_2 = sub_target[:, self._scols['right'][idelay]]
-            data = tmp_1.dot(tmp_2.T)
-            if np.any(data.data >= self.cc_merge):
-                return True
-
-            if idelay < self._spike_width:
-                tmp_1 = csr_template[:, self._scols['right'][idelay]]
-                tmp_2 = sub_target[:, self._scols['left'][idelay]]
-                data = tmp_1.dot(tmp_2.T)
-                if np.any(data.data >= self.cc_merge):
-                    return True
-        return False
+        return self.overlaps_store.is_present(csr_template, self.cc_merge, non_zeros)
 
     def _is_mixture(self, csr_template, non_zeros=None):
-        
+
         if (self.cc_mixture is None) or (self.nb_templates == 0):
             return False
 

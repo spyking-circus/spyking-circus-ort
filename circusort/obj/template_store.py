@@ -9,7 +9,7 @@ from circusort.obj.template import Template, TemplateComponent
 
 class TemplateStore(object):
 
-    def __init__(self, file_name, probe_file=None, mode='r+'):
+    def __init__(self, file_name, probe_file=None, mode='r+', compression='gzip'):
 
         self.file_name = os.path.abspath(file_name)
         self.probe_file = probe_file
@@ -22,6 +22,7 @@ class TemplateStore(object):
         self._first_creation = None
         self._last_creation = None
         self._channels = None
+        self.compression = compression
 
         self._open(self.mode)
         from circusort.io.probe import load_probe
@@ -32,11 +33,15 @@ class TemplateStore(object):
             self.probe = load_probe(self.probe_file)
             for channel, indices in self.probe.edges.items():
                 indices = self.probe.edges[channel]
-                self.h5_file.create_dataset('mapping/%d' % channel, data=indices, chunks=True, maxshape=(None,))
+                self.h5_file.create_dataset('mapping/%d' % channel, data=indices, chunks=True, maxshape=(None,),
+                                            compression=self.compression)
                 self.mappings[channel] = indices
-            self.h5_file.create_dataset('indices', data=np.zeros(0, dtype=np.int32), chunks=True, maxshape=(None,))
-            self.h5_file.create_dataset('times', data=np.zeros(0, dtype=np.int32), chunks=True, maxshape=(None,))
-            self.h5_file.create_dataset('channels', data=np.zeros(0, dtype=np.int32), chunks=True, maxshape=(None,))
+            self.h5_file.create_dataset('indices', data=np.zeros(0, dtype=np.int32), chunks=True, maxshape=(None,),
+                                            compression=self.compression)
+            self.h5_file.create_dataset('times', data=np.zeros(0, dtype=np.int32), chunks=True, maxshape=(None,),
+                                            compression=self.compression)
+            self.h5_file.create_dataset('channels', data=np.zeros(0, dtype=np.int32), chunks=True, maxshape=(None,),
+                                            compression=self.compression)
             self.h5_file.attrs['probe_file'] = os.path.abspath(os.path.expanduser(probe_file))
 
         elif self.mode in ['r', 'r+']:
@@ -220,18 +225,22 @@ class TemplateStore(object):
             assert isinstance(t, Template)
             gidx = self.next_index
 
-            self.h5_file.create_dataset('waveforms/%d/1' % gidx, data=t.first_component.waveforms, chunks=True)
-            self.h5_file.create_dataset('amplitudes/%d' % gidx, data=t.amplitudes)
+            self.h5_file.create_dataset('waveforms/%d/1' % gidx, data=t.first_component.waveforms, chunks=True,
+                                            compression=self.compression)
+            self.h5_file.create_dataset('amplitudes/%d' % gidx, data=t.amplitudes,
+                                            compression=self.compression)
 
             if t.compressed:
-                self.h5_file.create_dataset('compressed/%d' % gidx, data=t.indices)
+                self.h5_file.create_dataset('compressed/%d' % gidx, data=t.indices,
+                                            compression=self.compression)
 
             if self._temporal_width is None:
                 self._temporal_width = t.temporal_width
 
             if t.second_component is not None:
                 self._2_components = True
-                self.h5_file.create_dataset('waveforms/%d/2' % gidx, data=t.second_component.waveforms, chunks=True)
+                self.h5_file.create_dataset('waveforms/%d/2' % gidx, data=t.second_component.waveforms, chunks=True,
+                                            compression=self.compression)
 
             self._add_template_channel(t.channel, gidx)
 
