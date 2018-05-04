@@ -30,7 +30,7 @@ class OverlapsStore(object):
     """
     # TODO complete docstring.
 
-    def __init__(self, template_store=None, optimize=True, path=None):
+    def __init__(self, template_store=None, optimize=True, path=None, fitting_mode=False):
         """Initialize overlap store.
 
         Arguments:
@@ -55,6 +55,7 @@ class OverlapsStore(object):
         self._masks = {}
         self._first_component = None
         self._is_initialized = False
+        self.fitting_mode = fitting_mode
 
         if not self.template_store.is_empty:
             self.update(self.template_store.indices, laziness=False)
@@ -122,10 +123,14 @@ class OverlapsStore(object):
 
         if self._all_components is None:
             if not self.two_components:
-                self._all_components = self.first_component.tocsc()
+                self._all_components = self.first_component
+                if not self.fitting_mode:
+                    self._all_components = self._all_components.tocsc()
             else:
                 self._all_components = scipy.sparse.vstack((self.first_component,
-                                                            self.second_component), format='csr').tocsc()
+                                                            self.second_component), format='csr')
+                if not self.fitting_mode:
+                    self._all_components = self._all_components.tocsc()
 
         return self._all_components
 
@@ -270,7 +275,6 @@ class OverlapsStore(object):
         path = os.path.abspath(path)
 
         # Dump overlaps.
-        print "Saving overlaps..."
         with open(path, mode='wb') as file_:
             pickle.dump(self.overlaps, file_)
 
@@ -294,7 +298,6 @@ class OverlapsStore(object):
         path = os.path.expanduser(path)
         path = os.path.abspath(path)
 
-        print "Loading overlaps..."
         # Load overlaps.
         with open(path, mode='rb') as file_:
             self.overlaps = pickle.load(file_)
@@ -305,10 +308,8 @@ class OverlapsStore(object):
 
         if non_zeros is not None:
             sub_target = self.first_component[non_zeros]
-            norms = self.norms['1'][non_zeros]
         else:
             sub_target = self.first_component
-            norms = self.norms['1']
 
         for idelay in self._scols['delays']:
             tmp_1 = csr_template[:, self._scols['left'][idelay]]
