@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import numpy as np
+from circusort.obj.overlaps_store import OverlapsStore
 
 
 class TemplateDictionary(object):
@@ -8,7 +9,6 @@ class TemplateDictionary(object):
 
         self.template_store = template_store
         self.nb_channels = self.template_store.nb_channels
-        self.first_component = None
         self.cc_merge = cc_merge
         self.cc_mixture = cc_mixture
         self._duplicates = None
@@ -18,12 +18,12 @@ class TemplateDictionary(object):
         self.overlaps_store = OverlapsStore(self.template_store, optimize=self.optimize, path=overlap_path)
 
     @property
-    def first_component(self):
-        return self.overlaps_store.first_component
+    def is_empty(self):
+        return len(self.template_store) == 0
 
     @property
-    def shared_memory(self):
-        return self.storage == 'shared_memory'
+    def first_component(self):
+        return self.overlaps_store.first_component
 
     def _init_from_template(self, template):
 
@@ -57,6 +57,12 @@ class TemplateDictionary(object):
     def __len__(self):
 
         return self.nb_templates
+
+    @property
+    def to_json(self):
+        result = {'template_store': self.template_store.file_name,
+                  'overlaps': self.overlaps_store.to_json}
+        return result
 
     @property
     def nb_templates(self):
@@ -128,11 +134,9 @@ class TemplateDictionary(object):
 
         self.overlaps_store.compute_overlaps()
 
-    def dot(self, waveforms):
+    def save_overlaps(self):
 
-        scalar_products = self.overlaps_store.all_components.dot(waveforms)
-
-        return scalar_products
+        self.overlaps_store.save_overlaps()
 
     def non_zeros(self, indices):
 
@@ -182,7 +186,7 @@ class TemplateDictionary(object):
         if force:
             for t in templates:
 
-                if self.first_component is None:
+                if self.is_empty:
                     self._init_from_template(t)
 
                 accepted += self._add_template(t)
@@ -190,7 +194,7 @@ class TemplateDictionary(object):
         else:
             for t in templates:
 
-                if self.first_component is None:
+                if self.is_empty:
                     self._init_from_template(t)
 
                 csr_template = t.first_component.to_sparse('csr', flatten=True)
