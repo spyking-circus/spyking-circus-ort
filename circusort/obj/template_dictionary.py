@@ -67,7 +67,7 @@ class TemplateDictionary(object):
     @property
     def nb_templates(self):
 
-        return self.first_component.shape[0]
+        return self.overlaps_store.nb_templates
 
     @property
     def nb_mixtures(self):

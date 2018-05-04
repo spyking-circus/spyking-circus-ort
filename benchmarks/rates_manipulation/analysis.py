@@ -6,7 +6,7 @@ from circusort.io.cells import load_cells
 from circusort.io.template_store import load_template_store
 # from circusort.utils.validation import get_fp_fn_rate
 from circusort.io.datafile import load_datafile
-# from circusort.plt.cells import *
+from circusort.plt.cells import *
 from circusort.io.probe import load_probe
 
 p = load_probe('/home/pierre/.spyking-circus-ort/benchmarks/rates_manipulation/generation/probe.prb')

@@ -66,7 +66,7 @@ class OverlapsStore(object):
 
     def __len__(self):
         if self._first_component is None:
-            return 0
+            self._first_component = 0
         else:
             self._first_component = self.first_component.shape[0]
         return self._first_component
