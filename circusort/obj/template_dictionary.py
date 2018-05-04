@@ -126,8 +126,8 @@ class TemplateDictionary(object):
         """
         # TODO complete docstring.
 
-        self.overlaps_store.add_template(template)
         indices = self.template_store.add(template)
+        self.overlaps_store.add_template(template)
         return indices
 
     def compute_overlaps(self):

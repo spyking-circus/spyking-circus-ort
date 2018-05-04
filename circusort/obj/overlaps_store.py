@@ -68,7 +68,8 @@ class OverlapsStore(object):
         if self._first_component is None:
             return 0
         else:
-            return self.first_component.shape[0]
+            self._first_component = self.first_component.shape[0]
+        return self._first_component
 
     def _init_from_template(self, template):
         # TODO add docstring.
@@ -127,8 +128,7 @@ class OverlapsStore(object):
                 if not self.fitting_mode:
                     self._all_components = self._all_components.tocsc()
             else:
-                self._all_components = scipy.sparse.vstack((self.first_component,
-                                                            self.second_component), format='csr')
+                self._all_components = scipy.sparse.vstack((self.first_component, self.second_component), format='csr')
                 if not self.fitting_mode:
                     self._all_components = self._all_components.tocsc()
 
@@ -136,8 +136,7 @@ class OverlapsStore(object):
 
     @property
     def nb_templates(self):
-
-        return self.first_component.shape[0]
+        return len(self)
 
     @property
     def to_json(self):

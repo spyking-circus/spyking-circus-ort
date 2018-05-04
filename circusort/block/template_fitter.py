@@ -81,7 +81,7 @@ class Template_fitter(Block):
         message = string.format(self.name, self._template_store.nb_templates, self.templates_init_path)
         self.log.info(message)
 
-        self._overlaps_store = OverlapsStore(template_store=self._template_store, path=self.overlaps_init_path, fitting_mode=True)
+        self._overlaps_store = OverlapsStore(template_store=self._template_store, path=self.overlaps_init_path, fitting_mode=False)
 
         # Log info message.
         string = "{} is initialized with precomputed overlaps from {}"
@@ -365,7 +365,7 @@ class Template_fitter(Block):
             if self._template_store is None:
                 self._template_store = TemplateStore(updater['templates_store'], mode='r')
                 self._overlaps_store = OverlapsStore(template_store=self._template_store,
-                                                     path=updater['overlaps']['path'], fitting_mode=True)
+                                                     path=updater['overlaps']['path'], fitting_mode=False)
                 self._init_temp_window()
             else:
                 laziness = updater['overlaps']['path'] is None
