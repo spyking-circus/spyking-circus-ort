@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
-from scipy.sparse import csr_matrix
 import numpy as np
-import scipy.sparse
 
 
 class TemplateDictionary(object):

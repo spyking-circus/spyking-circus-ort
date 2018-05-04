@@ -8,9 +8,9 @@ from logging import DEBUG, INFO
 from circusort.io.cells import list_cells
 
 
-nb_rows = 10
-nb_columns = 10
-nb_cells = 100
+nb_rows = 3
+nb_columns = 3
+nb_cells = 10
 duration = 10 * 60
 radius = 100
 preload_templates = False
@@ -33,7 +33,7 @@ def main():
         args.pending_sorting = args.pending_sorting is True
 
     # Define the working directory.
-    directory = os.path.join("~", ".spyking-circus-ort", "benchmarks", "rates_manipulation")
+    directory = os.path.join("~", ".spyking-circus-ort", "benchmarks", "rates_manipulation_2")
     directory = os.path.expanduser(directory)
     if not os.path.isdir(directory):
         os.makedirs(directory)

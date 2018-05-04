@@ -1,4 +1,7 @@
-import h5py
+import warnings
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore",category=FutureWarning)
+    import h5py
 import matplotlib.gridspec as gds
 import matplotlib.pyplot as plt
 import numpy as np
