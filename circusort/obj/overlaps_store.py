@@ -53,11 +53,10 @@ class OverlapsStore(object):
         self._temporal_width = None
         self._indices = []
         self._masks = {}
-
+        self._first_component = None
         self._is_initialized = False
 
         if not self.template_store.is_empty:
-            self._initialize()
             self.update(self.template_store.indices, laziness=False)
 
         self._all_components = None
@@ -65,19 +64,34 @@ class OverlapsStore(object):
         return
 
     def __len__(self):
+        if self._first_component is None:
+            return 0
+        else:
+            return self.first_component.shape[0]
 
-        return self.first_component.shape[0]
-
-    def _initialize(self):
+    def _init_from_template(self, template):
         # TODO add docstring.
 
+        self.overlaps = {
+            '1': {}
+        }
+
+        self.norms = {}
+
+        self._temporal_width = template.temporal_width
         self.nb_elements = self.nb_channels * self.temporal_width
         self.size = 2 * self.temporal_width - 1
 
         self.first_component = scipy.sparse.csr_matrix((0, self.nb_elements), dtype=np.float32)
+        self.norms['1'] = np.zeros(0, dtype=np.float32)
+
+        self.amplitudes = np.zeros((0, 2), dtype=np.float32)
+        self.electrodes = np.zeros(0, dtype=np.int32)
 
         if self.two_components:
             self.second_component = scipy.sparse.csr_matrix((0, self.nb_elements), dtype=np.float32)
+            self.overlaps['2'] = {}
+            self.norms['2'] = np.zeros(0, dtype=np.float32)
 
         self._cols = np.arange(self.nb_channels * self._temporal_width).astype(np.int32)
         self._scols = {
@@ -119,6 +133,10 @@ class OverlapsStore(object):
     def nb_templates(self):
 
         return self.first_component.shape[0]
+
+    @property
+    def to_json(self):
+        return {'path': self.path}
 
     def non_zeros(self, index):
         if self.optimize:
@@ -209,9 +227,6 @@ class OverlapsStore(object):
     def update(self, indices, laziness=True):
         # TODO add docstring.
 
-        if not self._is_initialized and not self.template_store.is_empty:
-            self._initialize()
-
         templates = self.template_store.get(indices)
 
         for template in templates:
@@ -220,7 +235,7 @@ class OverlapsStore(object):
         if not laziness:
             if self.path is not None and os.path.isfile(self.path):
                 # Load precomputed overlaps.
-                self.load_internal_overlaps_dictionary(self.path)
+                self.load_overlaps(self.path)
             else:
                 # Precompute overlaps.
                 self.compute_overlaps()
@@ -237,7 +252,7 @@ class OverlapsStore(object):
 
         return
 
-    def save_internal_overlaps_dictionary(self, path=None):
+    def save_overlaps(self, path=None):
         """Save the internal dictionary of the overlaps store to file.
 
         Argument:
@@ -255,12 +270,13 @@ class OverlapsStore(object):
         path = os.path.abspath(path)
 
         # Dump overlaps.
+        print "Saving overlaps..."
         with open(path, mode='wb') as file_:
             pickle.dump(self.overlaps, file_)
 
         return
 
-    def load_internal_overlaps_dictionary(self, path=None):
+    def load_overlaps(self, path=None):
         """Load the internal dictionary of the overlaps store from file.
 
         Argument:
@@ -278,6 +294,7 @@ class OverlapsStore(object):
         path = os.path.expanduser(path)
         path = os.path.abspath(path)
 
+        print "Loading overlaps..."
         # Load overlaps.
         with open(path, mode='rb') as file_:
             self.overlaps = pickle.load(file_)

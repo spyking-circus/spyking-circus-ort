@@ -286,7 +286,7 @@ class Block(threading.Thread):
             # Switch running flag.
             self.running = False
             # Log exception name and trace.
-            exception_name = e.__name__
+            exception_name = e.__class__.__name__
             exception_trace = traceback.format_exc()
             # Log debug message.
             string = "{} in block {}: {}"

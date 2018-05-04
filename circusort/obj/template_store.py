@@ -11,7 +11,7 @@ class TemplateStore(object):
 
     def __init__(self, file_name, probe_file=None, mode='r+', compression='gzip'):
 
-        self.file_name = os.path.abspath(file_name)
+        self.file_name = os.path.expanduser(os.path.abspath(file_name))
         self.probe_file = probe_file
         self.mode = mode
         self._index = -1
