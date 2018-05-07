@@ -36,7 +36,7 @@ class Density_clustering(Block):
         'radius': None,
         'm_ratio': 0.01,
         'noise_thr': 0.8,
-        'n_min': 0.002,
+        'n_min': 0.01,
         'dispersion': [5, 5],
         'sub_dim': 5,
         'extraction': 'median-raw',

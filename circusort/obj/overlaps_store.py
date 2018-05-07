@@ -3,6 +3,7 @@ import numpy as np
 import os
 import pickle  # TODO check if we should use cPickle instead.
 import scipy.sparse
+import portalocker
 
 from circusort.obj.overlaps import Overlaps
 
@@ -274,7 +275,7 @@ class OverlapsStore(object):
         path = os.path.abspath(path)
 
         # Dump overlaps.
-        with open(path, mode='wb') as file_:
+        with portalocker.Lock(path, mode='wb') as file_:
             pickle.dump(self.overlaps, file_)
 
         return
@@ -298,7 +299,7 @@ class OverlapsStore(object):
         path = os.path.abspath(path)
 
         # Load overlaps.
-        with open(path, mode='rb') as file_:
+        with portalocker.Lock(path, mode='rb') as file_:
             self.overlaps = pickle.load(file_)
 
         return

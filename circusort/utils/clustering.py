@@ -82,7 +82,7 @@ class MacroCluster(object):
 class OnlineManager(object):
 
     def __init__(self, probe, channel, decay=0.05, mu=2, epsilon='auto', theta=-np.log(0.001), dispersion=(5, 5),
-                 n_min=0.002, noise_thr=0.8, pca=None, logger=None, two_components=False, name=None, debug_plots=None,
+                 n_min=0.01, noise_thr=0.8, pca=None, logger=None, two_components=False, name=None, debug_plots=None,
                  local_merges=3):
 
         if name is None:
@@ -422,6 +422,7 @@ class OnlineManager(object):
                                                                                                         s=idx))
         else:
             for cluster in new_clusters:
+                cluster_id = cluster.cluster_id
                 idx = self._get_tracking_id()
                 self.tracking[idx] = cluster.description
                 new_templates[cluster_id] = idx
