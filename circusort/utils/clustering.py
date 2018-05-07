@@ -164,9 +164,13 @@ class OnlineManager(object):
         labels = density_clustering(sub_data, n_min=n_min, output=output, local_merges=self.local_merges)
 
         self.W = len(sub_data) / float(self.time / 20000.)
-        #print "Speed of the event", self.W
-        #print "Max number of micro clusters", int(self.W / self.D_threshold)
-        #print "Max number of macro clusters", int(self.W / self.mu)
+
+        print "Speed of the event", self.W
+        self.mu = self.W / 1000.
+        self.beta = 1.5 / self.mu
+
+        print "Max number of micro clusters", int(self.W / self.D_threshold)
+        print "Max number of macro clusters", int(self.W / self.mu)
 
         mask = labels > -1
 
@@ -673,16 +677,30 @@ def density_clustering(data, n_min=None, output=None, local_merges=None):
 
 def plot_cluster(data, labels, output):
     import pylab
+
+    pylab.style.use('seaborn-paper')
+
     ax = pylab.subplot(221)
-    ax.scatter(data[:, 0], data[:, 1], c=labels)
+    for color in np.unique(labels):
+        c = 'C{}'.format(color % 10)
+        idx = np.where(labels == color)[0]
+        ax.scatter(data[idx, 0], data[idx, 1], c=c)
     ax.set_xticks([])
     ax.set_yticks([])
+
     ax = pylab.subplot(222)
-    ax.scatter(data[:, 1], data[:, 2], c=labels)
+    for color in np.unique(labels):
+        c = 'C{}'.format(color % 10)
+        idx = np.where(labels == color)[0]
+        ax.scatter(data[idx, 1], data[idx, 2], c=c)
     ax.set_xticks([])
     ax.set_yticks([])
+
     ax = pylab.subplot(223)
-    ax.scatter(data[:, 0], data[:, 2], c=labels)
+    for color in np.unique(labels):
+        c = 'C{}'.format(color % 10)
+        idx = np.where(labels == color)[0]
+        ax.scatter(data[idx, 0], data[idx, 2], c=c)
     ax.set_xticks([])
     ax.set_yticks([])
     pylab.savefig(output)
@@ -713,7 +731,7 @@ def plot_tracking(dense_clusters, output):
         for center, sigma, color in zip(centers, sigmas, colors):
             ax = pylab.subplot(2, 2, 1)
             c = 'C{}'.format(color % 10)
-            circle = pylab.Circle((center[0], center[1]), sigma, color=c, fill=False)
+            circle = pylab.Circle((center[0], center[1]), sigma, color=c, fill=True, alpha=0.5)
             ax.add_artist(circle)
             pylab.scatter(centers[:, 0], centers[:, 1], c='k')
 
