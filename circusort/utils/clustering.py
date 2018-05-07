@@ -164,9 +164,9 @@ class OnlineManager(object):
         labels = density_clustering(sub_data, n_min=n_min, output=output, local_merges=self.local_merges)
 
         self.W = len(sub_data) / float(self.time / 20000.)
-        print "Speed of the event", self.W
-        print "Max number of micro clusters", int(self.W / self.D_threshold)
-        print "Max number of macro clusters", int(self.W / self.mu)
+        #print "Speed of the event", self.W
+        #print "Max number of micro clusters", int(self.W / self.D_threshold)
+        #print "Max number of macro clusters", int(self.W / self.mu)
 
         mask = labels > -1
 
@@ -284,7 +284,7 @@ class OnlineManager(object):
         else:
             second_component = None
 
-        template = Template(first_component, self.channel, second_component)
+        template = Template(first_component, self.channel, second_component, creation_time=self.time)
 
         return template
 
