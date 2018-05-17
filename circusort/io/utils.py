@@ -77,16 +77,19 @@ channel_groups[0]["graph"]    = []''' %(nb_channels, radius)
     file.close()
     return prb_file
 
+
 def save_pickle(filename, data):
     file = open(filename + '.pck', 'w')
     cPickle.dump(data, file)
     file.close()
+
 
 def load_pickle(filename):
     file = open(filename + '.pck', 'r')
     res  = cPickle.load(file)
     file.close()
     return res
+
 
 def append_hdf5(dataset, data):
     '''Append 1D-array to a HDF5 dataset.

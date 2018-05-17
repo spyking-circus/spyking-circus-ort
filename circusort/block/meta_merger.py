@@ -1,14 +1,6 @@
-import warnings
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore",category=FutureWarning)
-    import h5py
 import numpy as np
-import os
-import tempfile
-import time
-
 from circusort.block.block import Block
-
+from circusort.obj.template_store import TemplateStore
 
 class Meta_merger(Block):
     """Meta merger block
@@ -18,37 +10,73 @@ class Meta_merger(Block):
     """
     # TODO complete docstring.
 
-    name = "Spike writer"
+    name = "Meta merger"
 
     params = {
-        'template_path': None
+        'templates_init_path': None,
+        'max_delay': 50,
+        'bin_size': 2,
+        'lag': 5,
+        'sampling_rate': 20000
     }
 
     def __init__(self, **kwargs):
 
         Block.__init__(self, **kwargs)
 
+
         # The following lines are useful to avoid some PyCharm's warning.
-        self.add_input('spikes')
+        self.templates_init_path = self.templates_init_path
+
+        self.add_input('updater')
+        self.add_output('spikes', 'dict')
+        self._data = {}
+
+    def _cross_corr(self, spike_1, spike_2):
+
+        size = 2 * self.max_delay + 1
+        x_cc = np.zeros(size, dtype=np.float32)
+        control = 0
+
+        if (len(spike_1) > 0) and (len(spike_2) > 0):
+
+            t1b = np.unique(np.round(spike_1 / self.bin_size))
+            t2b = np.unique(np.round(spike_2 / self.bin_size))
+
+            for d in xrange(size):
+                x_cc[d] += len(np.intersect1d(t1b, t2b + d - self.max_delay, assume_unique=True))
+
+            x_cc /= self.nb_bins
+            control = len(spike_1) * len(spike_2) / float((self.nb_bins ** 2))
+
+        return x_cc * 1e6, control * 1e6
 
     def _process(self):
 
-        batch = self.input.receive(blocking=False)
+        batch = self.input['spikes'].receive(blocking=False)
+        updater = self.inputs['updater'].receive(blocking=False, discarding_eoc=self.discarding_eoc_from_updater)
+
+        if updater is not None:
+
+            self._measure_time('update_start', frequency=1)
+
+            indices = updater.get('indices', None)
+            # Create the template dictionary if necessary.
+            if self._template_store is None:
+                self._template_store = TemplateStore(updater['template_store'], mode='r')
+                similarities = self._template_store.similarities
 
         if batch is not None:
 
             self._measure_time('start', frequency=100)
 
             offset = batch.pop('offset')
-            if self._mode == 'raw':
-                for key in batch:
-                    if key in ['spike_times']:
-                        to_write = np.array(batch[key]).astype(np.int32)
-                        to_write += offset
-                    elif key in ['templates']:
-                        to_write = np.array(batch[key]).astype(np.int32)
-                    elif key in ['amplitudes']:
-                        to_write = np.array(batch[key]).astype(np.float32)
+            for key in batch:
+                if key in ['spike_times']:
+                    spikes = np.array(batch[key]).astype(np.int32)
+                    spikes += offset
+                if key in ['templates']:
+                    templates = np.array(batch[key]).astype(np.int32)
 
             self._measure_time('end', frequency=100)
 
