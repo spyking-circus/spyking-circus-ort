@@ -109,5 +109,3 @@ def append_hdf5(dataset, data):
     dataset[old_size:new_size] = data
 
     return
-
-    

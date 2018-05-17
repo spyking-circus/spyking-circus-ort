@@ -27,6 +27,7 @@ class TemplateStore(object):
         self._last_creation = None
         self._channels = None
         self.compression = compression
+        self._similarities = {}
 
         self._open(self.mode)
         from circusort.io.probe import load_probe
@@ -164,6 +165,33 @@ class TemplateStore(object):
         self._index += 1
 
         return self._index
+
+    def _add_similarity(self, i, j, value):
+        if i not in self._similarities:
+            self._similarities[i] = {}
+        self._similarities[i][j] = value
+
+    def similarity(self, i, j):
+        if i in self._similarities:
+            if j in self._similarities[i]:
+                return self._similarities[i][j]
+
+        a = self.get(i).first_component.to_dense().flatten()
+        b = self.get(j).first_component.to_dense().flatten()
+        value = np.corrcoef(a, b)[0, 1]
+        self._add_similarity(i, j, value)
+        self._add_similarity(j, i, value)
+        return value
+
+    @property
+    def similarities(self):
+        res = np.zeros((len(self), len(self)), dtype=np.float32)
+        indices = self.indices
+        for c1, i in enumerate(indices):
+            for c2, j in enumerate(indices):
+                res[i, j] = self.similarity(i, j)
+                res[j, i] = res[i, j]
+        return res
 
     @property
     def two_components(self):
