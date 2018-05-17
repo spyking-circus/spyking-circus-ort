@@ -237,4 +237,5 @@ class TemplateDictionary(object):
         if (self.cc_mixture is None) or (self.nb_templates == 0):
             return False
 
+        #return self.overlaps_store.is_mixture(csr_template, self.cc_mixture, non_zeros)
         return False

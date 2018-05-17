@@ -8,14 +8,15 @@ from logging import DEBUG, INFO
 from circusort.io.cells import list_cells
 
 
-nb_rows = 10
-nb_columns = 10
-nb_cells = 100
+nb_rows = 5
+nb_columns = 5
+nb_cells = 25
 duration = 10 * 60
 radius = 100
 preload_templates = False
-nb_waveforms_clustering = 500
-nb_replay = 1
+nb_waveforms_clustering = 100
+nb_replay = 3
+data_path = "rates_manipulation"
 
 
 def main():
@@ -33,7 +34,7 @@ def main():
         args.pending_sorting = args.pending_sorting is True
 
     # Define the working directory.
-    directory = os.path.join("~", ".spyking-circus-ort", "benchmarks", "rates_manipulation")
+    directory = os.path.join("~", ".spyking-circus-ort", "benchmarks", data_path)
     directory = os.path.expanduser(directory)
     if not os.path.isdir(directory):
         os.makedirs(directory)
@@ -179,7 +180,7 @@ def main():
         fitter_kwargs = {
             'name': "fitter",
             'sampling_rate': sampling_rate,
-            'log_level': DEBUG,
+            'log_level': INFO,
             'introspection_path': introspect_path,
             'discarding_eoc_from_updater': True,
         }

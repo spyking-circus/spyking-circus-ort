@@ -76,7 +76,8 @@ class OverlapsStore(object):
         # TODO add docstring.
 
         self.overlaps = {
-            '1': {}
+            '1': {},
+            'max_cc': []
         }
 
         self.norms = {}
@@ -229,6 +230,12 @@ class OverlapsStore(object):
             for index in value.keys():
                 self.overlaps[key][index].indices_ += [len(self) - 1]
 
+        self.overlaps['max_cc'] += [[]]
+        my_template = template.first_component.to_dense().flatten()
+        for i in range(len(self)):
+            value = np.corrcoef(my_template, self.first_component[i].todense().flatten())[0, 1]
+            self.overlaps['max_cc'][i] += [value]
+
     def update(self, indices, laziness=True):
         # TODO add docstring.
 
@@ -327,9 +334,12 @@ class OverlapsStore(object):
 
         return False
 
-    def _is_mixture(self, csr_template, non_zeros=None):
+    def _is_mixture(self, csr_template, cc_mixture, non_zeros=None):
 
-        if (self.cc_mixture is None) or (self.nb_templates == 0):
-            return False
+        for i in range(len(self)):
+            for j in range(len(self)):
+                pass
+
+
 
         return False

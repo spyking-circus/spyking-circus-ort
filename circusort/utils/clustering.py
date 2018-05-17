@@ -164,13 +164,8 @@ class OnlineManager(object):
         labels = density_clustering(sub_data, n_min=n_min, output=output, local_merges=self.local_merges)
 
         self.W = len(sub_data) / float(self.time / 20000.)
-
-        print "Speed of the event", self.W
         self.mu = self.W / 1000.
         self.beta = 1.5 / self.mu
-
-        print "Max number of micro clusters", int(self.W / self.D_threshold)
-        print "Max number of macro clusters", int(self.W / self.mu)
 
         mask = labels > -1
 
@@ -350,8 +345,8 @@ class OnlineManager(object):
     def update(self, time, data=None):
 
         self.time = time
-        if self.nb_sparse > 1000:
-            self.log.warning('{n} has too many ({s}) sparse clusters'.format(n=self.name, s=self.nb_sparse))
+        #if self.nb_sparse > 1000:
+        #    self.log.warning('{n} has too many ({s}) sparse clusters'.format(n=self.name, s=self.nb_sparse))
 
         self.log.debug("{n} processes time {t} with {s} sparse and {d} dense clusters. Time gap is {g}".format(
             n=self.name, t=time, s=self.nb_sparse, d=self.nb_dense, g=self.time_gap))

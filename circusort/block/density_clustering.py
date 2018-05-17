@@ -49,7 +49,8 @@ class Density_clustering(Block):
         'safety_time': 'auto',
         'compression': 0.5,
         'local_merges': 3,
-        'debug_plots': None
+        'debug_plots': None,
+        'debug_data': None
     }
 
     def __init__(self, **kwargs):
@@ -83,12 +84,13 @@ class Density_clustering(Block):
             self.probe = load_probe(self.probe_path, radius=self.radius, logger=self.log)
             self.log.info("{n} reads the probe layout".format(n=self.name))
 
-        if self.debug_plots is not None:
+        for directory in [self.debug_plots, self.debug_data]:
+            if directory is not None:
 
-            if os.path.exists(self.debug_plots):
-                shutil.rmtree(self.debug_plots)
+                if os.path.exists(directory):
+                    shutil.rmtree(directory)
 
-            os.makedirs(self.debug_plots)
+                os.makedirs(directory)
 
         self.add_input('data')
         self.add_input('pcs')
@@ -254,6 +256,7 @@ class Density_clustering(Block):
         self.raw_data = {}
         self.templates = {}
         self.managers = {}
+        self.times = {}
 
         if not np.all(self.pcs[0] == 0):
             self.sign_peaks += ['negative']
@@ -266,6 +269,7 @@ class Density_clustering(Block):
             self.raw_data[key] = {}
             self.managers[key] = {}
             self.templates[key] = {}
+            self.times[key] = {}
 
             for channel in self.channels:
 
@@ -292,6 +296,8 @@ class Density_clustering(Block):
                 elif key == 'positive':
                     params['pca'] = self.pcs[1]
 
+                if self.debug_data is not None:
+                    self.times[key][channel] = []
                 self.templates[key][channel] = {}
                 self.managers[key][channel] = OnlineManager(**params)
                 self._reset_data_structures(key, channel)
@@ -310,6 +316,7 @@ class Density_clustering(Block):
         shape = (0, len(self.probe.edges[channel]), self._spike_width_)
         self.raw_data[key][channel] = np.zeros(shape, dtype=np.float32)
         self.templates[key][channel] = {}
+        self.times[key][channel] = []
 
     def _process(self):
 
@@ -348,7 +355,7 @@ class Density_clustering(Block):
                     self._set_active_mode()
 
                 # Retrieve peaks from received buffer.
-                _ = peaks.pop('offset')
+                offset = peaks.pop('offset')
                 all_peaks = self._get_all_valid_peaks(peaks)
 
                 for key in self.sign_peaks:
@@ -376,6 +383,8 @@ class Density_clustering(Block):
                                     self.raw_data[key][channel] = np.vstack((self.raw_data[key][channel], waveforms))
                                 else:
                                     self.managers[key][channel].update(self.counter, waveforms)
+                                if self.debug_data is not None:
+                                    self.times[key][channel] += [offset + peak_idx]
 
                     for channel in self.channels:
 
