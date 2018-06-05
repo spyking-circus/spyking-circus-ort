@@ -77,6 +77,17 @@ class Reader(Block):
 
         return
 
+    def _get_output_parameters(self):
+        """Collect parameters to transmit to output blocks."""
+
+        params = {
+            'dtype': self._output_dtype,
+            'nb_channels': self.nb_channels,
+            'nb_samples': self.nb_samples,
+        }
+
+        return params
+
     def _process(self):
         """Process one buffer of data."""
 
@@ -140,6 +151,7 @@ class Reader(Block):
         mean_ratio = np.mean(ratios) if ratios.size > 0 else np.nan
         max_ratio = np.max(ratios) if ratios.size > 0 else np.nan
 
+        # Log info message.
         string = "{} processed {} buffers [speed:x{:.2f} (min:x{:.2f}, max:x{:.2f})]"
         message = string.format(self.name, nb_buffers, mean_ratio, min_ratio, max_ratio)
         self.log.info(message)

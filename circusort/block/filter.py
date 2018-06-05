@@ -61,9 +61,9 @@ class Filter(Block):
         if self.cut_off < 0.1:
             self.cut_off = 0.1  # Hz
 
+        self._dtype = None
         self._nb_samples = None
         self._nb_channels = None
-        self._dtype = None
         self._b = None
         self._a = None
         self._z = None
@@ -84,6 +84,25 @@ class Filter(Block):
             self._z = {}
 
         return
+
+    def _configure_input_parameters(self, dtype=None, nb_samples=None, nb_channels=None, **kwargs):
+        # TODO add docstring.
+
+        self._dtype = dtype
+        self._nb_samples = nb_samples
+        self._nb_channels = nb_channels
+
+        return
+
+    def _get_output_parameters(self):
+
+        params = {
+            'dtype': self._dtype,
+            'nb_samples': self._nb_samples,
+            'nb_channels': self._nb_channels,
+        }
+
+        return params
 
     def _finish_initialization(self, shape):
         # TODO add docstring.

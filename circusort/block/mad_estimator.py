@@ -41,6 +41,7 @@ class Mad_estimator(Block):
         self.time_constant = self.time_constant
         self.epsilon = self.epsilon
 
+        self._dtype = None
         self._nb_samples = None
         self._nb_channels = None
         self._n = 0
@@ -51,6 +52,21 @@ class Mad_estimator(Block):
     def _initialize(self):
 
         return
+
+    def _configure_input_parameters(self, dtype=None, nb_samples=None, nb_channels=None, **kwargs):
+
+        self._dtype = dtype
+        self._nb_samples = nb_samples
+        self._nb_channels = nb_channels
+
+        return
+
+    # TODO complete following method.
+    # def _get_output_parameters(self):
+    #
+    #     params = {}
+    #
+    #     return params
 
     def _finish_initialization(self, shape, dtype):
         # TODO add docstring.
