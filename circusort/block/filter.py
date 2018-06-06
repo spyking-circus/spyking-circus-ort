@@ -94,20 +94,8 @@ class Filter(Block):
 
         return
 
-    def _get_output_parameters(self):
-
-        params = {
-            'dtype': self._dtype,
-            'nb_samples': self._nb_samples,
-            'nb_channels': self._nb_channels,
-        }
-
-        return params
-
-    def _finish_initialization(self, shape):
+    def _update_initialization(self):
         # TODO add docstring.
-
-        self._nb_samples, self._nb_channels = shape
 
         if self.use_gpu:
             from scipy.signal import iirfilter
@@ -130,16 +118,22 @@ class Filter(Block):
 
         return
 
+    def _get_output_parameters(self):
+
+        params = {
+            'dtype': self._dtype,
+            'nb_samples': self._nb_samples,
+            'nb_channels': self._nb_channels,
+        }
+
+        return params
+
     def _process(self):
         # TODO add docstring.
 
         # Receive input data.
         data_packet = self.get_input('data').receive()
         batch = data_packet['payload']
-
-        # Finish initialization (if necessary).
-        if data_packet['number'] == 0:
-            self._finish_initialization(batch.shape)
 
         self._measure_time('start', frequency=100)
 

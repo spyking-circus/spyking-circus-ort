@@ -33,7 +33,7 @@ class Mad_estimator(Block):
     def __init__(self, **kwargs):
 
         Block.__init__(self, **kwargs)
-        self.add_output('mads')
+        self.add_output('mads', structure='dict')
         self.add_input('data', structure='dict')
 
         # The following lines are useful to avoid some PyCharm warnings.
@@ -61,47 +61,27 @@ class Mad_estimator(Block):
 
         return
 
-    # TODO complete following method.
-    # def _get_output_parameters(self):
-    #
-    #     params = {}
-    #
-    #     return params
-
-    def _finish_initialization(self, shape, dtype):
+    def _update_initialization(self):
         # TODO add docstring.
 
-        self._nb_samples = shape[0]
-        self._nb_channels = shape[1]
-        self._dtype = dtype
-
+        # Define shape.
         shape = (1, self._nb_channels)
+        # Define data type.
+        if self._dtype in ['float32', 'float64']:
+            dtype = self._dtype
+        elif self._dtype in ['int16', 'uint16']:
+            dtype = np.float64
+        else:
+            string = "MAD is not supported for data of type '{}'"
+            message = string.format(self._dtype)
+            raise TypeError(message)
 
-        self._medians = np.zeros(shape, dtype=self._dtype)
-        self._mads = np.zeros(shape, dtype=self._dtype)
-        self._last_mads = np.zeros(shape, dtype=self._dtype)
+        self._medians = np.zeros(shape, dtype=dtype)
+        self._mads = np.zeros(shape, dtype=dtype)
+        self._last_mads = np.zeros(shape, dtype=dtype)
 
         self._tau = self.time_constant * self.sampling_rate / self._nb_samples
         self._gamma = np.exp(- 1.0 / self._tau)
-
-        self.outputs['mads'].configure(dtype='float32', shape=shape)
-
-        return
-
-    def _guess_output_endpoints(self):
-
-        # TODO remove.
-
-        shape = (1, self._nb_channels)
-
-        self._medians = np.zeros(shape, dtype=np.float32)
-        self._mads = np.zeros(shape, dtype=np.float32)
-        self._last_mads = np.zeros(shape, dtype=np.float32)
-
-        self._tau = self.time_constant * self.sampling_rate / self._nb_samples
-        self._gamma = np.exp(- 1.0 / self._tau)
-
-        self.outputs['mads'].configure(dtype='float32', shape=shape)
 
         return
 
@@ -141,10 +121,6 @@ class Mad_estimator(Block):
         # Receive input data.
         data_packet = self.get_input('data').receive()
         batch = data_packet['payload']
-
-        # Finish initialization (if necessary).
-        if data_packet['number'] == 0:
-            self._finish_initialization(batch.shape, batch.dtype)
 
         self._measure_time('start', frequency=100)
 

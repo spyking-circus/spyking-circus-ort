@@ -198,8 +198,8 @@ class Director(object):
                     # Transmit information between blocks.
                     params = output_endpoint.block.get_output_parameters()
                     input_endpoint.block.configure_input_parameters(**params)
-                    # Transmit information between endpoints in output block.
-                    input_endpoint.block.guess_output_endpoints()
+                    # Update initialization in output block.
+                    input_endpoint.block.update_initialization()
 
                     # Log debug message.
                     string = "{p} connection established from {a}[{s}] to {b}[{t}]"

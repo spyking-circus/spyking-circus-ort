@@ -225,6 +225,16 @@ class Block(threading.Thread):
 
         return
 
+    def _update_initialization(self):
+
+        return
+
+    def update_initialization(self):
+
+        self._update_initialization()
+
+        return
+
     def _guess_output_endpoints(self, **kwargs):
 
         return
