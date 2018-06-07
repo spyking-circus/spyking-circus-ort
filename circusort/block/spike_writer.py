@@ -60,7 +60,7 @@ class Spike_writer(Block):
         self.sampling_rate = self.sampling_rate
         self.nb_samples = self.nb_samples
 
-        self.add_input('spikes')
+        self.add_input('spikes', structure='dict')
 
         if self.data_path is None:
             self._mode = 'raw'
@@ -102,18 +102,25 @@ class Spike_writer(Block):
     def _initialize_data_file(self, key, path):
         # TODO add docstring.
 
+        # Define path.
         if path is None:
             self.recorded_data[key] = self._get_temp_file(basename=key)
         else:
             self.recorded_data[key] = path
-        self.log.info('{n} records {m} into {k}'.format(n=self.name, m=key, k=self.recorded_data[key]))
+        # Log info message.
+        string = "{} records {} into {}"
+        message = string.format(self.name, key, self.recorded_data[key])
+        self.log.info(message)
+        # Open file.
         self.data_file[key] = open(self.recorded_data[key], mode='wb')
 
         return
 
     def _process(self):
 
-        batch = self.input.receive(blocking=False)
+        # Receive input spikes.
+        spikes_packet = self.get_input('spikes').receive(blocking=False)
+        batch = spikes_packet['payload'] if spikes_packet is not None else None
 
         if batch is None:
 
@@ -185,6 +192,7 @@ class Spike_writer(Block):
 
             else:
 
+                # Log error message.
                 string = "{} can only write spike dictionaries"
                 message = string.format(self.name)
                 self.log.error(message)
