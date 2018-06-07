@@ -56,7 +56,7 @@ class FitterBis(Network):
             'input_specs': [
                 {
                     'name': "data",
-                    'structure': 'array',
+                    'structure': 'dict',
                     'policy': 'hard_blocking',
                 },
                 {
