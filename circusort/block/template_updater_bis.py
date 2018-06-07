@@ -91,8 +91,8 @@ class TemplateUpdaterBis(Block):
         self._overlap_store = None
         self._two_components = None
 
-        self.add_input('templates')
-        self.add_output('updater', 'dict')
+        self.add_input('templates', structure='dict')
+        self.add_output('updater', structure='dict')
 
     def _initialize(self):
         """Initialize template updater."""
@@ -176,11 +176,6 @@ class TemplateUpdaterBis(Block):
 
         return tmp_path
 
-    def _guess_output_endpoints(self):
-        # TODO add docstring.
-
-        return
-
     def _data_to_templates(self, data):
         # TODO add docstring.
 
@@ -208,10 +203,17 @@ class TemplateUpdaterBis(Block):
 
         # Send precomputed templates.
         if self.counter == 0 and self._precomputed_output is not None:
-            self.output.send(self._precomputed_output)
+            # Prepare output packet.
+            packet = {
+                'number': -1,
+                'payload': self._precomputed_output,
+            }
+            # Send templates.
+            self.get_output('updater').send(packet)
 
         # Receive input data.
-        data = self.inputs['templates'].receive(blocking=False)
+        templates_packet = self.get_input('templates').receive(blocking=False)
+        data = templates_packet['payload'] if templates_packet is not None else None
 
         if data is not None:
 
@@ -249,13 +251,18 @@ class TemplateUpdaterBis(Block):
             # Save precomputed overlaps to disk.
             self._overlap_store.save_internal_overlaps_dictionary()
 
-            # Send output data.
-            output = {
+            # Prepare output data.
+            output_data = {
                 'indices': accepted,
                 'templates_file': self._template_store.file_name,
                 'overlaps_path': self._overlap_store.path,
             }
-            self.output.send(output)
+            # Prepare output packet.
+            output_packet = {
+                'number': templates_packet['number'],
+                'payload': output_data,
+            }
+            self.get_output('updater').send(output_packet)
 
             self._measure_time('end', frequency=1)
 
