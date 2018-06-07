@@ -75,6 +75,8 @@ class FitterBis(Block):
         self.add_input('peaks', structure='dict')
         self.add_output('spikes', structure='dict')
 
+        self._nb_channels = None
+        self._nb_samples = None
         self._number = None
 
     def _initialize(self):
@@ -562,8 +564,8 @@ class FitterBis(Block):
                 self.log.debug(message)
         elif self.counter < 3:
             self.p = None  # TODO replace this hacky solution.
-            # TODO the synchronization is incorrect when peaks are reiceived with an offset greater than the
-            # current offset of the data.
+            # TODO the synchronization is incorrect when peaks are received with an offset greater than the
+            # TODO current offset of the data.
         else:
             peaks_packet = self.inputs['peaks'].receive(blocking=False)
             peaks = peaks_packet['payload'] if peaks_packet is not None else None

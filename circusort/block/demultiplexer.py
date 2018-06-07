@@ -84,6 +84,9 @@ class Demultiplexer(Block):
                 output_name = self._get_output_name(name, k)
                 self.add_output(output_name, structure)
 
+        self._nb_channels = None
+        self._nb_samples = None
+
     @staticmethod
     def _get_output_name(name, k):
 
@@ -108,6 +111,22 @@ class Demultiplexer(Block):
         pass
 
         return
+
+    def _configure_input_parameters(self, nb_channels=None, nb_samples=None, **kwargs):
+
+        if nb_channels is not None:
+            self._nb_channels = nb_channels
+        if nb_samples is not None:
+            self._nb_samples = nb_samples
+
+    def _get_output_parameters(self):
+
+        params = {
+            'nb_channels': self._nb_channels,
+            'nb_samples': self._nb_samples,
+        }
+
+        return params
 
     def _guess_output_endpoints(self):
 

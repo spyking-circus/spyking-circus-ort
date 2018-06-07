@@ -235,7 +235,7 @@ class Peak_detector(Block):
             # Initialize internal variable mph.
             mph_packet = self.get_input('mads').receive(blocking=False)
             self.mph = np.zeros((self._nb_channels,), dtype=np.float)
-            self.mph = None if mph_packet is None else mph_packet['payload']
+            self.mph = mph_packet['payload'] if mph_packet is not None else None
         else:
             # Update internal variable X.
             data_packet = self.get_input('data').receive()
@@ -249,7 +249,7 @@ class Peak_detector(Block):
             self.p[self._nb_samples:, :] = np.zeros((self._nb_samples, self._nb_channels), dtype=np.bool)
             # Update internal variable mph.
             mph_packet = self.get_input('mads').receive(blocking=False)
-            self.mph = None if mph_packet is None else mph_packet['payload']
+            self.mph = mph_packet['payload'] if mph_packet is not None else self.mph
 
         self._measure_time('start', frequency=100)
 
