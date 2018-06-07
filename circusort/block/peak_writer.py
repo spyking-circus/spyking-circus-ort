@@ -37,7 +37,7 @@ class Peak_writer(Block):
     def __init__(self, **kwargs):
 
         Block.__init__(self, **kwargs)
-        self.add_input('peaks')
+        self.add_input('peaks', structure='dict')
 
         # The following lines are useful to avoid some PyCharm warnings.
         self.pos_peaks = self.pos_peaks
@@ -92,7 +92,8 @@ class Peak_writer(Block):
     def _process(self):
 
         # Receive input data.
-        batch = self.input.receive()
+        peaks_packet = self.get_input('peaks').receive()
+        batch = peaks_packet['payload']
 
         self._measure_time('start', frequency=100)
 
@@ -139,12 +140,16 @@ class Peak_writer(Block):
                         dataset = self._h5_file.create_dataset(key, data=data[key], chunks=True, maxshape=(None,))
                         dataset.flush()
             else:
-                message = "Unknown mode value: {}".format(self._mode)
+                # Raise value error.
+                string = "Unknown mode value: {}"
+                message = string.format(self._mode)
                 raise ValueError(message)
 
         else:
 
-            message = "{} can only write peak dictionaries".format(self.name)
+            # Log error message.
+            string = "{} can only write peak dictionaries"
+            message = string.format(self.name)
             self.log.error(message)
 
         self._measure_time('end', frequency=100)
