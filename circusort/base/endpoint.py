@@ -60,25 +60,30 @@ class Connection(object):
 
         return
 
-    def _get_data(self, blocking=True, discarding_eoc=False):
+    def _get_data(self, blocking=True, number=None, discarding_eoc=False):
         """Abstract method to get data from this connection."""
 
         raise NotImplementedError()
 
-    def receive(self, blocking=True, discarding_eoc=False):
+    def receive(self, blocking=True, number=None, discarding_eoc=False):
         """Receive data.
 
         Parameter:
             blocking: boolean (optional)
-                If true then this waits until data arrives. The default value is True.
+                If true then this waits until data arrives.
+                The default value is True.
+            number: none | integer (optional)
+                If specified then this receives the packet with this number.
+                The default value is None.
             discarding_eoc: boolean (optional)
-                If true then this discards any end of connection (EOC) signal received. The default value is False.
+                If true then this discards any end of connection (EOC) signal received.
+                The default value is False.
         Return:
             data: np.ndarray | dictionary | boolean | string
                 The data to receive.
         """
 
-        data = self._get_data(blocking=blocking, discarding_eoc=discarding_eoc)
+        data = self._get_data(blocking=blocking, number=number, discarding_eoc=discarding_eoc)
 
         return data
 
@@ -213,6 +218,8 @@ class Endpoint(Connection):
             self.dtype = self.dtype
             self.shape = self.shape
 
+        self._cached_batch = None
+
     def __del__(self):
 
         if self.socket is not None:
@@ -220,19 +227,61 @@ class Endpoint(Connection):
         if self.tmp_name is not None:
             os.remove(self.tmp_name)
 
-    def _get_data(self, blocking=True, discarding_eoc=False):
+    def _has_cached_batch(self):
+
+        return self._cached_batch is not None
+
+    def _pop_cached_batch(self):
+
+        batch = self._cached_batch
+        self._cached_batch = None
+
+        return batch
+
+    def _put_cached_batch(self, batch):
+
+        self._cached_batch = batch
+
+        return
+
+    def _get_data(self, blocking=True, number=None, discarding_eoc=False):
         """Get batch of data from this endpoint.
 
         Parameter:
             blocking: boolean (optional)
-                If true then this waits until a batch of data arrives. The default value is True.
+                If true then this waits until a batch of data arrives.
+                The default value is True.
+            number: none | integer (optional)
+                If specified then gets the batch of data with this number.
+                The default value is None.
             discarding_eoc: boolean (optional)
-                If true then this discards any end of connection (EOC) signal received. The default value is False.
+                If true then this discards any end of connection (EOC) signal received.
+                The default value is False.
         Return:
             batch: numpy.ndarray | dictionary | boolean | string
                 The batch of data to get.
         """
 
+        # Find next batch.
+        if self._has_cached_batch():
+            # Use cached batch.
+            batch = self._pop_cached_batch()
+        else:
+            # Receive batch.
+            batch = self._get_data_aux(blocking=blocking, discarding_eoc=discarding_eoc)
+        # Seek targeted batch.
+        if number is not None:
+            while batch is not None and batch['number'] < number:
+                batch = self._get_data_aux(blocking=blocking, discarding_eoc=discarding_eoc)
+            if batch is not None and batch['number'] > number:
+                self._put_cached_batch(batch)
+                batch = None
+
+        return batch
+
+    def _get_data_aux(self, blocking=True, discarding_eoc=False):
+
+        # Try to receive batch.
         if blocking:
             try:
                 batch = self.socket.recv()
@@ -243,21 +292,33 @@ class Endpoint(Connection):
             try:
                 batch = self.socket.recv(flags=zmq.NOBLOCK)
             except zmq.Again:
-                return None
-
+                # Batch not available yet.
+                batch = None
+        # Check if termination message has been received.
         if batch == TERM_MSG:
             if discarding_eoc:
-                return None
+                batch = None
             else:
                 raise EOCError()
+        # Load data from batch.
+        batch = self._load_data(batch) if batch is not None else None
 
-        if self.structure == 'array':
-            batch = numpy.fromstring(batch, dtype=self.dtype)
-            batch = numpy.reshape(batch, self.shape)
-        elif self.structure == 'dict':
-            batch = json.loads(batch, object_hook=object_hook)
-        elif self.structure == 'boolean':
-            batch = bool(batch)
+        return batch
+
+    def _load_data(self, batch):
+
+        if batch is not None:
+            if self.structure == 'array':
+                batch = numpy.fromstring(batch, dtype=self.dtype)
+                batch = numpy.reshape(batch, self.shape)
+            elif self.structure == 'dict':
+                batch = json.loads(batch, object_hook=object_hook)
+            elif self.structure == 'boolean':
+                batch = bool(batch)
+            else:
+                string = "Unexpected structure: {}"
+                message = string.format(self.structure)
+                raise NotImplementedError(message)
 
         return batch
 
