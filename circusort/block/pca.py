@@ -133,23 +133,19 @@ class Pca(Block):
     def _process(self):
 
         # Receive input data.
-        data_packet = self.inputs['data'].receive()
+        data_packet = self.get_input('data').receive()
+        number = data_packet['number']
         batch = data_packet['payload']
         # Receive peaks (if necessary).
         if self.is_active:
-            peaks_packet = self.inputs['peaks'].receive()
-            peaks = peaks_packet['payload']
+            peaks_packet = self.get_input('peaks').receive(blocking=True, number=number)
         else:
-            peaks_packet = self.inputs['peaks'].receive(blocking=False)
-            peaks = None if peaks_packet is None else peaks_packet['payload']
+            peaks_packet = self.get_input('peaks').receive(blocking=False, number=number)
+        peaks = peaks_packet['payload'] if peaks_packet is not None else None
 
         if peaks is not None:
 
             self._measure_time('start', frequency=100)
-
-            while not self._sync_buffer(peaks, self._nb_samples):
-                peaks_packet = self.inputs['peaks'].receive(blocking=True)
-                peaks = peaks_packet['payload']
 
             _ = peaks.pop('offset')
 
