@@ -316,9 +316,10 @@ class Endpoint(Connection):
             elif self.structure == 'boolean':
                 batch = bool(batch)
             else:
-                string = "Unexpected structure: {}"
+                # Raise value error.
+                string = "Unexpected structure value: {}"
                 message = string.format(self.structure)
-                raise NotImplementedError(message)
+                raise ValueError(message)
 
         return batch
 
@@ -336,6 +337,11 @@ class Endpoint(Connection):
             self.socket.send(json.dumps(batch, cls=Encoder))
         elif self.structure == 'boolean':
             self.socket.send(str(batch))
+        else:
+            # Raise value error.
+            string = "Unexpected structure value: {}"
+            message = string.format(self.structure)
+            raise ValueError(message)
 
         return
 

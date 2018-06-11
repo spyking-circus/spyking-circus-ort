@@ -237,7 +237,7 @@ class Peak_detector(Block):
 
             # Prepare output packet.
             packet = {
-                'number': data_packet['number'],
+                'number': data_packet['number'] - 1,
                 'payload': self.peaks,
             }
 
