@@ -550,53 +550,32 @@ class FitterBis(Block):
 
         return
 
-    def _collect_peaks(self, shift=0, verbose=False):
-        # TODO add docstring.
+    def _collect_peaks(self, verbose=False):
 
         if self.is_active:
-            peaks_packet = self.get_input('peaks').receive(blocking=True)
+            peaks_packet = self.get_input('peaks').receive(blocking=True, number=self._number)
             peaks = peaks_packet['payload']
             self._handle_peaks(peaks)
             if verbose:
                 # Log debug message.
-                string = "{} collects peaks {} (shift {}, reg)"
-                message = string.format(self.name, peaks['offset'], shift)
+                string = "{} collects peaks {} (reg)"
+                message = string.format(self.name, peaks['offset'])
                 self.log.debug(message)
-        elif self.counter < 3:
-            self.p = None  # TODO replace this hacky solution.
-            # TODO the synchronization is incorrect when peaks are received with an offset greater than the
-            # TODO current offset of the data.
         else:
-            peaks_packet = self.inputs['peaks'].receive(blocking=False)
-            peaks = peaks_packet['payload'] if peaks_packet is not None else None
-            if peaks is None:
-                self.p = None
-            else:
+            if self.get_input('peaks').has_received():
+                peaks_packet = self.get_input('peaks').receive(blocking=True, number=self._number)
+                peaks = peaks_packet['payload']
                 p = self._nb_samples + self._merge_peaks(peaks)
                 self.p = p
                 if verbose:
                     # Log debug message.
-                    string = "{} collects peaks {} (shift {}, init)"
-                    message = string.format(self.name, peaks['offset'], shift)
+                    string = "{} collects peaks {} (init)"
+                    message = string.format(self.name, peaks['offset'])
                     self.log.debug(message)
-                    # Log debug message.
-                    string = "{} synchronizes peaks ({}, {}, {}, {}, {})"
-                    message = string.format(self.name, self._nb_samples, self._nb_fitters,
-                                            self._fitter_id, shift, self.counter)
-                    self.log.debug(message)
-                # Synchronize peak reception.
-                while not self._sync_buffer(peaks, self._nb_samples, nb_parallel_blocks=self._nb_fitters,
-                                            parallel_block_id=self._fitter_id, shift=shift):
-                    peaks_packet = self.inputs['peaks'].receive(blocking=True)
-                    peaks = peaks_packet['payload']
-                    self._handle_peaks(peaks)
-                    if verbose:
-                        # Log debug message.
-                        string = "{} collects peaks {} (shift {}, sync)"
-                        message = string.format(self.name, peaks['offset'], shift)
-                        self.log.debug(message)
                 # Set active mode.
                 self._set_active_mode()
+            else:
+                self.p = None
 
         return
 
@@ -621,14 +600,10 @@ class FitterBis(Block):
         # # Collect precedent data and peaks buffers.
         if self._nb_fitters > 1 and not(self.counter == 0 and self._fitter_id == 0):
             self._collect_data(shift=-1)
-            # TODO swap lines.
-            # self._collect_peaks(shift=-1, verbose=verbose)
-            self._collect_peaks(shift=-1, verbose=True)
+            self._collect_peaks(verbose=verbose)
         # # Collect current data and peaks buffers.
         self._collect_data(shift=0)
-        # TODO swap lines.
-        # self._collect_peaks(shift=0, verbose=verbose)
-        self._collect_peaks(shift=0, verbose=True)
+        self._collect_peaks(verbose=verbose)
         # # Collect current updater buffer.
         updater_packet = self.get_input('updater').receive(blocking=False,
                                                            discarding_eoc=self.discarding_eoc_from_updater)
@@ -649,7 +624,7 @@ class FitterBis(Block):
                 self.log.debug(message)
 
                 # Modify template and overlap stores.
-                indices = updater.get('indices', None)
+                _ = updater.get('indices', None)
                 templates_path = updater.get('templates_file', None)
                 overlaps_path = updater.get('overlaps_path', None)
                 if self._overlaps_store is None:

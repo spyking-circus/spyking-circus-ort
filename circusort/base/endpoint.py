@@ -87,6 +87,14 @@ class Connection(object):
 
         return data
 
+    def _has_received(self):
+
+        raise NotImplementedError()
+
+    def has_received(self):
+
+        return self._has_received()
+
     def _get_description(self):
         """Abstract method to get a description of the connection."""
 
@@ -218,6 +226,7 @@ class Endpoint(Connection):
             self.dtype = self.dtype
             self.shape = self.shape
 
+        self._has_received_flag = False
         self._cached_batch = None
 
     def __del__(self):
@@ -322,6 +331,16 @@ class Endpoint(Connection):
                 raise ValueError(message)
 
         return batch
+
+    def _has_received(self):
+
+        if not self._has_received_flag:
+            batch = self._get_data_aux(blocking=False, discarding_eoc=False)
+            if batch is not None:
+                self._has_received_flag = True
+                self._put_cached_batch(batch)
+
+        return self._has_received_flag
 
     def _send_data(self, batch):
         """Send a batch of data from this endpoint.
