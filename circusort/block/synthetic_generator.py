@@ -128,8 +128,10 @@ class Synthetic_generator(block.Block):
             probe_path = os.path.join(self.working_directory, "probe.prb")
             self.probe = io.load_probe(probe_path, logger=self.log)
 
+        self._number = -1
+
         # Add data output.
-        self.add_output('data')
+        self.add_output('data', structure='dict')
 
     @staticmethod
     def _resolve_hdf5_path():
@@ -224,6 +226,7 @@ class Synthetic_generator(block.Block):
 
         # Get data from background thread.
         data = self.queue.get()
+        self._number += 1
 
         if data == 'EOS':
             # Stop processing block.
@@ -232,8 +235,13 @@ class Synthetic_generator(block.Block):
             if self.is_realistic:
                 # Simulate duration between two data acquisitions.
                 time.sleep(float(self.nb_samples) / self.sampling_rate)
-            # Send data.
-            self.output.send(data)
+            # Prepare output packet.
+            packet = {
+                'number': self._number,
+                'payload': data,
+            }
+            # Send output packet.
+            self.get_output('data').send(packet)
 
         return
 
