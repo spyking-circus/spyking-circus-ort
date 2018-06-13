@@ -32,8 +32,9 @@ class Template_updater(Block):
         'radius': None,
         'cc_merge': 0.95,
         'cc_mixture': None,
-        'data_path': None,
+        'templates_path': None,
         'precomputed_template_paths': None,
+        'overlaps_path': None,
         'sampling_rate': 20e+3,
         'nb_samples': 1024
     }
@@ -60,7 +61,8 @@ class Template_updater(Block):
         self.radius = self.radius
         self.cc_merge = self.cc_merge
         self.cc_mixture = self.cc_mixture
-        self.data_path = self.data_path
+        self.templates_path = self.templates_path
+        self.overlaps_path = self.overlaps_path
         self.precomputed_template_paths = self.precomputed_template_paths
         self.sampling_rate = self.sampling_rate
         self.nb_samples = self.nb_samples
@@ -80,7 +82,6 @@ class Template_updater(Block):
 
         self.add_input('templates')
         self.add_output('updater', 'dict')
-
         self.two_components = None
 
     def _initialize(self):
@@ -88,25 +89,32 @@ class Template_updater(Block):
         # TODO complete docstring.
 
         # Initialize path to save the templates.
-        if self.data_path is None:
-            self.data_path = self._get_tmp_path()
+        if self.templates_path is None:
+            self.templates_path = self._get_tmp('templates.h5')
         else:
-            self.data_path = os.path.expanduser(self.data_path)
-            self.data_path = os.path.abspath(self.data_path)
+            self.templates_path = os.path.expanduser(self.templates_path)
+            self.templates_path = os.path.abspath(self.templates_path)
+
+        if self.overlaps_path is None:
+            self.overlaps_path = self._get_tmp('overlaps.pck')
+        else:
+            self.overlaps_path = os.path.expanduser(self.overlaps_path)
+            self.overlaps_path = os.path.abspath(self.overlaps_path)
 
         # Create the corresponding directory if it does not exist.
-        data_directory, _ = os.path.split(self.data_path)
-        if not os.path.exists(data_directory):
-            os.makedirs(data_directory)
+        for directory in [self.templates_path, self.overlaps_path]:
+            data_directory, _ = os.path.split(directory)
+            if not os.path.exists(data_directory):
+                os.makedirs(data_directory)
 
         # Create object to handle templates.
-        self.template_store = TemplateStore(self.data_path, self.probe_path, mode='w')
-        self.template_dictionary = TemplateDictionary(self.template_store, cc_merge=self.cc_merge,
-                                                      cc_mixture=self.cc_mixture)
+        self._template_store = TemplateStore(self.templates_path, self.probe_path, mode='w')
+        self._template_dictionary = TemplateDictionary(self._template_store, cc_merge=self.cc_merge,
+                                                      cc_mixture=self.cc_mixture, overlap_path=self.overlaps_path)
 
         # Log info message.
         string = "{} records templates into {}"
-        message = string.format(self.name, self.data_path)
+        message = string.format(self.name, self.templates_path)
         self.log.info(message)
 
         # Define precomputed templates (if necessary).
@@ -118,7 +126,7 @@ class Template_updater(Block):
             self.precomputed_templates = precomputed_templates
 
             # Add precomputed templates to the dictionary.
-            accepted = self.template_dictionary.initialize(self.precomputed_templates)
+            accepted, _, _ = self._template_dictionary.add(self.precomputed_templates, force=True)
 
             # Log some information.
             if len(accepted) > 0:
@@ -126,25 +134,25 @@ class Template_updater(Block):
                 message = string.format(self.name, len(accepted))
                 self.log.debug(message)
 
+            self._template_dictionary.compute_overlaps()
+
+            # Save precomputed overlaps to disk.
+            self._template_dictionary.save_overlaps()
+
             # Send output data.
-            self._precomputed_output = {
-                'templates_file': self.template_store.file_name,
-                # 'indices': accepted,  # TODO check if the benchmarks still work with this modification.
-                'indices': [],
-            }
+            self._precomputed_output = self._template_dictionary.to_json
+            self._precomputed_output['indices'] = []
         else:
             self._precomputed_output = None
 
         return
 
     @staticmethod
-    def _get_tmp_path():
+    def _get_tmp(tmp_basename):
         # TODO add docstring.
 
         tmp_directory = tempfile.gettempdir()
-        tmp_basename = "templates.h5"
         tmp_path = os.path.join(tmp_directory, tmp_basename)
-
         return tmp_path
 
     def _guess_output_endpoints(self):
@@ -193,7 +201,7 @@ class Template_updater(Block):
 
             # Add received templates to the dictionary.
             templates = self._data_to_templates(data)
-            accepted, nb_duplicates, nb_mixtures = self.template_dictionary.add(templates)
+            accepted, nb_duplicates, nb_mixtures = self._template_dictionary.add(templates)
 
             # Log some information.
             if nb_duplicates > 0:
@@ -212,11 +220,16 @@ class Template_updater(Block):
                 message = string.format(self.name, len(accepted))
                 self.log.debug(message)
 
+            # Update and precompute the overlaps.
+            self._template_dictionary.compute_overlaps()
+
+            # Save precomputed overlaps to disk.
+            self._template_dictionary.save_overlaps()
+
             # Send output data.
-            output = {
-                'templates_file': self.template_store.file_name,
-                'indices': accepted,
-            }
+            output = self._template_dictionary.to_json
+            output['indices'] = accepted
+
             self.output.send(output)
 
             self._measure_time('end', frequency=1)

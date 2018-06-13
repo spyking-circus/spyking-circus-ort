@@ -14,7 +14,9 @@ requires = [
     'tqdm',
     'zmq',
     'sklearn',
-    'hdbscan', 'pyopencl',
+    'hdbscan',
+    'pyopencl',
+    'portalocker'
 ]
 
 

@@ -21,7 +21,7 @@ class Fitter(Block):
     name = "Fitter"
 
     params = {
-        'init_path': None,
+        'templates_init_path': None,
         'overlaps_init_path': None,
         'with_rejected_times': False,
         'sampling_rate': 20e+3,
@@ -35,7 +35,7 @@ class Fitter(Block):
         Block.__init__(self, **kwargs)
 
         # The following lines are useful to avoid some PyCharm's warnings.
-        self.init_path = self.init_path
+        self.templates_init_path = self.templates_init_path
         self.overlaps_init_path = self.overlaps_init_path
         self.with_rejected_times = self.with_rejected_times
         self.sampling_rate = self.sampling_rate
@@ -52,11 +52,12 @@ class Fitter(Block):
 
         self.space_explo = 0.5
         self.nb_chances = 3
-        self.overlaps_store = None
+        self._overlaps_store = None
+        self._template_store = None
 
-        if self.init_path is not None:
-            self.init_path = os.path.expanduser(self.init_path)
-            self.init_path = os.path.abspath(self.init_path)
+        if self.templates_init_path is not None:
+            self.templates_init_path = os.path.expanduser(self.templates_init_path)
+            self.templates_init_path = os.path.abspath(self.templates_init_path)
             self._initialize_templates()
 
         # Variables used to handle buffer edges.
@@ -77,13 +78,15 @@ class Fitter(Block):
 
     def _initialize_templates(self):
 
-        self.template_store = TemplateStore(self.init_path, mode='r')
-        self.overlaps_store = OverlapsStore(self.template_store)
+        self.template_store = TemplateStore(self.templates_init_path, mode='r')
 
         # Log info message.
         string = "{} is initialized with {} templates from {}"
-        message = string.format(self.name, self.overlaps_store.nb_templates, self.init_path)
+        message = string.format(self.name, self._template_store.nb_templates, self.templates_init_path)
         self.log.info(message)
+
+        self._overlaps_store = OverlapsStore(template_store=self._template_store, path=self.overlaps_init_path,
+                                             fitting_mode=True)
 
         # Precompute all the overlaps.
         if self.overlaps_init_path is None:
@@ -92,7 +95,7 @@ class Fitter(Block):
             message = string.format(self.name)
             self.log.info(message)
             # Precompute all the overlaps.
-            self.overlaps_store.precompute_overlaps()
+            self._overlaps_store.compute_overlaps()
         else:
             if os.path.isfile(self.overlaps_init_path):
                 # Log info.
@@ -100,15 +103,15 @@ class Fitter(Block):
                 message = string.format(self.name, self.overlaps_init_path)
                 self.log.info(message)
                 # Load precomputed overlaps.
-                self.overlaps_store.load_internal_overlaps_dictionary(self.overlaps_init_path)
+                self._overlaps_store.load_overlaps(self.overlaps_init_path)
             else:
                 # Log info.
                 string = "{} precomputes and saves all the overlaps in {}..."
                 message = string.format(self.name, self.overlaps_init_path)
                 self.log.info(message)
                 # Precompute and save all the overlaps.
-                self.overlaps_store.precompute_overlaps()
-                self.overlaps_store.save_internal_overlaps_dictionary(self.overlaps_init_path)
+                self._overlaps_store.compute_overlaps()
+                self._overlaps_store.save_overlaps(self.overlaps_init_path)
 
         return
 
@@ -124,15 +127,15 @@ class Fitter(Block):
 
     @property
     def nb_templates(self):
-        if self.overlaps_store is not None:
-            return self.overlaps_store.nb_templates
+        if self._overlaps_store is not None:
+            return self._overlaps_store.nb_templates
         else:
             return 0
 
     def _guess_output_endpoints(self):
         # TODO add docstring.
 
-        if self.init_path is not None:
+        if self.templates_init_path is not None:
             self._init_temp_window()
 
         return
@@ -141,7 +144,7 @@ class Fitter(Block):
         # TODO add docstring.
 
         self.slice_indices = np.zeros(0, dtype=np.int32)
-        self._width = (self.overlaps_store.temporal_width - 1) // 2
+        self._width = (self._overlaps_store.temporal_width - 1) // 2
         self._2_width = 2 * self._width
         temp_window = np.arange(-self._width, self._width + 1)
         buffer_size = 2 * self.nb_samples
@@ -214,7 +217,7 @@ class Fitter(Block):
 
         batch = self.x.T.flatten()
         nb_peaks = len(peak_time_steps)
-        waveforms = np.zeros((self.overlaps_store.nb_elements, nb_peaks), dtype=np.float32)
+        waveforms = np.zeros((self._overlaps_store.nb_elements, nb_peaks), dtype=np.float32)
         for k, peak_time_step in enumerate(peak_time_steps):
             waveforms[:, k] = batch[self.slice_indices + peak_time_step]
 
@@ -261,16 +264,16 @@ class Fitter(Block):
             if timing:
                 self._measure_time('scalar_products_start', frequency=10)
             # Compute the scalar products between waveforms and templates.
-            scalar_products = self.overlaps_store.dot(waveforms)
+            scalar_products = self._overlaps_store.dot(waveforms)
             if timing:
                 self._measure_time('scalar_products_end', frequency=10)
 
             # Initialize the failure counter of each peak.
             nb_failures = np.zeros(nb_peaks, dtype=np.int32)
             # Initialize the matching matrix.
-            mask = np.ones((self.overlaps_store.nb_templates, nb_peaks), dtype=np.int32)
+            mask = np.ones((self._overlaps_store.nb_templates, nb_peaks), dtype=np.int32)
             # Filter scalar products of the first component of each template.
-            sub_b = scalar_products[:self.overlaps_store.nb_templates, :]
+            sub_b = scalar_products[:self._overlaps_store.nb_templates, :]
 
             if verbose:
                 # Log debug message.
@@ -302,22 +305,22 @@ class Fitter(Block):
                     best_template_index = np.argmax(peak_scalar_products, axis=0)
 
                     # Compute the best amplitude.
-                    best_amplitude = sub_b[best_template_index, peak_index] / self.overlaps_store.nb_elements
-                    if self.overlaps_store.two_components:
+                    best_amplitude = sub_b[best_template_index, peak_index] / self._overlaps_store.nb_elements
+                    if self._overlaps_store.two_components:
                         best_scalar_product = scalar_products[best_template_index + self.nb_templates, peak_index]
-                        best_amplitude_2 = best_scalar_product / self.overlaps_store.nb_elements
+                        best_amplitude_2 = best_scalar_product / self._overlaps_store.nb_elements
                     else:
                         best_amplitude_2 = None
 
                     # Compute the best normalized amplitude.
-                    best_amplitude_ = best_amplitude / self.overlaps_store.norms['1'][best_template_index]
-                    if self.overlaps_store.two_components:
-                        best_amplitude_2_ = best_amplitude_2 / self.overlaps_store.norms['2'][best_template_index]
+                    best_amplitude_ = best_amplitude / self._overlaps_store.norms['1'][best_template_index]
+                    if self._overlaps_store.two_components:
+                        best_amplitude_2_ = best_amplitude_2 / self._overlaps_store.norms['2'][best_template_index]
                         _ = best_amplitude_2_  # TODO complete.
 
                     # Verify amplitude constraint.
-                    a_min = self.overlaps_store.amplitudes[best_template_index, 0]
-                    a_max = self.overlaps_store.amplitudes[best_template_index, 1]
+                    a_min = self._overlaps_store.amplitudes[best_template_index, 0]
+                    a_max = self._overlaps_store.amplitudes[best_template_index, 1]
                     if timing:
                         self._measure_time('for_loop_preamble_end', frequency=10)
 
@@ -347,7 +350,7 @@ class Fitter(Block):
                         tmp -= np.array([[peak_time_step]])
                         is_neighbor = np.abs(tmp) <= self._2_width
                         ytmp = tmp[0, is_neighbor[0, :]] + self._2_width
-                        indices = np.zeros((self.overlaps_store.size, len(ytmp)), dtype=np.int32)
+                        indices = np.zeros((self._overlaps_store.size, len(ytmp)), dtype=np.int32)
                         indices[ytmp, np.arange(len(ytmp))] = 1
                         if timing:
                             self._measure_time('for_loop_update_1_end', frequency=10)
@@ -356,7 +359,7 @@ class Fitter(Block):
                             self._measure_time('for_loop_update_2_start', frequency=10)
                         if timing:
                             self._measure_time('for_loop_overlaps_start', frequency=10)
-                        tmp1_ = self.overlaps_store.get_overlaps(best_template_index, '1')
+                        tmp1_ = self._overlaps_store.get_overlaps(best_template_index, '1')
                         if timing:
                             self._measure_time('for_loop_overlaps_end', frequency=10)
                         tmp1 = tmp1_.multiply(-best_amplitude).dot(indices)
@@ -364,8 +367,8 @@ class Fitter(Block):
                         if timing:
                             self._measure_time('for_loop_update_2_end', frequency=10)
 
-                        if self.overlaps_store.two_components:
-                            tmp2_ = self.overlaps_store.get_overlaps(best_template_index, '2')
+                        if self._overlaps_store.two_components:
+                            tmp2_ = self._overlaps_store.get_overlaps(best_template_index, '2')
                             tmp2 = tmp2_.multiply(-best_amplitude_2).dot(indices)
                             scalar_products[:, is_neighbor[0, :]] += tmp2
                         if timing:
@@ -612,12 +615,15 @@ class Fitter(Block):
             while updater is not None:
 
                 # Create the template dictionary if necessary.
-                if self.overlaps_store is None:
-                    self.template_store = TemplateStore(updater['templates_file'], 'r')
-                    self.overlaps_store = OverlapsStore(self.template_store)
+                indices = updater.get('indices', None)
+                if self._overlaps_store is None:
+                    self._template_store = TemplateStore(updater['template_store'], mode='r')
+                    self._overlaps_store = OverlapsStore(template_store=self._template_store,
+                                                         path=updater['overlaps']['path'], fitting_mode=True)
                     self._init_temp_window()
                 else:
-                    self.overlaps_store.update(updater['indices'])
+                    laziness = updater['overlaps']['path'] is None
+                    self._overlaps_store.update(indices, laziness=laziness)
 
                 updater = self.get_input('updater').receive(blocking=False,
                                                             discarding_eoc=self.discarding_eoc_from_updater)

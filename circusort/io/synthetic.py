@@ -1,4 +1,7 @@
-import h5py
+import warnings
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore",category=FutureWarning)
+    import h5py
 import os
 import numpy
 from circusort.io.utils import append_hdf5
