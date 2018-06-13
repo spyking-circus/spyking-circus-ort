@@ -3,6 +3,9 @@ import time
 from circusort.block.block import Block
 
 
+__classname__ = "UpdaterWriter"
+
+
 class UpdaterWriter(Block):
 
     name = "Updater writer"
@@ -11,7 +14,7 @@ class UpdaterWriter(Block):
 
     def __init__(self, **kwargs):
 
-        Block.__init__(**kwargs)
+        Block.__init__(self, **kwargs)
         self.add_input('updater', structure='dict')
 
     def _initialize(self):

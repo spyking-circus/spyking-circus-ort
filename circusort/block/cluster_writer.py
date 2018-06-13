@@ -3,6 +3,9 @@ import time
 from circusort.block.block import Block
 
 
+__classname__ = "ClusterWriter"
+
+
 class ClusterWriter(Block):
 
     name = "Cluster writer"
@@ -11,7 +14,7 @@ class ClusterWriter(Block):
 
     def __init__(self, **kwargs):
 
-        Block.__init__(**kwargs)
+        Block.__init__(self, **kwargs)
         self.add_input('templates', structure='dict')
 
     def _initialize(self):
