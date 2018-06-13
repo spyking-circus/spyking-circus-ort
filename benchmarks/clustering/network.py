@@ -159,7 +159,7 @@ def sorting(configuration_name):
     cluster = managers['master'].create_block('density_clustering', **cluster_kwargs)
     cluster_writer = managers['master'].create_block('cluster_writer', **cluster_writer_kwargs)
     updater = managers['master'].create_block('template_updater_bis', **updater_bis_kwargs)
-    updater_writer = managers['master'].creatr_block('updater_writer', **updater_writer_kwargs)
+    updater_writer = managers['master'].create_block('updater_writer', **updater_writer_kwargs)
     # Initialize the elements of the network.
     director.initialize()
     # Connect the elements of the network.
