@@ -1,5 +1,8 @@
 import collections
-import h5py
+import warnings
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore",category=FutureWarning)
+    import h5py
 import matplotlib.pyplot as plt
 import numpy as np
 import os

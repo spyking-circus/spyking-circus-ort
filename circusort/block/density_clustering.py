@@ -36,20 +36,21 @@ class Density_clustering(Block):
         'radius': None,
         'm_ratio': 0.01,
         'noise_thr': 0.8,
-        'n_min': 0.002,
+        'n_min': 0.01,
         'dispersion': [5, 5],
         'sub_dim': 5,
         'extraction': 'median-raw',
         'two_components': False,
-        'decay_factor': 0.5,
-        'mu': 'auto',
-        'epsilon': 1,
+        'decay_factor': 0.01,
+        'mu': 4.,
+        'epsilon': 'auto',
         'theta': -np.log(0.001),
-        'tracking': True,
+        'tracking': False,
         'safety_time': 'auto',
         'compression': 0.5,
         'local_merges': 3,
-        'debug_plots': None
+        'debug_plots': None,
+        'debug_data': None
     }
 
     def __init__(self, **kwargs):
@@ -70,7 +71,7 @@ class Density_clustering(Block):
         self.n_min = self.n_min
         self.dispersion = self.dispersion
         self.two_components = self.two_components
-        self.decay_factor = self.decay_factor
+        self.decay_factor = self.decay_factor / float(self.sampling_rate)
         self.mu = self.mu
         self.epsilon = self.epsilon
         self.theta = self.theta
@@ -83,12 +84,13 @@ class Density_clustering(Block):
             self.probe = load_probe(self.probe_path, radius=self.radius, logger=self.log)
             self.log.info("{n} reads the probe layout".format(n=self.name))
 
-        if self.debug_plots is not None:
+        for directory in [self.debug_plots, self.debug_data]:
+            if directory is not None:
 
-            if os.path.exists(self.debug_plots):
-                shutil.rmtree(self.debug_plots)
+                if os.path.exists(directory):
+                    shutil.rmtree(directory)
 
-            os.makedirs(self.debug_plots)
+                os.makedirs(directory)
 
         self.add_input('data')
         self.add_input('pcs')
@@ -112,13 +114,13 @@ class Density_clustering(Block):
         if self.safety_time == 'auto':
             self.safety_time = self._spike_width_ // 3
         else:
-            self.safety_time = int(self.safety_time*self.sampling_rate * 1e-3)
+            self.safety_time = int(self.safety_time * self.sampling_rate * 1e-3)
 
         if self.alignment:
             num = 5 * self._spike_width_
             self.cdata = np.linspace(-self._width, self._width, num)
             self.xdata = np.arange(-self._2_width, self._2_width + 1)
-            self.xoff = len(self.cdata)/2.
+            self.xoff = len(self.cdata) / 2.
 
         return
 
@@ -146,7 +148,7 @@ class Density_clustering(Block):
                 rmax = all_peaks[key].max()
                 diff_times = rmax - rmin
                 self.masks[key] = {}
-                self.masks[key]['all_times'] = np.zeros((self.nb_channels, diff_times+1), dtype=np.bool)
+                self.masks[key]['all_times'] = np.zeros((self.nb_channels, diff_times + 1), dtype=np.bool)
                 self.masks[key]['min_times'] = np.maximum(all_peaks[key] - rmin - self.safety_time, 0)
                 self.masks[key]['max_times'] = np.minimum(all_peaks[key] - rmin + self.safety_time + 1, diff_times)
 
@@ -219,18 +221,18 @@ class Density_clustering(Block):
             if len(ydata) == 1:
                 f = scipy.interpolate.UnivariateSpline(self.xdata, zdata, s=0)
                 if is_neg:
-                    rmin = (np.argmin(f(self.cdata)) - self.xoff)/5.
+                    rmin = (np.argmin(f(self.cdata)) - self.xoff) / 5.
                 else:
-                    rmin = (np.argmax(f(self.cdata)) - self.xoff)/5.
+                    rmin = (np.argmax(f(self.cdata)) - self.xoff) / 5.
                 ddata = np.linspace(rmin - self._width, rmin + self._width, self._spike_width_)
                 sub_mat = f(ddata).astype(np.float32).reshape(1, self._spike_width_)
             else:
-                f = scipy.interpolate.RectBivariateSpline(self.xdata, ydata, zdata, s=0, ky=min(len(ydata)-1, 3))
+                f = scipy.interpolate.RectBivariateSpline(self.xdata, ydata, zdata, s=0, ky=min(len(ydata) - 1, 3))
                 if is_neg:
-                    rmin = (np.argmin(f(self.cdata, idx)[:, 0]) - self.xoff)/5.
+                    rmin = (np.argmin(f(self.cdata, idx)[:, 0]) - self.xoff) / 5.
                 else:
-                    rmin = (np.argmax(f(self.cdata, idx)[:, 0]) - self.xoff)/5.
-                ddata = np.linspace(rmin-self._width, rmin+self._width, self._spike_width_)
+                    rmin = (np.argmax(f(self.cdata, idx)[:, 0]) - self.xoff) / 5.
+                ddata = np.linspace(rmin - self._width, rmin + self._width, self._spike_width_)
                 sub_mat = f(ddata, ydata).astype(np.float32)
         else:
             sub_mat = batch[peak - self._width:peak + self._width + 1, indices]
@@ -254,6 +256,7 @@ class Density_clustering(Block):
         self.raw_data = {}
         self.templates = {}
         self.managers = {}
+        self.times = {}
 
         if not np.all(self.pcs[0] == 0):
             self.sign_peaks += ['negative']
@@ -266,6 +269,7 @@ class Density_clustering(Block):
             self.raw_data[key] = {}
             self.managers[key] = {}
             self.templates[key] = {}
+            self.times[key] = {}
 
             for channel in self.channels:
 
@@ -276,6 +280,7 @@ class Density_clustering(Block):
                     'mu': self.mu,
                     'decay': self.decay_time,
                     'epsilon': self.epsilon,
+                    'decay': self.decay_time,
                     'theta': self.theta,
                     'n_min': self.n_min,
                     'noise_thr': self.noise_thr,
@@ -291,6 +296,8 @@ class Density_clustering(Block):
                 elif key == 'positive':
                     params['pca'] = self.pcs[1]
 
+                if self.debug_data is not None:
+                    self.times[key][channel] = []
                 self.templates[key][channel] = {}
                 self.managers[key][channel] = OnlineManager(**params)
                 self._reset_data_structures(key, channel)
@@ -309,6 +316,7 @@ class Density_clustering(Block):
         shape = (0, len(self.probe.edges[channel]), self._spike_width_)
         self.raw_data[key][channel] = np.zeros(shape, dtype=np.float32)
         self.templates[key][channel] = {}
+        self.times[key][channel] = []
 
     def _process(self):
 
@@ -322,9 +330,6 @@ class Density_clustering(Block):
 
         if self.receive_pcs:
             self.pcs = self.inputs['pcs'].receive(blocking=False)
-
-        # TODO remove the following line.
-        self.thresholds = None  # This is a hacky solution to skip all the computations done by this block.
 
         if self.pcs is not None:  # (i.e. we have already received some principal components).
 
@@ -345,13 +350,12 @@ class Density_clustering(Block):
                 while not self._sync_buffer(peaks, self.nb_samples):
                     peaks = self.inputs['peaks'].receive()
 
-
                 # Set active mode (i.e. use a blocking reception for the peaks).
                 if not self.is_active:
                     self._set_active_mode()
 
                 # Retrieve peaks from received buffer.
-                _ = peaks.pop('offset')
+                offset = peaks.pop('offset')
                 all_peaks = self._get_all_valid_peaks(peaks)
 
                 for key in self.sign_peaks:
@@ -362,7 +366,7 @@ class Density_clustering(Block):
                     for peak_idx, peak in zip(peak_indices, peak_values):
 
                         channel, is_neg = self._get_best_channel(batch, key, peak, peaks)
-                        
+
                         if self._isolated_peak(key, peak_idx, channel):
 
                             self._remove_nn_peaks(key, peak_idx, channel)
@@ -379,6 +383,8 @@ class Density_clustering(Block):
                                     self.raw_data[key][channel] = np.vstack((self.raw_data[key][channel], waveforms))
                                 else:
                                     self.managers[key][channel].update(self.counter, waveforms)
+                                if self.debug_data is not None:
+                                    self.times[key][channel] += [offset + peak_idx]
 
                     for channel in self.channels:
 
@@ -386,9 +392,9 @@ class Density_clustering(Block):
                         self.managers[key][channel].set_physical_threshold(threshold)
 
                         self.log.debug("We have collected {a} {b} peaks on channel {c}".format(
-                                                    a=len(self.raw_data[key][channel]),b=key,c=channel))
+                            a=len(self.raw_data[key][channel]), b=key, c=channel))
 
-                        if len(self.raw_data[key][channel]) >=\
+                        if len(self.raw_data[key][channel]) >= \
                                 self.nb_waveforms and not self.managers[key][channel].is_ready:
                             string = "{n} Electrode {k} has obtained {m} {t} waveforms: clustering"
                             message = string.format(n=self.name, k=channel, m=self.nb_waveforms, t=key)

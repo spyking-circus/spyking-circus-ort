@@ -112,7 +112,8 @@ class FitterBis(Block):
         message = string.format(self.name, self._template_store.nb_templates, self.templates_init_path)
         self.log.info(message)
 
-        self._overlaps_store = OverlapsStore(template_store=self._template_store, path=self.overlaps_init_path)
+        self._overlaps_store = OverlapsStore(template_store=self._template_store, path=self.overlaps_init_path,
+                                             fitting_mode=True)
 
         # Log info message.
         string = "{} is initialized with precomputed overlaps from {}"
@@ -643,22 +644,21 @@ class FitterBis(Block):
 
                 # Modify template and overlap stores.
                 indices = updater.get('indices', None)
-                templates_path = updater.get('templates_file', None)
-                overlaps_path = updater.get('overlaps_path', None)
-                if self._overlaps_store is None:
+                if self._template_store is None:
                     # Initialize template and overlap stores.
-                    self._template_store = TemplateStore(templates_path, mode='r')
-                    self._overlaps_store = OverlapsStore(template_store=self._template_store, path=overlaps_path)
+                    self._template_store = TemplateStore(updater['template_store'], mode='r')
+                    self._overlaps_store = OverlapsStore(template_store=self._template_store,
+                                                         path=updater['overlaps']['path'], fitting_mode=True)
                     self._init_temp_window()
                     # Log debug message.
                     string = "{} initializes template and overlap stores ({}, {})"
-                    message = string.format(self.name, templates_path, overlaps_path)
+                    message = string.format(self.name, updater['template_store'], updater['overlaps']['path'])
                     self.log.debug(message)
                 else:
                     # TODO uncomment the 3 following lines.
                     # # Update template and overlap stores.
-                    # laziness = overlaps_path is None
-                    # self._overlaps_store.update(indices, laziness=laziness)
+                    laziness = updater['overlaps']['path'] is None
+                    self._overlaps_store.update(indices, laziness=laziness)
                     # Log debug message.
                     string = "{} updates template and overlap stores"
                     message = string.format(self.name)

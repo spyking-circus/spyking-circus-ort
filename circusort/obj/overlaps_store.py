@@ -3,6 +3,7 @@ import numpy as np
 import os
 import pickle  # TODO check if we should use cPickle instead.
 import scipy.sparse
+import portalocker
 
 from circusort.obj.overlaps import Overlaps
 
@@ -30,7 +31,7 @@ class OverlapsStore(object):
     """
     # TODO complete docstring.
 
-    def __init__(self, template_store=None, optimize=True, path=None):
+    def __init__(self, template_store=None, optimize=True, path=None, fitting_mode=False):
         """Initialize overlap store.
 
         Arguments:
@@ -53,32 +54,11 @@ class OverlapsStore(object):
         self._temporal_width = None
         self._indices = []
         self._masks = {}
-
-        self.overlaps = {
-            '1': {}
-        }
-
-        self.nb_elements = None  # initialized later
-        self.size = None  # initialized later
-
-        self.first_component = None  # initialized later
-        self.norms = {
-            '1': np.zeros(0, dtype=np.float32)
-        }
-        self.amplitudes = np.zeros((0, 2), dtype=np.float32)
-        self.electrodes = np.zeros(0, dtype=np.int32)
-
-        if self.two_components:
-            self.second_component = None  # initialized later
-            self.norms['2'] = np.zeros(0, dtype=np.float32)
-            self.overlaps['2'] = {}
-
-        self._cols = None  # initialized later
-        self._scols = None  # initialized later
-
+        self._first_component = None
         self._is_initialized = False
+        self.fitting_mode = fitting_mode
+
         if not self.template_store.is_empty:
-            self._initialize()
             self.update(self.template_store.indices, laziness=False)
 
         self._all_components = None
@@ -86,19 +66,35 @@ class OverlapsStore(object):
         return
 
     def __len__(self):
+        if self._first_component is None:
+            self._first_component = 0
+        else:
+            self._first_component = self.first_component.shape[0]
+        return self._first_component
 
-        return self.first_component.shape[0]
-
-    def _initialize(self):
+    def _init_from_template(self, template):
         # TODO add docstring.
 
+        self.overlaps = {
+            '1': {}
+        }
+
+        self.norms = {}
+
+        self._temporal_width = template.temporal_width
         self.nb_elements = self.nb_channels * self.temporal_width
         self.size = 2 * self.temporal_width - 1
 
         self.first_component = scipy.sparse.csr_matrix((0, self.nb_elements), dtype=np.float32)
+        self.norms['1'] = np.zeros(0, dtype=np.float32)
+
+        self.amplitudes = np.zeros((0, 2), dtype=np.float32)
+        self.electrodes = np.zeros(0, dtype=np.int32)
 
         if self.two_components:
             self.second_component = scipy.sparse.csr_matrix((0, self.nb_elements), dtype=np.float32)
+            self.overlaps['2'] = {}
+            self.norms['2'] = np.zeros(0, dtype=np.float32)
 
         self._cols = np.arange(self.nb_channels * self._temporal_width).astype(np.int32)
         self._scols = {
@@ -129,17 +125,23 @@ class OverlapsStore(object):
 
         if self._all_components is None:
             if not self.two_components:
-                self._all_components = self.first_component.tocsc()
+                self._all_components = self.first_component
+                if not self.fitting_mode:
+                    self._all_components = self._all_components.tocsc()
             else:
-                self._all_components = scipy.sparse.vstack((self.first_component,
-                                                            self.second_component), format='csr').tocsc()
+                self._all_components = scipy.sparse.vstack((self.first_component, self.second_component), format='csr')
+                if not self.fitting_mode:
+                    self._all_components = self._all_components.tocsc()
 
         return self._all_components
 
     @property
     def nb_templates(self):
+        return len(self)
 
-        return self.first_component.shape[0]
+    @property
+    def to_json(self):
+        return {'path': self.path}
 
     def non_zeros(self, index):
         if self.optimize:
@@ -193,6 +195,9 @@ class OverlapsStore(object):
     def add_template(self, template):
         # TODO add docstring.
 
+        if not self._is_initialized:
+            self._init_from_template(template)
+
         # Add new and updated templates to the dictionary.
         self.norms['1'] = np.concatenate((self.norms['1'], [template.first_component.norm]))
         self.amplitudes = np.vstack((self.amplitudes, template.amplitudes))
@@ -227,9 +232,6 @@ class OverlapsStore(object):
     def update(self, indices, laziness=True):
         # TODO add docstring.
 
-        if not self._is_initialized and not self.template_store.is_empty:
-            self._initialize()
-
         templates = self.template_store.get(indices)
 
         for template in templates:
@@ -238,14 +240,14 @@ class OverlapsStore(object):
         if not laziness:
             if self.path is not None and os.path.isfile(self.path):
                 # Load precomputed overlaps.
-                self.load_internal_overlaps_dictionary(self.path)
+                self.load_overlaps(self.path)
             else:
                 # Precompute overlaps.
-                self.precompute_overlaps()
+                self.compute_overlaps()
 
         return
 
-    def precompute_overlaps(self):
+    def compute_overlaps(self):
         # TODO add docstring.
 
         for index in range(0, self.nb_templates):
@@ -255,7 +257,7 @@ class OverlapsStore(object):
 
         return
 
-    def save_internal_overlaps_dictionary(self, path=None):
+    def save_overlaps(self, path=None):
         """Save the internal dictionary of the overlaps store to file.
 
         Argument:
@@ -273,12 +275,12 @@ class OverlapsStore(object):
         path = os.path.abspath(path)
 
         # Dump overlaps.
-        with open(path, mode='wb') as file_:
+        with portalocker.Lock(path, mode='wb') as file_:
             pickle.dump(self.overlaps, file_)
 
         return
 
-    def load_internal_overlaps_dictionary(self, path=None):
+    def load_overlaps(self, path=None):
         """Load the internal dictionary of the overlaps store from file.
 
         Argument:
@@ -289,6 +291,7 @@ class OverlapsStore(object):
         # Check argument.
         if path is None:
             path = self.path
+
         assert path is not None, "Missing argument: path"
 
         # Normalize path.
@@ -296,8 +299,38 @@ class OverlapsStore(object):
         path = os.path.abspath(path)
 
         # Load overlaps.
-        with open(path, mode='rb') as file_:
-            overlaps = pickle.load(file_)
-            self.overlaps = overlaps
+        with portalocker.Lock(path, mode='rb') as file_:
+            self.overlaps = pickle.load(file_)
 
         return
+
+    def is_present(self, csr_template, cc_merge, non_zeros=None):
+
+        if non_zeros is not None:
+            sub_target = self.first_component[non_zeros]
+        else:
+            sub_target = self.first_component
+
+        for idelay in self._scols['delays']:
+            tmp_1 = csr_template[:, self._scols['left'][idelay]]
+            tmp_2 = sub_target[:, self._scols['right'][idelay]]
+            data = tmp_1.dot(tmp_2.T)
+            if np.any(data.data >= cc_merge):
+                return True
+
+            if idelay < self.temporal_width:
+                tmp_1 = csr_template[:, self._scols['right'][idelay]]
+                tmp_2 = sub_target[:, self._scols['left'][idelay]]
+                data = tmp_1.dot(tmp_2.T)
+                if np.any(data.data >= cc_merge):
+                    return True
+
+        return False
+
+    def _is_mixture(self, csr_template, cc_mixture, non_zeros=None):
+
+        for i in range(len(self)):
+            for j in range(len(self)):
+                pass
+
+        return False

@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import numpy as np
-import h5py
 import scipy.sparse
 
 
@@ -84,16 +83,3 @@ class Overlaps(object):
     def initialize(self, template, target, non_zeros=None):
 
         self.overlaps = self._get_overlaps(template, target, non_zeros)
-
-    def save(self, path):
-
-        with h5py.File(path, mode='w') as file_:
-
-            file_.create_dataset('data', data=self.overlaps.data, chunks=True)
-            file_.create_dataset('indices', data=self.overlaps.indices, chunks=True)
-            file_.create_dataset('indptr', data=self.overlaps.indptr, chunks=True)
-            file_.attrs['indices'] = self.indices_
-            file_.attrs['temporal_width'] = self.temporal_width
-            file_.attrs['size'] = self.size
-
-        return

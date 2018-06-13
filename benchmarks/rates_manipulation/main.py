@@ -8,14 +8,15 @@ from logging import DEBUG, INFO
 from circusort.io.cells import list_cells
 
 
-nb_rows = 10
-nb_columns = 10
-nb_cells = 100
+nb_rows = 5
+nb_columns = 5
+nb_cells = 25
 duration = 10 * 60
 radius = 100
 preload_templates = False
-nb_waveforms_clustering = 500
+nb_waveforms_clustering = 100
 nb_replay = 3
+data_path = "rates_manipulation"
 
 
 def main():
@@ -33,7 +34,7 @@ def main():
         args.pending_sorting = args.pending_sorting is True
 
     # Define the working directory.
-    directory = os.path.join("~", ".spyking-circus-ort", "benchmarks", "rates_manipulation")
+    directory = os.path.join("~", ".spyking-circus-ort", "benchmarks", data_path)
     directory = os.path.expanduser(directory)
     if not os.path.isdir(directory):
         os.makedirs(directory)
@@ -166,10 +167,11 @@ def main():
         updater_kwargs = {
             'name': "updater",
             'probe_path': probe_path,
-            'data_path': os.path.join(sorting_directory, "templates.h5"),
+            'templates_path': os.path.join(sorting_directory, "templates.h5"),
             'sampling_rate': sampling_rate,
             'nb_samples': nb_samples,
             'log_level': DEBUG,
+            'overlaps_path' : os.path.join(sorting_directory, "overlaps.pck")
         }
 
         if preload_templates:
@@ -178,13 +180,14 @@ def main():
         fitter_kwargs = {
             'name': "fitter",
             'sampling_rate': sampling_rate,
-            'log_level': DEBUG,
+            'log_level': INFO,
             'introspection_path': introspect_path,
             'discarding_eoc_from_updater': True,
         }
 
         if preload_templates:
-            fitter_kwargs['init_path'] = os.path.join(sorting_directory, "templates.h5")
+            fitter_kwargs['templates_init_path'] = os.path.join(sorting_directory, "templates.h5")
+            fitter_kwargs['overlaps_init_path'] = os.path.join(sorting_directory, "overlaps.pck")
 
         writer_kwargs = {
             'name': "writer",
