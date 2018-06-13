@@ -19,7 +19,6 @@ class Mad_estimator(Block):
 
     Output:
         mads
-
     """
     # TODO complete docstring.
 
@@ -34,14 +33,17 @@ class Mad_estimator(Block):
     def __init__(self, **kwargs):
 
         Block.__init__(self, **kwargs)
-        self.add_output('mads')
-        self.add_input('data')
+        self.add_output('mads', structure='dict')
+        self.add_input('data', structure='dict')
 
         # The following lines are useful to avoid some PyCharm warnings.
         self.sampling_rate = self.sampling_rate
         self.time_constant = self.time_constant
         self.epsilon = self.epsilon
 
+        self._dtype = None
+        self._nb_samples = None
+        self._nb_channels = None
         self._n = 0
         self._medians = None
         self._mads = None
@@ -51,28 +53,35 @@ class Mad_estimator(Block):
 
         return
 
-    @property
-    def nb_channels(self):
+    def _configure_input_parameters(self, dtype=None, nb_samples=None, nb_channels=None, **kwargs):
 
-        return self.input.shape[1]
+        self._dtype = dtype
+        self._nb_samples = nb_samples
+        self._nb_channels = nb_channels
 
-    @property
-    def nb_samples(self):
+        return
 
-        return self.input.shape[0]
+    def _update_initialization(self):
+        # TODO add docstring.
 
-    def _guess_output_endpoints(self):
+        # Define shape.
+        shape = (1, self._nb_channels)
+        # Define data type.
+        if self._dtype in ['float32', 'float64']:
+            dtype = self._dtype
+        elif self._dtype in ['int16', 'uint16']:
+            dtype = np.float64
+        else:
+            string = "MAD is not supported for data of type '{}'"
+            message = string.format(self._dtype)
+            raise TypeError(message)
 
-        shape = (1, self.nb_channels)
+        self._medians = np.zeros(shape, dtype=dtype)
+        self._mads = np.zeros(shape, dtype=dtype)
+        self._last_mads = np.zeros(shape, dtype=dtype)
 
-        self._medians = np.zeros(shape, dtype=np.float32)
-        self._mads = np.zeros(shape, dtype=np.float32)
-        self._last_mads = np.zeros(shape, dtype=np.float32)
-
-        self._tau = self.time_constant * self.sampling_rate / self.nb_samples
+        self._tau = self.time_constant * self.sampling_rate / self._nb_samples
         self._gamma = np.exp(- 1.0 / self._tau)
-
-        self.outputs['mads'].configure(dtype='float32', shape=shape)
 
         return
 
@@ -84,8 +93,11 @@ class Mad_estimator(Block):
         test[np.isnan(test)] = 0.0
         test = np.mean(np.abs(test - 1.0))
         if test < self.epsilon:
-            message = "{} has converged".format(self.name_and_counter)
+            # Log info message.
+            string = "{} has converged."
+            message = string.format(self.name_and_counter)
             self.log.info(message)
+            # Set block as active.
             self._set_active_mode()
 
         return
@@ -107,7 +119,8 @@ class Mad_estimator(Block):
     def _process(self):
 
         # Receive input data.
-        batch = self.input.receive()
+        data_packet = self.get_input('data').receive()
+        batch = data_packet['payload']
 
         self._measure_time('start', frequency=100)
 
@@ -125,9 +138,15 @@ class Mad_estimator(Block):
         # Check state (if necessary).
         if not self.is_active:
             self._check_if_active()
-        # Send output data (if necessary).
+        # Prepare and send output data packet (if necessary).
         if self.is_active:
-            self.get_output('mads').send(self._mads)
+            # Prepare output data packet.
+            packet = {
+                'number': data_packet['number'],
+                'payload': self._mads,
+            }
+            # Send output data packet.
+            self.get_output('mads').send(packet)
         # Update last seen MADs.
         self._last_mads = self._mads
 
@@ -142,13 +161,14 @@ class Mad_estimator(Block):
         start_times = np.array(self._measured_times.get('start', []))
         end_times = np.array(self._measured_times.get('end', []))
         durations = end_times - start_times
-        data_duration = float(self.nb_samples) / self.sampling_rate
+        data_duration = float(self._nb_samples) / self.sampling_rate
         ratios = data_duration / durations
 
         min_ratio = np.min(ratios) if ratios.size > 0 else np.nan
         mean_ratio = np.mean(ratios) if ratios.size > 0 else np.nan
         max_ratio = np.max(ratios) if ratios.size > 0 else np.nan
 
+        # Log info message.
         string = "{} processed {} buffers [speed:x{:.2f} (min:x{:.2f}, max:x{:.2f})]"
         message = string.format(self.name, nb_buffers, mean_ratio, min_ratio, max_ratio)
         self.log.info(message)

@@ -84,6 +84,9 @@ class Demultiplexer(Block):
                 output_name = self._get_output_name(name, k)
                 self.add_output(output_name, structure)
 
+        self._nb_channels = None
+        self._nb_samples = None
+
     @staticmethod
     def _get_output_name(name, k):
 
@@ -108,6 +111,22 @@ class Demultiplexer(Block):
         pass
 
         return
+
+    def _configure_input_parameters(self, nb_channels=None, nb_samples=None, **kwargs):
+
+        if nb_channels is not None:
+            self._nb_channels = nb_channels
+        if nb_samples is not None:
+            self._nb_samples = nb_samples
+
+    def _get_output_parameters(self):
+
+        params = {
+            'nb_channels': self._nb_channels,
+            'nb_samples': self._nb_samples,
+        }
+
+        return params
 
     def _guess_output_endpoints(self):
 
@@ -135,43 +154,45 @@ class Demultiplexer(Block):
 
             if policy == 'hard_blocking':
 
-                data = self.inputs[name].receive(blocking=True)
+                packet = self.inputs[name].receive(blocking=True)
                 for token in tokens:
                     name_ = self._get_output_name(name, token)
-                    self.outputs[name_].send(data)
+                    self.outputs[name_].send(packet)
 
             elif policy == 'soft_blocking':
 
                 if self._is_synced(name):
-                    data = self.inputs[name].receive(blocking=True)
+                    packet = self.inputs[name].receive(blocking=True)
                     for token in tokens:
                         name_ = self._get_output_name(name, token)
-                        self.outputs[name_].send(data)
+                        self.outputs[name_].send(packet)
                 else:
-                    data = self.inputs[name].receive(blocking=False)
-                    if data is not None:
+                    packet = self.inputs[name].receive(blocking=False)
+                    if packet is not None:
+                        data = packet['payload']
                         while not self._sync_buffer(data, self.nb_samples):
-                            data = self.inputs[name].receive(blocking=True)
+                            packet = self.inputs[name].receive(blocking=True)
+                            data = packet['payload']
                         self._set_synced(name)
                         for token in tokens:
                             name_ = self._get_output_name(name, token)
-                            self.outputs[name_].send(data)
+                            self.outputs[name_].send(packet)
 
             elif policy == 'non_blocking':
 
-                data = self.inputs[name].receive(blocking=False)
-                if data is not None:
+                packet = self.inputs[name].receive(blocking=False)
+                if packet is not None:
                     for token in tokens:
                         name_ = self._get_output_name(name, token)
-                        self.outputs[name_].send(data)
+                        self.outputs[name_].send(packet)
 
             elif policy == 'non_blocking_broadcast':
 
-                data = self.get_input(name).receive(blocking=False)
-                if data is not None:
+                packet = self.get_input(name).receive(blocking=False)
+                if packet is not None:
                     for token in range(0, self.degree):
                         output_name = self._get_output_name(name, token)
-                        self.get_output(output_name).send(data)
+                        self.get_output(output_name).send(packet)
 
             else:
 

@@ -51,21 +51,21 @@ class Reader(Block):
         # TODO complete docstring.
 
         Block.__init__(self, **kwargs)
-        self.add_output('data')
+        self.add_output('data', structure='dict')
 
         # Lines useful to remove PyCharm warnings.
-        self.data_path = "/tmp/input.raw" if self.data_path is None else self.data_path
-        self.dtype = 'float32' if self.dtype is None else self.dtype
-        self.nb_channels = 10 if self.nb_channels is None else self.nb_channels
-        self.nb_samples = None if self.nb_samples is None else self.nb_samples
-        self.sampling_rate = None if self.sampling_rate is None else self.sampling_rate
-        self.is_realistic = True if self.is_realistic is None else self.is_realistic
+        self.data_path = self.data_path
+        self.dtype = self.dtype
+        self.nb_channels = self.nb_channels
+        self.nb_samples = self.nb_samples
+        self.sampling_rate = self.sampling_rate
+        self.is_realistic = self.is_realistic
+        self.nb_replay = self.nb_replay
 
-        self.output_dtype = 'float32'
-        self.quantum_size = 0.1042  # µV / AD
-        self.quantum_offset = float(np.iinfo('int16').min)
-
-        self.buffer_rate = float(self.nb_samples) / self.sampling_rate
+        self._output_dtype = 'float32'
+        self._quantum_size = 0.1042  # µV / AD
+        self._quantum_offset = float(np.iinfo('int16').min)
+        self._buffer_rate = float(self.nb_samples) / self.sampling_rate
 
     def _initialize(self):
         """Initialization of the processing block."""
@@ -73,9 +73,20 @@ class Reader(Block):
         data = np.memmap(self.data_path, dtype=self.dtype, mode='r')
         self.real_shape = (data.size / self.nb_channels, self.nb_channels)
         self.shape = (self.real_shape[0] * self.nb_replay, self.real_shape[1])
-        self.output.configure(dtype=self.output_dtype, shape=(self.nb_samples, self.nb_channels))
+        self.output.configure(dtype=self._output_dtype, shape=(self.nb_samples, self.nb_channels))
 
         return
+
+    def _get_output_parameters(self):
+        """Collect parameters to transmit to output blocks."""
+
+        params = {
+            'dtype': self._output_dtype,
+            'nb_channels': self.nb_channels,
+            'nb_samples': self.nb_samples,
+        }
+
+        return params
 
     def _process(self):
         """Process one buffer of data."""
@@ -92,25 +103,32 @@ class Reader(Block):
         if g_min < self.shape[0]:
             # Get chunk.
             i_min = (self.nb_samples * self.counter) % self.real_shape[0]
+            i_max = i_min + self.nb_samples
 
-            chunk = data[i_min:i_min + self.nb_samples, :]
+            chunk = data[i_min:i_max, :]
             # Dequantize chunk.
             if self.dtype == 'float32':
                 pass
             elif self.dtype == 'int16':
-                chunk = chunk.astype(self.output_dtype)
-                chunk *= self.quantum_size
+                chunk = chunk.astype(self._output_dtype)
+                chunk *= self._quantum_size
             elif self.dtype == 'uint16':
-                chunk = chunk.astype(self.output_dtype)
-                chunk += self.quantum_offset
-                chunk *= self.quantum_size
+                chunk = chunk.astype(self._output_dtype)
+                chunk += self._quantum_offset
+                chunk *= self._quantum_size
             else:
-                chunk = chunk.astype(self.output_dtype)
-            # Send chunk.
+                chunk = chunk.astype(self._output_dtype)
+            # Prepare output data packet.
+            packet = {
+                'number': self.counter,
+                'payload': chunk,
+            }
+            # Send output data packet.
             if self.is_realistic:
                 # Simulate duration between two data acquisitions.
-                time.sleep(float(self.nb_samples) / self.sampling_rate)
-            self.output.send(chunk)
+                duration = float(self.nb_samples) / self.sampling_rate
+                time.sleep(duration)
+            self.output.send(packet)
         else:
             # Stop processing block.
             self.stop_pending = True
@@ -133,6 +151,7 @@ class Reader(Block):
         mean_ratio = np.mean(ratios) if ratios.size > 0 else np.nan
         max_ratio = np.max(ratios) if ratios.size > 0 else np.nan
 
+        # Log info message.
         string = "{} processed {} buffers [speed:x{:.2f} (min:x{:.2f}, max:x{:.2f})]"
         message = string.format(self.name, nb_buffers, mean_ratio, min_ratio, max_ratio)
         self.log.info(message)

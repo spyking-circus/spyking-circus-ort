@@ -186,6 +186,16 @@ class Block(threading.Thread):
 
         return
 
+    def _get_output_parameters(self):
+
+        return {}
+
+    def get_output_parameters(self):
+
+        params = self._get_output_parameters()
+
+        return params
+
     def configure(self, **kwargs):
 
         for key, value in kwargs.items():
@@ -202,6 +212,26 @@ class Block(threading.Thread):
         string = "{} is configured"
         message = string.format(self.name)
         self.log.debug(message)
+
+        return
+
+    def _configure_input_parameters(self, **kwargs):
+
+        return
+
+    def configure_input_parameters(self, **kwargs):
+
+        self._configure_input_parameters(**kwargs)
+
+        return
+
+    def _update_initialization(self):
+
+        return
+
+    def update_initialization(self):
+
+        self._update_initialization()
 
         return
 

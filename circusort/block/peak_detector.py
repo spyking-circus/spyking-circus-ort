@@ -44,9 +44,9 @@ class Peak_detector(Block):
     def __init__(self, **kwargs):
 
         Block.__init__(self, **kwargs)
-        self.add_output('peaks', 'dict')
-        self.add_input('mads')
-        self.add_input('data')
+        self.add_output('peaks', structure='dict')
+        self.add_input('mads', structure='dict')
+        self.add_input('data', structure='dict')
 
         # The following lines are useful to avoid some PyCharm warnings.
         self.threshold_factor = self.threshold_factor
@@ -54,6 +54,9 @@ class Peak_detector(Block):
         self.spike_width = self.spike_width
         self.sampling_rate = self.sampling_rate
         self.safety_time = self.safety_time
+
+        self._nb_channels = None
+        self._nb_samples = None
 
     def _initialize(self):
 
@@ -80,17 +83,23 @@ class Peak_detector(Block):
 
         return
 
-    @property
-    def nb_channels(self):
+    def _configure_input_parameters(self, nb_channels=None, nb_samples=None, **kwargs):
 
-        return self.inputs['data'].shape[1]
+        if nb_channels is not None:
+            self._nb_channels = nb_channels
+        if nb_samples is not None:
+            self._nb_samples = nb_samples
 
-    @property
-    def nb_samples(self):
+        return
 
-        return self.inputs['data'].shape[0]
+    def _update_initialization(self):
 
-    def _guess_output_endpoints(self):
+        shape = (2 * self._nb_samples, self._nb_channels)
+
+        self.X = np.zeros(shape, dtype=np.float)
+        self.e = np.zeros(shape, dtype=np.bool)
+        self.p = np.zeros(shape, dtype=np.bool)
+        self.mph = None
 
         return
 
@@ -120,10 +129,10 @@ class Peak_detector(Block):
             x = +self.X[:, i]
 
         # Find indices of all edges.
-        dx = x[self.nb_samples-1:] - x[self.nb_samples-2:-1]
-        ne = np.zeros(self.nb_samples, dtype=np.bool)
-        re = np.zeros(self.nb_samples, dtype=np.bool)
-        fe = np.zeros(self.nb_samples, dtype=np.bool)
+        dx = x[self._nb_samples-1:] - x[self._nb_samples-2:-1]
+        ne = np.zeros(self._nb_samples, dtype=np.bool)
+        re = np.zeros(self._nb_samples, dtype=np.bool)
+        fe = np.zeros(self._nb_samples, dtype=np.bool)
         if not edge:
             ne = (dx[+1:] < 0.0) & (dx[:-1] > 0.0)
         else:
@@ -132,8 +141,8 @@ class Peak_detector(Block):
             if edge.lower() in ['rising', 'both']:
                 fe = (dx[+1:] < 0.0) & (dx[:-1] >= 0.0)
         e = np.logical_or(ne, np.logical_or(re, fe))
-        self.e[self.nb_samples-1:2*self.nb_samples-1, i] = e
-        ind = np.add(np.where(e)[0], self.nb_samples - 1)
+        self.e[self._nb_samples-1:2*self._nb_samples-1, i] = e
+        ind = np.add(np.where(e)[0], self._nb_samples - 1)
         # Remove edges < minimum peak height.
         if self.mph is not None:
             self.e[ind, i] = (x[ind] >= self.threshold_factor * self.mph[0, i])
@@ -146,12 +155,12 @@ class Peak_detector(Block):
             # ind = ind[self.e[ind, i]]
         # Detect small edges closer than minimum peak distance.
         # TODO remove the three following lines.
-        # e = self.e[self.nb_samples-mpd-1:2*self.nb_samples-mpd-1, i]
-        # ind = np.add(np.where(e)[0], self.nb_samples - mpd - 1)
+        # e = self.e[self._nb_samples-mpd-1:2*self._nb_samples-mpd-1, i]
+        # ind = np.add(np.where(e)[0], self._nb_samples - mpd - 1)
         # self.p[ind, i] = True
-        p = self.e[self.nb_samples-2*mpd-1:2*self.nb_samples-1, i]
+        p = self.e[self._nb_samples-2*mpd-1:2*self._nb_samples-1, i]
         ind = np.where(p)[0]
-        ind_ = np.add(ind, self.nb_samples - 2 * mpd - 1)
+        ind_ = np.add(ind, self._nb_samples - 2 * mpd - 1)
         if mpd > 1:
             ind = ind[np.argsort(x[ind_])][::-1]
             for j in range(0, ind.size):
@@ -163,83 +172,42 @@ class Peak_detector(Block):
                     p[ind[j]] = True
                 else:
                     pass
-        self.p[self.nb_samples-mpd-1:2*self.nb_samples-mpd-1, i] = p[+mpd:-mpd]
+        self.p[self._nb_samples-mpd-1:2*self._nb_samples-mpd-1, i] = p[+mpd:-mpd]
 
         # Return detected peaks from the previous chunk of data.
         if self.counter <= self.start_step + 1:
             # TODO correct the following block code (doesn't work).
             # We need to discard the beginning of the first chunk (i.e. where we can't define any peak).
-            p = self.p[mpd+1:self.nb_samples, i]
+            p = self.p[mpd+1:self._nb_samples, i]
             ind = np.add(np.where(p)[0], mpd + 1)
         else:
-            p = self.p[0:self.nb_samples, i]
+            p = self.p[0:self._nb_samples, i]
             ind = np.add(np.where(p)[0], 0)
-
-        # TODO remove the following commented lines.
-        #     x = -x
-        # # find indices of all peaks
-        # dx = x[1:] - x[:-1]
-        # ine, ire, ife = np.array([[], [], []], dtype=np.int32)
-        # if not edge:
-        #     ine = np.where((np.hstack((dx, 0)) < 0) & (np.hstack((0, dx)) > 0))[0]
-        # else:
-        #     if edge.lower() in ['rising', 'both']:
-        #         ire = np.where((np.hstack((dx, 0)) <= 0) & (np.hstack((0, dx)) > 0))[0]
-        #     if edge.lower() in ['falling', 'both']:
-        #         ife = np.where((np.hstack((dx, 0)) < 0) & (np.hstack((0, dx)) >= 0))[0]
-        # ind = np.unique(np.hstack((ine, ire, ife)))
-        # # first and last values of x cannot be peaks
-        # if ind.size and ind[0] == 0:
-        #     ind = ind[1:]
-        # if ind.size and ind[-1] == x.size-1:
-        #     ind = ind[:-1]
-        # # remove peaks < minimum peak height
-        # if ind.size and mph is not None:
-        #     ind = ind[x[ind] >= mph]
-        # # remove peaks - neighbors < threshold
-        # if ind.size and threshold > 0:
-        #     dx = np.min(np.vstack([x[ind]-x[ind-1], x[ind]-x[ind+1]]), axis=0)
-        #     ind = np.delete(ind, np.where(dx < threshold)[0])
-        # # detect small peaks closer than minimum peak distance
-        # if ind.size and mpd > 1:
-        #     ind = ind[np.argsort(x[ind])][::-1]  # sort ind by peak height
-        #     idel = np.zeros(ind.size, dtype=np.bool)
-        #     for i in range(ind.size):
-        #         if not idel[i]:
-        #             # keep peaks with the same height if kpsh is True
-        #             idel = idel | (ind >= ind[i] - mpd) & (ind <= ind[i] + mpd) \
-        #                 & (x[ind[i]] > x[ind] if kpsh else True)
-        #             idel[i] = 0  # Keep current peak
-        #     # remove the small peaks and sort back the indices by their occurrence
-        #     ind = np.sort(ind[~idel])
 
         return ind
 
     def _process(self):
         """Process data streams"""
 
-        # Update internal variables for peak detection.
+        # Update internal variable X.
+        data_packet = self.get_input('data').receive()
+        number = data_packet['number']
+        data = data_packet['payload']
         if self.counter == 0:
-            self.X = np.zeros((2 * self.nb_samples, self.nb_channels), dtype=np.float)
-            self.X[self.nb_samples:, :] = self.get_input('data').receive()
-            self.X[:self.nb_samples, :] =\
-                np.repeat(self.X[self.nb_samples, :], self.nb_samples).reshape((self.nb_samples, self.nb_channels))
-            self.e = np.zeros((2 * self.nb_samples, self.nb_channels), dtype=np.bool)
-            self.e[:self.nb_samples, :] = self.e[self.nb_samples:, :]
-            self.e[self.nb_samples:, :] = np.zeros((self.nb_samples, self.nb_channels), dtype=np.bool)
-            self.p = np.zeros((2 * self.nb_samples, self.nb_channels), dtype=np.bool)
-            self.p[:self.nb_samples, :] = self.p[self.nb_samples:, :]
-            self.p[self.nb_samples:, :] = np.zeros((self.nb_samples, self.nb_channels), dtype=np.bool)
-            self.mph = np.zeros((self.nb_channels,), dtype=np.float)
-            self.mph = self.get_input('mads').receive(blocking=False)
+            self.X[:self._nb_samples, :] = np.tile(data[0, :], (self._nb_samples, 1))
+            self.X[self._nb_samples:, :] = data
         else:
-            self.X[:self.nb_samples, :] = self.X[self.nb_samples:, :]
-            self.X[self.nb_samples:, :] = self.get_input('data').receive()
-            self.e[:self.nb_samples, :] = self.e[self.nb_samples:, :]
-            self.e[self.nb_samples:, :] = np.zeros((self.nb_samples, self.nb_channels), dtype=np.bool)
-            self.p[:self.nb_samples, :] = self.p[self.nb_samples:, :]
-            self.p[self.nb_samples:, :] = np.zeros((self.nb_samples, self.nb_channels), dtype=np.bool)
-            self.mph = self.get_input('mads').receive(blocking=False)
+            self.X[:self._nb_samples, :] = self.X[self._nb_samples:, :]
+            self.X[self._nb_samples:, :] = data
+        # Update internal variable e.
+        self.e[:self._nb_samples, :] = self.e[self._nb_samples:, :]
+        self.e[self._nb_samples:, :] = np.zeros((self._nb_samples, self._nb_channels), dtype=np.bool)
+        # Update internal variable p.
+        self.p[:self._nb_samples, :] = self.p[self._nb_samples:, :]
+        self.p[self._nb_samples:, :] = np.zeros((self._nb_samples, self._nb_channels), dtype=np.bool)
+        # Update internal variable mph.
+        mph_packet = self.get_input('mads').receive(blocking=False, number=number)
+        self.mph = mph_packet['payload'] if mph_packet is not None else self.mph
 
         self._measure_time('start', frequency=100)
 
@@ -251,7 +219,7 @@ class Peak_detector(Block):
 
             for key in self.key_peaks:
                 self.peaks[key] = {}
-                for i in range(0, self.nb_channels):
+                for i in range(0, self._nb_channels):
                     if i not in self.nb_cum_peaks[key]:
                         self.nb_cum_peaks[key][i] = 0
                     if key == 'negative':
@@ -265,10 +233,16 @@ class Peak_detector(Block):
                             self.peaks[key][i] = data
                             self.nb_cum_peaks[key][i] += len(data)
 
-            self.peaks['offset'] = (self.counter - 1) * self.nb_samples
+            self.peaks['offset'] = (self.counter - 1) * self._nb_samples
+
+            # Prepare output packet.
+            packet = {
+                'number': data_packet['number'] - 1,
+                'payload': self.peaks,
+            }
 
             # Send detected peaks.
-            self.outputs['peaks'].send(self.peaks)
+            self.get_output('peaks').send(packet)
 
         self._measure_time('end', frequency=100)
 
@@ -281,13 +255,14 @@ class Peak_detector(Block):
         start_times = np.array(self._measured_times.get('start', []))
         end_times = np.array(self._measured_times.get('end', []))
         durations = end_times - start_times
-        data_duration = float(self.nb_samples) / self.sampling_rate
+        data_duration = float(self._nb_samples) / self.sampling_rate
         ratios = data_duration / durations
 
         min_ratio = np.min(ratios) if ratios.size > 0 else np.nan
         mean_ratio = np.mean(ratios) if ratios.size > 0 else np.nan
         max_ratio = np.max(ratios) if ratios.size > 0 else np.nan
 
+        # Log info message.
         string = "{} processed {} buffers [speed:x{:.2f} (min:x{:.2f}, max:x{:.2f})]"
         message = string.format(self.name, nb_buffers, mean_ratio, min_ratio, max_ratio)
         self.log.info(message)

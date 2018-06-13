@@ -166,8 +166,10 @@ class Director(object):
         for input_endpoint in input_endpoints:
             for output_endpoint in output_endpoints:
 
-                self.log.info("{d} connects {s} to {t}".format(d=str(self), s=output_endpoint.block.name,
-                                                               t=input_endpoint.block.name))
+                # Log info message.
+                string = "{} connects {} to {}"
+                message = string.format(str(self), output_endpoint.block.name, input_endpoint.block.name)
+                self.log.info(message)
 
                 if input_endpoint.block.parent == output_endpoint.block.parent:
                     if protocol is None:
@@ -186,11 +188,19 @@ class Director(object):
                         local_protocol = protocol
                     assert local_protocol in ['tcp'], self.log.error('Invalid connection')
 
+                    # Create and bind socket.
                     output_endpoint.initialize(protocol=local_protocol, host=output_endpoint.block.host)
+                    # Transmit information for socket connection.
                     description = output_endpoint.get_description()
                     input_endpoint.configure(**description)
+                    # Connect socket.
                     input_endpoint.block.connect(input_endpoint.name)
-                    input_endpoint.block.guess_output_endpoints()
+                    # Transmit information between blocks.
+                    params = output_endpoint.block.get_output_parameters()
+                    input_endpoint.block.configure_input_parameters(**params)
+                    # Update initialization in output block.
+                    input_endpoint.block.update_initialization()
+
                     # Log debug message.
                     string = "{p} connection established from {a}[{s}] to {b}[{t}]"
                     message = string.format(p=local_protocol, s=(output_endpoint.name, output_endpoint.structure),

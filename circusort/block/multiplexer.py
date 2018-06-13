@@ -135,19 +135,19 @@ class Multiplexer(Block):
             # Get token (i.e. which input should we use?).
             token = self.counter % self.degree
 
-            # Get data.
-            input_data = {}
+            # Get packets.
+            input_packets = {}
             for output_name in self._output_names:
                 input_name = self._get_input_name(output_name, token)
                 input_ = self.inputs[input_name]
-                input_data[output_name] = input_.receive(blocking=True)
+                input_packets[output_name] = input_.receive(blocking=True)
 
             self._measure_time('start', frequency=100)
 
             # Send data.
-            for output_name, data in input_data.iteritems():
+            for output_name, packet in input_packets.iteritems():
 
-                self.outputs[output_name].send(data)
+                self.outputs[output_name].send(packet)
 
             self._measure_time('end', frequency=100)
 
