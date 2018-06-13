@@ -142,10 +142,10 @@ class TemplateUpdaterBis(Block):
 
             # Update precomputed overlaps.
             self._overlap_store.update(accepted)
-            self._overlap_store.precompute_overlaps()
+            self._overlap_store.compute_overlaps()
 
             # Save precomputed overlaps to disk.
-            self._overlap_store.save_internal_overlaps_dictionary()
+            self._overlap_store.save_overlaps()
 
             # Log some information.
             if len(accepted) > 0:
@@ -156,8 +156,8 @@ class TemplateUpdaterBis(Block):
             # Send output data.
             self._precomputed_output = {
                 'indices': accepted,
-                'templates_file': self._template_store.file_name,
-                'overlaps_path': self._overlap_store.path,
+                'template_store': self._template_store.file_name,
+                'overlaps': self._overlap_store.to_json,
             }
 
         else:
@@ -246,16 +246,16 @@ class TemplateUpdaterBis(Block):
 
             # Update and precompute the overlaps.
             self._overlap_store.update(accepted)
-            self._overlap_store.precompute_overlaps()
+            self._overlap_store.compute_overlaps()
 
             # Save precomputed overlaps to disk.
-            self._overlap_store.save_internal_overlaps_dictionary()
+            self._overlap_store.save_overlaps()
 
             # Prepare output data.
             output_data = {
                 'indices': accepted,
-                'templates_file': self._template_store.file_name,
-                'overlaps_path': self._overlap_store.path,
+                'template_store': self._template_store.file_name,
+                'overlaps': self._overlap_store.to_json,
             }
             # Prepare output packet.
             output_packet = {

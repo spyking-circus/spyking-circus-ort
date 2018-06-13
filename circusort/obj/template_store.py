@@ -1,6 +1,6 @@
 import warnings
 with warnings.catch_warnings():
-    warnings.filterwarnings("ignore",category=FutureWarning)
+    warnings.filterwarnings("ignore", category=FutureWarning)
     import h5py
 
 import numpy as np
@@ -13,7 +13,9 @@ from circusort.obj.template import Template, TemplateComponent
 
 class TemplateStore(object):
 
-    def __init__(self, file_name, probe_file=None, mode='r+', compression='gzip'):
+    def __init__(self, file_name, probe_file=None, mode='r+', compression=None):
+        # TODO use compression='gzip' instead.
+        # TODO i.e. fix the ValueError: Compression filter "gzip" is unavailable.
 
         self.file_name = os.path.expanduser(os.path.abspath(file_name))
         self.probe_file = probe_file
@@ -42,11 +44,11 @@ class TemplateStore(object):
                                             compression=self.compression)
                 self.mappings[channel] = indices
             self.h5_file.create_dataset('indices', data=np.zeros(0, dtype=np.int32), chunks=True, maxshape=(None,),
-                                            compression=self.compression)
+                                        compression=self.compression)
             self.h5_file.create_dataset('times', data=np.zeros(0, dtype=np.int32), chunks=True, maxshape=(None,),
-                                            compression=self.compression)
+                                        compression=self.compression)
             self.h5_file.create_dataset('channels', data=np.zeros(0, dtype=np.int32), chunks=True, maxshape=(None,),
-                                            compression=self.compression)
+                                        compression=self.compression)
             self.h5_file.attrs['probe_file'] = os.path.abspath(os.path.expanduser(probe_file))
 
         elif self.mode in ['r', 'r+']:
@@ -258,9 +260,9 @@ class TemplateStore(object):
             gidx = self.next_index
 
             self.h5_file.create_dataset('waveforms/%d/1' % gidx, data=t.first_component.waveforms, chunks=True,
-                                            compression=self.compression)
+                                        compression=self.compression)
             self.h5_file.create_dataset('amplitudes/%d' % gidx, data=t.amplitudes,
-                                            compression=self.compression)
+                                        compression=self.compression)
 
             if t.compressed:
                 self.h5_file.create_dataset('compressed/%d' % gidx, data=t.indices,

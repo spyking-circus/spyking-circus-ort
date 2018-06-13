@@ -60,8 +60,10 @@ class TemplateDictionary(object):
 
     @property
     def to_json(self):
-        result = {'template_store': self.template_store.file_name,
-                  'overlaps': self.overlaps_store.to_json}
+        result = {
+            'template_store': self.template_store.file_name,
+            'overlaps': self.overlaps_store.to_json
+        }
         return result
 
     @property
@@ -118,7 +120,6 @@ class TemplateDictionary(object):
 
         Arguments:
             template
-            csr_template
 
         Return:
             indices: list
@@ -237,5 +238,6 @@ class TemplateDictionary(object):
         if (self.cc_mixture is None) or (self.nb_templates == 0):
             return False
 
-        #return self.overlaps_store.is_mixture(csr_template, self.cc_mixture, non_zeros)
+        # TODO complete/clean.
+        # return self.overlaps_store.is_mixture(csr_template, self.cc_mixture, non_zeros)
         return False
