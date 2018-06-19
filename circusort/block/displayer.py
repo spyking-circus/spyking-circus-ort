@@ -59,18 +59,20 @@ class Displayer(TkBlock):
 
         # Add figures.
         self._frame = Tk.Frame(self._root)
-        for k in range(0, self._nb_channels):
-            self._figures[k] = Figure(figsize=(4, 3), dpi=100)
+        k_max = 2 * 4 * 4 * self._nb_channels
+        for k in range(0, k_max):
+            self._figures[k] = Figure(figsize=(0.5, 0.5), dpi=100)
             self._axes[k] = self._figures[k].add_subplot(1, 1, 1)
             self._axes[k].set_ylim(-50.0, +50.0)
             self._figure_canvasses[k] = FigureCanvasTkAgg(self._figures[k], master=self._frame)
             self._figure_canvasses[k].show()
             self._backgrounds[k] = self._figure_canvasses[k].copy_from_bbox(self._axes[k].bbox)
-            x = np.linspace(0.0, 1.0, num=self._nb_samples)
+            x = np.linspace(0.0, 1.0, num=self._nb_samples / 8)
             y = np.zeros_like(x)
             self._lines[k], = self._axes[k].plot(x, y)
             # self._figure_canvasses[k].get_tk_widget().pack()
-            self._figure_canvasses[k].get_tk_widget().grid(row=int(k / 3), column=(k % 3))
+            nb_columns = 2 * 2 * 2 * 3
+            self._figure_canvasses[k].get_tk_widget().grid(row=int(k / nb_columns), column=(k % nb_columns))
         self._frame.pack()
 
         self._root.update()
@@ -105,14 +107,21 @@ class Displayer(TkBlock):
         self._label_batch_shape.config(text=text)
 
         # Update figures.
-        for k in range(0, self._nb_channels):
-            self._lines[k].set_ydata(batch[:, k])
-            # 1st solution:
+        k_max = 2 * 4 * 4 * self._nb_channels
+        for k in range(0, k_max):
+            self._lines[k].set_ydata(batch[::8, k % self._nb_channels])
+            # # 1st solution:
             # self._figure_canvasses[k].draw()
             # 2nd solution
             self._figures[k].canvas.restore_region(self._backgrounds[k])
             self._axes[k].draw_artist(self._lines[k])
             self._figure_canvasses[k].blit(self._axes[k].bbox)
+            self._figure_canvasses[k].flush_events()
+            # # 3rd solution
+            # self._axes[k].draw_artist(self._axes[k].patch)
+            # self._axes[k].draw_artist(self._lines[k])
+            # self._figures[k].canvas.update()  # Not supported for FigureCanvasTkAgg.
+            # self._figure[k].canvas.flush_events()
 
         self._root.update()
 
