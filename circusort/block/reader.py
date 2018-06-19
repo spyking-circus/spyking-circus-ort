@@ -84,6 +84,7 @@ class Reader(Block):
             'dtype': self._output_dtype,
             'nb_channels': self.nb_channels,
             'nb_samples': self.nb_samples,
+            'sampling_rate': self.sampling_rate,
         }
 
         return params
