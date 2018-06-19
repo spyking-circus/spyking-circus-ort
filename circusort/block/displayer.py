@@ -1,8 +1,14 @@
+import matplotlib
 import numpy as np
 
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.figure import Figure
 from mttkinter import mtTkinter as Tk
 
 from circusort.block.tk_block import TkBlock
+
+
+matplotlib.use('TkAgg')
 
 
 class Displayer(TkBlock):
@@ -26,6 +32,11 @@ class Displayer(TkBlock):
         self._root = None
         self._label_number = None
         self._label_batch_shape = None
+        self._figures = {}
+        self._axes = {}
+        self._figure_canvasses = {}
+        self._backgrounds = {}
+        self._lines = {}
 
         self._number = None
         self._batch = None
@@ -37,10 +48,31 @@ class Displayer(TkBlock):
     def _tk_initialize(self):
 
         self._root = Tk.Tk()
+
+        # Add number label.
         self._label_number = Tk.Label(self._root, text="<number>")
         self._label_number.pack()  # TODO understand meaning.
+
+        # Add batch size label.
         self._label_batch_shape = Tk.Label(self._root, text="<batch shape>")
         self._label_batch_shape.pack()
+
+        # Add figures.
+        self._frame = Tk.Frame(self._root)
+        for k in range(0, self._nb_channels):
+            self._figures[k] = Figure(figsize=(4, 3), dpi=100)
+            self._axes[k] = self._figures[k].add_subplot(1, 1, 1)
+            self._axes[k].set_ylim(-50.0, +50.0)
+            self._figure_canvasses[k] = FigureCanvasTkAgg(self._figures[k], master=self._frame)
+            self._figure_canvasses[k].show()
+            self._backgrounds[k] = self._figure_canvasses[k].copy_from_bbox(self._axes[k].bbox)
+            x = np.linspace(0.0, 1.0, num=self._nb_samples)
+            y = np.zeros_like(x)
+            self._lines[k], = self._axes[k].plot(x, y)
+            # self._figure_canvasses[k].get_tk_widget().pack()
+            self._figure_canvasses[k].get_tk_widget().grid(row=int(k / 3), column=(k % 3))
+        self._frame.pack()
+
         self._root.update()
 
         return
@@ -57,18 +89,31 @@ class Displayer(TkBlock):
     def _process(self):
 
         data_packet = self.get_input('data').receive()
-        self._number = data_packet['number']
-        self._batch = data_packet['payload']
+        number = data_packet['number']
+        batch = data_packet['payload']
 
         self._measure_time(label='start', frequency=10)
 
-        # TODO improve the following lines.
+        # Update number label.
         string = "number: {}"
-        text = string.format(self._number)
+        text = string.format(number)
         self._label_number.config(text=text)
+
+        # Update batch shape label.
         string = "batch.shape: {}"
-        text = string.format(self._batch.shape)
+        text = string.format(batch.shape)
         self._label_batch_shape.config(text=text)
+
+        # Update figures.
+        for k in range(0, self._nb_channels):
+            self._lines[k].set_ydata(batch[:, k])
+            # 1st solution:
+            # self._figure_canvasses[k].draw()
+            # 2nd solution
+            self._figures[k].canvas.restore_region(self._backgrounds[k])
+            self._axes[k].draw_artist(self._lines[k])
+            self._figure_canvasses[k].blit(self._axes[k].bbox)
+
         self._root.update()
 
         self._measure_time(label='end', frequency=10)
