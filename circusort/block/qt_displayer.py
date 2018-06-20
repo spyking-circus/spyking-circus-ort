@@ -1,8 +1,9 @@
 import numpy as np
 import sys
 
-from multiprocessing import Process
-from PyQt4.QtGui import QApplication, QWidget
+from multiprocessing import Process, Pipe
+from PyQt4.QtCore import QThread, SIGNAL, Qt, pyqtSignal
+from PyQt4.QtGui import QApplication, QWidget, QLabel, QVBoxLayout
 
 from circusort.block.block import Block
 
@@ -28,7 +29,8 @@ class QtDisplayer(Block):
         self._nb_channels = None
         self._sampling_rate = None
 
-        self._qt_process = QtProcess()
+        self._pipe = Pipe()
+        self._qt_process = QtProcess(self._pipe)
 
     def _initialize(self):
 
@@ -54,8 +56,8 @@ class QtDisplayer(Block):
         self._measure_time(label='start', frequency=10)
 
         # TODO remove the 2 following lines.
-        print(number)
-        print(batch)
+        self._pipe[1].send(number)
+        _ = batch
 
         self._measure_time(label='end', frequency=10)
 
@@ -84,19 +86,78 @@ class QtDisplayer(Block):
 
 class QtProcess(Process):
 
-    def __init__(self):
+    def __init__(self, pipe):
 
         Process.__init__(self)
 
-        self._app = QApplication(sys.argv)
-        self._widget = QWidget()
-
-        self._widget.resize(320, 240)
-        self._widget.setWindowTitle("Qt Displayer")
+        self._pipe = pipe
 
     def run(self):
 
-        self._widget.show()
-        self._app.exec_()
+        app = QApplication(sys.argv)
+        window = QtWindow(self._pipe)
+        window.show()
+        app.exec_()
+
+        return
+
+
+class QtWindow(QWidget):
+
+    def __init__(self, pipe):
+
+        QWidget.__init__(self)
+
+        self._label = QLabel()
+        self._label.setText("<number>")
+        self._label.setAlignment(Qt.AlignCenter)
+
+        self._vbox = QVBoxLayout()
+        self._vbox.addWidget(self._label)
+
+        self.setLayout(self._vbox)
+
+        self.setWindowTitle("Qt Displayer")
+        self.resize(600, 400)
+
+        self._thread = MyQtThread(pipe)
+
+        self._thread.signal.connect(self.number_received)
+
+        self._thread.start()
+
+    def number_received(self, number):
+
+        self._label.setText(number)
+
+        return
+
+
+class MyQtThread(QThread):
+
+    signal = pyqtSignal(object)
+
+    def __init__(self, pipe):
+
+        QThread.__init__(self)
+
+        self._pipe = pipe
+
+    def __del__(self):
+
+        self.wait()
+
+    def run(self):
+
+        while True:
+
+            try:
+                msg = self._pipe[0].recv()
+                if msg == 'TERM':
+                    break
+                self.signal.emit(str(msg))
+                self.usleep(1)
+            except EOFError:
+                pass
 
         return
