@@ -4,6 +4,7 @@ import sys
 from multiprocessing import Process, Pipe
 from PyQt4.QtCore import QThread, SIGNAL, Qt, pyqtSignal
 from PyQt4.QtGui import QApplication, QWidget, QLabel, QVBoxLayout
+from vispy import app
 
 from circusort.block.block import Block
 
@@ -112,8 +113,11 @@ class QtWindow(QWidget):
         self._label.setText("<number>")
         self._label.setAlignment(Qt.AlignCenter)
 
+        self._canvas = app.Canvas(title="Vispy canvas", keys='interactive')
+
         self._vbox = QVBoxLayout()
         self._vbox.addWidget(self._label)
+        self._vbox.addWidget(self._canvas.native)
 
         self.setLayout(self._vbox)
 
