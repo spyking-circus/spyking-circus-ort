@@ -1,7 +1,9 @@
+# coding=utf-8
 import argparse
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import shutil
 
 import circusort
 
@@ -12,6 +14,7 @@ from networks import network_3 as network
 
 nb_rows_range = [4, 8, 16, 32]
 nb_columns_range = [4, 8, 16, 32]
+radius = 100.0  # µm
 nb_cells = 3
 duration = 5.0 * 60.0  # s
 
@@ -20,15 +23,19 @@ def main():
 
     # Parse command line.
     parser = argparse.ArgumentParser()
+    parser.add_argument('--configuration', dest='pending_configuration', action='store_true', default=None)
     parser.add_argument('--generation', dest='pending_generation', action='store_true', default=None)
     parser.add_argument('--sorting', dest='pending_sorting', action='store_true', default=None)
     parser.add_argument('--introspection', dest='pending_introspection', action='store_true', default=None)
     args = parser.parse_args()
-    if args.pending_generation is None and args.pending_sorting is None and args.pending_introspection is None:
+    if args.pending_configuration is None and args.pending_generation is None \
+            and args.pending_sorting is None and args.pending_introspection is None:
+        args.pending_configuration = True
         args.pending_generation = True
         args.pending_sorting = True
         args.pending_introspection = True
     else:
+        args.pending_configuration = args.pending_configuration is True
         args.pending_generation = args.pending_generation is True
         args.pending_sorting = args.pending_sorting is True
         args.pending_introspection = args.pending_introspection is True
@@ -39,8 +46,14 @@ def main():
     if not os.path.isdir(directory):
         os.makedirs(directory)
     configuration_directory = os.path.join(directory, "configuration")
-    if not os.path.isdir(configuration_directory):
+
+    if args.pending_configuration:
+
+        # Clean the configuration directory (if necessary).
+        if os.path.isdir(configuration_directory):
+            shutil.rmtree(configuration_directory)
         os.makedirs(configuration_directory)
+
         # Generate configurations.
         for nb_rows, nb_columns in zip(nb_rows_range, nb_columns_range):
             name = str(nb_rows * nb_columns)
@@ -53,6 +66,7 @@ def main():
                     'mode': 'mea',
                     'nb_rows': nb_rows,
                     'nb_columns': nb_columns,
+                    'radius': radius,
                 },
                 'cells': {
                     'nb_cells': nb_cells,
@@ -93,11 +107,11 @@ def main():
 
         block_names = network.block_names
         showfliers = False
-        speed_factors = OrderedDict()
+        duration_factors = OrderedDict()
         output_directory = os.path.join(directory, "output")
         if not os.path.isdir(output_directory):
             os.makedirs(output_directory)
-        image_format = 'png'
+        image_format = 'pdf'
 
         configuration_names = [
             configuration['general']['name']
@@ -116,24 +130,24 @@ def main():
             # Define parameters.
             nb_samples = parameters['general']['buffer_width']
             sampling_rate = parameters['general']['sampling_rate']
-            duration_buffer = float(nb_samples) / sampling_rate
 
             # Load time measurements from disk.
-            speed_factors[configuration_name] = OrderedDict()
+            duration_factors[configuration_name] = OrderedDict()
             for block_name in block_names:
                 measurements = circusort.io.load_time_measurements(introspection_directory, name=block_name)
                 end_times = measurements.get('end', np.empty(shape=0))
                 start_times = measurements.get('start', np.empty(shape=0))
                 durations = end_times - start_times
-                # speed_factor = duration_buffer / durations
-                speed_factor = np.log10(duration_buffer / durations)
-                speed_factors[configuration_name][block_name] = speed_factor
+                nb_buffers = 1
+                duration_buffer = float(nb_buffers * nb_samples) / sampling_rate
+                duration_factors_ = np.log10(durations / duration_buffer)
+                duration_factors[configuration_name][block_name] = duration_factors_
 
         # Plot real-time performances of blocks for each condition.
         for configuration_name in configuration_names:
 
             data = [
-                speed_factors[configuration_name][block_name]
+                duration_factors[configuration_name][block_name]
                 for block_name in block_names
             ]
 
@@ -155,7 +169,7 @@ def main():
             ax_.set_yticklabels([])
             ax_.set_ylabel("")
             ax.set_ylim(10.0 ** np.array(ax_.get_ylim()))
-            ax.set_ylabel("speed factor")
+            ax.set_ylabel("duration factor")
             ax.set_title("Real-time performances ({} channels)".format(configuration_name))
             fig.tight_layout()
             fig.savefig(output_path)
@@ -164,7 +178,7 @@ def main():
         for block_name in block_names:
 
             data = [
-                speed_factors[configuration_name][block_name]
+                duration_factors[configuration_name][block_name]
                 for configuration_name in configuration_names
             ]
 
@@ -187,7 +201,7 @@ def main():
             ax_.set_ylabel("")
             ax.set_ylim(10.0 ** np.array(ax_.get_ylim()))
             ax.set_xlabel("number of channels")
-            ax.set_ylabel("speed factor")
+            ax.set_ylabel("duration factor")
             ax.set_title("Real-time performances ({})".format(block_name))
             fig.tight_layout()
             fig.savefig(output_path)
@@ -205,7 +219,7 @@ def main():
         ]
         for block_name in block_names:
             y = [
-                np.median(speed_factors[configuration_name][block_name])
+                np.median(duration_factors[configuration_name][block_name])
                 for configuration_name in configuration_names
             ]
             ax_.plot(x, y, marker='o', label=block_name)
@@ -216,7 +230,7 @@ def main():
         ax.set_xticks(x)
         ax.set_xticklabels(configuration_names)
         ax.set_xlabel("number of channels")
-        ax.set_ylabel("median speed factor")
+        ax.set_ylabel("median duration factor")
         ax.set_title("Median real-time performances")
         ax_.legend()
         fig.tight_layout()

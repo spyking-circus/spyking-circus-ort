@@ -4,6 +4,7 @@ import paramiko
 import subprocess
 import zmq
 import logging
+import sys
 
 from circusort.base.utils import get_log, find_interface_address_towards
 from circusort.base.proxy import Proxy
@@ -94,7 +95,7 @@ class Process(object):
             address = socket.getsockopt(zmq.LAST_ENDPOINT)
             self.logger.debug("tmp socket binded at {a}".format(a=address))
             # 2. Spawn remote process on local host
-            command = ['/usr/bin/python2']
+            command = [sys.executable]
             command += ['-m', 'circusort.cli.spawn_process']
             command += ['--host', self.host]
             command += ['--address', address]
