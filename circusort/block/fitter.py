@@ -43,10 +43,14 @@ class Fitter(Block):
         self._nb_fitters = self._nb_fitters
         self._fitter_id = self._fitter_id
 
-        self.add_input('updater')
-        self.add_input('data')
-        self.add_input('peaks')
-        self.add_output('spikes', 'dict')
+        self.add_input('updater', structure='dict')
+        self.add_input('data', structure='dict')
+        self.add_input('peaks', structure='dict')
+        self.add_output('spikes', structure='dict')
+
+        self._nb_channels = None
+        self._nb_samples = None
+        self._number = None
 
     def _initialize(self):
 
@@ -116,24 +120,22 @@ class Fitter(Block):
         return
 
     @property
-    def nb_channels(self):
-
-        return self.inputs['data'].shape[1]
-
-    @property
-    def nb_samples(self):
-
-        return self.inputs['data'].shape[0]
-
-    @property
     def nb_templates(self):
         if self._overlaps_store is not None:
             return self._overlaps_store.nb_templates
         else:
             return 0
 
-    def _guess_output_endpoints(self):
-        # TODO add docstring.
+    def _configure_input_parameters(self, nb_channels=None, nb_samples=None, **kwargs):
+
+        if nb_channels is not None:
+            self._nb_channels = nb_channels
+        if nb_samples is not None:
+            self._nb_samples = nb_samples
+
+        return
+
+    def _update_initialization(self):
 
         if self.templates_init_path is not None:
             self._init_temp_window()
@@ -147,9 +149,14 @@ class Fitter(Block):
         self._width = (self._overlaps_store.temporal_width - 1) // 2
         self._2_width = 2 * self._width
         temp_window = np.arange(-self._width, self._width + 1)
-        buffer_size = 2 * self.nb_samples
-        for idx in range(self.nb_channels):
+        buffer_size = 2 * self._nb_samples
+        for idx in range(self._nb_channels):
             self.slice_indices = np.concatenate((self.slice_indices, idx * buffer_size + temp_window))
+
+        # Log debug message.
+        string = "{} initializes slice indices: {}"
+        message = string.format(self.name, self.slice_indices)
+        self.log.debug(message)
 
         return
 
@@ -157,7 +164,7 @@ class Fitter(Block):
         # TODO add docstring.
 
         i_min = self._width
-        i_max = self.nb_samples - self._width
+        i_max = self._nb_samples - self._width
         is_valid = (i_min <= peak_step) & (peak_step < i_max)
 
         return is_valid
@@ -433,7 +440,7 @@ class Fitter(Block):
             for key in keys:
                 self.r[key] = self.r[key][indices]
             # # Modify spike time reference.
-            self.r['spike_times'] = self.r['spike_times'] - self.nb_samples
+            self.r['spike_times'] = self.r['spike_times'] - self._nb_samples
 
             if verbose:
                 # Log debug message.
@@ -474,17 +481,17 @@ class Fitter(Block):
     @property
     def nb_buffers(self):
 
-        return self.x.shape[0] / self.nb_samples
+        return self.x.shape[0] / self._nb_samples
 
     @property
     def result_area_start(self):
 
-        return (self.nb_buffers - 1) * self.nb_samples - self.nb_samples / 2
+        return (self.nb_buffers - 1) * self._nb_samples - self._nb_samples / 2
 
     @property
     def result_area_end(self):
 
-        return (self.nb_buffers - 1) * self.nb_samples + self.nb_samples / 2
+        return (self.nb_buffers - 1) * self._nb_samples + self._nb_samples / 2
 
     @property
     def work_area_start(self):
@@ -511,23 +518,24 @@ class Fitter(Block):
     def offset(self):
 
         # TODO check if the comment fix the "offset bug".
-        return self.first_buffer_id * self.nb_samples  # + self.result_area_start
+        return self.first_buffer_id * self._nb_samples  # + self.result_area_start
 
     def _collect_data(self, shift=0):
         # TODO add docstring.
 
         k = (self.nb_buffers - 1) + shift
 
-        self.x[k * self.nb_samples:(k + 1) * self.nb_samples, :] = \
-            self.get_input('data').receive(blocking=True)
+        data_packet = self.get_input('data').receive(blocking=True)
+        self._number = data_packet['number']
+        self.x[k * self._nb_samples:(k + 1) * self._nb_samples, :] = data_packet['payload']
 
         return
 
     def _handle_peaks(self, peaks):
         # TODO add docstring.
 
-        p = self.nb_samples + self._merge_peaks(peaks)
-        self.p = self.p - self.nb_samples
+        p = self._nb_samples + self._merge_peaks(peaks)
+        self.p = self.p - self._nb_samples
         self.p = self.p[0 <= self.p]
         self.p = np.concatenate((self.p, p))
 
@@ -537,7 +545,8 @@ class Fitter(Block):
         # TODO add docstring.
 
         if self.is_active:
-            peaks = self.get_input('peaks').receive(blocking=True)
+            peaks_packet = self.get_input('peaks').receive(blocking=True)
+            peaks = peaks_packet['payload']
             self._handle_peaks(peaks)
             if verbose:
                 # Log debug message.
@@ -545,11 +554,12 @@ class Fitter(Block):
                 message = string.format(self.name, peaks['offset'], shift)
                 self.log.debug(message)
         else:
-            peaks = self.inputs['peaks'].receive(blocking=False)
+            peaks_packet = self.get_input('peaks').receive(blocking=False)
+            peaks = peaks_packet['payload'] if peaks_packet is not None else None
             if peaks is None:
                 self.p = None
             else:
-                p = self.nb_samples + self._merge_peaks(peaks)
+                p = self._nb_samples + self._merge_peaks(peaks)
                 self.p = p
                 if verbose:
                     # Log debug message.
@@ -558,13 +568,14 @@ class Fitter(Block):
                     self.log.debug(message)
                     # Log debug message.
                     string = "{} synchronizes peaks ({}, {}, {}, {}, {})"
-                    message = string.format(self.name, self.nb_samples, self._nb_fitters,
+                    message = string.format(self.name, self._nb_samples, self._nb_fitters,
                                             self._fitter_id, shift, self.counter)
                     self.log.debug(message)
                 # Synchronize peak reception.
-                while not self._sync_buffer(peaks, self.nb_samples, nb_parallel_blocks=self._nb_fitters,
+                while not self._sync_buffer(peaks, self._nb_samples, nb_parallel_blocks=self._nb_fitters,
                                             parallel_block_id=self._fitter_id, shift=shift):
-                    peaks = self.inputs['peaks'].receive(blocking=True)
+                    peaks_packet = self.get_input('peaks').receive(blocking=True)
+                    peaks = peaks_packet['payload']
                     self._handle_peaks(peaks)
                     if verbose:
                         # Log debug message.
@@ -586,12 +597,12 @@ class Fitter(Block):
         # # Prepare everything to collect buffers.
         if self.counter == 0:
             # Initialize 'self.x'.
-            shape = (2 * self.nb_samples, self.nb_channels)
+            shape = (2 * self._nb_samples, self._nb_channels)
             self.x = np.zeros(shape, dtype=np.float32)
         elif self._nb_fitters == 1:
             # Copy the end of 'self.x' at its beginning.
-            self.x[0 * self.nb_samples:1 * self.nb_samples, :] = \
-                self.x[1 * self.nb_samples:2 * self.nb_samples, :]
+            self.x[0 * self._nb_samples:1 * self._nb_samples, :] = \
+                self.x[1 * self._nb_samples:2 * self._nb_samples, :]
         else:
             pass
         # # Collect precedent data and peaks buffers.
@@ -602,8 +613,9 @@ class Fitter(Block):
         self._collect_data(shift=0)
         self._collect_peaks(shift=0, verbose=verbose)
         # # Collect current updater buffer.
-        updater = self.get_input('updater').receive(blocking=False,
-                                                    discarding_eoc=self.discarding_eoc_from_updater)
+        updater_packet = self.get_input('updater').receive(blocking=False,
+                                                           discarding_eoc=self.discarding_eoc_from_updater)
+        updater = updater_packet['payload'] if updater_packet is not None else None
 
         if timing:
             self._measure_time('preamble_end', frequency=10)
@@ -614,6 +626,11 @@ class Fitter(Block):
 
             while updater is not None:
 
+                # Log debug message.
+                string = "{} modifies template and overlap stores."
+                message = string.format(self.name)
+                self.log.debug(message)
+
                 # Create the template dictionary if necessary.
                 indices = updater.get('indices', None)
                 if self._overlaps_store is None:
@@ -621,12 +638,27 @@ class Fitter(Block):
                     self._overlaps_store = OverlapsStore(template_store=self._template_store,
                                                          path=updater['overlaps']['path'], fitting_mode=True)
                     self._init_temp_window()
+                    # Log debug message.
+                    string = "{} initializes template and overlap stores ({}, {})"
+                    message = string.format(self.name, updater['template_store'], updater['overlaps']['path'])
+                    self.log.debug(message)
                 else:
+                    # Update template and overlap stores.
                     laziness = updater['overlaps']['path'] is None
                     self._overlaps_store.update(indices, laziness=laziness)
+                    # Log debug message.
+                    string = "{} updates template and overlap stores"
+                    message = string.format(self.name)
+                    self.log.debug(message)
 
-                updater = self.get_input('updater').receive(blocking=False,
-                                                            discarding_eoc=self.discarding_eoc_from_updater)
+                # Log debug message.
+                string = "{} modified template and overlap stores."
+                message = string.format(self.name)
+                self.log.debug(message)
+
+                updater_packet = self.get_input('updater').receive(blocking=False,
+                                                                   discarding_eoc=self.discarding_eoc_from_updater)
+                updater = updater_packet['payload'] if updater_packet is not None else None
 
             self._measure_time('update_end', frequency=1)
 
@@ -643,7 +675,11 @@ class Fitter(Block):
                     self._measure_time('fit_end', frequency=10)
                 if timing:
                     self._measure_time('output_start', frequency=10)
-                self.get_output('spikes').send(self.r)
+                packet = {
+                    'number': self._number,
+                    'payload': self.r,
+                }
+                self.get_output('spikes').send(packet)
                 if timing:
                     self._measure_time('output_end', frequency=10)
 
@@ -651,11 +687,19 @@ class Fitter(Block):
 
             elif self._nb_fitters > 1:
 
-                self.get_output('spikes').send(self._empty_result)
+                packet = {
+                    'number': self._number,
+                    'payload': self._empty_result,
+                }
+                self.get_output('spikes').send(packet)
 
         elif self._nb_fitters > 1:
 
-            self.get_output('spikes').send(self._empty_result)
+            packet = {
+                'number': self._number,
+                'payload': self._empty_result,
+            }
+            self.get_output('spikes').send(packet)
 
         return
 
@@ -667,7 +711,7 @@ class Fitter(Block):
         start_times = np.array(self._measured_times.get('start', []))
         end_times = np.array(self._measured_times.get('end', []))
         durations = end_times - start_times
-        data_duration = float(self._nb_fitters * self.nb_samples) / self.sampling_rate
+        data_duration = float(self._nb_fitters * self._nb_samples) / self.sampling_rate
         ratios = data_duration / durations
 
         min_ratio = np.min(ratios) if ratios.size > 0 else np.nan
