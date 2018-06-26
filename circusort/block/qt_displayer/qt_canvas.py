@@ -3,6 +3,8 @@ import numpy as np
 
 from vispy import app, gloo
 
+from circusort.io.probe import load_probe
+
 
 # Number of cols and rows in the table.
 nrows = 3
@@ -41,42 +43,93 @@ index_bis = np.c_[
 ].astype(np.float32)
 
 VERT_SHADER = """
-#version 120
-// y coordinate of the position.
-attribute float a_position;
-// row, col, and time index.
-attribute vec3 a_index;
-varying vec3 v_index;
-// 2D scaling factor (zooming).
-uniform vec2 u_scale;
-// Size of the table.
-uniform vec2 u_size;
+// ...
+attribute float a_signal_index;
+// ...
+attribute vec2 a_signal_position;
+// ...
+attribute float a_signal_value;
+// ...
+attribute vec3 a_signal_color;
+// ...
+attribute float a_sample_index;
 // Number of samples per signal.
-uniform float u_n;
-// Color.
-attribute vec3 a_color;
-varying vec4 v_color;
+uniform float u_nb_samples_per_signal;
+// ...
+uniform float u_x_min;
+uniform float u_x_max;
+uniform float u_y_min;
+uniform float u_y_max;
+uniform float u_t_scale;
+uniform float u_v_scale;
 // Varying variables used for clipping in the fragment shader.
+varying float v_index;
+varying vec4 v_color;
 varying vec2 v_position;
 varying vec4 v_ab;
+
 void main() {
-    float nrows = u_size.x;
-    float ncols = u_size.y;
-    // Compute the x coordinate from the time index.
-    float x = -1 + 2*a_index.z / (u_n-1);
-    vec2 position = vec2(x - (1 - 1 / u_scale.x), a_position);
-    // Find the affine transformation for the subplots.
-    vec2 a = vec2(1.0 / ncols, 1.0 / nrows) * 0.9;
-    vec2 b = vec2(-1.0 + 2.0 * (a_index.x + 0.5) / ncols, -1.0 + 2.0 * (a_index.y + 0.5) / nrows);
-    // Apply the static subplot transformation + scaling.
-    gl_Position = vec4(a * u_scale * position + b, 0.0, 1.0);
-    v_color = vec4(a_color, 1.0);
-    v_index = a_index;
-    // For clipping test in the fragment shader.
+    // Compute the x coordinate from the sample index.
+    float x = 10.0 * (-1.0 + 2.0 * a_sample_index / (u_nb_samples_per_signal - 1.0));
+    // Compute the y coordinate from the signal value.
+    float y =  10.0 * (a_signal_value / 100.0);
+    // Compute the position.
+    vec2 p = vec2(x, y);
+    // Affine transformation for the subplots.
+    float w = 0.5 * (u_x_max - u_x_min);
+    float h = 0.5 * (u_y_max - u_y_min);
+    vec2 a = vec2(1.0 / w, 1.0 / h);
+    vec2 b = vec2(a_signal_position.x / w, a_signal_position.y / h);
+    vec2 p_ = a * p + b;
+    // Compute GL position.
+    gl_Position = vec4(p_, 0.0, 1.0);
+    // Affine transformation for the entire plot?
+    // ...
+    // TODO remove the following;
+    v_index = a_signal_index;
+    v_color = vec4(a_signal_color, 1.0);
     v_position = gl_Position.xy;
     v_ab = vec4(a, b);
 }
 """
+
+# VERT_SHADER = """
+# // y coordinate of the position.
+# attribute float a_position;
+# // row, col, and time index.
+# attribute vec3 a_index;
+# varying vec3 v_index;
+# // 2D scaling factor (zooming).
+# uniform vec2 u_scale;
+# // Size of the table.
+# uniform vec2 u_size;
+# // Number of samples per signal.
+# uniform float u_n;
+# // Color.
+# attribute vec3 a_color;
+# varying vec4 v_color;
+# // Varying variables used for clipping in the fragment shader.
+# varying vec2 v_position;
+# varying vec4 v_ab;
+#
+# void main() {
+#     float nrows = u_size.x;
+#     float ncols = u_size.y;
+#     // Compute the x coordinate from the time index.
+#     float x = -1 + 2*a_index.z / (u_n-1);
+#     vec2 position = vec2(x - (1 - 1 / u_scale.x), a_position);
+#     // Find the affine transformation for the subplots.
+#     vec2 a = vec2(1.0 / ncols, 1.0 / nrows) * 0.9;
+#     vec2 b = vec2(-1.0 + 2.0 * (a_index.x + 0.5) / ncols, -1.0 + 2.0 * (a_index.y + 0.5) / nrows);
+#     // Apply the static subplot transformation + scaling.
+#     gl_Position = vec4(a * u_scale * position + b, 0.0, 1.0);
+#     v_color = vec4(a_color, 1.0);
+#     v_index = a_index;
+#     // For clipping test in the fragment shader.
+#     v_position = gl_Position.xy;
+#     v_ab = vec4(a, b);
+# }
+# """
 
 VERT_SHADER_BIS = """
 // row, col and corner index
@@ -107,18 +160,18 @@ void main() {
 FRAG_SHADER = """
 #version 120
 varying vec4 v_color;
-varying vec3 v_index;
+varying float v_index;
 varying vec2 v_position;
 varying vec4 v_ab;
 void main() {
     gl_FragColor = v_color;
     // Discard the fragments between the signals (emulate glMultiDrawArrays).
-    if ((fract(v_index.x) > 0.) || (fract(v_index.y) > 0.))
+    if (fract(v_index) > 0.0)
         discard;
     // Clipping test.
-    vec2 test = abs((v_position.xy-v_ab.zw)/v_ab.xy);
-    if ((test.x > 1) || (test.y > 1))
-        discard;
+    //vec2 test = abs((v_position.xy-v_ab.zw)/v_ab.xy);
+    //if ((test.x > 1) || (test.y > 1))
+    //    discard;
 }
 """
 
@@ -135,17 +188,50 @@ void main() {
 
 class VispyCanvas(app.Canvas):
 
-    def __init__(self):
+    def __init__(self, probe_path=None):
 
         app.Canvas.__init__(self, title="Vispy canvas", keys="interactive")
 
+        probe = load_probe(probe_path)
+        # TODO load all the necessary features from the probe.
+
+        # Number of signals.
+        nb_signals = probe.nb_channels
+        # Number of samples per signal.
+        nb_samples_per_signal = 5 * 1024
+        # Generate the signal values.
+        self._signal_values = np.zeros((nb_signals, nb_samples_per_signal), dtype=np.float32)
+        # Color of each vertex
+        # TODO: make it more efficient by using a GLSL-based color map and the index.
+        signal_colors = np.repeat(0.75 * np.ones((nb_signals, 3), dtype=np.float32), repeats=nb_samples_per_signal, axis=0)
+
+        signal_indices = np.repeat(np.arange(0, nb_signals, dtype=np.float32), repeats=nb_samples_per_signal)
+        signal_positions = np.c_[
+            np.repeat(probe.x.astype(np.float32), repeats=nb_samples_per_signal),
+            np.repeat(probe.y.astype(np.float32), repeats=nb_samples_per_signal),
+        ]
+        sample_indices = np.tile(np.arange(0, nb_samples_per_signal, dtype=np.float32), reps=nb_signals)
+
         self.program = gloo.Program(vert=VERT_SHADER, frag=FRAG_SHADER)
-        self.program['a_position'] = y.reshape(-1, 1)
-        self.program['a_color'] = color
-        self.program['a_index'] = index
-        self.program['u_scale'] = (1.0, 0.01)
-        self.program['u_size'] = (nrows, ncols)
-        self.program['u_n'] = n
+        self.program['a_signal_index'] = signal_indices
+        self.program['a_signal_position'] = signal_positions
+        self.program['a_signal_value'] = self._signal_values.reshape(-1, 1)
+        self.program['a_signal_color'] = signal_colors
+        self.program['a_sample_index'] = sample_indices
+        self.program['u_nb_samples_per_signal'] = nb_samples_per_signal
+        self.program['u_x_min'] = probe.x_limits[0]
+        self.program['u_x_max'] = probe.x_limits[1]
+        self.program['u_y_min'] = probe.y_limits[0]
+        self.program['u_y_max'] = probe.y_limits[1]
+        self.program['u_t_scale'] = 1.0
+        self.program['u_v_scale'] = 1.0
+        # TODO clean/remove the following lines.
+        # self.program['a_position'] = y.reshape(-1, 1)
+        # self.program['a_color'] = color
+        # self.program['a_index'] = index
+        # self.program['u_scale'] = (1.0, 0.01)
+        # self.program['u_size'] = (nrows, ncols)
+        # self.program['u_n'] = n
 
         self.program_bis = gloo.Program(vert=VERT_SHADER_BIS, frag=FRAG_SHADER_BIS)
         self.program_bis['a_index'] = index_bis
@@ -178,15 +264,6 @@ class VispyCanvas(app.Canvas):
 
         return
 
-    def on_timer(self, event):
-        """Add some data at the end of each signal (real-time signals)."""
-        k = 10
-        y[:, :-k] = y[:, k:]
-        y[:, -k:] = amplitudes * np.random.randn(m, k)
-
-        self.program['a_position'].set_data(y.ravel().astype(np.float32))
-        self.update()
-
     def on_draw(self, event):
 
         _ = event
@@ -199,10 +276,11 @@ class VispyCanvas(app.Canvas):
     def update_data(self, data):
 
         k = 1024
-        y[:, :-k] = y[:, k:]
-        y[:, -k:] = np.transpose(data)
+        self._signal_values[:, :-k] = self._signal_values[:, k:]
+        self._signal_values[:, -k:] = np.transpose(data)
+        signal_values = self._signal_values.ravel().astype(np.float32)
 
-        self.program['a_position'].set_data(y.ravel().astype(np.float32))
+        self.program['a_signal_value'].set_data(signal_values)
         self.update()
 
         return

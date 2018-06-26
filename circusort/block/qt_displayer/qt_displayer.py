@@ -14,13 +14,18 @@ class QtDisplayer(Block):
 
     name = "Displayer"
 
-    params = {}
+    params = {
+        'probe_path': None,
+    }
 
     def __init__(self, **kwargs):
         """Initialization"""
 
         Block.__init__(self, **kwargs)
         self.add_input('data', structure='dict')
+
+        # The following line is useful to avoid PyCharm warnings.
+        self.probe_path = self.probe_path
 
         self._dtype = None
         self._nb_samples = None
@@ -30,7 +35,7 @@ class QtDisplayer(Block):
         self._params_pipe = Pipe()
         self._number_pipe = Pipe()
         self._data_pipe = Pipe()
-        self._qt_process = QtProcess(self._params_pipe, self._number_pipe, self._data_pipe)
+        self._qt_process = QtProcess(self._params_pipe, self._number_pipe, self._data_pipe, probe_path=self.probe_path)
 
     def _initialize(self):
 

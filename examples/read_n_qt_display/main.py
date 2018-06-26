@@ -50,8 +50,8 @@ def main():
             },
             'probe': {
                 'mode': 'mea',
-                'nb_rows': 3,
-                'nb_columns': 3,
+                'nb_rows': 8,
+                'nb_columns': 8,
                 'radius': 100.0,  # µm
             },
             'cells': {
@@ -107,6 +107,7 @@ def main():
         }
         qt_displayer_kwargs = {
             'name': "displayer",
+            'probe_path': os.path.join(generation_directory, "probe.prb"),
             'log_level': DEBUG,
         }
 

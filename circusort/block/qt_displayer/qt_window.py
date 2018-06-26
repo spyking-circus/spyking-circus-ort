@@ -8,13 +8,11 @@ from circusort.block.qt_displayer.qt_thread import QtThread
 
 class QtWindow(QMainWindow):
 
-    def __init__(self, params_pipe, number_pipe, data_pipe, screen_resolution):
+    def __init__(self, params_pipe, number_pipe, data_pipe, probe_path=None, screen_resolution=None):
 
         QMainWindow.__init__(self)
 
-        screen_width = screen_resolution.width()
-        screen_height = screen_resolution.height()
-        self._canvas = VispyCanvas()
+        self._canvas = VispyCanvas(probe_path=probe_path)
         central_widget = self._canvas.native
 
         # Create controls widgets.
@@ -62,16 +60,31 @@ class QtWindow(QMainWindow):
         self._info_buffer_value_label.setText(u"0")
         info_buffer_unit_label = QLabel()
         info_buffer_unit_label.setText(u"")
+        info_probe_label = QLabel()
+        info_probe_label.setText(u"probe")
+        info_probe_value_label = QLabel()
+        info_probe_value_label.setText(u"{}".format(probe_path))
+        # TODO place the following info in another grid.
+        info_probe_unit_label = QLabel()
+        info_probe_unit_label.setText(u"")
+
         info_spacer = QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding)
 
         # Create info grid.
         info_grid = QGridLayout()
+        # # Time row.
         info_grid.addWidget(label_time, 0, 0)
         info_grid.addWidget(self._label_time_value, 0, 1)
         info_grid.addWidget(label_time_unit, 0, 2)
+        # # Buffer row.
         info_grid.addWidget(info_buffer_label, 1, 0)
         info_grid.addWidget(self._info_buffer_value_label, 1, 1)
         info_grid.addWidget(info_buffer_unit_label, 1, 2)
+        # # Probe row.
+        info_grid.addWidget(info_probe_label, 2, 0)
+        info_grid.addWidget(info_probe_value_label, 2, 1)
+        info_grid.addWidget(info_probe_unit_label, 2, 2)
+        # # Spacer.
         info_grid.addItem(info_spacer)
 
         # Create info group.
@@ -100,7 +113,10 @@ class QtWindow(QMainWindow):
         # Set central widget.
         self.setCentralWidget(central_widget)
         # Set window size.
-        self.resize(screen_width, screen_height)
+        if screen_resolution is not None:
+            screen_width = screen_resolution.width()
+            screen_height = screen_resolution.height()
+            self.resize(screen_width, screen_height)
         # Set window title.
         self.setWindowTitle("SpyKING Circus ORT - Read 'n' display (Qt)")
 
