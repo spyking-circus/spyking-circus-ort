@@ -9,7 +9,7 @@ import circusort
 
 from collections import OrderedDict
 
-from networks import network_3 as network
+from networks import network_4 as network
 
 
 nb_rows_range = [4, 8, 16, 32]

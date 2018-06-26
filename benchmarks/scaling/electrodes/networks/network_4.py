@@ -2,6 +2,7 @@ import os
 
 import circusort
 
+from collections import OrderedDict
 from logging import DEBUG
 
 
@@ -40,12 +41,18 @@ def sorting(configuration_name):
     generation_directory = os.path.join(directory, "generation", configuration_name)
     sorting_directory = os.path.join(directory, "sorting", configuration_name)
     introspection_directory = os.path.join(directory, "introspection", configuration_name)
+    log_directory = os.path.join(directory, "log", configuration_name)
 
     # Load generation parameters.
     parameters = circusort.io.get_data_parameters(generation_directory)
 
     # Define parameters.
-    host = '127.0.0.1'  # i.e. run the test locally
+    hosts = OrderedDict([
+        ('master', '192.168.0.254'),
+        ('slave_1', '192.168.0.1'),
+        ('slave_2', '192.168.0.4'),
+        ('slave_3', '192.168.0.7'),
+    ])
     dtype = parameters['general']['dtype']
     nb_channels = parameters['probe']['nb_channels']
     nb_samples = parameters['general']['buffer_width']
@@ -62,8 +69,13 @@ def sorting(configuration_name):
         os.makedirs(sorting_directory)
     if not os.path.isdir(introspection_directory):
         os.makedirs(introspection_directory)
+    if not os.path.isdir(log_directory):
+        os.makedirs(log_directory)
 
     # Define keyword arguments.
+    director_kwarg = {
+        'log_path': os.path.join(log_directory, "log.txt"),
+    }
     reader_kwargs = {
         'name': "reader",
         'data_path': os.path.join(generation_directory, "data.raw"),
@@ -140,17 +152,20 @@ def sorting(configuration_name):
     }
 
     # Define the elements of the network.
-    director = circusort.create_director(host=host)
-    manager = director.create_manager(host=host)
-    reader = manager.create_block('reader', **reader_kwargs)
-    filter_ = manager.create_block('filter', **filter_kwargs)
-    mad = manager.create_block('mad_estimator', **mad_kwargs)
-    detector = manager.create_block('peak_detector', **detector_kwargs)
-    pca = manager.create_block('pca', **pca_kwargs)
-    cluster = manager.create_block('density_clustering', **cluster_kwargs)
-    updater = manager.create_block('template_updater', **updater_kwargs)
-    fitter = manager.create_network('fitter', **fitter_kwargs)
-    writer = manager.create_block('spike_writer', **writer_kwargs)
+    director = circusort.create_director(host=hosts['master'], **director_kwarg)
+    managers = OrderedDict([
+        (key, director.create_manager(host=hosts[key]))
+        for key in hosts.iterkeys()
+    ])
+    reader = managers['master'].create_block('reader', **reader_kwargs)
+    filter_ = managers['slave_1'].create_block('filter', **filter_kwargs)
+    mad = managers['slave_1'].create_block('mad_estimator', **mad_kwargs)
+    detector = managers['slave_1'].create_block('peak_detector', **detector_kwargs)
+    pca = managers['slave_1'].create_block('pca', **pca_kwargs)
+    cluster = managers['slave_2'].create_block('density_clustering', **cluster_kwargs)
+    updater = managers['slave_2'].create_block('template_updater', **updater_kwargs)
+    fitter = managers['slave_3'].create_network('fitter', **fitter_kwargs)
+    writer = managers['master'].create_block('spike_writer', **writer_kwargs)
     # Initialize the elements of the network.
     director.initialize()
     # Connect the elements of the network.
