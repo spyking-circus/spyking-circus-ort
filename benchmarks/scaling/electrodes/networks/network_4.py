@@ -112,7 +112,8 @@ def sorting(configuration_name):
     updater_kwargs = {
         'name': "updater",
         'probe_path': probe_path,
-        'data_path': os.path.join(sorting_directory, "templates.h5"),
+        'templates_path': os.path.join(sorting_directory, "templates.h5"),
+        'overlaps_path': os.path.join(sorting_directory, "overlaps.pkl"),
         'precomputed_template_paths': precomputed_template_paths,
         'sampling_rate': sampling_rate,
         'nb_samples': nb_samples,
@@ -122,8 +123,8 @@ def sorting(configuration_name):
     fitter_kwargs = {
         'name': "fitter",
         'degree': nb_fitters,
-        'init_path': os.path.join(sorting_directory, "templates.h5"),
-        'overlaps_init_path': os.path.join(sorting_directory, "overlaps_dict.pkl"),
+        'templates_init_path': os.path.join(sorting_directory, "templates.h5"),
+        'overlaps_init_path': os.path.join(sorting_directory, "overlaps.pkl"),
         'sampling_rate': sampling_rate,
         'discarding_eoc_from_updater': True,
         'introspection_path': introspection_directory,

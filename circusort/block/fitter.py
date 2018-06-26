@@ -82,7 +82,7 @@ class Fitter(Block):
 
     def _initialize_templates(self):
 
-        self.template_store = TemplateStore(self.templates_init_path, mode='r')
+        self._template_store = TemplateStore(self.templates_init_path, mode='r')
 
         # Log info message.
         string = "{} is initialized with {} templates from {}"
@@ -634,7 +634,13 @@ class Fitter(Block):
                 # Create the template dictionary if necessary.
                 indices = updater.get('indices', None)
                 if self._overlaps_store is None:
+                    # Log debug message.
+                    string = "{} will initialize template and overlap stores ({}, {})"
+                    message = string.format(self.name, updater['template_store'], updater['overlaps']['path'])
+                    self.log.debug(message)
+                    # Create template store.
                     self._template_store = TemplateStore(updater['template_store'], mode='r')
+                    # Create the overlaps store.
                     self._overlaps_store = OverlapsStore(template_store=self._template_store,
                                                          path=updater['overlaps']['path'], fitting_mode=True)
                     self._init_temp_window()
@@ -643,6 +649,10 @@ class Fitter(Block):
                     message = string.format(self.name, updater['template_store'], updater['overlaps']['path'])
                     self.log.debug(message)
                 else:
+                    # Log debug message.
+                    string = "{} will update template and overlap stores"
+                    message = string.format(self.name)
+                    self.log.debug(message)
                     # Update template and overlap stores.
                     laziness = updater['overlaps']['path'] is None
                     self._overlaps_store.update(indices, laziness=laziness)

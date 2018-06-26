@@ -106,7 +106,7 @@ class TemplateUpdater(Block):
             self.templates_path = os.path.abspath(self.templates_path)
         # Initialize path to save the overlaps.
         if self.overlaps_path is None:
-            self.overlaps_path = self._get_tmp('overlaps.pck')
+            self.overlaps_path = self._get_tmp('overlaps.pkl')
         else:
             self.overlaps_path = os.path.expanduser(self.overlaps_path)
             self.overlaps_path = os.path.abspath(self.overlaps_path)

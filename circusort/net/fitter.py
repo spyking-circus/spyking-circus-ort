@@ -7,17 +7,16 @@ class Fitter(Network):
     Attributes:
         degree: integer
         nb_samples: integer
-        init_path: none | string
+        templates_init_path: none | string
         overlaps_init_path: none | string
     """
-    # TODO complete docstring.
 
     name = "Fitter network"
 
     params = {
         'degree': 2,
         'nb_samples': 1024,
-        'init_path': None,
+        'templates_init_path': None,
         'overlaps_init_path': None,
     }
 
@@ -29,24 +28,22 @@ class Fitter(Network):
                 The default value is 2.
             nb_samples: integer (optional)
                 The default value is 1024.
-            init_path: none | string (optional)
+            templates_init_path: none | string (optional)
                 The default value is None.
             overlaps_init_pat: none | string (optional)
                 The default value is None.
         """
-        # TODO complete docstring.
 
         Network.__init__(self, *args, **kwargs)
 
         # The following lines are useful to avoid some Pycharm's warnings.
         self.degree = self.degree
         self.nb_samples = self.nb_samples
-        self.init_path = self.init_path
+        self.templates_init_path = self.templates_init_path
         self.overlaps_init_path = self.overlaps_init_path
 
     def _create_blocks(self):
         """Create the blocks of the network."""
-        # TODO complete docstring.
 
         demultiplexer_kwargs = {
             'name': 'demultiplexer',
@@ -80,7 +77,7 @@ class Fitter(Network):
         fitters_kwargs = {
             k: {
                 'name': "{} fitter {}".format(self.name, k),
-                'init_path': self.init_path,
+                'templates_init_path': self.templates_init_path,
                 'overlap_init_path': self.overlaps_init_path,
                 '_nb_fitters': self.degree,
                 '_fitter_id': k,
@@ -133,14 +130,12 @@ class Fitter(Network):
 
     @staticmethod
     def _get_name(name, k):
-        # TODO add docstring.
 
         name = "{}_{}".format(name, k)
 
         return name
 
     def _connect(self):
-        # TODO add docstring.
 
         demultiplexer = self.get_block('demultiplexer')
         fitters = self.get_block('fitters')

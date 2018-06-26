@@ -16,7 +16,7 @@ requires = [
     'sklearn',
     'hdbscan',
     'pyopencl',
-    'portalocker'
+    'filelock',
 ]
 
 

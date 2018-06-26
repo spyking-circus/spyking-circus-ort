@@ -189,7 +189,7 @@ class Process(object):
         self.logger.debug(message)
 
         request = 'finish'
-        response = self.send(request)
+        _ = self.send(request)
 
         self.socket.close()
 
@@ -427,7 +427,10 @@ class Process(object):
                 exception_name = data['exception']
                 exception_trace = data['result']  # i.e. exception trace
                 # Raise exception.
-                exception_class = getattr(exceptions, exception_name)
+                try:
+                    exception_class = getattr(exceptions, exception_name)
+                except AttributeError:
+                    exception_class = Exception
                 raise exception_class(exception_trace)
         elif data['response'] == 'disconnect':
             raise NotImplementedError()
