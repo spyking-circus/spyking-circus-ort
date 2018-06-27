@@ -1,4 +1,3 @@
-import math
 import numpy as np
 
 from vispy import app, gloo
@@ -35,9 +34,9 @@ varying vec4 v_ab;
 // Vertex shader.
 void main() {
     // Compute the x coordinate from the sample index.
-    float x = 1.0 * (-1.0 + 2.0 * a_sample_index / (u_nb_samples_per_signal - 1.0));
+    float x = +1.0 + 2.0 * u_t_scale * (-1.0 + (a_sample_index / (u_nb_samples_per_signal - 1.0)));
     // Compute the y coordinate from the signal value.
-    float y =  1.0 * (a_signal_value / u_v_scale);
+    float y =  a_signal_value / u_v_scale;
     // Compute the position.
     vec2 p = vec2(x, y);
     // Affine transformation for the subplots.
@@ -123,17 +122,19 @@ void main() {
 
 class VispyCanvas(app.Canvas):
 
-    def __init__(self, probe_path=None):
+    def __init__(self, probe_path=None, params=None):
 
         app.Canvas.__init__(self, title="Vispy canvas", keys="interactive")
 
         probe = load_probe(probe_path)
-        # TODO load all the necessary features from the probe.
+        nb_buffers = int(np.ceil((params['time']['max'] * 1e-3) * params['sampling_rate'] / float(params['nb_samples'])))
+        self._time_max = (float(nb_buffers * params['nb_samples']) / params['sampling_rate']) * 1e+3
+        self._time_min = params['time']['min']
 
         # Number of signals.
         nb_signals = probe.nb_channels
         # Number of samples per signal.
-        nb_samples_per_signal = 5 * 1024
+        nb_samples_per_signal = nb_buffers * params['nb_samples']
         # Generate the signal values.
         self._signal_values = np.zeros((nb_signals, nb_samples_per_signal), dtype=np.float32)
         # Color of each vertex
@@ -159,8 +160,8 @@ class VispyCanvas(app.Canvas):
         self.program['u_y_min'] = probe.y_limits[0]
         self.program['u_y_max'] = probe.y_limits[1]
         self.program['u_d_scale'] = probe.minimum_interelectrode_distance
-        self.program['u_t_scale'] = 1.0
-        self.program['u_v_scale'] = 100.0
+        self.program['u_t_scale'] = self._time_max / params['time']['init']
+        self.program['u_v_scale'] = params['voltage']['init']
 
         box_indices = np.repeat(np.arange(0, nb_signals, dtype=np.float32), repeats=5)
         box_positions = np.c_[
@@ -194,18 +195,22 @@ class VispyCanvas(app.Canvas):
 
         return
 
-    def on_mouse_wheel(self, event):
-
-        dx = np.sign(event.delta[1]) * 0.05
-        scale_x, scale_y = self.program['u_scale']
-        scale_x_new, scale_y_new = (scale_x * math.exp(2.5 * dx), scale_y)
-        self.program['u_scale'] = (max(1.0, scale_x_new), scale_y_new)
-        scale_x, scale_y = self.program_bis['u_scale']
-        scale_x_new, scale_y_new = (scale_x * math.exp(2.5 * dx), scale_y)
-        self.program_bis['u_scale'] = (max(1.0, scale_x_new), scale_y_new)
-        self.update()
-
-        return
+    # def on_mouse_wheel(self, event):
+    #
+    #     time_ref = self._time_max
+    #
+    #     dx = np.sign(event.delta[1]) * 0.05
+    #     t_scale = self.program['u_t_scale']
+    #     t_scale_new = t_scale * np.exp(2.5 * dx)
+    #     t_scale_new = max(t_scale_new, time_ref / self._time_max)
+    #     t_scale_new = min(t_scale_new, time_ref / self._time_min)
+    #     self.program['u_t_scale'] = t_scale_new
+    #
+    #     # TODO emit signal to update the spin box.
+    #
+    #     self.update()
+    #
+    #     return
 
     def on_draw(self, event):
 
@@ -228,9 +233,18 @@ class VispyCanvas(app.Canvas):
 
         return
 
-    def set_voltage_scale(self, value):
+    def set_time(self, value):
 
-        self.program['u_v_scale'] = value
+        t_scale = self._time_max / value
+        self.program['u_t_scale'] = t_scale
+        self.update()
+
+        return
+
+    def set_voltage(self, value):
+
+        v_scale = value
+        self.program['u_v_scale'] = v_scale
         self.update()
 
         return

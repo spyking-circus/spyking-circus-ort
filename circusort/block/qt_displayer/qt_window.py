@@ -1,4 +1,6 @@
 # coding=utf-8
+import numpy as np
+
 from PyQt4.QtCore import Qt
 from PyQt4.QtGui import *
 
@@ -12,7 +14,27 @@ class QtWindow(QMainWindow):
 
         QMainWindow.__init__(self)
 
-        self._canvas = VispyCanvas(probe_path=probe_path)
+        # Receive parameters.
+        params = params_pipe[0].recv()
+        self._nb_samples = params['nb_samples']
+        self._sampling_rate = params['sampling_rate']
+
+        self._params = {
+            'nb_samples': self._nb_samples,
+            'sampling_rate': self._sampling_rate,
+            'time': {
+                'min': 10.0,  # ms
+                'max': 1000.0,  # ms
+                'init': 100.0,  # ms
+            },
+            'voltage': {
+                'min': 10.0,  # µV
+                'max': 1000.0,  # µV
+                'init': 100.0,  # µV
+            },
+        }
+
+        self._canvas = VispyCanvas(probe_path=probe_path, params=self._params)
         central_widget = self._canvas.native
 
         # Create controls widgets.
@@ -20,15 +42,16 @@ class QtWindow(QMainWindow):
         label_time.setText(u"time")
         label_voltage = QLabel()
         label_voltage.setText(u"voltage")
-        dsp_time = QDoubleSpinBox()
-        dsp_time.setMinimum(1024.0)
-        dsp_time.setMaximum(2000.0)
-        dsp_time.setValue(1024.0)
+        self._dsp_time = QDoubleSpinBox()
+        self._dsp_time.setMinimum(self._params['time']['min'])
+        self._dsp_time.setMaximum(self._params['time']['max'])
+        self._dsp_time.setValue(self._params['time']['init'])
+        self._dsp_time.valueChanged.connect(self._on_time_changed)
         self._dsp_voltage = QDoubleSpinBox()
-        self._dsp_voltage.setMinimum(1.0)
-        self._dsp_voltage.setMaximum(1000.0)
-        self._dsp_voltage.setValue(100.0)
-        self._dsp_voltage.valueChanged.connect(self._on_voltage_scale_changed)
+        self._dsp_voltage.setMinimum(self._params['voltage']['min'])
+        self._dsp_voltage.setMaximum(self._params['voltage']['max'])
+        self._dsp_voltage.setValue(self._params['voltage']['init'])
+        self._dsp_voltage.valueChanged.connect(self._on_voltage_changed)
         label_time_unit = QLabel()
         label_time_unit.setText(u"ms")
         label_voltage_unit = QLabel()
@@ -39,7 +62,7 @@ class QtWindow(QMainWindow):
         grid = QGridLayout()
         # # Add time row.
         grid.addWidget(label_time, 0, 0)
-        grid.addWidget(dsp_time, 0, 1)
+        grid.addWidget(self._dsp_time, 0, 1)
         grid.addWidget(label_time_unit, 0, 2)
         # # Add voltage row.
         grid.addWidget(label_voltage, 1, 0)
@@ -60,23 +83,26 @@ class QtWindow(QMainWindow):
         # Create info widgets.
         label_time = QLabel()
         label_time.setText(u"time")
-        self._label_time_value = QLabel()
+        self._label_time_value = QLineEdit()
         self._label_time_value.setText(u"0")
+        self._label_time_value.setReadOnly(True)
+        self._label_time_value.setAlignment(Qt.AlignRight)
         label_time_unit = QLabel()
         label_time_unit.setText(u"s")
         info_buffer_label = QLabel()
         info_buffer_label.setText(u"buffer")
-        self._info_buffer_value_label = QLabel()
+        self._info_buffer_value_label = QLineEdit()
         self._info_buffer_value_label.setText(u"0")
+        self._info_buffer_value_label.setReadOnly(True)
+        self._info_buffer_value_label.setAlignment(Qt.AlignRight)
         info_buffer_unit_label = QLabel()
         info_buffer_unit_label.setText(u"")
         info_probe_label = QLabel()
         info_probe_label.setText(u"probe")
-        info_probe_value_label = QLabel()
-        # TODO swap and clean the 2 following lines.
-        # info_probe_value_label.setText(u"{}".format(probe_path))
-        info_probe_value_label.setText(u"...")
-        # TODO place the following info in another grid.
+        info_probe_value_label = QLineEdit()
+        info_probe_value_label.setText(u"{}".format(probe_path))
+        info_probe_value_label.setReadOnly(True)
+        # TODO place the following info in another grid?
         info_probe_unit_label = QLabel()
         info_probe_unit_label.setText(u"")
 
@@ -108,11 +134,6 @@ class QtWindow(QMainWindow):
         info_dock.setWidget(info_group)
         info_dock.setWindowTitle("Info")
 
-        # Receive parameters.
-        params = params_pipe[0].recv()
-        self._nb_samples = params['nb_samples']
-        self._sampling_rate = params['sampling_rate']
-
         # Create thread.
         thread = QtThread(number_pipe, data_pipe)
         thread.number_signal.connect(self.number_callback)
@@ -130,7 +151,7 @@ class QtWindow(QMainWindow):
             screen_height = screen_resolution.height()
             self.resize(screen_width, screen_height)
         # Set window title.
-        self.setWindowTitle("SpyKING Circus ORT - Read 'n' display (Qt)")
+        self.setWindowTitle("SpyKING Circus ORT - Read 'n' Qt display")
 
     def number_callback(self, number):
 
@@ -148,9 +169,16 @@ class QtWindow(QMainWindow):
 
         return
 
-    def _on_voltage_scale_changed(self):
+    def _on_time_changed(self):
 
-        voltage_scale = self._dsp_voltage.value()
-        self._canvas.set_voltage_scale(voltage_scale)
+        time = self._dsp_time.value()
+        self._canvas.set_time(time)
+
+        return
+
+    def _on_voltage_changed(self):
+
+        voltage = self._dsp_voltage.value()
+        self._canvas.set_voltage(voltage)
 
         return
