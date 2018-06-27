@@ -3,7 +3,10 @@ import numpy as np
 from .block import Block
 
 
-class Peak_detector(Block):
+__classname__ = "PeakDetector"
+
+
+class PeakDetector(Block):
     """Peak detector block
 
     Attributes:
@@ -206,7 +209,9 @@ class Peak_detector(Block):
         self.p[:self._nb_samples, :] = self.p[self._nb_samples:, :]
         self.p[self._nb_samples:, :] = np.zeros((self._nb_samples, self._nb_channels), dtype=np.bool)
         # Update internal variable mph.
-        mph_packet = self.get_input('mads').receive(blocking=False, number=number)
+        # TODO swap and clean the 2 following lines.
+        # mph_packet = self.get_input('mads').receive(blocking=False, number=number)
+        mph_packet = self.get_input('mads').receive(blocking=False)
         self.mph = mph_packet['payload'] if mph_packet is not None else self.mph
 
         self._measure_time('start', frequency=100)
@@ -237,7 +242,7 @@ class Peak_detector(Block):
 
             # Prepare output packet.
             packet = {
-                'number': data_packet['number'] - 1,
+                'number': number - 1,
                 'payload': self.peaks,
             }
 
