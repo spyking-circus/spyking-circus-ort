@@ -676,7 +676,7 @@ class Fitter(Block):
 
             if self.nb_templates > 0:
 
-                self._measure_time('start', frequency=100)
+                self._measure_time('start', frequency=50)
 
                 if timing:
                     self._measure_time('fit_start', frequency=10)
@@ -693,7 +693,7 @@ class Fitter(Block):
                 if timing:
                     self._measure_time('output_end', frequency=10)
 
-                self._measure_time('end', frequency=100)
+                self._measure_time('end', frequency=50)
 
             elif self._nb_fitters > 1:
 
