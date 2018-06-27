@@ -21,7 +21,14 @@ class QtWindow(QMainWindow):
         label_voltage = QLabel()
         label_voltage.setText(u"voltage")
         dsp_time = QDoubleSpinBox()
-        dsp_voltage = QDoubleSpinBox()
+        dsp_time.setMinimum(1024.0)
+        dsp_time.setMaximum(2000.0)
+        dsp_time.setValue(1024.0)
+        self._dsp_voltage = QDoubleSpinBox()
+        self._dsp_voltage.setMinimum(1.0)
+        self._dsp_voltage.setMaximum(1000.0)
+        self._dsp_voltage.setValue(100.0)
+        self._dsp_voltage.valueChanged.connect(self._on_voltage_scale_changed)
         label_time_unit = QLabel()
         label_time_unit.setText(u"ms")
         label_voltage_unit = QLabel()
@@ -30,12 +37,15 @@ class QtWindow(QMainWindow):
 
         # Create controls grid.
         grid = QGridLayout()
+        # # Add time row.
         grid.addWidget(label_time, 0, 0)
         grid.addWidget(dsp_time, 0, 1)
         grid.addWidget(label_time_unit, 0, 2)
+        # # Add voltage row.
         grid.addWidget(label_voltage, 1, 0)
-        grid.addWidget(dsp_voltage, 1, 1)
+        grid.addWidget(self._dsp_voltage, 1, 1)
         grid.addWidget(label_voltage_unit, 1, 2)
+        # # Add spacer.
         grid.addItem(spacer)
 
         # Create controls group.
@@ -63,7 +73,9 @@ class QtWindow(QMainWindow):
         info_probe_label = QLabel()
         info_probe_label.setText(u"probe")
         info_probe_value_label = QLabel()
-        info_probe_value_label.setText(u"{}".format(probe_path))
+        # TODO swap and clean the 2 following lines.
+        # info_probe_value_label.setText(u"{}".format(probe_path))
+        info_probe_value_label.setText(u"...")
         # TODO place the following info in another grid.
         info_probe_unit_label = QLabel()
         info_probe_unit_label.setText(u"")
@@ -133,5 +145,12 @@ class QtWindow(QMainWindow):
     def data_callback(self, data):
 
         self._canvas.update_data(data)
+
+        return
+
+    def _on_voltage_scale_changed(self):
+
+        voltage_scale = self._dsp_voltage.value()
+        self._canvas.set_voltage_scale(voltage_scale)
 
         return

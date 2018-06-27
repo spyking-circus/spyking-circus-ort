@@ -45,17 +45,17 @@ def main():
         # Generate configuration.
         kwargs = {
             'general': {
-                'duration': 5.0,  # s
+                'duration': 10.0,  # s
                 'name': "read_n_display",
             },
             'probe': {
                 'mode': 'mea',
-                'nb_rows': 8,
-                'nb_columns': 8,
+                'nb_rows': 16,
+                'nb_columns': 16,
                 'radius': 100.0,  # µm
             },
             'cells': {
-                'nb_cells': 27,
+                'nb_cells': 256,
             }
         }
         configuration = circusort.io.generate_configuration(**kwargs)
