@@ -13,11 +13,12 @@ def list_modules():
             module = filename[:-3]
             if module[:2] != '__' or module[-2:] != '__':
                 modules.append(module)
-        elif filename[-3:] == 'pyc':
+        elif filename[-4:] == '.pyc':
             pass
         else:
             module = filename
-            modules.append(module)
+            if module[:2] != '__' or module[-2:] != '__':
+                modules.append(module)
 
     return modules
 
