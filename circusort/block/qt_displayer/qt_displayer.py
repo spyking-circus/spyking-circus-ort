@@ -65,7 +65,6 @@ class QtDisplayer(Block):
 
         self._measure_time(label='start', frequency=10)
 
-        # TODO remove the 2 following lines.
         self._number_pipe[1].send(number)
         self._data_pipe[1].send(batch)
 

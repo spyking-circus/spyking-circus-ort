@@ -29,7 +29,7 @@ class QtWindow(QMainWindow):
             },
             'voltage': {
                 'min': 10.0,  # µV
-                'max': 1000.0,  # µV
+                'max': 10e+3,  # µV
                 'init': 100.0,  # µV
             },
         }

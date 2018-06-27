@@ -127,17 +127,19 @@ class VispyCanvas(app.Canvas):
         app.Canvas.__init__(self, title="Vispy canvas", keys="interactive")
 
         probe = load_probe(probe_path)
-        nb_buffers = int(np.ceil((params['time']['max'] * 1e-3) * params['sampling_rate'] / float(params['nb_samples'])))
-        self._time_max = (float(nb_buffers * params['nb_samples']) / params['sampling_rate']) * 1e+3
+        nb_buffers_per_signal = int(np.ceil((params['time']['max'] * 1e-3) * params['sampling_rate'] / float(params['nb_samples'])))
+        self._time_max = (float(nb_buffers_per_signal * params['nb_samples']) / params['sampling_rate']) * 1e+3
         self._time_min = params['time']['min']
 
         # Number of signals.
         nb_signals = probe.nb_channels
+        # Number of samples per buffer.
+        self._nb_samples_per_buffer = params['nb_samples']
         # Number of samples per signal.
-        nb_samples_per_signal = nb_buffers * params['nb_samples']
+        nb_samples_per_signal = nb_buffers_per_signal * self._nb_samples_per_buffer
         # Generate the signal values.
         self._signal_values = np.zeros((nb_signals, nb_samples_per_signal), dtype=np.float32)
-        # Color of each vertex
+        # Color of each vertex.
         # TODO: make it more efficient by using a GLSL-based color map and the index.
         signal_colors = 0.75 * np.ones((nb_signals, 3), dtype=np.float32)
         signal_colors = np.repeat(signal_colors, repeats=nb_samples_per_signal, axis=0)
@@ -223,7 +225,11 @@ class VispyCanvas(app.Canvas):
 
     def update_data(self, data):
 
-        k = 1024
+        # TODO find a better solution for the 2 following lines.
+        if data.shape[1] > 256:
+            data = data[:, 0:256]
+
+        k = self._nb_samples_per_buffer
         self._signal_values[:, :-k] = self._signal_values[:, k:]
         self._signal_values[:, -k:] = np.transpose(data)
         signal_values = self._signal_values.ravel().astype(np.float32)

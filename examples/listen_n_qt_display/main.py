@@ -5,8 +5,11 @@ import circusort
 from logging import DEBUG
 
 
-directory = os.path.join("~", ".spyking-circus-ort", "examples", "listen_n_qt_display")
-directory = os.path.expanduser(directory)
+sco_directory = os.path.join("~", ".spyking-circus-ort")
+sco_directory = os.path.expanduser(sco_directory)
+directory = os.path.join(sco_directory, "examples", "listen_n_qt_display")
+
+probe_path = os.path.join(sco_directory, "probes", "mea_256.prb")
 
 
 def main():
@@ -42,6 +45,7 @@ def main():
     }
     qt_displayer_kwargs = {
         'name': "displayer",
+        'probe_path': probe_path,
         'log_level': DEBUG,
     }
     writer_kwargs = {
