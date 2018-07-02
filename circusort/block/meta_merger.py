@@ -15,9 +15,10 @@ class Meta_merger(Block):
     params = {
         'templates_init_path': None,
         'max_delay': 50,
-        'bin_size': 2,
+        'cc_bin': 2,
         'lag': 5,
-        'sampling_rate': 20000
+        'sampling_rate': 20000,
+        'min_cc': 0.75
     }
 
     def __init__(self, **kwargs):
@@ -31,6 +32,12 @@ class Meta_merger(Block):
         self.add_input('updater')
         self.add_output('spikes', 'dict')
         self._data = {}
+        self.n_size = 2*self.max_delay + 1
+        self.nb_bins = int(self.last_spike / (self.cc_bin * self.sampling_rate * 1e-3))
+
+    @property
+    def bin_size(self):
+        return int(self.cc_bin * self.sampling_rate * 1e-3)
 
     def _cross_corr(self, spike_1, spike_2):
 
@@ -64,7 +71,8 @@ class Meta_merger(Block):
             # Create the template dictionary if necessary.
             if self._template_store is None:
                 self._template_store = TemplateStore(updater['template_store'], mode='r')
-                similarities = self._template_store.similarities
+            
+            idx, ccs = self._template_store.get_putative_merges(min_cc=self.min_cc)
 
         if batch is not None:
 
