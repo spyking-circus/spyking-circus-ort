@@ -29,7 +29,7 @@ class QtThread(QThread):
                 data = self._data_pipe[0].recv()
                 self.data_signal.emit(data)
                 # Sleep.
-                self.usleep(100)
+                self.msleep(90)  # TODO compute this duration (sampling rate & number of samples per buffer).
             except EOFError:
                 break
 
