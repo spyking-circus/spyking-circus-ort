@@ -1,4 +1,4 @@
-import matplotlib
+# import matplotlib
 import numpy as np
 
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -8,11 +8,14 @@ from mttkinter import mtTkinter as Tk
 from circusort.block.tk_block import TkBlock
 
 
-matplotlib.use('TkAgg')
+# matplotlib.use('TkAgg')
 
 
 class Displayer(TkBlock):
-    """Displayer"""
+    """Displayer
+
+    Warning: this block is deprecated, matplotlib does not provide a sufficiently fast and scalable visualization.
+    """
 
     name = "Displayer"
 
