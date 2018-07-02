@@ -27,7 +27,7 @@ class Manager(object):
         self.log = get_log(self.log_address, name=__name__, log_level=self.log_level)
 
         # Log info message.
-        string = "{} is created."
+        string = "{} is created"
         message = string.format(str(self))
         self.log.info(message)
 

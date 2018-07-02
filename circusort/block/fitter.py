@@ -78,7 +78,7 @@ class Fitter(Block):
 
     def _initialize_templates(self):
 
-        self.template_store = TemplateStore(self.templates_init_path, mode='r')
+        self._template_store = TemplateStore(self.templates_init_path, mode='r')
 
         # Log info message.
         string = "{} is initialized with {} templates from {}"
