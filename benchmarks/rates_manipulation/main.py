@@ -182,14 +182,14 @@ def main():
             'name': "fitter",
             'degree': nb_fitters,  
             'sampling_rate': sampling_rate,
-            'log_level': INFO,
+            'log_level': DEBUG,
             'introspection_path': introspect_path,
             'discarding_eoc_from_updater': True,
         }
 
-        if preload_templates:
-            fitter_kwargs['templates_init_path'] = os.path.join(sorting_directory, "templates.h5")
-            fitter_kwargs['overlaps_init_path'] = os.path.join(sorting_directory, "overlaps.pck")
+        # if preload_templates:
+        #     fitter_kwargs['templates_init_path'] = os.path.join(sorting_directory, "templates.h5")
+        #     fitter_kwargs['overlaps_init_path'] = os.path.join(sorting_directory, "overlaps.pck")
 
         writer_kwargs = {
             'name': "writer",

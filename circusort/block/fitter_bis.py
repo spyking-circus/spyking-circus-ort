@@ -620,7 +620,7 @@ class FitterBis(Block):
             while updater is not None:
 
                 # Log debug message.
-                string = "{} modifies template and overlap stores."
+                string = "{} modifies template and overlap stores"
                 message = string.format(self.name)
                 self.log.debug(message)
 
@@ -640,14 +640,16 @@ class FitterBis(Block):
                     # TODO uncomment the 3 following lines.
                     # # Update template and overlap stores.
                     laziness = updater['overlaps']['path'] is None
+                    print self._overlaps_store.nb_templates
                     self._overlaps_store.update(indices, laziness=laziness)
+                    print self._overlaps_store.nb_templates
                     # Log debug message.
                     string = "{} updates template and overlap stores"
                     message = string.format(self.name)
                     self.log.debug(message)
 
                 # Log debug message.
-                string = "{} modified template and overlap stores."
+                string = "{} modified template and overlap stores"
                 message = string.format(self.name)
                 self.log.debug(message)
 
