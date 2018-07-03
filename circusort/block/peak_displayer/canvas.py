@@ -30,7 +30,6 @@ uniform float u_v_scale;
 varying float v_index;
 varying vec4 v_color;
 varying vec2 v_position;
-varying vec4 v_ab;
 // Vertex shader.
 void main() {
     // Compute the x coordinate from the sample index.
@@ -51,7 +50,6 @@ void main() {
     v_index = a_signal_index;
     v_color = vec4(a_signal_color, 1.0);
     v_position = p;
-    v_ab = vec4(a, b);
 }
 """
 
@@ -79,6 +77,7 @@ uniform float u_v_scale;
 // Varying variables used for clipping in the fragment shader.
 varying vec4 v_color;
 varying float v_index;
+varying vec2 v_position;
 // Vertex shader.
 void main() {
     // Compute the x coordinate from the sample index.
@@ -98,6 +97,7 @@ void main() {
     // Define varying variables.
     v_color = vec4(a_mads_color, 1.0);
     v_index = a_mads_index;
+    v_position = p;
 }
 """
 
@@ -143,7 +143,6 @@ SIGNAL_FRAG_SHADER = """
 varying vec4 v_color;
 varying float v_index;
 varying vec2 v_position;
-varying vec4 v_ab;
 // Fragment shader.
 void main() {
     gl_FragColor = v_color;
@@ -160,11 +159,15 @@ MADS_FRAG_SHADER = """
 // Varying variables.
 varying vec4 v_color;
 varying float v_index;
+varying vec2 v_position;
 // Fragment shader.
 void main() {
     gl_FragColor = v_color;
     // Discard the fragments between the MADs (emulate glMultiDrawArrays).
     if (fract(v_index) > 0.0)
+        discard;
+    // Clipping test.
+    if ((abs(v_position.x) > 1.0) || (abs(v_position.y) > 1))
         discard;
 }
 """
@@ -237,16 +240,16 @@ class VispyCanvas(app.Canvas):
 
         # Generate the MADs values.
         mads_indices = np.arange(0, nb_signals, dtype=np.float32)
-        mads_indices = np.repeat(mads_indices, repeats=2 * nb_buffers_per_signal)
+        mads_indices = np.repeat(mads_indices, repeats=2 * (nb_buffers_per_signal + 1))
         mads_positions = np.c_[
-            np.repeat(probe.x.astype(np.float32), repeats=2 * nb_buffers_per_signal),
-            np.repeat(probe.y.astype(np.float32), repeats=2 * nb_buffers_per_signal),
+            np.repeat(probe.x.astype(np.float32), repeats=2 * (nb_buffers_per_signal + 1)),
+            np.repeat(probe.y.astype(np.float32), repeats=2 * (nb_buffers_per_signal + 1)),
         ]
-        self._mads_values = np.zeros((nb_signals, 2 * nb_buffers_per_signal), dtype=np.float32)
+        self._mads_values = np.zeros((nb_signals, 2 * (nb_buffers_per_signal + 1)), dtype=np.float32)
         mads_colors = np.array([0.75, 0.0, 0.0], dtype=np.float32)
         mads_colors = np.tile(mads_colors, reps=(nb_signals, 1))
-        mads_colors = np.repeat(mads_colors, repeats=2 * nb_buffers_per_signal, axis=0)
-        sample_indices = np.arange(0, nb_buffers_per_signal, dtype=np.float32)
+        mads_colors = np.repeat(mads_colors, repeats=2 * (nb_buffers_per_signal + 1), axis=0)
+        sample_indices = np.arange(0, nb_buffers_per_signal + 1, dtype=np.float32)
         sample_indices = np.repeat(sample_indices, repeats=2)
         sample_indices = self._nb_samples_per_buffer * sample_indices
         sample_indices = np.tile(sample_indices, reps=nb_signals)
@@ -360,13 +363,21 @@ class VispyCanvas(app.Canvas):
             data = data[:, 0:256]
 
         k = self._nb_samples_per_buffer
+
         self._signal_values[:, :-k] = self._signal_values[:, k:]
         self._signal_values[:, -k:] = np.transpose(data)
         signal_values = self._signal_values.ravel().astype(np.float32)
 
         self._signal_program['a_signal_value'].set_data(signal_values)
 
-        _ = mads  # TODO correct.
+        self._mads_values[:, :-2] = self._mads_values[:, 2:]
+        if mads is not None:
+            self._mads_values[:, -2:] = np.transpose(np.tile(-8.0 * mads, reps=(2, 1)))
+        else:
+            self._mads_values[:, -2:] = self._mads_values[:, -4:-2]
+        mads_values = self._mads_values.ravel().astype(np.float32)
+
+        self._mads_program['a_mads_value'].set_data(mads_values)
 
         _ = peaks  # TODO correct.
 
