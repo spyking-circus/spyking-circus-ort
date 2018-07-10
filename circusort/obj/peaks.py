@@ -1,8 +1,11 @@
-import warnings
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore",category=FutureWarning)
-    import h5py
+import h5py
+import matplotlib.gridspec as gds
+import matplotlib.pyplot as plt
 import numpy as np
+import os
+
+
+from circusort.utils.path import normalize_path
 
 
 class Peaks(object):
@@ -66,3 +69,60 @@ class Peaks(object):
         times = self._times[flags]
 
         return times
+
+    def _plot(self, ax, t_min=0.0, t_max=0.5, **kwargs):
+        """Plot peaks from file.
+
+        Arguments:
+            ax: none | matplotlib.axes.Axes
+            t_min: float (optional)
+                The default value is 0.0.
+            t_max: float (optional)
+                The default value is 0.5.
+            kwargs: dict (optional)
+                Additional keyword arguments. See matplotlib.axes.Axes.plot for details.
+        Return:
+            ax: matplotlib.axes.Axes
+        """
+
+        for channel in np.unique(self._channels):
+            times = self.get_times(t_min=t_min, t_max=t_max, channels=[channel])
+            for time in times:
+                x = [time, time]
+                y = [float(channel) + 0.15, float(channel) + 0.35]
+                ax.plot(x, y, **kwargs)
+
+        return ax
+
+    def plot(self, output=None, ax=None, **kwargs):
+        """Plot data from file.
+
+        Arguments:
+            output: none | string (optional)
+                The default value is None.
+            ax: none | matplotlib.axes.Axes (optional)
+                The default value is None.
+            kwargs: dict (optional)
+                Additional keyword arguments. See matplotlib.axes.Axes.plot for details.
+        Return:
+            ax: matplotlib.axes.Axes
+        """
+
+        if ax is None:
+            fig = plt.figure()
+            gs = gds.GridSpec(1, 1)
+            ax_ = fig.add_subplot(gs[0])
+            ax = self._plot(ax_, **kwargs)
+            gs.tight_layout(fig)
+            if output is None:
+                fig.show()
+            else:
+                path = normalize_path(output)
+                directory = os.path.dirname(path)
+                if not os.path.isdir(directory):
+                    os.makedirs(directory)
+                fig.savefig(path)
+        else:
+            self._plot(ax, **kwargs)
+
+        return ax

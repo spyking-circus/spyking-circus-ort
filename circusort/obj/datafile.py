@@ -61,7 +61,7 @@ class DataFile(object):
 
         return data
 
-    def _plot(self, ax, t_min=0.0, t_max=0.5, linewidth=2.0, **kwargs):
+    def _plot(self, ax, t_min=0.0, t_max=0.5, **kwargs):
         """Plot data from file.
 
         Arguments:
@@ -70,12 +70,11 @@ class DataFile(object):
                 The default value is 0.0.
             t_max: float (optional)
                 The default value is 0.5.
-            linewidth: float (optional)
-                The default value is 2.0.
-            kwargs: dict
+            kwargs: dict (optional)
+                Additional keyword arguments. See matplotlib.axes.Axes.plot for details.
+        Return:
+            ax: matplotlib.axes.Axes
         """
-
-        _ = kwargs  # Discard additional keyword arguments.
 
         b_min = int(np.ceil(t_min * self.sampling_rate))
         b_max = int(np.floor(t_max * self.sampling_rate))
@@ -97,14 +96,14 @@ class DataFile(object):
             y = snippet[0:nb_samples, channel]
             y = y - np.mean(y)
             y = count + 0.5 * y / factor
-            ax.plot(x, y, color='0.5', linewidth=linewidth)
+            ax.plot(x, y, **kwargs)
 
         ax.set_yticks([])
         ax.set_xlabel(u"time (s)")
         ax.set_ylabel(u"channel")
         ax.set_title(u"Data")
 
-        return
+        return ax
 
     def plot(self, output=None, ax=None, **kwargs):
         """Plot data from file.
@@ -115,12 +114,9 @@ class DataFile(object):
             ax: none | matplotlib.axes.Axes (optional)
                 The default value is None.
             kwargs: dict (optional)
-                t_min: float (optional)
-                    The default value is 0.0.
-                t_max: float (optional)
-                    The default value is 0.5.
-                linewidth: float (optional)
-                    The default value is 2.0.
+                Additional keyword arguments. See matplotlib.axes.Axes.plot for details.
+        Return:
+            ax: matplotlib.axes.Axes
         """
 
         if output is not None and ax is None:
@@ -130,14 +126,12 @@ class DataFile(object):
             fig = plt.figure()
             gs = gds.GridSpec(1, 1)
             ax_ = fig.add_subplot(gs[0])
-            self._plot(ax_, **kwargs)
+            ax = self._plot(ax_, **kwargs)
             gs.tight_layout(fig)
             if output is None:
                 fig.show()
             else:
                 path = normalize_path(output)
-                if path[-4:] != ".pdf":
-                    path = os.path.join(path, "train.pdf")
                 directory = os.path.dirname(path)
                 if not os.path.isdir(directory):
                     os.makedirs(directory)
@@ -145,4 +139,4 @@ class DataFile(object):
         else:
             self._plot(ax, **kwargs)
 
-        return
+        return ax
