@@ -7,10 +7,28 @@ from circusort.utils.path import normalize_path
 
 
 class DataFile(object):
-    # TODO add docstring
+    """Data file
 
-    def __init__(self, path, sampling_rate, nb_channels, dtype='float32', gain=1.):
-        # TODO add docstring.
+    Attributes:
+        path: string
+        sampling_rate: float
+        nb_channels: integer
+        dtype: string
+        gain: float
+    """
+
+    def __init__(self, path, sampling_rate, nb_channels, dtype='float32', gain=1.0):
+        """Initialize data file.
+
+        Arguments:
+            path: string
+            sampling_rate: float
+            nb_channels: integer
+            dtype: string (optional)
+                The default value is 'float32'.
+            gain: float
+                The default value is 1.0.
+        """
 
         self.path = path
         self.dtype = dtype
@@ -27,35 +45,83 @@ class DataFile(object):
         return len(self.data)
 
     def get_snippet(self, t_min, t_max):
+        """Get data snippet.
 
-        gmin = int(t_min * self.sampling_rate)
-        gmax = int(t_max * self.sampling_rate)
+        Arguments:
+            t_min: float
+            t_max: float
+        """
 
-        data = self.data[gmin:gmax, :].astype(np.float32) * self.gain
+        b_min = int(np.ceil(t_min * self.sampling_rate))
+        b_max = int(np.floor(t_max * self.sampling_rate))
+
+        data = self.data[b_min:b_max + 1, :]
+        data = data.astype(np.float32)
+        data = self.gain * data
+
         return data
 
-    def _plot(self, ax, t_min=0.0, t_max=0.5, **kwargs):
+    def _plot(self, ax, t_min=0.0, t_max=0.5, linewidth=2.0, **kwargs):
+        """Plot data from file.
+
+        Arguments:
+            ax: none | matplotlib.axes.Axes
+            t_min: float (optional)
+                The default value is 0.0.
+            t_max: float (optional)
+                The default value is 0.5.
+            linewidth: float (optional)
+                The default value is 2.0.
+            kwargs: dict
+        """
 
         _ = kwargs  # Discard additional keyword arguments.
 
-        bmin = int(t_min * self.sampling_rate)
-        bmax = int(t_max * self.sampling_rate)
+        b_min = int(np.ceil(t_min * self.sampling_rate))
+        b_max = int(np.floor(t_max * self.sampling_rate))
+        nb_samples = b_max - b_min + 1
+        t_min_ = float(b_min) / self.sampling_rate
+        t_max_ = float(b_max) / self.sampling_rate
 
-        snippet = self.get_snippet(t_min, t_max)
+        snippet = self.get_snippet(t_min_, t_max_)
 
-        factor = self.data[bmin:bmax, :].max()
+        factor = 0.0
+        for channel in range(0, self.nb_channels):
+            y = snippet[:, channel]
+            y = y - np.mean(y)
+            factor = max(factor, np.abs(y).max())
+        factor = factor if factor > 0.0 else 1.0
 
-        for count, channel in enumerate(range(self.nb_channels)):
-            ax.plot(np.linspace(t_min, t_max, (bmax - bmin)), factor*count + snippet[bmin:bmax, channel], '0.5')
+        for count, channel in enumerate(range(0, self.nb_channels)):
+            x = np.linspace(t_min_, t_max_, num=nb_samples)
+            y = snippet[0:nb_samples, channel]
+            y = y - np.mean(y)
+            y = count + 0.5 * y / factor
+            ax.plot(x, y, color='0.5', linewidth=linewidth)
 
         ax.set_yticks([])
         ax.set_xlabel(u"time (s)")
+        ax.set_ylabel(u"channel")
         ax.set_title(u"Data")
 
         return
 
     def plot(self, output=None, ax=None, **kwargs):
-        # TODO add docstring.
+        """Plot data from file.
+
+        Arguments:
+            output: none | string (optional)
+                The default value is None.
+            ax: none | matplotlib.axes.Axes (optional)
+                The default value is None.
+            kwargs: dict (optional)
+                t_min: float (optional)
+                    The default value is 0.0.
+                t_max: float (optional)
+                    The default value is 0.5.
+                linewidth: float (optional)
+                    The default value is 2.0.
+        """
 
         if output is not None and ax is None:
             plt.ioff()
