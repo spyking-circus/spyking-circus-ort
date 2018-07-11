@@ -4,7 +4,6 @@ import sys
 
 
 def plot_time_of_interest(data, time, window=10e-3, sampling_rate=20e+3, channels=None, cells=None, ax=None, **kwargs):
-    # TODO add docstring.
 
     _ = kwargs
 
@@ -29,6 +28,8 @@ def plot_time_of_interest(data, time, window=10e-3, sampling_rate=20e+3, channel
 
             if sub_train.template.two_components:
                 t2 = c.template.two_components.to_dense().T
+            else:
+                t2 = 0.0
 
             for spike, amp in zip(sub_train.train, sub_train.amplitude):
                 offset = int(spike*sampling_rate) - k_min
@@ -66,8 +67,7 @@ def plot_time_of_interest(data, time, window=10e-3, sampling_rate=20e+3, channel
     return
 
 
-def plot_times_of_interest(data, times, ax=None, **kwargs):
-    # TODO add docstring.
+def plot_times_of_interest(data, times, ax=None, path=None, **kwargs):
 
     nb_times = len(times)
 
@@ -86,5 +86,8 @@ def plot_times_of_interest(data, times, ax=None, **kwargs):
             plot_time_of_interest(data, time, ax=ax_, **kwargs)
 
     fig.tight_layout()
+
+    if path is not None:
+        fig.savefig(path)
 
     return
