@@ -1,3 +1,4 @@
+# coding=utf-8
 import numpy as np
 import socket
 
@@ -32,6 +33,8 @@ class Listener(Block):
         self.acq_nb_chan = self.acq_nb_chan
         self.dtype = self.dtype
 
+        self._sampling_rate = 20e+3  # Hz
+
     def _initialize(self):
 
         # Configure the data output of this block.
@@ -55,6 +58,17 @@ class Listener(Block):
         self.buf_size = self.acq_nb_chan * self.acq_nb_samp * 2
 
         return
+
+    def _get_output_parameters(self):
+
+        params = {
+            'dtype': self.dtype,
+            'nb_samples': self.acq_nb_samp,
+            'nb_channels': self.acq_nb_chan,
+            'sampling_rate': self._sampling_rate,
+        }
+
+        return params
 
     def _process(self):
 
@@ -86,6 +100,14 @@ class Listener(Block):
         acq_data = np.fromstring(acq_string, dtype=acq_dtype)
         acq_data = np.reshape(acq_data, acq_shape)
         acq_data = acq_data.astype(dtype)
+        if acq_dtype in ['uint16']:
+            # Recover the offset.
+            acq_data += float(np.iinfo('int16').min)
+            # Recover the scale.
+            v_max = +3413.3  # µV
+            ad_max = float(np.iinfo('int16').max)
+            scale_factor = v_max / ad_max
+            acq_data *= scale_factor
 
         return acq_data
 

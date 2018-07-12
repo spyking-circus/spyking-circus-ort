@@ -8,6 +8,7 @@ import re
 requires = [
     'h5py',
     'matplotlib',
+    'mttkinter',
     'numpy',
     'paramiko',
     'scipy',
@@ -17,6 +18,7 @@ requires = [
     'hdbscan',
     'pyopencl',
     'filelock',
+    'vispy',
 ]
 
 
