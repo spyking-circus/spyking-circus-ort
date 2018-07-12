@@ -430,7 +430,7 @@ class Process(object):
                 try:
                     exception_class = getattr(exceptions, exception_name)
                 except AttributeError:
-                    exception_class = Exception
+                    exception_class = getattr(exceptions, 'Exception')
                 raise exception_class(exception_trace)
         elif data['response'] == 'disconnect':
             raise NotImplementedError()

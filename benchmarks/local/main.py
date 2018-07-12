@@ -122,7 +122,7 @@ def main():
         output_directory = os.path.join(directory, "output")
         if not os.path.isdir(output_directory):
             os.makedirs(output_directory)
-        image_format = 'png'
+        image_format = 'pdf'
 
         configuration_names = [
             configuration['general']['name']
