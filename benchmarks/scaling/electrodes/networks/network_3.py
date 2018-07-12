@@ -15,9 +15,9 @@ block_names = [
     "filter",
     "mad",
     "detector",
-    "pca",
-    "cluster",
-    "updater",
+    # "pca",
+    # "cluster",
+    # "updater",
     "fitter",
     "writer",
 ]
@@ -47,6 +47,10 @@ def sorting(configuration_name):
     sampling_rate = parameters['general']['sampling_rate']
     threshold_factor = 7.0
     probe_path = os.path.join(generation_directory, "probe.prb")
+    precomputed_template_paths = [
+        cell.template.path
+        for cell in circusort.io.load_cells(generation_directory)
+    ]
 
     # Create directories (if necessary).
     if not os.path.isdir(sorting_directory):
@@ -67,7 +71,7 @@ def sorting(configuration_name):
     }
     filter_kwargs = {
         'name': "filter",
-        'cut_off': 100.0,  # Hz
+        'cut_off': 1.0,  # Hz
         'introspection_path': introspection_directory,
         'log_level': DEBUG,
     }
@@ -86,7 +90,7 @@ def sorting(configuration_name):
     }
     pca_kwargs = {
         'name': "pca",
-        'nb_waveforms': 200,  # TODO check this value (seems rather low).
+        'nb_waveforms': 100000,
         'introspection_path': introspection_directory,
         'log_level': DEBUG,
     }
@@ -94,7 +98,7 @@ def sorting(configuration_name):
         'name': "cluster",
         'threshold_factor': threshold_factor,
         'sampling_rate': sampling_rate,
-        'nb_waveforms': 50,  # TODO replace by 100000 if an initialized template dictionary is used.
+        'nb_waveforms': 100000,
         'probe_path': probe_path,
         'two_components': False,
         'introspection_path': introspection_directory,
@@ -103,8 +107,8 @@ def sorting(configuration_name):
     updater_kwargs = {
         'name': "updater",
         'probe_path': probe_path,
-        'nb_channels': nb_channels,  # TODO remove this keyword argument?
         'data_path': os.path.join(sorting_directory, "templates.h5"),
+        'precomputed_template_paths': precomputed_template_paths,
         'sampling_rate': sampling_rate,
         'nb_samples': nb_samples,
         'introspection_path': introspection_directory,
@@ -112,10 +116,6 @@ def sorting(configuration_name):
     }
     fitter_kwargs = {
         'name': "fitter",
-        # TODO uncomment the following two lines if an initialized template dictionary is used.
-        # 'init_path': os.path.join(generation_directory, "initial_templates.h5"),
-        # 'with_rejected_times': True,
-        'two_components': False,  # TODO remove this keyword argument?
         'sampling_rate': sampling_rate,
         'introspection_path': introspection_directory,
         'log_level': DEBUG,
@@ -136,7 +136,6 @@ def sorting(configuration_name):
     filter_ = manager.create_block('filter', **filter_kwargs)
     mad = manager.create_block('mad_estimator', **mad_kwargs)
     detector = manager.create_block('peak_detector', **detector_kwargs)
-    # TODO implement `_introspect` for the following blocks.
     pca = manager.create_block('pca', **pca_kwargs)
     cluster = manager.create_block('density_clustering', **cluster_kwargs)
     updater = manager.create_block('template_updater', **updater_kwargs)
@@ -145,17 +144,17 @@ def sorting(configuration_name):
     # Initialize the elements of the network.
     director.initialize()
     # Connect the elements of the network.
-    director.connect(reader.output, [
-        filter_.input
+    director.connect(reader.get_output('data'), [
+        filter_.get_input('data'),
     ])
-    director.connect(filter_.output, [
-        mad.input,
+    director.connect(filter_.get_output('data'), [
+        mad.get_input('data'),
         detector.get_input('data'),
         pca.get_input('data'),
         cluster.get_input('data'),
         fitter.get_input('data'),
     ])
-    director.connect(mad.output, [
+    director.connect(mad.get_output('mads'), [
         detector.get_input('mads'),
         cluster.get_input('mads'),
     ])
@@ -173,8 +172,8 @@ def sorting(configuration_name):
     director.connect(updater.get_output('updater'), [
         fitter.get_input('updater'),
     ])
-    director.connect(fitter.output, [
-        writer.input,
+    director.connect(fitter.get_output('spikes'), [
+        writer.get_input('spikes'),
     ])
     # Launch the network.
     director.start()

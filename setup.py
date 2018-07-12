@@ -17,7 +17,8 @@ requires = [
     'sklearn',
     'hdbscan',
     'pyopencl',
-    'portalocker', 'vispy'
+    'filelock',
+    'vispy',
 ]
 
 

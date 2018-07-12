@@ -1,9 +1,9 @@
-# -*- coding: utf-8 -*-
+# coding: utf-8
 import numpy as np
 import os
 import pickle  # TODO check if we should use cPickle instead.
 import scipy.sparse
-import portalocker
+import filelock
 
 from circusort.obj.overlaps import Overlaps
 
@@ -12,7 +12,7 @@ class OverlapsStore(object):
     """Overlap store.
 
     Attributes:
-        templates_store: none | circusort.obj.TemplateStore
+        template_store: none | circusort.obj.TemplateStore
         optimize
         path: none | string
         two_components
@@ -25,11 +25,7 @@ class OverlapsStore(object):
         amplitudes
         electrodes
         second_component
-        temporal_width
-        all_components
-        nb_templates
     """
-    # TODO complete docstring.
 
     def __init__(self, template_store=None, optimize=True, path=None, fitting_mode=False):
         """Initialize overlap store.
@@ -42,7 +38,6 @@ class OverlapsStore(object):
             path: none | string (optional)
                 The default value is True.
         """
-        # TODO complete docstring.
 
         self.template_store = template_store
         self.optimize = optimize
@@ -63,6 +58,10 @@ class OverlapsStore(object):
 
         self._all_components = None
 
+        self.overlaps = {
+            '1': {}
+        }
+
         return
 
     def __len__(self):
@@ -73,7 +72,6 @@ class OverlapsStore(object):
         return self._first_component
 
     def _init_from_template(self, template):
-        # TODO add docstring.
 
         self.overlaps = {
             '1': {}
@@ -162,7 +160,6 @@ class OverlapsStore(object):
             self._masks[index, self.nb_templates] = False
 
     def get_overlaps(self, index, component='1'):
-        # TODO add docstring.
 
         if index not in self.overlaps[component]:
             target = self.all_components
@@ -178,7 +175,6 @@ class OverlapsStore(object):
         return self.overlaps[component][index].overlaps
 
     def clear_overlaps(self):
-        # TODO add docstring.
 
         for key in self.overlaps.keys():
             self.overlaps[key] = {}
@@ -186,14 +182,12 @@ class OverlapsStore(object):
         return
 
     def dot(self, waveforms):
-        # TODO add docstring.
 
         scalar_products = self.all_components.dot(waveforms)
 
         return scalar_products
 
     def add_template(self, template):
-        # TODO add docstring.
 
         if not self._is_initialized:
             self._init_from_template(template)
@@ -230,7 +224,6 @@ class OverlapsStore(object):
                 self.overlaps[key][index].indices_ += [len(self) - 1]
 
     def update(self, indices, laziness=True):
-        # TODO add docstring.
 
         templates = self.template_store.get(indices)
 
@@ -248,7 +241,6 @@ class OverlapsStore(object):
         return
 
     def compute_overlaps(self):
-        # TODO add docstring.
 
         for index in range(0, self.nb_templates):
             self.get_overlaps(index, component='1')
@@ -263,7 +255,6 @@ class OverlapsStore(object):
         Argument:
             path: none | string (optional)
         """
-        # TODO complete docstring.
 
         # Check argument.
         if path is None:
@@ -275,8 +266,10 @@ class OverlapsStore(object):
         path = os.path.abspath(path)
 
         # Dump overlaps.
-        with portalocker.Lock(path, mode='wb') as file_:
-            pickle.dump(self.overlaps, file_)
+        lock = filelock.FileLock(path + ".lock")
+        with lock:
+            with open(path, mode='wb') as file_:
+                pickle.dump(self.overlaps, file_)
 
         return
 
@@ -286,7 +279,6 @@ class OverlapsStore(object):
         Argument:
             path: none | string
         """
-        # TODO complete docstring.
 
         # Check argument.
         if path is None:
@@ -299,8 +291,10 @@ class OverlapsStore(object):
         path = os.path.abspath(path)
 
         # Load overlaps.
-        with portalocker.Lock(path, mode='rb') as file_:
-            self.overlaps = pickle.load(file_)
+        lock = filelock.FileLock(path + ".lock")
+        with lock:
+            with open(path, mode='rb') as file_:
+                self.overlaps = pickle.load(file_)
 
         return
 
@@ -328,6 +322,11 @@ class OverlapsStore(object):
         return False
 
     def _is_mixture(self, csr_template, cc_mixture, non_zeros=None):
+        # TODO remove?
+
+        _ = csr_template
+        _ = cc_mixture
+        _ = non_zeros
 
         for i in range(len(self)):
             for j in range(len(self)):

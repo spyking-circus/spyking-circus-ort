@@ -10,7 +10,10 @@ from circusort.obj.template_dictionary import TemplateDictionary
 from circusort.io.template import load_template_from_dict
 
 
-class Template_updater(Block):
+__classname__ = "TemplateUpdater"
+
+
+class TemplateUpdater(Block):
     """Template updater
 
     Attributes:
@@ -18,7 +21,8 @@ class Template_updater(Block):
         radius: float
         cc_merge: float
         cc_mixture: float
-        data_path: string
+        templates_path: string
+        overlaps_path: string
         precomputed_template_paths: none | list
         sampling_rate: float
         nb_samples: integer
@@ -33,8 +37,8 @@ class Template_updater(Block):
         'cc_merge': 0.95,
         'cc_mixture': None,
         'templates_path': None,
-        'precomputed_template_paths': None,
         'overlaps_path': None,
+        'precomputed_template_paths': None,
         'sampling_rate': 20e+3,
         'nb_samples': 1024
     }
@@ -47,7 +51,8 @@ class Template_updater(Block):
             radius: none | float (optional)
             cc_merge: float (optional)
             cc_mixture: none | float (optional)
-            data_path: none | string (optional)
+            templates_path: none | string (optional)
+            overlaps_path: none | string (optional)
             precomputed_template_paths: none | list (optional)
             sampling_rate: float (optional)
             nb_samples: integer (optional)
@@ -67,6 +72,7 @@ class Template_updater(Block):
         self.sampling_rate = self.sampling_rate
         self.nb_samples = self.nb_samples
 
+        # Initialize private attributes.
         if self.probe_path is None:
             self.probe = None
             # Log error message.
@@ -79,9 +85,13 @@ class Template_updater(Block):
             string = "{} reads the probe layout"
             message = string.format(self.name)
             self.log.info(message)
+        self._template_store = None
+        self._template_dictionary = None
+        self._overlap_store = None
+        self._two_components = None
 
-        self.add_input('templates')
-        self.add_output('updater', 'dict')
+        self.add_input('templates', structure='dict')
+        self.add_output('updater', structure='dict')
         self.two_components = None
 
     def _initialize(self):
@@ -94,9 +104,9 @@ class Template_updater(Block):
         else:
             self.templates_path = os.path.expanduser(self.templates_path)
             self.templates_path = os.path.abspath(self.templates_path)
-
+        # Initialize path to save the overlaps.
         if self.overlaps_path is None:
-            self.overlaps_path = self._get_tmp('overlaps.pck')
+            self.overlaps_path = self._get_tmp('overlaps.pkl')
         else:
             self.overlaps_path = os.path.expanduser(self.overlaps_path)
             self.overlaps_path = os.path.abspath(self.overlaps_path)
@@ -108,9 +118,9 @@ class Template_updater(Block):
                 os.makedirs(data_directory)
 
         # Create object to handle templates.
-        self._template_store = TemplateStore(self.templates_path, self.probe_path, mode='w')
+        self._template_store = TemplateStore(self.templates_path, probe_file=self.probe_path, mode='w')
         self._template_dictionary = TemplateDictionary(self._template_store, cc_merge=self.cc_merge,
-                                                      cc_mixture=self.cc_mixture, overlap_path=self.overlaps_path)
+                                                       cc_mixture=self.cc_mixture, overlap_path=self.overlaps_path)
 
         # Log info message.
         string = "{} records templates into {}"
@@ -186,10 +196,17 @@ class Template_updater(Block):
 
         # Send precomputed templates.
         if self.counter == 0 and self._precomputed_output is not None:
-            self.output.send(self._precomputed_output)
+            # Prepare output packet.
+            packet = {
+                'number': -1,
+                'payload': self._precomputed_output,
+            }
+            # Send templates.
+            self.get_output('updater').send(packet)
 
         # Receive input data.
-        data = self.inputs['templates'].receive(blocking=False)
+        templates_packet = self.get_input('templates').receive(blocking=False)
+        data = templates_packet['payload'] if templates_packet is not None else None
 
         if data is not None:
 
@@ -227,10 +244,15 @@ class Template_updater(Block):
             self._template_dictionary.save_overlaps()
 
             # Send output data.
-            output = self._template_dictionary.to_json
-            output['indices'] = accepted
+            output_data = self._template_dictionary.to_json
+            output_data['indices'] = accepted
 
-            self.output.send(output)
+            # Prepare output packet.
+            output_packet = {
+                'number': templates_packet['number'],
+                'payload': output_data,
+            }
+            self.get_output('updater').send(output_packet)
 
             self._measure_time('end', frequency=1)
 

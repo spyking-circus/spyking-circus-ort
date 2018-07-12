@@ -22,13 +22,12 @@ class TemplateUpdaterBis(Block):
         radius: float
         cc_merge: float
         cc_mixture: float
-        data_path: string
+        templates_path: string
         overlaps_path: string
         precomputed_template_paths: none | list
         sampling_rate: float
         nb_samples: integer
     """
-    # TODO complete docstring.
 
     name = "Template updater (bis)"
 
@@ -37,7 +36,7 @@ class TemplateUpdaterBis(Block):
         'radius': None,
         'cc_merge': 0.95,
         'cc_mixture': None,
-        'data_path': None,
+        'templates_path': None,
         'overlaps_path': None,
         'precomputed_template_paths': None,
         'sampling_rate': 20e+3,
@@ -52,13 +51,12 @@ class TemplateUpdaterBis(Block):
             radius: none | float (optional)
             cc_merge: float (optional)
             cc_mixture: none | float (optional)
-            data_path: none | string (optional)
+            templates_path: none | string (optional)
             overlaps_path: none | string (optional)
             precomputed_template_paths: none | list (optional)
             sampling_rate: float (optional)
             nb_samples: integer (optional)
         """
-        # TODO complete docstring.
 
         Block.__init__(self, **kwargs)
 
@@ -67,7 +65,7 @@ class TemplateUpdaterBis(Block):
         self.radius = self.radius
         self.cc_merge = self.cc_merge
         self.cc_mixture = self.cc_mixture
-        self.data_path = self.data_path
+        self.templates_path = self.templates_path
         self.overlaps_path = self.overlaps_path
         self.precomputed_template_paths = self.precomputed_template_paths
         self.sampling_rate = self.sampling_rate
@@ -96,22 +94,21 @@ class TemplateUpdaterBis(Block):
 
     def _initialize(self):
         """Initialize template updater."""
-        # TODO complete docstring.
 
         # Initialize path to save the templates.
-        if self.data_path is None:
-            self.data_path = self._get_tmp_path()
+        if self.templates_path is None:
+            self.templates_path = self._get_tmp_path()
         else:
-            self.data_path = os.path.expanduser(self.data_path)
-            self.data_path = os.path.abspath(self.data_path)
+            self.templates_path = os.path.expanduser(self.templates_path)
+            self.templates_path = os.path.abspath(self.templates_path)
 
         # Create the corresponding directory if it does not exist.
-        data_directory, _ = os.path.split(self.data_path)
+        data_directory, _ = os.path.split(self.templates_path)
         if not os.path.exists(data_directory):
             os.makedirs(data_directory)
 
         # Create object to handle templates.
-        self._template_store = TemplateStore(self.data_path, probe_file=self.probe_path, mode='w')
+        self._template_store = TemplateStore(self.templates_path, probe_file=self.probe_path, mode='w')
         self._template_dictionary = TemplateDictionary(self._template_store, cc_merge=self.cc_merge,
                                                        cc_mixture=self.cc_mixture)
         # Create object to handle overlaps.
@@ -119,7 +116,7 @@ class TemplateUpdaterBis(Block):
 
         # Log info message.
         string = "{} records templates into {}"
-        message = string.format(self.name, self.data_path)
+        message = string.format(self.name, self.templates_path)
         self.log.info(message)
 
         # Define precomputed templates (if necessary).
@@ -168,7 +165,6 @@ class TemplateUpdaterBis(Block):
 
     @staticmethod
     def _get_tmp_path():
-        # TODO add docstring.
 
         tmp_directory = tempfile.gettempdir()
         tmp_basename = "templates.h5"
@@ -177,7 +173,6 @@ class TemplateUpdaterBis(Block):
         return tmp_path
 
     def _data_to_templates(self, data):
-        # TODO add docstring.
 
         all_templates = []
         keys = [key for key in data.keys() if key not in ['offset']]
@@ -199,7 +194,6 @@ class TemplateUpdaterBis(Block):
         return all_templates
 
     def _process(self):
-        # TODO add docstring.
 
         # Send precomputed templates.
         if self.counter == 0 and self._precomputed_output is not None:
@@ -269,7 +263,6 @@ class TemplateUpdaterBis(Block):
         return
 
     def _introspect(self):
-        # TODO add docstring.
 
         nb_buffers = self.counter - self.start_step
         start_times = np.array(self._measured_times.get('start', []))
