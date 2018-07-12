@@ -189,7 +189,7 @@ class Process(object):
         self.logger.debug(message)
 
         request = 'finish'
-        response = self.send(request)
+        _ = self.send(request)
 
         self.socket.close()
 
