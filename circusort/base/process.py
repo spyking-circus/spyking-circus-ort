@@ -4,6 +4,7 @@ import paramiko
 import subprocess
 import zmq
 import logging
+import sys
 
 from circusort.base.utils import get_log, find_interface_address_towards
 from circusort.base.proxy import Proxy
@@ -94,7 +95,9 @@ class Process(object):
             address = socket.getsockopt(zmq.LAST_ENDPOINT)
             self.logger.debug("tmp socket binded at {a}".format(a=address))
             # 2. Spawn remote process on local host
-            command = ['/usr/bin/python2']
+            # TODO clean the 2 following lines.
+            command = [sys.executable]
+            # command = ['/usr/bin/python2']
             command += ['-m', 'circusort.cli.spawn_process']
             command += ['--host', self.host]
             command += ['--address', address]
@@ -188,7 +191,7 @@ class Process(object):
         self.logger.debug(message)
 
         request = 'finish'
-        response = self.send(request)
+        _ = self.send(request)
 
         self.socket.close()
 
@@ -426,7 +429,10 @@ class Process(object):
                 exception_name = data['exception']
                 exception_trace = data['result']  # i.e. exception trace
                 # Raise exception.
-                exception_class = getattr(exceptions, exception_name)
+                try:
+                    exception_class = getattr(exceptions, exception_name)
+                except AttributeError:
+                    exception_class = getattr(exceptions, 'Exception')
                 raise exception_class(exception_trace)
         elif data['response'] == 'disconnect':
             raise NotImplementedError()

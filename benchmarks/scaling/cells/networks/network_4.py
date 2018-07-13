@@ -17,13 +17,14 @@ block_names = [
     "filter",
     "mad",
     "detector",
-    "pca",
+    # "pca",
     # "cluster",
     # "updater",
-    "writer",
 ] + [
-    "fitter_fitter_{}".format(k)
+    "fitter_bis_fitter_bis_{}".format(k)
     for k in range(0, nb_fitters)
+] + [
+    "writer",
 ]
 block_nb_buffers = {
     "fitter_fitter_{}".format(k): nb_fitters
@@ -118,12 +119,13 @@ def sorting(configuration_name):
         'introspection_path': introspection_directory,
         'log_level': DEBUG,
     }
-    peak_writer_kwargs = {
-        'name': "peak_writer",
-        'data_path': os.path.join(sorting_directory, "peaks.h5"),
-        'introspection_path': introspection_directory,
-        'log_level': DEBUG,
-    }
+    # TODO uncomment the following lines.
+    # peak_writer_kwargs = {
+    #     'name': "peak_writer",
+    #     'data_path': os.path.join(sorting_directory, "peaks.h5"),
+    #     'introspection_path': introspection_directory,
+    #     'log_level': DEBUG,
+    # }
     pca_kwargs = {
         'name': "pca",
         'nb_waveforms': 100000,
@@ -140,21 +142,22 @@ def sorting(configuration_name):
         'introspection_path': introspection_directory,
         'log_level': DEBUG,
     }
-    updater_kwargs = {
-        'name': "updater",
+    updater_bis_kwargs = {
+        'name': "updater_bis",
         'probe_path': probe_path,
-        'data_path': os.path.join(sorting_directory, "templates.h5"),
+        'templates_path': os.path.join(sorting_directory, "templates.h5"),
+        'overlaps_path': os.path.join(sorting_directory, "overlaps.p"),
         'precomputed_template_paths': precomputed_template_paths,
         'sampling_rate': sampling_rate,
         'nb_samples': nb_samples,
         'introspection_path': introspection_directory,
         'log_level': DEBUG,
     }
-    fitter_kwargs = {
-        'name': "fitter",
+    fitter_bis_kwargs = {
+        'name': "fitter_bis",
         'degree': nb_fitters,
-        'init_path': os.path.join(sorting_directory, "templates.h5"),
-        'overlaps_init_path': os.path.join(sorting_directory, "overlaps_dict.pkl"),
+        'templates_init_path': os.path.join(sorting_directory, "templates.h5"),
+        'overlaps_init_path': os.path.join(sorting_directory, "overlaps.p"),
         'sampling_rate': sampling_rate,
         'discarding_eoc_from_updater': True,
         'introspection_path': introspection_directory,
@@ -179,11 +182,12 @@ def sorting(configuration_name):
     filter_ = managers['slave_1'].create_block('filter', **filter_kwargs)
     mad = managers['slave_1'].create_block('mad_estimator', **mad_kwargs)
     detector = managers['slave_1'].create_block('peak_detector', **detector_kwargs)
-    peak_writer = managers['slave_1'].create_block('peak_writer', **peak_writer_kwargs)
+    # TODO uncomment the following line.
+    # peak_writer = managers['slave_1'].create_block('peak_writer', **peak_writer_kwargs)
     pca = managers['slave_1'].create_block('pca', **pca_kwargs)
     cluster = managers['slave_2'].create_block('density_clustering', **cluster_kwargs)
-    updater = managers['slave_2'].create_block('template_updater', **updater_kwargs)
-    fitter = managers['slave_3'].create_network('fitter', **fitter_kwargs)
+    updater = managers['slave_2'].create_block('template_updater_bis', **updater_bis_kwargs)
+    fitter = managers['slave_3'].create_network('fitter_bis', **fitter_bis_kwargs)
     writer = managers['master'].create_block('spike_writer', **writer_kwargs)
     # Initialize the elements of the network.
     director.initialize()
@@ -203,7 +207,8 @@ def sorting(configuration_name):
         cluster.get_input('mads'),
     ])
     director.connect(detector.get_output('peaks'), [
-        peak_writer.get_input('peaks'),
+        # TODO uncomment the following line.
+        # peak_writer.get_input('peaks'),
         pca.get_input('peaks'),
         cluster.get_input('peaks'),
         fitter.get_input('peaks'),

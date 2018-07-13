@@ -6,7 +6,10 @@ from circusort.obj.template_store import TemplateStore
 from circusort.obj.overlaps_store import OverlapsStore
 
 
-class Template_fitter(Block):
+__classname__ = "TemplateFitter"
+
+
+class TemplateFitter(Block):
     """Template fitter
 
     Attributes:
@@ -39,10 +42,13 @@ class Template_fitter(Block):
         self.sampling_rate = self.sampling_rate
         self.discarding_eoc_from_updater = self.discarding_eoc_from_updater
 
-        self.add_input('updater')
-        self.add_input('data')
-        self.add_input('peaks')
-        self.add_output('spikes', 'dict')
+        self.add_input('updater', structure='dict')
+        self.add_input('data', structure='dict')
+        self.add_input('peaks', structure='dict')
+        self.add_output('spikes', structure='dict')
+
+        self._nb_channels = None
+        self._nb_samples = None
 
     def _initialize(self):
 
@@ -82,7 +88,8 @@ class Template_fitter(Block):
         message = string.format(self.name, self._template_store.nb_templates, self.templates_init_path)
         self.log.info(message)
 
-        self._overlaps_store = OverlapsStore(template_store=self._template_store, path=self.overlaps_init_path, fitting_mode=True)
+        self._overlaps_store = OverlapsStore(template_store=self._template_store, path=self.overlaps_init_path,
+                                             fitting_mode=True)
 
         # Log info message.
         string = "{} is initialized with precomputed overlaps from {}"
@@ -92,19 +99,21 @@ class Template_fitter(Block):
         return
 
     @property
-    def nb_channels(self):
-        return self.inputs['data'].shape[1]
-
-    @property
-    def nb_samples(self):
-        return self.inputs['data'].shape[0]
-
-    @property
     def nb_templates(self):
         if self._overlaps_store is not None:
             return self._overlaps_store.nb_templates
         else:
             return 0
+
+    def _configure_input_parameters(self, nb_channels=None, nb_samples=None, **kwargs):
+
+        if self._nb_channels is None and nb_channels is not None:
+            self._nb_channels = nb_channels
+
+        if self._nb_samples is None and nb_samples is not None:
+            self._nb_samples = nb_samples
+
+        return
 
     def _guess_output_endpoints(self):
         if self.templates_init_path is not None:
@@ -115,8 +124,8 @@ class Template_fitter(Block):
         self._width = (self._overlaps_store.temporal_width - 1) // 2
         self._2_width = 2 * self._width
         temp_window = np.arange(-self._width, self._width + 1)
-        buffer_size = 2 * self.nb_samples
-        for idx in range(self.nb_channels):
+        buffer_size = 2 * self._nb_samples
+        for idx in range(self._nb_channels):
             self.slice_indices = np.concatenate((self.slice_indices, idx * buffer_size + temp_window))
 
     def _reset_result(self):
@@ -177,8 +186,8 @@ class Template_fitter(Block):
         self._reset_result()
 
         # Compute the number of peaks in the current chunk.
-        p_min = 1 * self.nb_samples - self._width  # start index of the work area
-        p_max = 2 * self.nb_samples - self._width  # end index of the work area
+        p_min = 1 * self._nb_samples - self._width  # start index of the work area
+        p_max = 2 * self._nb_samples - self._width  # end index of the work area
         is_in_work_area = np.logical_and(p_min <= self.p, self.p < p_max)
         nb_peaks = np.count_nonzero(is_in_work_area)
         peaks = self.p[is_in_work_area]
@@ -280,23 +289,23 @@ class Template_fitter(Block):
                                                                             [best_amplitude_]))
 
             # Handle result.
-            is_in_result = self.r['spike_times'] < self.nb_samples
+            is_in_result = self.r['spike_times'] < self._nb_samples
             self.result['spike_times'] = np.concatenate((self.result['spike_times'],
                                                          self.r['spike_times'][is_in_result]))
             self.result['amplitudes'] = np.concatenate((self.result['amplitudes'],
                                                         self.r['amplitudes'][is_in_result]))
             self.result['templates'] = np.concatenate((self.result['templates'],
                                                        self.r['templates'][is_in_result]))
-            self.r['spike_times'] = self.r['spike_times'][~is_in_result] - self.nb_samples
+            self.r['spike_times'] = self.r['spike_times'][~is_in_result] - self._nb_samples
             self.r['amplitudes'] = self.r['amplitudes'][~is_in_result]
             self.r['templates'] = self.r['templates'][~is_in_result]
             if self.with_rejected_times:
-                is_in_result = self.r['rejected_times'] < self.nb_samples
+                is_in_result = self.r['rejected_times'] < self._nb_samples
                 self.result['rejected_times'] = np.concatenate((self.result['rejected_times'],
                                                                 self.r['rejected_times'][is_in_result]))
                 self.result['rejected_amplitudes'] = np.concatenate((self.result['rejected_amplitudes'],
                                                                      self.r['rejected_amplitudes'][is_in_result]))
-                self.r['rejected_times'] = self.r['rejected_times'][~is_in_result] - self.nb_samples
+                self.r['rejected_times'] = self.r['rejected_times'][~is_in_result] - self._nb_samples
                 self.r['rejected_amplitudes'] = self.r['rejected_amplitudes'][~is_in_result]
             indices = np.argsort(self.result['spike_times'])
             for key in ['spike_times', 'amplitudes', 'templates']:
@@ -342,20 +351,26 @@ class Template_fitter(Block):
     def _process(self):
 
         # Update internal variables to handle buffer edges.
+        data_packet = self.get_input('data').receive()
+        number = data_packet['number']
         if self.counter == 0:
-            shape = (2 * self.nb_samples, self.nb_channels)
+            shape = (2 * self._nb_samples, self._nb_channels)
             self.x = np.zeros(shape, dtype=np.float32)
-            self.x[self.nb_samples:, :] = self.inputs['data'].receive()
+            self.x[self._nb_samples:, :] = data_packet['payload']
         else:
-            self.x[:self.nb_samples, :] = self.x[self.nb_samples:, :]
-            self.x[self.nb_samples:, :] = self.inputs['data'].receive()
+            self.x[:self._nb_samples, :] = self.x[self._nb_samples:, :]
+            self.x[self._nb_samples:, :] = data_packet['payload']
 
         if self.is_active:
-            peaks = self.inputs['peaks'].receive()
+            peaks_packet = self.get_input('peaks').receive()
+            peaks = peaks_packet['payload']
         else:
-            peaks = self.inputs['peaks'].receive(blocking=False)
+            peaks_packet = self.get_input('peaks').receive(blocking=False)
+            peaks = peaks_packet['payload'] if peaks_packet is not None else None
 
-        updater = self.inputs['updater'].receive(blocking=False, discarding_eoc=self.discarding_eoc_from_updater)
+        updater_packet = self.get_input('updater').receive(blocking=False,
+                                                           discarding_eoc=self.discarding_eoc_from_updater)
+        updater = updater_packet['payload'] if updater_packet is not None else None
 
         if updater is not None:
 
@@ -379,17 +394,18 @@ class Template_fitter(Block):
             if self.nb_templates > 0:
                 self._measure_time('start', frequency=100)
 
-            self.offset = (self.counter - 1) * self.nb_samples
+            self.offset = (self.counter - 1) * self._nb_samples
 
             if not self.is_active:
                 # Handle peaks.
-                p = self.nb_samples + self._merge_peaks(peaks)
+                p = self._nb_samples + self._merge_peaks(peaks)
                 self.p = p
                 # Synchronize peak reception.
-                while not self._sync_buffer(peaks, self.nb_samples):
-                    peaks = self.inputs['peaks'].receive()
-                    p = self.nb_samples + self._merge_peaks(peaks)
-                    self.p = self.p - self.nb_samples
+                while not self._sync_buffer(peaks, self._nb_samples):
+                    peaks_packet = self.get_input('peaks').receive()
+                    peaks = peaks_packet['payload']
+                    p = self._nb_samples + self._merge_peaks(peaks)
+                    self.p = self.p - self._nb_samples
                     self.p = self.p[0 <= self.p]
                     self.p = np.concatenate((self.p, p))
                 # Set active mode.
@@ -397,19 +413,23 @@ class Template_fitter(Block):
             else:
 
                 # Handle peaks.
-                p = self.nb_samples + self._merge_peaks(peaks)
-                self.p = self.p - self.nb_samples
+                p = self._nb_samples + self._merge_peaks(peaks)
+                self.p = self.p - self._nb_samples
                 self.p = self.p[0 <= self.p]
                 self.p = np.concatenate((self.p, p))
 
-            if (peaks['offset'] - self.offset) != self.nb_samples:
+            if (peaks['offset'] - self.offset) != self._nb_samples:
                 self.log.info('Fitter and peaks not in sync!')
 
             elif self.nb_templates > 0:
 
                 self._fit_chunk()
                 if 0 < self.counter:
-                    self.output.send(self.result)
+                    output_packet = {
+                        'number': number,
+                        'payload': self.result,
+                    }
+                    self.get_output('spikes').send(output_packet)
 
                 self._measure_time('end', frequency=100)
 
@@ -422,7 +442,7 @@ class Template_fitter(Block):
         start_times = np.array(self._measured_times.get('start', []))
         end_times = np.array(self._measured_times.get('end', []))
         durations = end_times - start_times
-        data_duration = float(self.nb_samples) / self.sampling_rate
+        data_duration = float(self._nb_samples) / self.sampling_rate
         ratios = data_duration / durations
 
         min_ratio = np.min(ratios) if ratios.size > 0 else np.nan

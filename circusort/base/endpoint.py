@@ -383,16 +383,19 @@ class Endpoint(Connection):
 
         return description
 
-    def _initialize(self, protocol='tcp', host='127.0.0.1', port='*'):
+    def _initialize(self, protocol='tcp', host='127.0.0.1', port='*', timeout=60):
         """Initialize this endpoint.
 
         Parameters:
             protocol: string (optional)
                 The default value is 'tcp'.
             host: string (optional)
-                The default value is '127.0.0.1'
+                The default value is '127.0.0.1'.
             port: string (optional)
                 The default value is '*'.
+            timeout: none | integer( optional)
+                Timeout in seconds.
+                The default value is 60.
         """
 
         if protocol == 'ipc':
@@ -405,6 +408,8 @@ class Endpoint(Connection):
             endpoint = '{h}:{p}'.format(h=host, p=port)
             address = '{t}://{e}'.format(t=protocol, e=endpoint)
         self.socket = self.block.context.socket(zmq.PUB)
+        if timeout is not None and timeout > 0:
+            self.socket.setsockopt(zmq.RCVTIMEO, timeout * 1000)
         self.socket.bind(address)
         self.addr = self.socket.getsockopt(zmq.LAST_ENDPOINT)
 

@@ -332,6 +332,10 @@ def main():
 
             generation_directory = os.path.join(directory, "generation", configuration_name)
             sorting_directory = os.path.join(directory, "sorting", configuration_name)
+            output_directory = os.path.join(directory, "output")
+
+            if not os.path.isdir(output_directory):
+                os.makedirs(output_directory)
 
             # Load generation parameters.
             parameters = circusort.io.get_data_parameters(generation_directory)
@@ -385,18 +389,26 @@ def main():
                 filtered_data = None
 
             ordering = True
+            similarities_filename = "similarities_{}.pdf".format(configuration_name)
+            similarities_path = os.path.join(output_directory, similarities_filename)
+            matches_filename = "matches_{}.pdf".format(configuration_name)
+            matches_path = os.path.join(output_directory, matches_filename)
+            times_of_interest_filename = "times_of_interest_{}.pdf".format(configuration_name)
+            times_of_interest_path = os.path.join(output_directory, times_of_interest_filename)
+            reconstruction_filename = "reconstruction_{}.pdf".format(configuration_name)
+            reconstruction_path = os.path.join(output_directory, reconstruction_filename)
 
             # Compute the similarities between detected and injected cells.
             print("# Computing similarities...")
             similarities = detected_cells.compute_similarities(injected_cells)
-            similarities.plot(ordering=ordering)
+            similarities.plot(ordering=ordering, path=similarities_path)
 
             # Compute the matches between detected and injected cells.
             print("# Computing matches...")
             t_min = 1.0 * 60.0  # s  # discard the 1st minute
             t_max = None
             matches = detected_cells.compute_matches(injected_cells, t_min=t_min, t_max=t_max)
-            matches.plot(ordering=ordering)
+            matches.plot(ordering=ordering, path=matches_path)
 
             # Consider the match with the worst error.
             sorted_indices = np.argsort(matches.errors)
@@ -413,16 +425,20 @@ def main():
                 times_of_interest = train_fn.sample(size=10)
                 plot_times_of_interest(data, times_of_interest,
                                        window=10e-3, cells=detected_cells, sampling_rate=sampling_rate,
-                                       mads=mads, peaks=peaks, filtered_data=filtered_data)
+                                       mads=mads, peaks=peaks, filtered_data=filtered_data, path=times_of_interest_path)
 
             # Plot the reconstruction.
             from circusort.plt.cells import plot_reconstruction
             t = 3.0 * 60.0  # s  # start time of the reconstruction plot
             d = 1.0  # s  # duration of the reconstruction plot
-            plot_reconstruction(detected_cells, t, t + d, sampling_rate, data,
-                                mads=mads, peaks=peaks, filtered_data=filtered_data)
+            if nb_channels > 32:
+                channels = np.random.choice(nb_channels, size=32, replace=False)
+            else:
+                channels = None
+            plot_reconstruction(detected_cells, t, t + d, sampling_rate, data, channels=channels,
+                                mads=mads, peaks=peaks, filtered_data=filtered_data, output=reconstruction_path)
 
-            plt.show()
+            # plt.show()  # Figures are saved to files and don't need to be shown.
 
 
 if __name__ == '__main__':

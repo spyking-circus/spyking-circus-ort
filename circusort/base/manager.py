@@ -1,5 +1,7 @@
 import logging
 
+from collections import OrderedDict
+
 from circusort.base.utils import get_log
 from circusort.base.process import Process
 from circusort import net as network_module
@@ -7,7 +9,6 @@ from circusort import net as network_module
 
 class Manager(object):
     """Manager"""
-    # TODO complete docstring.
 
     def __init__(self, name=None, host=None, log_address=None, log_level=logging.INFO):
 
@@ -16,10 +17,10 @@ class Manager(object):
         self.log_address = log_address
         self.log_level = log_level
         self.host = host
-        self.blocks = {}
-        self.blocks_types = {}
-        self._networks = {}
-        self._networks_types = {}
+        self.blocks = OrderedDict()
+        self.blocks_types = OrderedDict()
+        self._networks = OrderedDict()
+        self._networks_types = OrderedDict()
 
         self.name = name or "Manager"
         if self.log_address is None:
@@ -27,13 +28,12 @@ class Manager(object):
         self.log = get_log(self.log_address, name=__name__, log_level=self.log_level)
 
         # Log info message.
-        string = "{} is created."
+        string = "{} is created"
         message = string.format(str(self))
         self.log.info(message)
 
     def create_block(self, block_type, name=None, log_level=None, **kwargs):
         """Create a new block linked to the manager."""
-        # TODO complete docstring.
 
         if name is None:
             if block_type in self.blocks_types:
@@ -80,7 +80,6 @@ class Manager(object):
 
     def create_network(self, network_type, name=None, log_level=None, **kwargs):
         """Create a new network linked to the manager."""
-        # TODO complete docstring.
 
         if name is None:
             if network_type in self._networks_types:
@@ -120,7 +119,6 @@ class Manager(object):
 
     def connect(self, output_endpoints, input_endpoints, protocol='ipc', show_log=True):
         """Connect endpoints"""
-        # TODO complete docstring.
 
         if not type(input_endpoints) == list:
             input_endpoints = [input_endpoints]
@@ -132,12 +130,12 @@ class Manager(object):
             for output_endpoint in output_endpoints:
                 if show_log:
                     # Log info message.
-                    string = "{} connects {} to {}."
+                    string = "{} connects {} to {}"
                     message = string.format(str(self), output_endpoint.block.name, input_endpoint.block.name)
                     self.log.info(message)
                 else:
                     # Log debug message.
-                    string = "{} connects {} to {}."
+                    string = "{} connects {} to {}"
                     message = string.format(str(self), output_endpoint.block.name, input_endpoint.block.name)
                     self.log.debug(message)
                 # Assert that there is no circular connection.
@@ -145,7 +143,7 @@ class Manager(object):
                 assert input_endpoint.block.parent == output_endpoint.block.parent \
                     and output_endpoint.block.parent == self.name, self.log.error(message)
                 # Assert that the communication protocol exists.
-                message = "Invalid connection."
+                message = "Invalid connection"
                 assert protocol in ['tcp', 'ipc'], self.log.error(message)
 
                 # Create and bind socket.
@@ -196,7 +194,7 @@ class Manager(object):
         self.blocks.update({block.name: block})
 
         # Log debug message.
-        string = "{} registers {}."
+        string = "{} registers {}"
         message = string.format(str(self), block.name)
         self.log.debug(message)
 
@@ -209,7 +207,7 @@ class Manager(object):
     def get_block(self, key):
 
         # Assert block key exists.
-        string = "{} is not a valid block."
+        string = "{} is not a valid block"
         message = string.format(key)
         assert key in self.list_blocks(), self.log.error(message)
 
@@ -305,7 +303,7 @@ class Manager(object):
     def stop(self):
 
         # Log debug message.
-        string = "{} stops {}."
+        string = "{} stops {}"
         message = string.format(str(self), ", ".join(self.list_blocks()))
         self.log.debug(message)
 
@@ -325,7 +323,7 @@ class Manager(object):
             block.__del__()
 
         # Log info message.
-        string = "{} is destroyed."
+        string = "{} is destroyed"
         message = string.format(str(self))
         self.log.info(message)
 

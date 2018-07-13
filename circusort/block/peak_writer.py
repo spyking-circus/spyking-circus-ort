@@ -1,7 +1,4 @@
-import warnings
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore",category=FutureWarning)
-    import h5py
+import h5py
 import numpy as np
 import os
 import tempfile
@@ -9,7 +6,10 @@ import tempfile
 from circusort.block.block import Block
 
 
-class Peak_writer(Block):
+__classname__ = 'PeakWriter'
+
+
+class PeakWriter(Block):
     """Peak writer block
 
     Attributes:
