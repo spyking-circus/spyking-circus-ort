@@ -18,7 +18,6 @@ class Filter(Block):
     See also:
         circusort.block.Block
     """
-    # TODO complete docstring.
 
     name = "Filter"
 
@@ -45,7 +44,6 @@ class Filter(Block):
             use_gpu: boolean
                 The default value is False.
         """
-        # TODO complete docstring.
 
         Block.__init__(self, **kwargs)
         self.add_output('data', structure='dict')
@@ -64,13 +62,13 @@ class Filter(Block):
         self._dtype = None
         self._nb_samples = None
         self._nb_channels = None
+        self._sampling_rate = None  # TODO merge self._sampling_rate (to keep) and self.sampling_rate.
         self._b = None
         self._a = None
         self._z = None
         self._filter_engine = None
 
     def _initialize(self):
-        # TODO add docstring.
 
         if self.use_gpu:
             pass
@@ -85,17 +83,16 @@ class Filter(Block):
 
         return
 
-    def _configure_input_parameters(self, dtype=None, nb_samples=None, nb_channels=None, **kwargs):
-        # TODO add docstring.
+    def _configure_input_parameters(self, dtype=None, nb_samples=None, nb_channels=None, sampling_rate=None, **kwargs):
 
         self._dtype = dtype
         self._nb_samples = nb_samples
         self._nb_channels = nb_channels
+        self._sampling_rate = sampling_rate
 
         return
 
     def _update_initialization(self):
-        # TODO add docstring.
 
         if self.use_gpu:
             from scipy.signal import iirfilter
@@ -124,12 +121,12 @@ class Filter(Block):
             'dtype': self._dtype,
             'nb_samples': self._nb_samples,
             'nb_channels': self._nb_channels,
+            'sampling_rate': self._sampling_rate,
         }
 
         return params
 
     def _process(self):
-        # TODO add docstring.
 
         # Receive input data.
         data_packet = self.get_input('data').receive()
@@ -171,7 +168,6 @@ class Filter(Block):
         return
 
     def _introspect(self):
-        # TODO add docstring.
 
         nb_buffers = self.counter - self.start_step
         start_times = np.array(self._measured_times.get('start', []))

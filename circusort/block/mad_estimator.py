@@ -3,7 +3,10 @@ import numpy as np
 from circusort.block.block import Block
 
 
-class Mad_estimator(Block):
+__classname__ = 'MADEstimator'
+
+
+class MADEstimator(Block):
     """MAD estimator block
 
     Attributes:

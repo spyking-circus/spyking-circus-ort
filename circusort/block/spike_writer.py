@@ -1,7 +1,4 @@
-import warnings
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore",category=FutureWarning)
-    import h5py
+import h5py
 import numpy as np
 import os
 import tempfile
@@ -10,7 +7,10 @@ import time
 from circusort.block.block import Block
 
 
-class Spike_writer(Block):
+__classname__ = "SpikeWriter"
+
+
+class SpikeWriter(Block):
     """Spike writer block.
 
     Attributes:
@@ -30,9 +30,7 @@ class Spike_writer(Block):
             Path to the location where spike attributes will be saved.
         sampling_rate: float
             The sampling rate to use to convert timestamps into times.
-
     """
-    # TODO complete docstring.
 
     name = "Spike writer"
 
@@ -103,7 +101,6 @@ class Spike_writer(Block):
         return
 
     def _initialize_data_file(self, key, path):
-        # TODO add docstring.
 
         # Define path.
         if path is None:

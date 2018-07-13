@@ -17,7 +17,6 @@ class Probe(object):
         total_nb_channels: integer
         radius: float
     """
-    # TODO complete docstring.
 
     def __init__(self, channel_groups, total_nb_channels, radius):
         """Initialization.
@@ -27,7 +26,6 @@ class Probe(object):
             total_nb_channels: integer
             radius: float
         """
-        # TODO complete docstring.
 
         self.channel_groups = channel_groups
         self.total_nb_channels = total_nb_channels
@@ -44,7 +42,6 @@ class Probe(object):
         return self._nb_channels
 
     def _get_edges(self, i, channel_groups):
-        # TODO add docstring.
 
         edges = []
         pos_x, pos_y = channel_groups['geometry'][i]
@@ -273,7 +270,6 @@ class Probe(object):
             y: float
                 The y-coordinate of the channel [µm].
         """
-        # TODO complete docstring.
 
         _channel = channel
 
@@ -398,7 +394,6 @@ class Probe(object):
         return
 
     def plot(self, path=None, fig=None, ax=None, **kwargs):
-        # TODO add docstring.
 
         _ = kwargs  # Discard additional keyword arguments.
 
@@ -424,9 +419,17 @@ class Probe(object):
         collection = PatchCollection(circles, match_original=True)
         ax.add_collection(collection)
         # Draw the labels of the electrodes.
+        x_ = [
+            _x - 0.3 * float(len(_s) * size)
+            for _x, _s in zip(x, s)
+        ]
+        y_ = [
+            _y - 0.4 * float(size)
+            for _y, _s in zip(y, s)
+        ]
         text_paths = [
-            ttp.TextPath((_x - 0.3 * float(len(_s) * size), _y - 0.4 * float(size)), _s, size=size, horizontalalignment='center')
-            for _x, _y, _s in zip(x, y, s)
+            ttp.TextPath((_x, _y), _s, size=size, horizontalalignment='center')
+            for _x, _y, _s in zip(x_, y_, s)
         ]
         paths = [
             ptc.PathPatch(text_path, facecolor="black")
@@ -489,7 +492,6 @@ class Probe(object):
             electrodes: numpy.ndarray
                 The electrodes in the neighborhood of the given point.
         """
-        # TODO complete docstring.
 
         x, y = point
         electrodes, _ = self.get_channels_around(x, y, r=radius)

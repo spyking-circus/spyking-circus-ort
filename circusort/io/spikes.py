@@ -1,25 +1,29 @@
-import warnings
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore",category=FutureWarning)
-    import h5py
+import h5py
 import numpy as np
 import os
 
 from circusort.obj.spikes import Spikes
+from circusort.obj.cells import Cells
 from circusort.utils.path import normalize_path
 
 
 def load_spikes(*args, **kwargs):
     """Load spikes from disk.
 
-    Parameters:
-        path: string
-        nb_cells: none | integer (optional)
-        mode: none | string (optional)
+    Arguments:
+        args: list
+            If mode is 'raw' then there are three arguments:
+                times_path: string
+                templates_path: string
+                amplitudes_path: string
+            else if mode is 'hdf5' then there is only one argument:
+                path: string
+        kwargs: dict (optional)
+            nb_cells: none | integer (optional)
+            mode: none | string (optional)
     Return:
         spikes: circusort.obj.Spikes
     """
-    # TODO complete docstring.
 
     nb_cells = kwargs.pop('nb_cells', None)
     mode = kwargs.pop('mode', None)
@@ -98,10 +102,18 @@ def load_spikes(*args, **kwargs):
 
     return spikes
 
+
 def spikes2cells(spikes, template_store):
 
-    cells = spikes.to_cells()
-    for id in cells.ids:
-        cells[id].template = template_store.get(id)
+    # TODO remove old implementation (was not able to process cells with empty spike trains).
+    # cells = spikes.to_cells()
+    # for id_ in cells.ids:
+    #     cells[id_].template = template_store.get(id_)
+
+    cells = {}
+    for id_ in template_store.indices:
+        cells[id_] = spikes.get_cell(id_)
+        cells[id_].template = template_store.get(id_)
+    cells = Cells(cells)
 
     return cells
