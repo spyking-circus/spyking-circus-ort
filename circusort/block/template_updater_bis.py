@@ -133,7 +133,7 @@ class TemplateUpdaterBis(Block):
 
             # Log some information.
             if len(accepted) > 0:
-                string = "{} added {} precomputed templates."
+                string = "{} added {} precomputed templates"
                 message = string.format(self.name, len(accepted))
                 self.log.debug(message)
 
@@ -146,7 +146,7 @@ class TemplateUpdaterBis(Block):
 
             # Log some information.
             if len(accepted) > 0:
-                string = "{} precomputed overlaps."
+                string = "{} precomputed overlaps"
                 message = string.format(self.name)
                 self.log.debug(message)
 

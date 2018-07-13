@@ -7,7 +7,7 @@ SpyKING CIRCUS ORT
 
 *An online solution for spike sorting of large-scale extracellular recordings*
 
-SpyKING CIRCUS ORT is a python code to allow online spike sorting on multi channel recordings. 
+SpyKING CIRCUS ORT is a python code to allow online spike sorting on multi channel recordings.
 A preprint with the details of the offline algorithm can be found on BioRxiv at http://biorxiv.org/content/early/2016/08/04/067843. 
 It has been tested on datasets coming from *in vitro* retina 
 with 252 electrodes MEA, from *in vivo* hippocampus with tetrodes, *in vivo* and *in vitro* cortex 
@@ -20,3 +20,30 @@ This **online** implementation of SpyKING CIRCUS is currently still under **acti
 
 :copyright: Copyright 2006-2018 by the SpyKING CIRCUS team, see AUTHORS.
 :license: CeCILL, see LICENSE for details.
+
+
+Development
+-----------
+
+Installation
+^^^^^^^^^^^^
+
+The easiest way to install `spyking-circus-ort` for development purpose is using `pip`. First you need to check that you
+have all the necessary header files on your system to be able to build Python extensions. The access to these files is
+necessary during the compilation of `pyopencl`. To do so run:
+
+.. code:: bash
+
+    sudo apt-get install python-dev
+
+Additionally, if you will use `pyopencl` on Intel CPUs and GPUs.
+
+.. code:: bash
+
+    sudo apt-get install beignet-dev
+
+Once you have all the necessary header files, to install `spyking-circus-ort` run:
+
+.. code:: bash
+
+    pip install -e .

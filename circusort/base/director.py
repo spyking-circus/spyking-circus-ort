@@ -214,7 +214,7 @@ class Director(object):
         # TODO add docstring.
 
         # Log info message.
-        string = "{} connects {} network."
+        string = "{} connects {} network"
         message = string.format(str(self), network.name)
         self.log.info(message)
 

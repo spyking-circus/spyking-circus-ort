@@ -6,6 +6,88 @@ import os
 
 from circusort.obj.template_store import TemplateStore
 
+def plot_templates_from_list(templates, probe, ax=None, component='first', output=None, x_bar=1.0, y_bar=20.0, show_scale_bar=True):
+    """Plot template from template store.
+
+    Parameters:
+        template: a list of templates
+        probe: the probe used to represent this template
+        component: string 
+            can be first | second | both 
+        output: none | string (optional)
+            The path to be used to save the figure. If is None then display the figure and block until the figure
+            have been closed. The default value is None.
+        show_scale_bar : boolean
+            If we want to display the scale bar. default is True
+        x_bar: float
+            x-scale bar length (in ms). The default value is 1.0.
+        y_bar: float
+            y-scale bar length (in µV). The default value is 20.0.
+    """
+
+    assert component in ['first', 'second', 'both']
+
+    plt.style.use('seaborn-paper')
+
+    if output is not None:
+        plt.ioff()
+
+    if ax is None:
+        fig = plt.figure()
+        gs = gds.GridSpec(1, 1)
+        ax = plt.subplot(gs[0])
+
+    scl = 0.9 * (probe.field_of_view['d'] / 2.0)
+    # Plot the generated template.
+    x_scl = scl
+
+    if component is 'first':
+        data_1 = []
+        for t in templates:
+            data_1 += [t.first_component.to_dense()]
+        y_scl = scl * (1.0 / np.max(np.abs(data_1)))
+    elif component is 'second':
+        data_2 = []
+        for t in templates:
+            data_2 = [t.second_component.to_dense()]
+        y_scl = scl * (1.0 / np.max(np.abs(data_2)))
+    elif component is 'both':
+        data_1 = []
+        data_2 = []
+        for t in templates:
+            data_1 += [t.first_component.to_dense()]
+            data_2 += [t.second_component.to_dense()]
+        y_scl = scl * (1.0 / max(np.max(np.abs(data_1)), np.max(np.abs(data_2))))
+
+    for count in range(len(templates)):
+        color = 'C{}'.format(count % 10)
+
+        for k in range(0, probe.nb_channels):
+            x_prb, y_prb = probe.positions[:, k]
+
+            x = x_prb + x_scl * np.linspace(-1.0, +1.0, num=templates[0].temporal_width)
+            if component in ['first', 'both']:
+                y = y_prb + y_scl * data_1[count][k, :]
+            if component in ['second', 'both']:
+                y = y_prb + y_scl * data_2[count][k, :]
+            ax.plot(x, y, c=color)
+    # Plot scale bars.
+    x_bar_ = x_scl * (x_bar * 1e-3 * 20e+3) / (float(templates[0].temporal_width) / 2.0)
+    if show_scale_bar:
+        ax.plot([0.0, x_bar_], 2 * [0.0], c='black')
+        ax.annotate(u"{} ms".format(x_bar), xy=(x_bar_, 0.0))
+        y_bar_ = y_scl * y_bar
+        ax.plot(2 * [0.0], [0.0, y_bar_], c='black')
+        ax.annotate(u"{} µV".format(y_bar), xy=(0.0, y_bar_))
+    ax.set_xlabel(u"x (µm)")
+    ax.set_ylabel(u"y (µm)")
+    ax.axis('scaled')
+    gs.tight_layout(fig)
+
+    if output is not None:
+        plt.savefig(output)
+    return
+
 
 def plot_templates(template_store, ax=None, indices=None, component='first', output=None, x_bar=1.0, y_bar=20.0, show_scale_bar=True):
     """Plot template from template store.

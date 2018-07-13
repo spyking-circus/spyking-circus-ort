@@ -611,7 +611,7 @@ class FitterBis(Block):
             while updater is not None:
 
                 # Log debug message.
-                string = "{} modifies template and overlap stores."
+                string = "{} modifies template and overlap stores"
                 message = string.format(self.name)
                 self.log.debug(message)
 
@@ -639,7 +639,7 @@ class FitterBis(Block):
                     self.log.debug(message)
 
                 # Log debug message.
-                string = "{} modified template and overlap stores."
+                string = "{} modified template and overlap stores"
                 message = string.format(self.name)
                 self.log.debug(message)
 

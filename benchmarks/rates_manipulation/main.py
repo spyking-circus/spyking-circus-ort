@@ -13,9 +13,10 @@ nb_columns = 5
 nb_cells = 25
 duration = 10 * 60
 radius = 100
-preload_templates = False
+preload_templates = True
 nb_waveforms_clustering = 100
 nb_replay = 3
+nb_fitters = 4
 data_path = "rates_manipulation"
 
 
@@ -179,15 +180,16 @@ def main():
 
         fitter_kwargs = {
             'name': "fitter",
+            'degree': nb_fitters,  
             'sampling_rate': sampling_rate,
-            'log_level': INFO,
+            'log_level': DEBUG,
             'introspection_path': introspect_path,
             'discarding_eoc_from_updater': True,
         }
 
-        if preload_templates:
-            fitter_kwargs['templates_init_path'] = os.path.join(sorting_directory, "templates.h5")
-            fitter_kwargs['overlaps_init_path'] = os.path.join(sorting_directory, "overlaps.pck")
+        # if preload_templates:
+        #     fitter_kwargs['templates_init_path'] = os.path.join(sorting_directory, "templates.h5")
+        #     fitter_kwargs['overlaps_init_path'] = os.path.join(sorting_directory, "overlaps.pck")
 
         writer_kwargs = {
             'name': "writer",
@@ -205,8 +207,8 @@ def main():
         detector = manager.create_block('peak_detector', **detector_kwargs)
         pca = manager.create_block('pca', **pca_kwargs)
         cluster = manager.create_block('density_clustering', **cluster_kwargs)
-        updater = manager.create_block('template_updater', **updater_kwargs)
-        fitter = manager.create_block('template_fitter', **fitter_kwargs)
+        updater = manager.create_block('template_updater_bis', **updater_kwargs)
+        fitter = manager.create_network('fitter_bis', **fitter_kwargs)
         writer = manager.create_block('spike_writer', **writer_kwargs)
         # Initialize the elements of the network.
         director.initialize()
@@ -239,7 +241,8 @@ def main():
         director.connect(updater.get_output('updater'), [
             fitter.get_input('updater'),
         ])
-        director.connect(fitter.output, [
+        director.connect_network(fitter)
+        director.connect(fitter.get_output('spikes'), [
             writer.input,
         ])
         # Launch the network.

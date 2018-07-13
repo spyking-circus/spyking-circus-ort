@@ -15,9 +15,11 @@ class Meta_merger(Block):
     params = {
         'templates_init_path': None,
         'max_delay': 50,
-        'bin_size': 2,
+        'cc_bin': 2,
         'lag': 5,
-        'sampling_rate': 20000
+        'sampling_rate': 20000,
+        'min_cc': 0.75,
+        'frequency': 100
     }
 
     def __init__(self, **kwargs):
@@ -31,30 +33,44 @@ class Meta_merger(Block):
         self.add_input('updater')
         self.add_output('spikes', 'dict')
         self._data = {}
+        self.n_size = 2*self.max_delay + 1
+        self.bin_size =  int(self.cc_bin * self.sampling_rate * 1e-3)
+        self.raw_lags = np.linspace(-self.max_delay*self.cc_bin, self.max_delay*self.cc_bin, 2*self.max_delay+1)
+        self.results = {'spikes' : [], 'templates': []}
 
-    def _cross_corr(self, spike_1, spike_2):
+    @property
+    def nb_bins(self):
+        return int(self.last_spike / self.bin_size)
 
-        size = 2 * self.max_delay + 1
-        x_cc = np.zeros(size, dtype=np.float32)
+    @property
+    def last_spike(self):
+        return np.max(self.results['spikes'])
+
+    def get_spikes(self, index):
+        idx = np.where(self.results['templates'] == index)
+        return self.results['spikes'][idx]
+
+    def _cross_corr(self, spikes_1, spikes_2):
+        x_cc = np.zeros(self.n_size, dtype=np.float32)
         control = 0
 
-        if (len(spike_1) > 0) and (len(spike_2) > 0):
+        if (len(spikes_1) > 0) and (len(spikes_2) > 0):
 
-            t1b = np.unique(np.round(spike_1 / self.bin_size))
-            t2b = np.unique(np.round(spike_2 / self.bin_size))
+            t1b = np.unique(np.round(spikes_1 / self.bin_size))
+            t2b = np.unique(np.round(spikes_2 / self.bin_size))
 
             for d in xrange(size):
                 x_cc[d] += len(np.intersect1d(t1b, t2b + d - self.max_delay, assume_unique=True))
 
             x_cc /= self.nb_bins
-            control = len(spike_1) * len(spike_2) / float((self.nb_bins ** 2))
+            control = len(spikes_1) * len(spikes_2) / float((self.nb_bins ** 2))
 
         return x_cc * 1e6, control * 1e6
 
     def _process(self):
 
-        batch = self.input['spikes'].receive(blocking=False)
-        updater = self.inputs['updater'].receive(blocking=False, discarding_eoc=self.discarding_eoc_from_updater)
+        batch = self.get_input('spikes').receive(blocking=False)
+        updater = self.get_input('updater').receive(blocking=False, discarding_eoc=self.discarding_eoc_from_updater)
 
         if updater is not None:
 
@@ -64,7 +80,6 @@ class Meta_merger(Block):
             # Create the template dictionary if necessary.
             if self._template_store is None:
                 self._template_store = TemplateStore(updater['template_store'], mode='r')
-                similarities = self._template_store.similarities
 
         if batch is not None:
 
@@ -77,6 +92,16 @@ class Meta_merger(Block):
                     spikes += offset
                 if key in ['templates']:
                     templates = np.array(batch[key]).astype(np.int32)
+
+            if offset % self.frequency == 0:
+                idx, ccs = self._template_store.get_putative_merges(min_cc=self.min_cc)
+                for count, templates in enumerate(idx):
+                    spikes_1 = self.get_spikes(indices[count])
+                    for t in templates:
+                        spikes_2 = self.get_spikes(t)
+                        full_cc, control_value = self._cross_corr(spikes_1, spikes_2)
+                        cc_dip = full_cc[:np.abs(self.raw_lags) <= lag]
+                        score = control_value - cc_dip.mean()
 
             self._measure_time('end', frequency=100)
 

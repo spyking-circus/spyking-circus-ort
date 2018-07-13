@@ -178,9 +178,7 @@ class TemplateStore(object):
             if j in self._similarities[i]:
                 return self._similarities[i][j]
 
-        a = self.get(i).first_component.to_dense().flatten()
-        b = self.get(j).first_component.to_dense().flatten()
-        value = np.corrcoef(a, b)[0, 1]
+        value = self.get(i).first_component.similarity(self.get(j).first_component)
         self._add_similarity(i, j, value)
         self._add_similarity(j, i, value)
         return value
@@ -222,6 +220,23 @@ class TemplateStore(object):
             self._temporal_width = template.temporal_width
 
         return self._temporal_width
+
+    def get_putative_merges(self, n_best=None, min_cc=0):
+        if n_best is not None:
+            n_best = min(n_best + 1, len(self))
+        else:
+            n_best = len(self)
+        ids = []
+        ccs = []
+        for count, similarity in enumerate(self.similarities):
+            idx = np.argsort(similarity)[::-1]
+            kidx = np.where(similarity[idx] < min_cc)[0]
+            if len(kidx) > 0:
+                ids += [self.indices[idx[1:min(kidx[0], n_best)]]]
+            else:
+                ids += [self.indices[idx[1:n_best]]]
+            ccs += [similarity[ids[-1]]]
+        return ids, ccs
 
     def slice_templates_by_channel(self, channels):
 
