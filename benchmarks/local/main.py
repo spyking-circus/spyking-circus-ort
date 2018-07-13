@@ -419,15 +419,19 @@ def main():
             # Plot the reconstruction around these spike times (if necessary).
             if len(train_fn) > 0:
                 times_of_interest = train_fn.sample(size=10)
-                plot_times_of_interest(data, times_of_interest,
+                output_filename = "times_of_interest_{}.{}".format(configuration_name, image_format)
+                output_path = os.path.join(output_directory, output_filename)
+                plot_times_of_interest(data, times_of_interest, path=output_path,
                                        window=10e-3, cells=detected_cells, sampling_rate=sampling_rate,
                                        mads=mads, peaks=peaks, filtered_data=filtered_data)
 
             # Plot the reconstruction.
             from circusort.plt.cells import plot_reconstruction
             t = 2.0 * 60.0  # s  # start time of the reconstruction plot
-            d = 1.0  # s  # duration of the reconstruction plot
-            plot_reconstruction(detected_cells, t, t + d, sampling_rate, data,
+            d = 2.0  # s  # duration of the reconstruction plot
+            output_filename = "reconstruction_{}.{}".format(configuration_name, image_format)
+            output_path = os.path.join(output_directory, output_filename)
+            plot_reconstruction(detected_cells, t, t + d, sampling_rate, data, output=output_path,
                                 mads=mads, peaks=peaks, filtered_data=filtered_data)
 
         plt.show()
