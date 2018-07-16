@@ -1,7 +1,4 @@
-import warnings
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore",category=FutureWarning)
-    import h5py
+import h5py
 import matplotlib.gridspec as gds
 import matplotlib.pyplot as plt
 import numpy as np
@@ -11,10 +8,8 @@ from circusort.utils.path import normalize_path
 
 
 class Train(object):
-    # TODO add docstring
 
     def __init__(self, times, t_min=None, t_max=None):
-        # TODO add docstring.
 
         self.times = times
         self.times = self.times if t_min is None else self.times[t_min <= self.times]
@@ -41,7 +36,6 @@ class Train(object):
         return len(self) / (self.t_max - self.t_min)
 
     def reverse(self):
-        # TODO add docstring.
 
         # TODO improve method with two additional attributes: start_time and end_time.
         times = self.t_min + ((self.t_max - self.t_min) - (self.times - self.t_min))
@@ -50,7 +44,6 @@ class Train(object):
         return train
 
     def slice(self, t_min=None, t_max=None):
-        # TODO add docstring.
 
         times = self.times
         if t_min is None:
@@ -67,7 +60,6 @@ class Train(object):
         return train
 
     def sample(self, size=None):
-        # TODO add docstring.
 
         if size is None:
             size = 1
@@ -121,7 +113,6 @@ class Train(object):
         return
 
     def plot(self, output=None, ax=None, **kwargs):
-        # TODO add docstring.
 
         if output is not None and ax is None:
             plt.ioff()
@@ -149,7 +140,6 @@ class Train(object):
 
     def check_temporal_support(self, train, t_min=None, t_max=None):
         """Check temporal support."""
-        # TODO add docstring.
 
         if t_min is None:
             t_min = max(self.t_min, train.t_min)
@@ -224,7 +214,6 @@ class Train(object):
 
     def compute_true_positive(self, train, jitter=2e-3, t_min=None, t_max=None):
         """Compute the number of true positives."""
-        # TODO complete docstring.
 
         train_pred, train_true = self.check_temporal_support(train, t_min=t_min, t_max=t_max)
 
@@ -247,7 +236,6 @@ class Train(object):
 
     def compute_false_positive(self, train, jitter=2e-3, t_min=None, t_max=None):
         """Compute the number of false positives."""
-        # TODO complete docstring.
 
         train_pred, train_true = self.check_temporal_support(train, t_min=t_min, t_max=t_max)
 
@@ -262,7 +250,6 @@ class Train(object):
 
     def collect_false_positives(self, train, jitter=2e-3, t_min=None, t_max=None):
         """Collect the false positives."""
-        # TODO complete docstring.
 
         train_pred, train_true = self.check_temporal_support(train, t_min=t_min, t_max=t_max)
 
@@ -281,7 +268,6 @@ class Train(object):
 
     def compute_false_negative(self, train, jitter=2e-3, t_min=None, t_max=None):
         """Compute the number of false negatives."""
-        # TODO complete docstring.
 
         train_pred, train_true = self.check_temporal_support(train, t_min=t_min, t_max=t_max)
 
@@ -296,7 +282,6 @@ class Train(object):
 
     def collect_false_negatives(self, train, jitter=2e-3, t_min=None, t_max=None):
         """Collect the false negatives."""
-        # TODO complete docstring.
 
         train_pred, train_true = self.check_temporal_support(train, t_min=t_min, t_max=t_max)
 
@@ -315,7 +300,6 @@ class Train(object):
 
     def compute_true_positive_rate(self, train, jitter=2e-3, t_min=None, t_max=None):
         """Compute the true positive rate."""
-        # TODO complete docstring.
 
         train_pred, train_true = self.check_temporal_support(train, t_min=t_min, t_max=t_max)
 
@@ -332,7 +316,6 @@ class Train(object):
 
     def compute_false_negative_rate(self, train, jitter=2e-3, t_min=None, t_max=None):
         """Compute the false negative rate."""
-        # TODO complete docstring.
 
         train_pred, train_true = self.check_temporal_support(train, t_min=t_min, t_max=t_max)
 
@@ -349,7 +332,6 @@ class Train(object):
 
     def compute_positive_predictive_value(self, train, jitter=2e-3, t_min=None, t_max=None):
         """Compute the positive predictive value."""
-        # TODO complete docstring.
 
         train_pred, train_true = self.check_temporal_support(train, t_min=t_min, t_max=t_max)
 
@@ -366,7 +348,6 @@ class Train(object):
 
     def compute_false_discovery_rate(self, train, jitter=2e-3, t_min=None, t_max=None):
         """Compute the false discovery rate."""
-        # TODO complete docstring.
 
         train_pred, train_true = self.check_temporal_support(train, t_min=t_min, t_max=t_max)
 

@@ -95,20 +95,18 @@ class Matches(object):
     @property
     def errors(self):
 
-        if self._errors is None:
+        errors = np.zeros(self._nb_matches, dtype=np.float)
+        for i, j in enumerate(self._indices):
+            if j == -1:
+                errors[i] = +1.0
+            else:
+                cell_pred = self._cells_pred[i]
+                cell_true = self._cells_true[j]
+                train_pred = cell_pred.train
+                train_true = cell_true.train
+                errors[i] = train_pred.compute_difference(train_true, t_min=self._t_min, t_max=self._t_max)
 
-            errors = np.zeros(self._nb_matches, dtype=np.float)
-            for i, j in enumerate(self._indices):
-                if j == -1:
-                    errors[i] = 0.0
-                else:
-                    cell_pred = self._cells_pred[i]
-                    cell_true = self._cells_true[j]
-                    train_pred = cell_pred.train
-                    train_true = cell_true.train
-                    errors[i] = train_pred.compute_difference(train_true, t_min=self._t_min, t_max=self._t_max)
-
-        return self._errors
+        return errors
 
     def _update(self):
 
