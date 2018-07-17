@@ -1,6 +1,14 @@
 # coding=utf-8
-from PyQt4.QtCore import Qt
-from PyQt4.QtGui import *
+try:
+    # Python 2 compatibility.
+    from PyQt4.QtCore import Qt
+    from PyQt4.QtGui import QMainWindow, QLabel, QDoubleSpinBox, QSpacerItem, \
+        QSizePolicy, QGroupBox, QGridLayout, QLineEdit, QDockWidget
+except ImportError:  # i.e. ModuleNotFoundError
+    # Python 3 compatibility.
+    from PyQt5.QtCore import Qt
+    from PyQt5.QtWidgets import QMainWindow, QLabel, QDoubleSpinBox, QSpacerItem, \
+        QSizePolicy, QGroupBox, QGridLayout, QLineEdit, QDockWidget
 
 from circusort.block.peak_displayer.canvas import VispyCanvas
 from circusort.block.peak_displayer.thread import Thread

@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
-import Queue
+try:
+    from Queue import Queue  # Python 2 compatibility.
+except ImportError:  # i.e. ModuleNotFoundError
+    from queue import Queue  # Python 3 compatibility.
 import tempfile
 import threading
 import time
@@ -13,13 +16,20 @@ from circusort import io
 from circusort.io import get_tmp_dirname
 from circusort.io.synthetic import SyntheticStore
 
+try:
+    unicode  # Python 2 compatibility.
+except NameError:
+    unicode = str  # Python 3 compatibility.
 
 # TODO find if the communication mechanism between the main and background
 # threads is necessary, i.e. is there another canonical way to stop the
 # background thread (in a infinite loop) from the main thread?
 
 
-class Synthetic_generator(block.Block):
+__classname__ = 'SyntheticGenerator'
+
+
+class SyntheticGenerator(block.Block):
     """Generate a synthetic MEA recording.
 
     Arguments:
@@ -58,7 +68,6 @@ class Synthetic_generator(block.Block):
         data
 
     """
-    # TODO complete docstring.
 
     name = "Synthetic Generator"
 
@@ -152,7 +161,6 @@ class Synthetic_generator(block.Block):
         return data_path
 
     def _initialize(self):
-        # TODO add docstring.
 
         # Seed the random generator.
         np.random.seed(self.seed)
@@ -200,10 +208,10 @@ class Synthetic_generator(block.Block):
 
         # Define and launch the background thread for data generation.
         # # First queue is used as a buffer for synthetic data.
-        self.queue = Queue.Queue(maxsize=600)
+        self.queue = Queue(maxsize=600)
         # # Second queue is a communication mechanism between the main and
         # # background threads in order to be able to stop the background thread.
-        self.rpc_queue = Queue.Queue()
+        self.rpc_queue = Queue()
 
         # # Define background thread for data generation.
         if self.mode == 'default':
@@ -385,7 +393,6 @@ class Cell(object):
         nb_samples
             Number of samples per buffer.
         """
-        # TODO complete docstring.
 
         if self.t == 'default':
 
@@ -519,7 +526,6 @@ class Cell(object):
 
 def syn_gen_target(rpc_queue, queue, nb_channels, probe, nb_samples, cells, hdf5_path):
     """Synthetic data generation (background thread)."""
-    # TODO complete docstring.
 
     mu = 0.0  # uV  # noise mean
     sigma = 4.0  # uV  # noise standard deviation
@@ -645,7 +651,6 @@ def pre_syn_gen_target(rpc_queue, queue, nb_channels, nb_samples_per_chunk, samp
         duration: float
         cells: dictionary
     """
-    # TODO complete docstring.
 
     mu = 0.0  # µV  # noise mean
     sigma = 4.0  # µV  # noise standard deviation

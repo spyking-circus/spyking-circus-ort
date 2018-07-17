@@ -1,7 +1,10 @@
 import sys
 
 from multiprocessing import Process
-from PyQt4.QtGui import QApplication
+try:
+    from PyQt4.QtGui import QApplication  # Python 2 compatibility.
+except ImportError:  # i.e. ModuleNotFoundError
+    from PyQt5.QtWidgets import QApplication  # Python 3 compatibility.
 
 from circusort.block.qt_displayer.qt_window import QtWindow
 

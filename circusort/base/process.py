@@ -1,4 +1,7 @@
-import exceptions
+try:
+    import exceptions  # Python 2 compatibility.
+except ImportError:  # i.e. ModuleNotFoundError
+    import builtins as exceptions  # Python 3 compatibility.
 import json
 import paramiko
 import subprocess
