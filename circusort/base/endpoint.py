@@ -159,13 +159,19 @@ class Encoder(json.JSONEncoder):
                 '__dtype__': str(obj.dtype),
                 '__shape__': obj.shape,
             }
+        elif isinstance(obj, numpy.int64):
+            ser_obj = int(obj)
         elif isinstance(obj, bytes):
             ser_obj = {
                 '__bytes__': obj.decode('utf-8'),
                 '__encoding__': 'utf-8',
             }
         else:
-            ser_obj = json.JSONEncoder.default(self, obj)
+            try:
+                ser_obj = json.JSONEncoder.default(self, obj)
+            except TypeError as error:
+                print("{} ({})".format(obj, type(obj)))
+                raise error
 
         return ser_obj
 
@@ -287,7 +293,7 @@ class Endpoint(Connection):
         # Seek targeted batch.
         if number is not None:
             while batch is not None and batch['number'] < number:
-                batch = self._get_data_aux(blocking=blocking, discarding_eoc=discarding_eoc)
+                batch = self._get_data_aux(blocking=True, discarding_eoc=discarding_eoc)
             if batch is not None and batch['number'] > number:
                 self._put_cached_batch(batch)
                 batch = None

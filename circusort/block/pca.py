@@ -1,10 +1,13 @@
 from .block import Block
 import numpy as np
 import scipy.interpolate
-from sklearn.decomposition import PCA
+from sklearn.decomposition import PCA as PCA_
 
 
-class Pca(Block):
+__classname__ = 'PCA'
+
+
+class PCA(Block):
     """PCA
 
     Attributes:
@@ -22,7 +25,6 @@ class Pca(Block):
         pcs
 
     """
-    # TODO complete docstring.
 
     name = "PCA"
 
@@ -166,6 +168,11 @@ class Pca(Block):
                                     waveform = self._get_waveform(batch, int(channel), peak, key)
                                     self.waveforms[key][self.nb_spikes[key]] = waveform
                                     self.nb_spikes[key] += 1
+                            # Log debug message (if necessary).
+                            if self.counter % 50 == 0:
+                                string = "{} gathers {} {} peaks ({} wanted)"
+                                message = string.format(self.name_and_counter, self.nb_spikes[key], key, self.nb_waveforms)
+                                self.log.debug(message)
 
                     if self.is_ready(key):
                         # Log info message.
@@ -173,7 +180,7 @@ class Pca(Block):
                         message = string.format(self.name_and_counter, len(self.waveforms[key]), key)
                         self.log.info(message)
                         # Initialize and fit PCA.
-                        pca = PCA(self.output_dim)
+                        pca = PCA_(self.output_dim)
                         pca.fit(self.waveforms[key])
 
                         if key == 'negative':
@@ -198,7 +205,6 @@ class Pca(Block):
         return
 
     def _introspect(self):
-        # TODO add docstring.
 
         nb_buffers = self.counter - self.start_step
         start_times = np.array(self._measured_times.get('start', []))
