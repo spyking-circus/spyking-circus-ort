@@ -1,4 +1,5 @@
 import os
+import sys
 
 from circusort.io.template import load_template
 from circusort.io.templates import list_templates
@@ -10,9 +11,11 @@ from circusort.obj.cell import Cell
 from circusort.obj.cells import Cells
 from circusort.utils.path import normalize_path
 
+if sys.version_info.major == 3:
+    unicode = str  # Python 3 compatibility.
+
 
 def generate_cells(nb_cells=3, **kwargs):
-    # TODO add docstring.
 
     cells = {
         k: generate_cell(**kwargs)

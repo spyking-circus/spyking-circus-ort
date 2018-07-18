@@ -3,16 +3,14 @@ try:
 except ImportError:  # i.e. ModuleNotFoundError
     from configparser import ConfigParser  # Python 3 compatibility.
 import os
+import sys
 
 from collections import OrderedDict
 
 from circusort.obj.parameter import Parameters
 from circusort.utils.path import normalize_path
 
-
-try:
-    unicode  # Python 2 compatibility.
-except NameError:
+if sys.version_info.major == 3:
     unicode = str  # Python 3 compatibility.
 
 
@@ -34,15 +32,15 @@ def generate_parameters(defaults=None, types=None):
         parameters = [
             (section, [
                 (option, defaults[section][option])
-                for option in defaults[section].iterkeys()
+                for option in iter(defaults[section].keys())
             ])
-            for section in defaults.iterkeys()
+            for section in iter(defaults.keys())
         ]
     else:
         # TODO remove the following lines.
         parameters = [
             (section, OrderedDict())
-            for section in types.iterkeys()
+            for section in types.keys()
         ]
     parameters = Parameters(parameters)
 

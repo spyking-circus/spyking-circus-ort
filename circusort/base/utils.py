@@ -48,7 +48,7 @@ class LogHandler(logging.Handler):
             'record': record.__dict__,
         }
         data = json.dumps(message)
-        # data = data.encode('utf-8') # convert string to bytes
+        data = data.encode('utf-8')  # convert string to bytes
         self.socket.send_multipart([topic, data])
 
         return
@@ -78,16 +78,20 @@ def get_log(address, name=None, log_level=logging.INFO):
 
 
 def find_interface_address_towards(host):
-    # TODO add docstring.
 
-    p = subprocess.Popen(["ip", "route", "get", host],
-                         stdout=subprocess.PIPE)
+    p = subprocess.Popen(["ip", "route", "get", host], stdout=subprocess.PIPE)
     lines = p.stdout.readlines()
     s = lines[0]
     k = 'address'
     p = "src (?P<{}>[\d,.]*)".format(k)
     m = re.compile(p)
-    r = m.search(s)
+    try:
+        # Python 2 compatibility.
+        r = m.search(s)
+    except TypeError:
+        # Python 3 compatibility.
+        s = s.decode('utf-8')
+        r = m.search(s)
     a = r.group(k)
 
     return a

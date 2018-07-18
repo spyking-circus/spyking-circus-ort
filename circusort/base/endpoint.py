@@ -6,12 +6,11 @@ import os
 import json
 
 
-TERM_MSG = "END"
+TERM_MSG = b"END"
 
 
 class Connection(object):
     """Connection"""
-    # TODO complete docstring.
 
     _defaults_structure = {
         'array': {
@@ -37,7 +36,6 @@ class Connection(object):
 
     def configure(self, **kwargs):
         """Configure connection"""
-        # TODO complete docstring.
 
         for key, value in kwargs.items():
             self.params[key] = kwargs[key]
@@ -52,7 +50,6 @@ class Connection(object):
 
     def initialize(self, **kwargs):
         """Initialize the connection."""
-        # TODO complete docstring.
 
         if not self.initialized:
             self._initialize(**kwargs)
@@ -119,7 +116,6 @@ class Connection(object):
             batch: ?
                 The data to send.
         """
-        # TODO complete docstring.
 
         if self.initialized:
             self._send_data(batch)
@@ -163,6 +159,11 @@ class Encoder(json.JSONEncoder):
                 '__dtype__': str(obj.dtype),
                 '__shape__': obj.shape,
             }
+        elif isinstance(obj, bytes):
+            ser_obj = {
+                '__bytes__': obj.decode('utf-8'),
+                '__encoding__': 'utf-8',
+            }
         else:
             ser_obj = json.JSONEncoder.default(self, obj)
 
@@ -180,6 +181,9 @@ def object_hook(ser_obj):
         data = base64.b64decode(ser_obj['__ndarray__'])
         obj = numpy.frombuffer(data, dtype=ser_obj['__dtype__'])
         obj = obj.reshape(ser_obj['__shape__'])
+    elif isinstance(ser_obj, dict) and '__bytes__' in ser_obj and '__encoding__' in ser_obj:
+        data = ser_obj['__bytes__']
+        obj = data.encode(ser_obj['__encoding__'])
     else:
         obj = ser_obj
 
@@ -210,7 +214,6 @@ class EOCError(Exception):
 
 class Endpoint(Connection):
     """Endpoint"""
-    # TODO complete docstring.
 
     params = {
         'addr': None,
@@ -225,6 +228,9 @@ class Endpoint(Connection):
         if self.structure == 'array':
             self.dtype = self.dtype
             self.shape = self.shape
+
+        self.socket = None
+        self.tmp_name = None
 
         self._has_received_flag = False
         self._cached_batch = None
@@ -353,7 +359,7 @@ class Endpoint(Connection):
         if self.structure == 'array':
             self.socket.send(batch.tostring())
         elif self.structure == 'dict':
-            self.socket.send(json.dumps(batch, cls=Encoder))
+            self.socket.send_string(json.dumps(batch, cls=Encoder))
         elif self.structure == 'boolean':
             self.socket.send(str(batch))
         else:
@@ -412,5 +418,6 @@ class Endpoint(Connection):
             self.socket.setsockopt(zmq.RCVTIMEO, timeout * 1000)
         self.socket.bind(address)
         self.addr = self.socket.getsockopt(zmq.LAST_ENDPOINT)
+        self.addr = self.addr.decode('utf-8')
 
         return

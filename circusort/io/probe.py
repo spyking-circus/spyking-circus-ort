@@ -6,6 +6,9 @@ import logging
 
 from circusort.obj.probe import Probe
 
+if sys.version_info.major == 3:
+    unicode = str
+
 
 def resolve_probe_path(path, logger=None):
     """Resolve probe path.
@@ -14,7 +17,6 @@ def resolve_probe_path(path, logger=None):
         path: string
             Path to which the probe will be saved.
     """
-    # TODO complete docstring.
 
     # Define logger.
     if logger is None:
@@ -47,7 +49,7 @@ def resolve_probe_path(path, logger=None):
 
 
 def generate_mea_probe(nb_columns=4, nb_rows=4, interelectrode_distance=30.0, radius=250.0, **kwargs):
-    """Generate a multielectrode array probe.
+    """Generate a multi-electrode array probe.
 
     Parameters:
         nb_columns: integer
@@ -61,7 +63,7 @@ def generate_mea_probe(nb_columns=4, nb_rows=4, interelectrode_distance=30.0, ra
 
     Return:
         probe: Probe
-            Generated multielectrode array probe.
+            Generated multi-electrode array probe.
     """
 
     _ = kwargs  # i.e. discard additional keyword arguments
@@ -94,7 +96,7 @@ def generate_mea_probe(nb_columns=4, nb_rows=4, interelectrode_distance=30.0, ra
 
 
 def generate_silicon_probe(**kwargs):
-    """Generate a multielectrode array probe."""
+    """Generate a multi-electrode array probe."""
 
     _ = kwargs  # Discard additional keyword arguments.
 

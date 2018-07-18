@@ -296,7 +296,7 @@ class FitterBis(Block):
             # while not np.all(nb_failures == self.max_nb_trials):
             while np.mean(nb_failures) < self.nb_chances:
 
-                # Set scalar products of tested matchings to zero.
+                # Set scalar products of tested matches to zero.
                 data = sub_b * mask
                 # Sort peaks by decreasing highest scalar product with all the templates.
                 peak_indices = np.argsort(np.max(data, axis=0))[::-1]
@@ -482,17 +482,17 @@ class FitterBis(Block):
     @property
     def nb_buffers(self):
 
-        return self.x.shape[0] / self._nb_samples
+        return self.x.shape[0] // self._nb_samples
 
     @property
     def result_area_start(self):
 
-        return (self.nb_buffers - 1) * self._nb_samples - self._nb_samples / 2
+        return (self.nb_buffers - 1) * self._nb_samples - self._nb_samples // 2
 
     @property
     def result_area_end(self):
 
-        return (self.nb_buffers - 1) * self._nb_samples + self._nb_samples / 2
+        return (self.nb_buffers - 1) * self._nb_samples + self._nb_samples // 2
 
     @property
     def work_area_start(self):

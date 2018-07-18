@@ -23,6 +23,7 @@ requires = [
 
 
 def read(fname):
+
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
 
@@ -43,6 +44,9 @@ def _package_tree(pkgroot):
     return subdirs
 
 
+use_2to3 = (sys.version_info.major == 2)
+
+
 setup(
     name='circusort',
     version=version,
@@ -57,7 +61,7 @@ setup(
     packages=find_packages(),
     setup_requires=['setuptools>0.18'],
     install_requires=requires,
-    use_2to3=True,
+    use_2to3=use_2to3,
     entry_points={
         'console_scripts': [
             'spyking-circus-ort = circusort:main',
@@ -74,4 +78,5 @@ setup(
         'Programming Language :: Python :: 3',
         'Topic :: Scientific/Engineering :: Bio-Informatics'
     ],
-    zip_safe=False)
+    zip_safe=False
+)

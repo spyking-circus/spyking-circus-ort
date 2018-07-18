@@ -6,6 +6,9 @@ import time
 from circusort.block.block import Block
 
 
+__classname__ = 'Reader'
+
+
 class Reader(Block):
     """Reader block.
 
@@ -20,7 +23,6 @@ class Reader(Block):
     See also:
         circusort.block.Block
     """
-    # TODO complete docstring.
 
     name = "File reader"
 
@@ -48,7 +50,6 @@ class Reader(Block):
         See also:
             circusort.block.Block
         """
-        # TODO complete docstring.
 
         Block.__init__(self, **kwargs)
         self.add_output('data', structure='dict')
@@ -71,7 +72,7 @@ class Reader(Block):
         """Initialization of the processing block."""
 
         data = np.memmap(self.data_path, dtype=self.dtype, mode='r')
-        self.real_shape = (data.size / self.nb_channels, self.nb_channels)
+        self.real_shape = (data.size // self.nb_channels, self.nb_channels)
         self.shape = (self.real_shape[0] * self.nb_replay, self.real_shape[1])
         self.output.configure(dtype=self._output_dtype, shape=(self.nb_samples, self.nb_channels))
 
@@ -139,7 +140,6 @@ class Reader(Block):
         return
 
     def _introspect(self):
-        # TODO add docstring.
 
         nb_buffers = self.counter - self.start_step
         start_times = np.array(self._measured_times.get('start', []))

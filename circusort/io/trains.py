@@ -1,11 +1,12 @@
-import warnings
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore",category=FutureWarning)
-    import h5py
+import h5py
 import numpy as np
 import os
+import sys
 
 from ..obj import Train
+
+if sys.version_info.major == 3:
+    unicode = str
 
 
 def generate_train(duration=60.0, rate=1.0, **kwargs):
@@ -117,14 +118,14 @@ def save_trains(directory, trains, mode='default'):
         train_directory = os.path.join(directory, "trains")
         if not os.path.isdir(train_directory):
             os.makedirs(train_directory)
-        for k, train in trains.iteritems():
+        for k, train in trains.items():
             filename = "{}.h5".format(k)
             path = os.path.join(train_directory, filename)
             save_train(path, train)
 
     elif mode == 'by cells':
 
-        for k, train in trains.iteritems():
+        for k, train in trains.items():
             cell_directory = os.path.join(directory, "cells", "{}".format(k))
             if not os.path.isdir(cell_directory):
                 os.makedirs(cell_directory)

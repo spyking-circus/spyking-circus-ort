@@ -6,7 +6,6 @@ from circusort.utils.path import normalize_path
 
 
 def to_ordered_dictionary(list_):
-    # TODO add docstring.
 
     dict_ = OrderedDict()
     for (section_name, section) in list_:
@@ -18,10 +17,8 @@ def to_ordered_dictionary(list_):
 
 
 class Parameters(object):
-    # TODO add docstring.
 
     def __init__(self, parameters=None, mode='default'):
-        # TODO add docstring.
 
         if mode == 'default':
             if parameters is None:
@@ -32,30 +29,26 @@ class Parameters(object):
             raise ValueError(message)
 
     def __getitem__(self, key):
-        # TODO add docstring.
 
         value = self.parameters.get(key, OrderedDict())
 
         return value
 
     def __setitem__(self, key, value):
-        # TODO add docstring.
 
         self.parameters.__setitem__(key, value)
 
         return
 
     def __contains__(self, key):
-        # TODO add docstring.
 
         is_contained = key in self.parameters
 
         return is_contained
 
     def __iter__(self):
-        # TODO add docstring.
 
-        iterator = self.parameters.iterkeys()
+        iterator = iter(self.parameters.keys())
 
         return iterator
 
@@ -67,21 +60,18 @@ class Parameters(object):
         return string
 
     def add(self, section, option, value):
-        # TODO add docstring.
 
         self.parameters[section][option] = value
 
         return
 
     def update(self, parameters):
-        # TODO add docstring.
 
         self.parameters.update(parameters.parameters)
 
         return
 
     def save(self, path, **kwargs):
-        # TODO add docstring.
 
         # Normalize path.
         path = normalize_path(path, **kwargs)
@@ -97,10 +87,10 @@ class Parameters(object):
 
         # Prepare lines to be saved.
         lines = []
-        for section in self.parameters.iterkeys():
+        for section in self.parameters.keys():
             line = "[{}]\n".format(section)
             lines.append(line)
-            for option in self.parameters[section].iterkeys():
+            for option in self.parameters[section].keys():
                 if option != 'current_directory' and not self._is_general(section, option):
                     value = self.parameters[section][option]
                     line = "{} = {}\n".format(option, value)

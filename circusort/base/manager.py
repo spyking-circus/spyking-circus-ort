@@ -221,7 +221,7 @@ class Manager(object):
         self.log.info(message)
 
         # Initialize each block.
-        for block in self.blocks.itervalues():
+        for block in self.blocks.values():
             block.initialize()
 
         return
@@ -234,7 +234,7 @@ class Manager(object):
         self.log.debug(message)
 
         # Join each block.
-        for block in self.blocks.itervalues():
+        for block in self.blocks.values():
             block.join()
 
         # Log info message.
@@ -246,7 +246,7 @@ class Manager(object):
     def data_producers(self):
 
         res = []
-        for block in self.blocks.itervalues():
+        for block in self.blocks.values():
             if block.nb_inputs == 0:
                 res += [block]
 
@@ -256,7 +256,7 @@ class Manager(object):
     def data_consumers(self):
 
         res = []
-        for block in self.blocks.itervalues():
+        for block in self.blocks.values():
             if block.nb_outputs == 0:
                 res += [block]
 
@@ -266,7 +266,7 @@ class Manager(object):
     def data_consumers_and_producers(self):
 
         res = []
-        for block in self.blocks.itervalues():
+        for block in self.blocks.values():
             if block.nb_inputs != 0 and block.nb_outputs != 0:
                 res += [block]
 
@@ -308,7 +308,7 @@ class Manager(object):
         self.log.debug(message)
 
         # Stop each block.
-        for block in self.blocks.itervalues():
+        for block in self.blocks.values():
             block.stop()
 
         # Log info message.
@@ -319,7 +319,7 @@ class Manager(object):
     def __del__(self):
 
         # Delete each block.
-        for block in self.blocks.itervalues():
+        for block in self.blocks.values():
             block.__del__()
 
         # Log info message.
