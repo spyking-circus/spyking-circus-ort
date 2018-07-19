@@ -465,12 +465,12 @@ class DensityClustering(Block):
                         'number': data_packet['number'],
                         'payload': self.templates,
                     }
-                    # # TODO remove the 3 following lines.
-                    # string = "{} sends packet: {}"
-                    # message = string.format(self.name_and_counter, packet)
-                    # self.log.debug(message)
                     # Send templates.
                     self.get_output('templates').send(packet)
+                    # Log debug message.
+                    string = "{} sends output packet"
+                    message = string.format(self.name_and_counter)
+                    self.log.debug(message)
                     # Reset data structures.
                     for key, channel in self.to_reset:
                         self._reset_data_structures(key, channel)
