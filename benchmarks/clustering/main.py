@@ -224,7 +224,6 @@ def main():
         if len(configuration_names) == 1:
             configuration_name = configuration_names[0]
 
-            # TODO clean the following copied lines.
             # Load data from each configuration.
             generation_directory = os.path.join(directory, "generation", configuration_name)
             introspection_directory = os.path.join(directory, "introspection", configuration_name)
@@ -346,11 +345,13 @@ def main():
                 if k < nb_rows_ * nb_columns_:
                     i = k // nb_columns_
                     j = k % nb_columns_
+                    title = "Template {}".format(k)
                     with_xaxis = (i == (nb_rows_ - 1))
                     with_yaxis = (j == 0)
                     with_scale_bars = (i == (nb_rows_ - 1)) and (j == 0)
-                    template.plot(ax=ax[i, j], probe=template_store.probe, with_title=False, with_xaxis=with_xaxis,
+                    template.plot(ax=ax[i, j], probe=template_store.probe, title=title, with_xaxis=with_xaxis,
                                   with_yaxis=with_yaxis, with_scale_bars=with_scale_bars)
+
             plt.tight_layout()
             plt.show()
 

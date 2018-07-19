@@ -1,8 +1,5 @@
 import collections
-import warnings
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore",category=FutureWarning)
-    import h5py
+import h5py
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -40,7 +37,9 @@ class TemplateComponent(object):
     @property
     def norm(self):
 
-        return np.sqrt(np.sum(self.waveforms**2)/(self.nb_channels * self.temporal_width))
+        norm = np.linalg.norm(self.waveforms)
+
+        return norm
 
     @property
     def temporal_width(self):
@@ -65,9 +64,15 @@ class TemplateComponent(object):
             data = data.flatten()[None, :]
 
         if method is 'csc':
-            return scipy.sparse.csc_matrix(data, dtype=np.float32)
+            sparse_data = scipy.sparse.csc_matrix(data, dtype=np.float32)
         elif method is 'csr':
-            return scipy.sparse.csr_matrix(data, dtype=np.float32)
+            sparse_data = scipy.sparse.csr_matrix(data, dtype=np.float32)
+        else:
+            string = "method={}"
+            message = string.format(method)
+            raise NotImplementedError(message)
+
+        return sparse_data
 
     def to_dense(self):
 
@@ -79,6 +84,8 @@ class TemplateComponent(object):
     def normalize(self):
 
         self.waveforms /= self.norm
+
+        return
 
     def similarity(self, component):
         """Compute the correlation coefficient between two template components.
@@ -307,7 +314,7 @@ class Template(object):
 
         if compression_factor > 0:
             stds = np.std(self.first_component.waveforms, 1)
-            threshold = np.percentile(stds, compression_factor*100)
+            threshold = np.percentile(stds, int(compression_factor * 100.0))
             indices = np.where(stds < threshold)[0]
             self._compress(indices)
 
@@ -332,7 +339,7 @@ class Template(object):
 
         return
 
-    def plot(self, ax=None, output=None, probe=None, with_title=True, with_xaxis=True, with_yaxis=True,
+    def plot(self, ax=None, output=None, probe=None, title=u"Template", with_xaxis=True, with_yaxis=True,
              with_scale_bars=True, **kwargs):
         """Plot template.
 
@@ -343,17 +350,22 @@ class Template(object):
                 The default value is None.
             probe: none | circusort.obj.Probe (optional)
                 The default value is None.
-            with_title: boolean (optional)
-                The default value is True.
+            title: none | string (optional)
+                The default value is u"Template".
             with_xaxis: boolean (optional)
                 The default value is True.
             with_yaxis: boolean (optional)
                 The default value is True.
             with_scale_bars: boolean (optional)
                 The default value is True.
+            kwargs: dictionary (optional)
+                Additional keyword arguments.
         """
 
-        _ = kwargs  # Discard additional keyword arguments.
+        if 'color' not in kwargs:
+            kwargs['color'] = 'C0'
+        if 'solid_capstyle' not in kwargs:
+            kwargs['solid_capstyle'] = 'round'
 
         nb_channels, nb_samples = self.first_component.waveforms.shape
 
@@ -370,22 +382,20 @@ class Template(object):
             x_max = nb_samples
             ax.set_xlim(x_min, x_max)
             x = np.arange(0, nb_samples)
-            color = 'C0'
             for k in range(0, nb_channels):
                 y = self.first_component.waveforms[k, :]
-                ax.plot(x, y, color=color)
+                ax.plot(x, y, **kwargs)
         else:
             ax.set_aspect('equal')
             x_min, x_max = probe.x_limits
             y_min, y_max = probe.y_limits
             ax.set_xlim(x_min, x_max)
             ax.set_ylim(y_min, y_max)
-            color = 'C0'
             for k, channel in enumerate(self.first_component.indices):
                 x_0, y_0 = probe.get_channel_position(channel)
                 x = 20.0 * np.linspace(-0.5, +0.5, num=nb_samples) + x_0
                 y = 0.3 * self.first_component.waveforms[k, :] + y_0
-                ax.plot(x, y, color=color, solid_capstyle='round')
+                ax.plot(x, y, **kwargs)
             if with_scale_bars:
                 # Add scale bars.
                 x_anchor = x_max - 0.1 * (x_max - x_min)
@@ -398,7 +408,7 @@ class Template(object):
                 ax.text(np.mean(x), np.mean(y), u"{} arb. unit".format(width), fontsize=8,
                         horizontalalignment='center', verticalalignment='bottom')
                 # # Add voltage scale bar.
-                height = 50
+                height = 50  # TODO improve.
                 x = [x_anchor, x_anchor]
                 y = [y_anchor, y_anchor - 0.3 * float(height)]
                 ax.plot(x, y, color='black')
@@ -413,8 +423,8 @@ class Template(object):
             ax.set_ylabel(u"y (µm)")
         else:
             ax.set_yticklabels([])
-        if with_title:
-            ax.set_title(u"Template")
+        if title:
+            ax.set_title(title)
         fig.tight_layout()
 
         if output is not None:
@@ -446,11 +456,15 @@ class Template(object):
     def center(self, peak_type='negative'):
 
         if peak_type == 'negative':
-            tmpidx = np.divmod(self.first_component.waveforms.argmin(), self.first_component.waveforms.shape[1])
+            tmp_idx = np.divmod(self.first_component.waveforms.argmin(), self.first_component.waveforms.shape[1])
         elif peak_type == 'positive':
-            tmpidx = np.divmod(self.first_component.waveforms.argmax(), self.first_component.waveforms.shape[1])
+            tmp_idx = np.divmod(self.first_component.waveforms.argmax(), self.first_component.waveforms.shape[1])
+        else:
+            string = "peak_type={}"
+            message = string.format(peak_type)
+            raise NotImplementedError(message)
 
-        shift = (self.temporal_width - 1) // 2 - tmpidx[1]
+        shift = (self.temporal_width - 1) // 2 - tmp_idx[1]
 
         for component in self:
             component.center(shift)
