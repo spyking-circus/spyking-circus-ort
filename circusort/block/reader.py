@@ -19,6 +19,8 @@ class Reader(Block):
         nb_samples: integer
         sampling_rate: float
         is_realistic: boolean
+        speed_factor: float
+        nb_replay:integer
 
     See also:
         circusort.block.Block
@@ -33,6 +35,7 @@ class Reader(Block):
         'nb_samples': 1024,
         'sampling_rate': 20e+3,
         'is_realistic': True,
+        'speed_factor': 1.0,
         'nb_replay': 1,
     }
 
@@ -46,6 +49,8 @@ class Reader(Block):
             nb_samples: integer
             sampling_rate: float
             is_realistic: boolean
+            speed_factor: float
+            nb_replay: integer
 
         See also:
             circusort.block.Block
@@ -61,6 +66,7 @@ class Reader(Block):
         self.nb_samples = self.nb_samples
         self.sampling_rate = self.sampling_rate
         self.is_realistic = self.is_realistic
+        self.speed_factor = self.speed_factor
         self.nb_replay = self.nb_replay
 
         self._output_dtype = 'float32'
@@ -129,6 +135,7 @@ class Reader(Block):
             if self.is_realistic:
                 # Simulate duration between two data acquisitions.
                 duration = float(self.nb_samples) / self.sampling_rate
+                duration = duration / self.speed_factor
                 time.sleep(duration)
             self.output.send(packet)
         else:
