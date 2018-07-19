@@ -332,14 +332,26 @@ class Template(object):
 
         return
 
-    def plot(self, output=None, probe=None, **kwargs):
+    def plot(self, ax=None, output=None, probe=None, with_title=True, with_xaxis=True, with_yaxis=True,
+             with_scale_bars=True, **kwargs):
         """Plot template.
 
-        Parameters:
-            output: none | string
-            probe: none | circusort.obj.Probe
+        Arguments:
+            ax: none | matplotlib.axes.Axes (optional)
+                The default value is None.
+            output: none | string (optional)
+                The default value is None.
+            probe: none | circusort.obj.Probe (optional)
+                The default value is None.
+            with_title: boolean (optional)
+                The default value is True.
+            with_xaxis: boolean (optional)
+                The default value is True.
+            with_yaxis: boolean (optional)
+                The default value is True.
+            with_scale_bars: boolean (optional)
+                The default value is True.
         """
-        # TODO complete docstring.
 
         _ = kwargs  # Discard additional keyword arguments.
 
@@ -348,7 +360,11 @@ class Template(object):
         if output is not None:
             plt.ioff()
 
-        fig, ax = plt.subplots()
+        if ax is None:
+            fig, ax = plt.subplots()
+        else:
+            fig = ax.get_figure()
+
         if probe is None:
             x_min = 0
             x_max = nb_samples
@@ -360,22 +376,48 @@ class Template(object):
                 ax.plot(x, y, color=color)
         else:
             ax.set_aspect('equal')
-            ax.set_xlim(*probe.x_limits)
-            ax.set_ylim(*probe.y_limits)
+            x_min, x_max = probe.x_limits
+            y_min, y_max = probe.y_limits
+            ax.set_xlim(x_min, x_max)
+            ax.set_ylim(y_min, y_max)
             color = 'C0'
             for k, channel in enumerate(self.first_component.indices):
                 x_0, y_0 = probe.get_channel_position(channel)
                 x = 20.0 * np.linspace(-0.5, +0.5, num=nb_samples) + x_0
                 y = 0.3 * self.first_component.waveforms[k, :] + y_0
                 ax.plot(x, y, color=color, solid_capstyle='round')
-        ax.set_xlabel(u"time (arb. unit)")
-        ax.set_ylabel(u"voltage (arb. unit)")
-        ax.set_title(u"Template")
+            if with_scale_bars:
+                # Add scale bars.
+                x_anchor = x_max - 0.1 * (x_max - x_min)
+                y_anchor = y_max - 0.1 * (y_max - y_min)
+                # # Add time scale bar.
+                width = 1  # TODO improve.
+                x = [x_anchor, x_anchor - 20.0 * float(width)]
+                y = [y_anchor, y_anchor]
+                ax.plot(x, y, color='black')
+                ax.text(np.mean(x), np.mean(y), u"{} arb. unit".format(width), fontsize=8,
+                        horizontalalignment='center', verticalalignment='bottom')
+                # # Add voltage scale bar.
+                height = 50
+                x = [x_anchor, x_anchor]
+                y = [y_anchor, y_anchor - 0.3 * float(height)]
+                ax.plot(x, y, color='black')
+                ax.text(np.mean(x), np.mean(y), u"{} µV".format(height), fontsize=8,
+                        horizontalalignment='left', verticalalignment='center')
+
+        if with_xaxis:
+            ax.set_xlabel(u"x (µm)")
+        else:
+            ax.set_xticklabels([])
+        if with_yaxis:
+            ax.set_ylabel(u"y (µm)")
+        else:
+            ax.set_yticklabels([])
+        if with_title:
+            ax.set_title(u"Template")
         fig.tight_layout()
 
-        if output is None:
-            plt.show()
-        else:
+        if output is not None:
             path = normalize_path(output)
             if path[-4:] != ".pdf":
                 path = os.path.join(path, "template.pdf")

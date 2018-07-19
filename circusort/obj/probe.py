@@ -275,7 +275,7 @@ class Probe(object):
 
         if group is None:
             _groups = self.channel_groups.keys()
-            _group = _groups[0]
+            _group = next(iter(_groups))
         else:
             _group = str(group)
         _group = self.channel_groups[_group]

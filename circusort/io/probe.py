@@ -75,7 +75,7 @@ def generate_mea_probe(nb_columns=4, nb_rows=4, interelectrode_distance=30.0, ra
     y_offset = - 0.5 * float(nb_rows - 1) * interelectrode_distance
     for k in range(0, nb_electrodes):
         x = float(k % nb_columns) * interelectrode_distance + x_offset  # µm
-        y = float(k / nb_columns) * interelectrode_distance + y_offset  # µm
+        y = float(k // nb_columns) * interelectrode_distance + y_offset  # µm
         geometry[k] = [x, y]
 
     channel_group = {

@@ -324,7 +324,35 @@ def main():
     # Validate clustering (if necessary).
     if args.pending_validation:
 
-        raise NotImplementedError()
+        for configuration in configurations:
+            # Define template store path.
+            name = configuration['general']['name']
+            sorting_directory = os.path.join(directory, "sorting", name)
+            template_store_filename = "templates.h5"
+            template_store_path = os.path.join(sorting_directory, template_store_filename)
+            # Load template store.
+            from circusort.io import load_template_store
+            template_store = load_template_store(template_store_path)
+            # Print number of template in store.
+            string = "There are {} templates in the store."
+            message = string.format(template_store.nb_templates)
+            print(message)
+            # Plot the first templates of the store.
+            templates = template_store.get()
+            nb_rows_ = 6
+            nb_columns_ = 6
+            fig, ax = plt.subplots(nrows=nb_rows_, ncols=nb_columns_, figsize=(3.0 * 6.4, 2.0 * 4.8))
+            for k, template in enumerate(templates):
+                if k < nb_rows_ * nb_columns_:
+                    i = k // nb_columns_
+                    j = k % nb_columns_
+                    with_xaxis = (i == (nb_rows_ - 1))
+                    with_yaxis = (j == 0)
+                    with_scale_bars = (i == (nb_rows_ - 1)) and (j == 0)
+                    template.plot(ax=ax[i, j], probe=template_store.probe, with_title=False, with_xaxis=with_xaxis,
+                                  with_yaxis=with_yaxis, with_scale_bars=with_scale_bars)
+            plt.tight_layout()
+            plt.show()
 
 
 if __name__ == '__main__':
