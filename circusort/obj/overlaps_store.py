@@ -62,6 +62,11 @@ class OverlapsStore(object):
         self.overlaps = {
             '1': {}
         }
+        self.first_component = None
+        self.norms = None
+        self.amplitudes = None
+        self.electrodes = None
+        self.second_component = None
 
         return
 
@@ -324,16 +329,17 @@ class OverlapsStore(object):
         else:
             sub_target = self.first_component
 
-        # TODO is it faster to test high i_delay first (i.e. overlap without jitter)?
-
-        for i_delay in self._scols['delays']:
+        nb_delays = self._scols['delays'].size
+        for k in range(nb_delays, 0, -1):  # i.e. consider overlaps by increasing time jitter
+            i_delay = self._scols['delays'][k - 1]
+            # Positive time jitter.
             tmp_1 = csr_template[:, self._scols['left'][i_delay]]
             tmp_2 = sub_target[:, self._scols['right'][i_delay]]
             data = tmp_1.dot(tmp_2.T)
             if np.any(data.data >= cc_merge):
                 return True
-
-            if i_delay < self.temporal_width:
+            # Negative time jitter.
+            if i_delay < self.temporal_width:  # to avoid re-computing similarity without time jitter
                 tmp_1 = csr_template[:, self._scols['right'][i_delay]]
                 tmp_2 = sub_target[:, self._scols['left'][i_delay]]
                 data = tmp_1.dot(tmp_2.T)
