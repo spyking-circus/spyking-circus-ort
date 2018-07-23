@@ -412,15 +412,15 @@ class Template(object):
                 x = [x_anchor, x_anchor]
                 y = [y_anchor, y_anchor - 0.3 * float(height)]
                 ax.plot(x, y, color='black')
-                ax.text(np.mean(x), np.mean(y), u"{} µV".format(height), fontsize=8,
+                ax.text(np.mean(x), np.mean(y), r"{} $\mu$V".format(height), fontsize=8,
                         horizontalalignment='left', verticalalignment='center')
 
         if with_xaxis:
-            ax.set_xlabel(u"x (µm)")
+            ax.set_xlabel(r"x ($\mu$m)")
         else:
             ax.set_xticklabels([])
         if with_yaxis:
-            ax.set_ylabel(u"y (µm)")
+            ax.set_ylabel(r"y ($\mu$m)")
         else:
             ax.set_yticklabels([])
         if title:
