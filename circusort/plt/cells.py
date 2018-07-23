@@ -10,12 +10,11 @@ def plot_reconstruction(cells, t_min, t_max, sampling_rate, data_file, ax=None, 
                         mads=None, peaks=None, filtered_data=None):
 
     sampling_rate = float(sampling_rate)
-    g_min = int(t_min * sampling_rate)
-    g_max = int(t_max * sampling_rate)
+    g_min = int(np.ceil(t_min * sampling_rate))  # first timestep
+    g_max = int(np.floor(t_max * sampling_rate))  # last timestep
+    nb_samples = g_max - g_min + 1
 
     nb_channels = cells[cells.ids[0]].template.first_component.nb_channels
-
-    plt.style.use('seaborn-paper')
 
     if output is not None:
         plt.ioff()
@@ -28,21 +27,22 @@ def plot_reconstruction(cells, t_min, t_max, sampling_rate, data_file, ax=None, 
         fig = ax.get_figure()
         gs = None
 
-    result = np.zeros((g_max - g_min, nb_channels), dtype='float32')
+    shape = (nb_samples, nb_channels)
+    result = np.zeros(shape, dtype='float32')
     for c in cells:
+        # Identify spike times to display (i.e. away from the window edges).
         width = c.template.temporal_width
         half_width = width // 2
-        sub_train = c.slice(t_min + half_width/sampling_rate, t_max - half_width/sampling_rate)
+        sub_train = c.slice(t_min + float(half_width) / sampling_rate, t_max - float(half_width) / sampling_rate)
         t1 = sub_train.template.first_component.to_dense().T
 
         if sub_train.template.two_components:
             t2 = c.template.two_components.to_dense().T
         else:
             t2 = 0.0
-
-        for spike, amp in zip(sub_train.train, sub_train.amplitude):
-            offset = int(spike*sampling_rate) - g_min
-
+        # Reconstruct the signal (i.e. summation of templates).
+        for spike_time, amp in zip(sub_train.train, sub_train.amplitude):
+            offset = int(spike_time * sampling_rate) - g_min
             if c.template.two_components:
                 result[int(offset - half_width):int(offset + half_width + 1), :] += amp[0] * t1 + amp[1] * t2
             else:
@@ -68,7 +68,8 @@ def plot_reconstruction(cells, t_min, t_max, sampling_rate, data_file, ax=None, 
         ax.plot(x, y_scale * snippet[:, channel] + y_offset, color='0.5', linewidth=0.1)
         if filtered_snippet is not None:
             ax.plot(x, y_scale * filtered_snippet[:, channel] + y_offset, color='0.75', linewidth=0.1)
-        ax.plot(x, y_scale * result[:, channel] + y_offset, color='r', linewidth=0.1)
+        y = y_scale * result[:, channel] + y_offset
+        ax.plot(x, y, color='r', linewidth=0.1)
 
     # Add MADs (if possible).
     if mads is not None:
@@ -83,12 +84,13 @@ def plot_reconstruction(cells, t_min, t_max, sampling_rate, data_file, ax=None, 
     if peaks is not None:
         for k, channel in enumerate(channels):
             y_offset = float(k)
-            x = peaks.get_times(t_min=t_min, t_max=t_max, channels=[channel])
-            y = y_offset * np.ones_like(x)
-            ax.scatter(x, y, color='C1', marker='.', zorder=3)
+            for peak_time in peaks.get_times(t_min=t_min, t_max=t_max, channels=[channel]):
+                x = [peak_time, peak_time]
+                y = [y_offset + 0.15, y_offset + 0.35]
+                ax.plot(x, y, color='C1', zorder=3, linewidth=0.1)
 
-    ax.set_xlabel(u"Times (s)")
-    ax.set_ylabel(u"Channels")
+    ax.set_xlabel(u"time (s)")
+    ax.set_ylabel(u"channel")
 
     if gs is not None:
         gs.tight_layout(fig)

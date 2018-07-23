@@ -1,8 +1,12 @@
 import numpy as np
 import os
+import sys
 
 from circusort.io.parameter import generate_parameters, load_parameters, get_parameters
 from circusort.utils.path import normalize_path
+
+if sys.version_info.major == 3:
+    unicode = str  # Python 3 compatibility.
 
 
 default_types = {
@@ -52,7 +56,6 @@ defaults = {
 
 
 def generate_configuration(**kwargs):
-    # TODO add docstring.
 
     defaults_ = defaults.copy()
     defaults_.update(kwargs)
@@ -62,7 +65,6 @@ def generate_configuration(**kwargs):
 
 
 def list_configuration_names(path):
-    # TODO add docstring.
 
     # Normalize and check path.
     path = os.path.expanduser(path)
@@ -95,7 +97,6 @@ def list_configuration_names(path):
 
 
 def list_configuration_paths(path):
-    # TODO add docstring.
 
     # Normalize and check path.
     path = os.path.expanduser(path)
@@ -113,7 +114,6 @@ def list_configuration_paths(path):
 
 
 def load_configuration(path):
-    # TODO add docstring.
 
     parameters = load_parameters(path, types=default_types)
 
@@ -121,7 +121,6 @@ def load_configuration(path):
 
 
 def load_configurations(path):
-    # TODO add docstring.
 
     paths = list_configuration_paths(path)
     if paths:
@@ -140,7 +139,6 @@ def load_configurations(path):
 
 
 def get_configuration(path=None):
-    # TODO add docstring.
 
     parameters = get_parameters(path=path, defaults=defaults)
 
@@ -148,7 +146,6 @@ def get_configuration(path=None):
 
 
 def get_configurations(path=None, **kwargs):
-    # TODO add docstring.
 
     if isinstance(path, (str, unicode)):
         path = normalize_path(path, **kwargs)

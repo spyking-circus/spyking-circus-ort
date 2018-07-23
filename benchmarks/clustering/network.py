@@ -78,6 +78,7 @@ def sorting(configuration_name):
         'nb_samples': nb_samples,
         'sampling_rate': sampling_rate,
         'is_realistic': True,
+        'speed_factor': 2.0,
         'introspection_path': introspection_directory,
         'log_level': DEBUG,
     }
@@ -108,7 +109,7 @@ def sorting(configuration_name):
     }
     pca_kwargs = {
         'name': "pca",
-        'nb_waveforms': 10000,
+        'nb_waveforms': 1000,
         'introspection_path': introspection_directory,
         'log_level': DEBUG,
     }
@@ -116,7 +117,7 @@ def sorting(configuration_name):
         'name': "cluster",
         'threshold_factor': threshold_factor,
         'sampling_rate': sampling_rate,
-        'nb_waveforms': 100,
+        'nb_waveforms': 400,
         'probe_path': probe_path,
         'two_components': False,
         'introspection_path': introspection_directory,
@@ -124,6 +125,7 @@ def sorting(configuration_name):
     }
     cluster_writer_kwargs = {
         'name': "cluster_writer",
+        'output_directory': sorting_directory,
         'introspection_path': introspection_directory,
         'log_level': DEBUG,
     }
@@ -140,6 +142,7 @@ def sorting(configuration_name):
     }
     updater_writer_kwargs = {
         'name': "updater_writer",
+        'output_directory': sorting_directory,
         'introspection_path': introspection_directory,
         'log_level': DEBUG,
     }

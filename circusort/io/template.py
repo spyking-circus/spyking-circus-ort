@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
 
-import warnings
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore",category=FutureWarning)
-    import h5py
+import h5py
 import numpy as np
 import os
 import sys
 
 from circusort.obj.template import Template, TemplateComponent
 from circusort.obj.position import Position
+
+if sys.version_info.major == 3:
+    unicode = str
 
 
 def generate_waveform(width=5.0e-3, amplitude=80.0, sampling_rate=20e+3):

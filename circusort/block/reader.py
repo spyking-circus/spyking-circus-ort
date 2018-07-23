@@ -6,6 +6,9 @@ import time
 from circusort.block.block import Block
 
 
+__classname__ = 'Reader'
+
+
 class Reader(Block):
     """Reader block.
 
@@ -16,11 +19,12 @@ class Reader(Block):
         nb_samples: integer
         sampling_rate: float
         is_realistic: boolean
+        speed_factor: float
+        nb_replay:integer
 
     See also:
         circusort.block.Block
     """
-    # TODO complete docstring.
 
     name = "File reader"
 
@@ -31,6 +35,7 @@ class Reader(Block):
         'nb_samples': 1024,
         'sampling_rate': 20e+3,
         'is_realistic': True,
+        'speed_factor': 1.0,
         'nb_replay': 1,
     }
 
@@ -44,11 +49,12 @@ class Reader(Block):
             nb_samples: integer
             sampling_rate: float
             is_realistic: boolean
+            speed_factor: float
+            nb_replay: integer
 
         See also:
             circusort.block.Block
         """
-        # TODO complete docstring.
 
         Block.__init__(self, **kwargs)
         self.add_output('data', structure='dict')
@@ -60,6 +66,7 @@ class Reader(Block):
         self.nb_samples = self.nb_samples
         self.sampling_rate = self.sampling_rate
         self.is_realistic = self.is_realistic
+        self.speed_factor = self.speed_factor
         self.nb_replay = self.nb_replay
 
         self._output_dtype = 'float32'
@@ -71,7 +78,7 @@ class Reader(Block):
         """Initialization of the processing block."""
 
         data = np.memmap(self.data_path, dtype=self.dtype, mode='r')
-        self.real_shape = (data.size / self.nb_channels, self.nb_channels)
+        self.real_shape = (data.size // self.nb_channels, self.nb_channels)
         self.shape = (self.real_shape[0] * self.nb_replay, self.real_shape[1])
         self.output.configure(dtype=self._output_dtype, shape=(self.nb_samples, self.nb_channels))
 
@@ -128,6 +135,7 @@ class Reader(Block):
             if self.is_realistic:
                 # Simulate duration between two data acquisitions.
                 duration = float(self.nb_samples) / self.sampling_rate
+                duration = duration / self.speed_factor
                 time.sleep(duration)
             self.output.send(packet)
         else:
@@ -139,7 +147,6 @@ class Reader(Block):
         return
 
     def _introspect(self):
-        # TODO add docstring.
 
         nb_buffers = self.counter - self.start_step
         start_times = np.array(self._measured_times.get('start', []))

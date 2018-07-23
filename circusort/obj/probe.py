@@ -77,7 +77,7 @@ class Probe(object):
     def x(self):
 
         x = []
-        for channel_group in self.channel_groups.itervalues():
+        for channel_group in self.channel_groups.values():
             for channel in channel_group['channels']:
                 x_, _ = channel_group['geometry'][channel]
                 x.append(x_)
@@ -89,7 +89,7 @@ class Probe(object):
     def y(self):
 
         y = []
-        for channel_group in self.channel_groups.itervalues():
+        for channel_group in self.channel_groups.values():
             for channel in channel_group['channels']:
                 _, y_ = channel_group['geometry'][channel]
                 y.append(y_)
@@ -103,13 +103,13 @@ class Probe(object):
         if len(self.channel_groups) == 1:
             labels = [
                 str(channel)
-                for group in self.channel_groups.itervalues()
+                for group in self.channel_groups.values()
                 for channel in group['channels']
             ]
         elif len(self.channel_groups) > 1:
             labels = [
                 str(group) + "/" + str(channel)
-                for group in self.channel_groups.itervalues()
+                for group in self.channel_groups.values()
                 for channel in group['channels']
             ]
         else:
@@ -275,7 +275,7 @@ class Probe(object):
 
         if group is None:
             _groups = self.channel_groups.keys()
-            _group = _groups[0]
+            _group = next(iter(_groups))
         else:
             _group = str(group)
         _group = self.channel_groups[_group]
@@ -358,7 +358,7 @@ class Probe(object):
         # Save `channel_groups` to probe file.
         line = "channel_groups = {\n"
         lines.append(line)
-        for channel_group_id, channel_group in self.channel_groups.iteritems():
+        for channel_group_id, channel_group in self.channel_groups.items():
             line = " {}: {{\n".format(channel_group_id)
             lines.append(line)
             line = "  'channels': {},\n".format(channel_group['channels'])
@@ -367,7 +367,7 @@ class Probe(object):
             lines.append(line)
             line = "  'geometry': {\n"
             lines.append(line)
-            for key, value in channel_group['geometry'].iteritems():
+            for key, value in channel_group['geometry'].items():
                 line = "   {}: {},\n".format(key, value)
                 lines.append(line)
             line = "  },\n"

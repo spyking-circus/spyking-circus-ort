@@ -22,42 +22,36 @@ requires = [
 ]
 
 
-def read(fname):
-    return open(os.path.join(os.path.dirname(__file__), fname)).read()
-
-
 if sys.version_info < (2, 7):
     raise RuntimeError('Only Python versions >= 2.7 are supported')
 
-curdir = os.path.dirname(os.path.realpath(__file__))
-filename = os.path.join(curdir, 'circusort/__init__.py')
-with open(filename, 'r') as f:
-    version = re.search(r"__version__ = '([^']+)'", f.read()).group(1)
+current_directory = os.path.dirname(os.path.realpath(__file__))
 
+init_path = os.path.join(current_directory, 'circusort', '__init__.py')
+with open(init_path, mode='r') as init_file:
+    version = re.search(r"__version__ = '([^']+)'", init_file.read()).group(1)
 
-def _package_tree(pkgroot):
-    path = os.path.dirname(__file__)
-    subdirs = [os.path.relpath(i[0], path).replace(os.path.sep, '.')
-               for i in os.walk(os.path.join(path, pkgroot))
-               if '__init__.py' in i[2]]
-    return subdirs
+readme_path = os.path.join(current_directory, 'README.rst')
+with open(readme_path, mode='r') as readme_file:
+    long_description = readme_file.read()
+
+use_2to3 = (sys.version_info.major == 2)
 
 
 setup(
     name='circusort',
     version=version,
     description='Online spike sorting by template matching',
-    long_description=read('README.rst'),
+    long_description=long_description,
     url='http://spyking-circus.rtfd.org',
     author='Pierre Yger, Baptiste Lefebvre and Olivier Marre',
     author_email='pierre.yger@inserm.fr',
     license='License :: OSI Approved :: UPMC CNRS INSERM Logiciel Libre License, version 2.1 (CeCILL-2.1)',
     keywords="spike sorting template matching tetrodes extracellular real-time",
-    # packages=_package_tree('circusort'),
     packages=find_packages(),
     setup_requires=['setuptools>0.18'],
     install_requires=requires,
-    use_2to3=True,
+    use_2to3=use_2to3,
     entry_points={
         'console_scripts': [
             'spyking-circus-ort = circusort:main',
@@ -74,4 +68,5 @@ setup(
         'Programming Language :: Python :: 3',
         'Topic :: Scientific/Engineering :: Bio-Informatics'
     ],
-    zip_safe=False)
+    zip_safe=False
+)

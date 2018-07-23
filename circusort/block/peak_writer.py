@@ -25,7 +25,6 @@ class PeakWriter(Block):
         peaks
 
     """
-    # TODO complete docstring.
 
     name = "Peak writer"
 
@@ -160,7 +159,6 @@ class PeakWriter(Block):
         return
 
     def _introspect(self):
-        # TODO add docstring.
 
         nb_buffers = self.counter - self.start_step
         start_times = np.array(self._measured_times.get('start', []))
@@ -185,4 +183,5 @@ class PeakWriter(Block):
             for file_ in self.peaks_file.values():
                 file_.close()
         elif self._mode == 'hdf5':
-            self._h5_file.close()
+            if self._h5_file is not None:
+                self._h5_file.close()

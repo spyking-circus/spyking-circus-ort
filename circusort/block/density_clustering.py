@@ -8,7 +8,10 @@ from circusort.io.probe import load_probe
 from circusort.utils.clustering import OnlineManager
 
 
-class Density_clustering(Block):
+__classname__ = 'DensityClustering'
+
+
+class DensityClustering(Block):
     """Density clustering
 
     Inputs:
@@ -21,7 +24,6 @@ class Density_clustering(Block):
         templates
 
     """
-    # TODO complete docstring.
 
     name = "Density Clustering"
 
@@ -80,6 +82,7 @@ class Density_clustering(Block):
         self.compression = self.compression
         self.local_merges = self.local_merges
         self.debug_plots = self.debug_plots
+        self.debug_data = self.debug_data
 
         if self.probe_path is None:
             # Log error message.
@@ -136,6 +139,7 @@ class Density_clustering(Block):
         return
 
     def _get_all_valid_peaks(self, peaks):
+
         all_peaks = {}
         for key in peaks.keys():
             all_peaks[key] = set([])
@@ -306,7 +310,6 @@ class Density_clustering(Block):
                     'channel': channel,
                     'dispersion': self.dispersion,
                     'mu': self.mu,
-                    'decay': self.decay_time,
                     'epsilon': self.epsilon,
                     'decay': self.decay_time,
                     'theta': self.theta,
@@ -326,7 +329,7 @@ class Density_clustering(Block):
 
                 if self.debug_data is not None:
                     self.times[key][channel] = []
-                self.templates[key][channel] = {}
+                self.templates[key][str(channel)] = {}
                 self.managers[key][channel] = OnlineManager(**params)
                 self._reset_data_structures(key, channel)
 
@@ -338,7 +341,7 @@ class Density_clustering(Block):
             template = templates[ind]
             template.compress(self.compression)
             template.center(key)
-            self.templates[key][channel][ind] = template.to_dict()
+            self.templates[key][str(channel)][str(ind)] = template.to_dict()
 
         self.to_reset += [(key, channel)]
 
@@ -348,7 +351,7 @@ class Density_clustering(Block):
 
         shape = (0, len(self.probe.edges[channel]), self._spike_width_)
         self.raw_data[key][channel] = np.zeros(shape, dtype=np.float32)
-        self.templates[key][channel] = {}
+        self.templates[key][str(channel)] = {}
         self.times[key][channel] = []
 
         return
@@ -432,24 +435,25 @@ class Density_clustering(Block):
                         threshold = self.threshold_factor * self.thresholds[0, channel]
                         self.managers[key][channel].set_physical_threshold(threshold)
 
-                        # Log debug message.
-                        string = "We have collected {} {} peaks on channel {}"
-                        message = string.format(len(self.raw_data[key][channel]), key, channel)
-                        self.log.debug(message)
+                        # Log debug message (if necessary).
+                        if self.counter % 50 == 0:
+                            string = "{} We have collected {} {} peaks on channel {}"
+                            message = string.format(self.name_and_counter, len(self.raw_data[key][channel]), key, channel)
+                            self.log.debug(message)
 
                         if len(self.raw_data[key][channel]) >= \
                                 self.nb_waveforms and not self.managers[key][channel].is_ready:
                             # Log debug message.
                             string = "{n} Electrode {k} has obtained {m} {t} waveforms: clustering"
-                            message = string.format(n=self.name, k=channel, m=self.nb_waveforms, t=key)
+                            message = string.format(n=self.name_and_counter, k=channel, m=self.nb_waveforms, t=key)
                             self.log.debug(message)
                             templates = self.managers[key][channel].initialize(self.counter,
                                                                                self.raw_data[key][channel])
                             self._prepare_templates(templates, key, channel)
                         elif self.managers[key][channel].time_to_cluster(self.nb_waveforms):
                             # Log debug message.
-                            string = "{n} Electrode {k} has obtained {m} {t} waveforms: reclustering"
-                            message = string.format(n=self.name, k=channel, m=self.nb_waveforms, t=key)
+                            string = "{n} Electrode {k} has obtained {m} {t} waveforms: re-clustering"
+                            message = string.format(n=self.name_and_counter, k=channel, m=self.nb_waveforms, t=key)
                             self.log.debug(message)
                             templates = self.managers[key][channel].cluster(tracking=self.tracking)
                             self._prepare_templates(templates, key, channel)
@@ -463,6 +467,10 @@ class Density_clustering(Block):
                     }
                     # Send templates.
                     self.get_output('templates').send(packet)
+                    # Log debug message.
+                    string = "{} sends output packet"
+                    message = string.format(self.name_and_counter)
+                    self.log.debug(message)
                     # Reset data structures.
                     for key, channel in self.to_reset:
                         self._reset_data_structures(key, channel)

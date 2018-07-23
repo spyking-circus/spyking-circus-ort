@@ -44,6 +44,7 @@ def receive_log(context, interface, path=None):
     socket.setsockopt(zmq.SUBSCRIBE, topic)
     socket.bind(address)
     endpoint = socket.getsockopt(zmq.LAST_ENDPOINT)
+    endpoint = endpoint.decode('utf-8')
 
     # Send greetings via the temporary socket.
     message = {

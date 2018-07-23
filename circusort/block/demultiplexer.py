@@ -1,6 +1,13 @@
 import numpy as np
+import sys
 
 from circusort.block.block import Block
+
+if sys.version_info.major == 3:
+    unicode = str  # Python 3 compatibility.
+
+
+__classname__ = 'Demultiplexer'
 
 
 class Demultiplexer(Block):
@@ -13,7 +20,6 @@ class Demultiplexer(Block):
         nb_samples: integer
         sampling_rate: float
     """
-    # TODO complete docstring.
 
     name = "Demultiplexer"
 
@@ -35,7 +41,6 @@ class Demultiplexer(Block):
 
     def __init__(self, **kwargs):
         """Initialize block."""
-        # TODO complete docstring.
 
         Block.__init__(self, **kwargs)
 
@@ -203,7 +208,7 @@ class Demultiplexer(Block):
         return
 
     def _introspect(self):
-        """Introspection of the demultiplexing."""
+        """Introspection of the demultiplexer."""
 
         nb_buffers = self.counter - self.start_step
         start_times = np.array(self._measured_times.get('start', []))

@@ -1,8 +1,6 @@
-import os
-
-
 def list_modules():
-    # TODO add docstring.
+
+    import os
 
     path = os.path.abspath(__file__)
     path = os.path.dirname(path)
@@ -24,5 +22,6 @@ def list_modules():
 
 
 __all__ = list_modules()
+
 
 from . import *

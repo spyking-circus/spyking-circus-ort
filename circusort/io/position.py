@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*-
 
-import warnings
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore",category=FutureWarning)
-    import h5py
+import h5py
 import numpy as np
 import os
+import sys
 
 from circusort.obj.position import Position
 from circusort.obj.train import Train
+
+if sys.version_info.major == 3:
+    unicode = str  # Python 3 compatibility.
 
 
 def generate_position(x=0.0, y=0.0, train=None, probe=None, **kwargs):
@@ -16,9 +17,9 @@ def generate_position(x=0.0, y=0.0, train=None, probe=None, **kwargs):
 
     Parameters:
         x: float
-            A pregenerated x-coordinate [µm]. The default value is 0.0.
+            A pre-generated x-coordinate [µm]. The default value is 0.0.
         y: float
-            A pregenerated y_coordinate [µm]. The default value is 0.0.
+            A pre-generated y_coordinate [µm]. The default value is 0.0.
         train: none | circusort.obj.Train
             The times to use to generate the position. The default value is None.
         probe: none | circusort.obj.Probe

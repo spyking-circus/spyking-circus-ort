@@ -221,7 +221,7 @@ class TemplateUpdaterBis(Block):
             templates = self._data_to_templates(data)
             accepted, nb_duplicates, nb_mixtures = self._template_dictionary.add(templates)
 
-            # Log some information.
+            # Log debug messages (if necessary).
             if nb_duplicates > 0:
                 # Log debug message.
                 string = "{} rejected {} duplicated templates"
@@ -238,12 +238,20 @@ class TemplateUpdaterBis(Block):
                 message = string.format(self.name, len(accepted))
                 self.log.debug(message)
 
-            # Update and precompute the overlaps.
+            # Update and pre-compute the overlaps.
             self._overlap_store.update(accepted)
             self._overlap_store.compute_overlaps()
+            # Log debug message.
+            string = "{} updates and pre-computes the overlaps"
+            message = string.format(self.name_and_counter)
+            self.log.debug(message)
 
             # Save precomputed overlaps to disk.
             self._overlap_store.save_overlaps()
+            # Log debug message.
+            string = "{} saves precomputed overlaps"
+            message = string.format(self.name_and_counter)
+            self.log.debug(message)
 
             # Prepare output data.
             output_data = {
@@ -256,7 +264,12 @@ class TemplateUpdaterBis(Block):
                 'number': templates_packet['number'],
                 'payload': output_data,
             }
+            # Send output packet.
             self.get_output('updater').send(output_packet)
+            # Log debug message.
+            string = "{} sends output packet"
+            message = string.format(self.name_and_counter)
+            self.log.debug(message)
 
             self._measure_time('end', frequency=1)
 

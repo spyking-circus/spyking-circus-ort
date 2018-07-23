@@ -1,10 +1,12 @@
 import argparse
-import ConfigParser as configparser
+try:
+    from ConfigParser import ConfigParser  # Python 2 compatibility.
+except ImportError:  # i.e. ModuleNotFoundError
+    from configparser import ConfigParser  # Python 3 compatibility.
 import os
 
 
 def parse_parameters():
-    # TODO add docstring.
 
     # 1. Parse command line.
     parser = argparse.ArgumentParser()
@@ -45,7 +47,6 @@ def parse_parameters():
 
 
 def find_parameters_path(directory):
-    # TODO add docstring
 
     parameters_filenames = [
         "parameters.txt",
@@ -73,7 +74,7 @@ def parse_parameters_file(path):
     """
 
     # Read parameters file from disk.
-    parser = configparser.ConfigParser()
+    parser = ConfigParser()
     parser.read(path)
 
     # Remove comments at the end of each line.
@@ -84,7 +85,6 @@ def parse_parameters_file(path):
             word = words[0]  # keep value
             value = word.strip()  # remove leading and trailing characters
             parser.set(section, option, value)  # set value
-
 
     # Data types of the configuration values.
     types = {

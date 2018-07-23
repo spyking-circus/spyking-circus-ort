@@ -15,10 +15,8 @@ warnings.filterwarnings("ignore")
 class MacroCluster(object):
     """Macro cluster"""
 
-    # TODO complete docstring.
-
-    def __init__(self, id, pca_data, data, creation_time=0):
-        self.id = id
+    def __init__(self, id_, pca_data, data, creation_time=0):
+        self.id = id_
         self.density = len(pca_data)
         self.sum_pca = np.sum(pca_data, 0)
         self.sum_pca_sq = np.sum(pca_data ** 2, 0)
@@ -29,18 +27,24 @@ class MacroCluster(object):
         self.cluster_id = -1
 
     def set_label(self, label):
+
         assert label in ['sparse', 'dense']
         self.label = label
 
+        return
+
     @property
     def is_sparse(self):
+
         return self.label == 'sparse'
 
     @property
     def is_dense(self):
+
         return self.label == 'dense'
 
     def add_and_update(self, pca_data, data, time, decay_factor):
+
         factor = 2 ** (-decay_factor * (time - self.last_update))
         self.density = factor * self.density + 1.
         self.sum_pca = factor * self.sum_pca + pca_data
@@ -48,7 +52,10 @@ class MacroCluster(object):
         self.sum_full = factor * self.sum_full + data
         self.last_update = time
 
+        return
+
     def update(self, time, decay_factor):
+
         factor = 2 ** (-decay_factor * (time - self.last_update))
         self.density = factor * self.density
         self.sum_pca = factor * self.sum_pca
@@ -56,26 +63,35 @@ class MacroCluster(object):
         self.sum_full = factor * self.sum_full
         self.last_update = time
 
+        return
+
     def remove(self, pca_data, data):
+
         self.density -= 1
         self.sum_pca -= pca_data
         self.sum_pca_sq -= pca_data ** 2
         self.sum_full -= data
 
+        return
+
     @property
     def center(self):
+
         return self.sum_pca / self.density
 
     @property
     def center_full(self):
+
         return self.sum_full / self.density
 
     @property
     def radius(self):
+
         return np.sqrt((self.sum_pca_sq / self.density - self.center ** 2).max())
 
     @property
     def description(self):
+
         return [self.center, self.radius]
 
 
@@ -123,12 +139,14 @@ class OnlineManager(object):
         self.log.debug('{n} is created'.format(n=self.name))
 
     @property
-    def D_threshold(self):
+    def d_threshold(self):
+
         return self.mu * self.beta
 
     @property
     def time_gap(self):
-        return np.ceil((1 / self.decay_factor) * np.log(self.D_threshold / (self.D_threshold - 1)))
+
+        return np.ceil((1 / self.decay_factor) * np.log(self.d_threshold / (self.d_threshold - 1)))
 
     def initialize(self, time, data):
 
@@ -195,7 +213,7 @@ class OnlineManager(object):
             self.epsilon = epsilon / 5.
 
         for cluster in self.clusters.values():
-            if cluster.density >= self.D_threshold:
+            if cluster.density >= self.d_threshold:
                 cluster.set_label('dense')
             else:
                 cluster.set_label('sparse')
@@ -210,59 +228,75 @@ class OnlineManager(object):
 
     @property
     def nb_sparse(self):
+
         return len(self.sparse_clusters)
 
     @property
     def nb_dense(self):
+
         return len(self.dense_clusters)
 
     @property
     def nb_clusters(self):
+
         return len(self.clusters)
 
     @property
     def dense_clusters(self):
+
         return [i for i in self.clusters.values() if i.is_dense]
 
     @property
     def sparse_clusters(self):
+
         return [i for i in self.clusters.values() if i.is_sparse]
 
     def _update_clusters(self):
+
         for cluster in self.clusters.values():
             cluster.update(self.time, self.decay_factor)
 
+        return
+
     def _get_id(self):
+
         if len(self.clusters) > 0:
-            return np.max(self.clusters.keys()) + 1
+            return np.max(list(self.clusters.keys())) + 1
         else:
             return 0
 
     def _get_tracking_id(self):
+
         if len(self.tracking) > 0:
-            return np.max(self.tracking.keys()) + 1
+            return np.max(list(self.tracking.keys())) + 1
         else:
             return 0
 
     def _get_clusters(self, cluster_type):
+
         if cluster_type == 'sparse':
             return self.sparse_clusters
         elif cluster_type == 'dense':
             return self.dense_clusters
 
     def _get_centers(self, cluster_type='dense'):
+
         centers = np.zeros((0, self.sub_dim), dtype=np.float32)
         for cluster in self._get_clusters(cluster_type):
             centers = np.vstack((centers, [cluster.center]))
+
         return centers
 
     def _get_centers_full(self, cluster_type='dense'):
+
         centers = np.zeros((0, self._width), dtype=np.float32)
         for cluster in self._get_clusters(cluster_type):
             centers = np.vstack((centers, [cluster.center_full]))
+
         return centers
 
     def _get_nearest_cluster(self, data, cluster_type='dense'):
+
         centers = self._get_centers(cluster_type)
         if len(centers) == 0:
             return None
@@ -272,6 +306,7 @@ class OnlineManager(object):
             return cluster
 
     def _get_template(self, data):
+
         waveforms = np.median(data, 0)
         amplitudes, full_ = self._compute_amplitudes(data, waveforms)
 
@@ -297,7 +332,7 @@ class OnlineManager(object):
             merged = cluster.radius <= self.epsilon
 
             if merged:
-                if cluster.density >= self.D_threshold:
+                if cluster.density >= self.d_threshold:
                     cluster.set_label('dense')
             else:
                 cluster.remove(pca_data[0], data[0])
@@ -310,7 +345,7 @@ class OnlineManager(object):
 
         count = 0
         for cluster in self.dense_clusters:
-            if cluster.density < self.D_threshold:
+            if cluster.density < self.d_threshold:
                 cluster.set_label('sparse')
                 count += 1
 
@@ -339,7 +374,10 @@ class OnlineManager(object):
         if count > 0:
             self.log.debug("{n} prunes {m} sparse clusters...".format(n=self.name, m=count))
 
+        return
+
     def time_to_cluster(self, nb_updates):
+
         return self.is_ready and self.nb_updates >= nb_updates
 
     def update(self, time, data=None):
@@ -385,6 +423,8 @@ class OnlineManager(object):
         if np.mod(self.time, self.time_gap) < 1:
             self._prune()
 
+        return
+
     def _perform_tracking(self, new_clusters):
 
         new_templates = {}
@@ -393,7 +433,7 @@ class OnlineManager(object):
         if len(self.tracking) > 0:
             all_centers = np.array([i[0] for i in self.tracking.values()], dtype=np.float32)
             all_sigmas = np.array([i[1] for i in self.tracking.values()], dtype=np.float32)
-            all_indices = self.tracking.keys()
+            all_indices = list(self.tracking.keys())
 
             for cluster in new_clusters:
                 cluster_id = cluster.cluster_id
@@ -432,9 +472,13 @@ class OnlineManager(object):
         return new_templates, modified_templates
 
     def set_physical_threshold(self, threshold):
+
         self.physical_threshold = self.noise_thr * threshold
 
+        return
+
     def _compute_amplitudes(self, data, template):
+
         # # We could to this in the PCA space, to speed up the computation
         temp_flat = template.reshape(template.size, 1)
         amplitudes = np.dot(data, temp_flat)
@@ -516,6 +560,7 @@ class OnlineManager(object):
 
 
 def fit_rho_delta(xdata, ydata, smart_select=False, max_clusters=10):
+
     if smart_select:
 
         xmax = xdata.max()
@@ -542,6 +587,7 @@ def fit_rho_delta(xdata, ydata, smart_select=False, max_clusters=10):
 
 
 def rho_estimation(data, mratio=0.01):
+
     N = len(data)
     rho = np.zeros(N, dtype=np.float32)
     didx = lambda i, j: i * N + j - i * (i + 1) // 2 - i - 1
@@ -558,6 +604,7 @@ def rho_estimation(data, mratio=0.01):
 
 
 def density_based_clustering(rho, dist, smart_select=True, n_min=None, max_clusters=10):
+
     N = len(rho)
     maxd = np.max(dist)
     didx = lambda i, j: i * N + j - i * (i + 1) // 2 - i - 1
@@ -608,16 +655,17 @@ def density_based_clustering(rho, dist, smart_select=True, n_min=None, max_clust
 
 
 def greedy_merges(data, labels, local_merges):
+
     def do_merging(data, labels, clusters, local_merges):
 
         dmin = np.inf
         to_merge = [None, None]
 
-        for ic1 in xrange(len(clusters)):
+        for ic1 in range(len(clusters)):
             idx1 = np.where(labels == clusters[ic1])[0]
             sd1 = np.take(data, idx1, axis=0)
             m1 = np.median(sd1, 0)
-            for ic2 in xrange(ic1 + 1, len(clusters)):
+            for ic2 in range(ic1 + 1, len(clusters)):
                 idx2 = np.where(labels == clusters[ic2])[0]
                 sd2 = np.take(data, idx2, axis=0)
                 m2 = np.median(sd2, 0)

@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import os
 import numpy as np
 
+from collections import OrderedDict
+
 from circusort.obj.matches import Matches
 from circusort.obj.similarities import Similarities
 from circusort.io.parameter.cells import get_cells_parameters
@@ -40,46 +42,40 @@ class Cells(object):
     @property
     def ids(self):
 
-        return self.cells.keys()
+        return list(self.cells.keys())
 
     def __getitem__(self, identifier):
-        # TODO add docstring.
 
         cell = self.cells[identifier]
 
         return cell
 
     def __iter__(self):
-        # TODO add docstring.
 
-        iterator = self.values()
+        iterator = iter(self.values())
 
         return iterator
 
     def keys(self):
-        # TODO add docstring.
 
-        iterator = self.cells.iterkeys()
+        iterator = self.cells.keys()
 
         return iterator
 
     def values(self):
-        # TODO add docstring.
 
-        iterator = self.cells.itervalues()
+        iterator = self.cells.values()
 
         return iterator
 
     def items(self):
-        # TODO add docstring.
 
-        iterator = self.cells.iteritems()
+        iterator = self.cells.items()
 
         return iterator
 
     @property
     def nb_cells(self):
-        # TODO add docstring.
 
         nb_cells = len(self.cells)
 
@@ -87,7 +83,7 @@ class Cells(object):
 
     def slice_by_ids(self, indices):
         
-        cells = {}
+        cells = OrderedDict()
         for key in indices:
             if key in self.ids:
                 cells[key] = self.cells[key]
@@ -96,7 +92,7 @@ class Cells(object):
 
     def slice_by_time(self, t_min=None, t_max=None):
 
-        cells = {}
+        cells = OrderedDict()
         for key, value in self.items():
             cells[key] = value.slice(t_min, t_max)
 
@@ -127,10 +123,14 @@ class Cells(object):
         for c in self:
             c.train = c.train.slice(t_min, self.t_max)
 
+        return
+
     def set_t_max(self, t_max):
 
         for c in self:
             c.train = c.train.slice(self.t_min, t_max)
+
+        return
 
     def save(self, path, mode='default', **kwargs):
         """Save cells to files.
@@ -194,7 +194,6 @@ class Cells(object):
         return result
 
     def plot(self, output=None, **kwargs):
-        # TODO add docstring.
 
         if output is None:
             raise NotImplementedError()  # TODO complete.
@@ -225,7 +224,6 @@ class Cells(object):
         return
 
     def plot_rates(self, output=None, ax=None, **kwargs):
-        # TODO add docstring.
 
         if output is not None and ax is None:
             plt.ioff()
@@ -262,7 +260,6 @@ class Cells(object):
         return
 
     def plot_trains(self, output=None, ax=None, **kwargs):
-        # TODO add docstring.
 
         if output is not None and ax is None:
             plt.ioff()
@@ -289,7 +286,6 @@ class Cells(object):
         return
 
     def _plot_positions(self, ax, probe=None, **kwargs):
-        # TODO add docstring.
 
         if probe is not None:
             probe.plot(ax=ax, **kwargs)
@@ -302,7 +298,6 @@ class Cells(object):
         return
 
     def plot_positions(self, output=None, ax=None, **kwargs):
-        # TODO add docstring.
 
         if output is not None and ax is None:
             plt.ioff()

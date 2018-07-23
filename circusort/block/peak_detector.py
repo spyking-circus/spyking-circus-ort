@@ -30,9 +30,7 @@ class PeakDetector(Block):
             'negative' -> np.ndarray (optional)
                 Time step of each negative peak detected in the chunk.
         dict
-
     """
-    # TODO complete docstring.
 
     name = "Peak detector"
 
@@ -72,7 +70,7 @@ class PeakDetector(Block):
         self._spike_width_ = int(self.sampling_rate * self.spike_width * 1e-3)
         if np.mod(self._spike_width_, 2) == 0:
             self._spike_width_ += 1
-        self._width = self._spike_width_ / 2
+        self._width = self._spike_width_ // 2
         if self.safety_time == 'auto':
             self.safety_time = self._width
         else:
@@ -254,7 +252,6 @@ class PeakDetector(Block):
         return
 
     def _introspect(self):
-        # TODO add docstring.
 
         nb_buffers = self.counter - self.start_step
         start_times = np.array(self._measured_times.get('start', []))

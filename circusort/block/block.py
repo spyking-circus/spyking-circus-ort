@@ -2,16 +2,19 @@ import threading
 import traceback
 import zmq
 import logging
+import sys
 import time
 
 from circusort.base.endpoint import Endpoint, EOCError, LOCError
 from circusort.base.utils import get_log
 from circusort.io.time_measurements import save_time_measurements
 
+if sys.version_info.major == 3:
+    unicode = str  # Python 3 compatibility.
+
 
 class Block(threading.Thread):
     """Block base class."""
-    # TODO complete docstring.
 
     name = "Block"
     params = {}
@@ -29,7 +32,6 @@ class Block(threading.Thread):
             log_level: integer (optional)
                 The default value is logging.INFO.
         """
-        # TODO add docstring.
 
         threading.Thread.__init__(self)
 
@@ -114,7 +116,7 @@ class Block(threading.Thread):
     def input(self):
 
         if len(self.inputs) == 1:
-            input_ = self.inputs[self.inputs.keys()[0]]
+            input_ = self.inputs[list(self.inputs.keys())[0]]
         elif len(self.inputs) == 0:
             # Log error message.
             string = "{} has no inputs"
@@ -136,7 +138,7 @@ class Block(threading.Thread):
     def output(self):
 
         if len(self.outputs) == 1:
-            output = self.outputs[self.outputs.keys()[0]]
+            output = self.outputs[list(self.outputs.keys())[0]]
         elif len(self.outputs) == 0:
             # Log error message.
             string = "{} has no outputs"
@@ -182,7 +184,7 @@ class Block(threading.Thread):
         self.get_input(key).socket = self.context.socket(zmq.SUB)
         self.get_input(key).socket.setsockopt(zmq.RCVTIMEO, self._timeout)
         self.get_input(key).socket.connect(self.get_input(key).addr)
-        self.get_input(key).socket.setsockopt(zmq.SUBSCRIBE, "")
+        self.get_input(key).socket.setsockopt_string(zmq.SUBSCRIBE, unicode(""))
 
         return
 
@@ -288,13 +290,13 @@ class Block(threading.Thread):
                         self._process()
                         self.counter += 1
                 except (LOCError, EOCError):
-                    for output in self.outputs.itervalues():
+                    for output in self.outputs.values():
                         output.send_end_connection()
                     self.stop_pending = True
                     self.running = False
                 if self.running and self.stop_pending and self.nb_inputs == 0:
                     # In this condition, the block is a source block.
-                    for output in self.outputs.itervalues():
+                    for output in self.outputs.values():
                         output.send_end_connection()
                     self.running = False
                 try:
@@ -304,14 +306,14 @@ class Block(threading.Thread):
                         # if numpy.mod(self.counter, self.check_interval) == 0:
                         #     self._check_real_time_ratio()
                 except (LOCError, EOCError):
-                    for output in self.outputs.itervalues():
+                    for output in self.outputs.values():
                         output.send_end_connection()
                     self.running = False
 
         except Exception as e:  # i.e. unexpected exception
 
             # Send EOC signal through each output.
-            for output in self.outputs.itervalues():
+            for output in self.outputs.values():
                 output.send_end_connection()
             # Switch running flag.
             self.running = False
@@ -465,7 +467,7 @@ class Block(threading.Thread):
             "Block object {} with params:".format(self.name),
         ] + [
             "    {}: {}".format(key, value)
-            for key, value in self.params.iteritems()
+            for key, value in self.params.items()
         ]
         string = "\n".join(lines)
 
