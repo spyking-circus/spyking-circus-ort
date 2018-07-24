@@ -207,6 +207,7 @@ class TemplateDictionary(object):
             self._init_from_template(template)
 
         if force:
+            # Add all the given templates without checking duplicates and mixtures.
 
             for t in templates:
 
@@ -228,16 +229,23 @@ class TemplateDictionary(object):
                 else:
                     non_zeros = None
 
+                # Check if the template is already in this dictionary.
                 is_present = self._is_present(csr_template, non_zeros)
-                is_mixture = self._is_mixture(csr_template, non_zeros)
-
                 if is_present:
                     nb_duplicates += 1
                     self._add_duplicates(t)
 
-                if is_mixture:
-                    nb_mixtures += 1
-                    self._add_mixtures(t)
+                # TODO Removing mixture online is difficult.
+                # TODO Some mixture might have been added before the templates which compose this mixture.
+                # TODO For now, let's say that there is no mixture in the signal.
+
+                # # Check if the template is a mixture of templates already present in the dictionary.
+                # is_mixture = self._is_mixture(csr_template, non_zeros)
+                # if is_mixture:
+                #     nb_mixtures += 1
+                #     self._add_mixtures(t)
+
+                is_mixture = False
 
                 if not is_present and not is_mixture:
                     accepted += self._add_template(t)
