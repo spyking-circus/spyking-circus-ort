@@ -301,7 +301,7 @@ class TemplateStore(object):
             self.h5_file.create_dataset('amplitudes/%d' % gidx, data=t.amplitudes,
                                         compression=self.compression)
 
-            if t.compressed:
+            if t.is_compressed:
                 self.h5_file.create_dataset('compressed/%d' % gidx, data=t.indices,
                                             compression=self.compression)
 
@@ -378,8 +378,8 @@ class TemplateStore(object):
             else:
                 second_component = None
 
-            template = Template(first_component, channel, second_component, creation_time=int(times[idx_pos]))
-            template.compressed = compressed
+            template = Template(first_component, channel=channel, second_component=second_component,
+                                creation_time=int(times[idx_pos]), compressed=compressed)
             result += [template]
 
         self._close()

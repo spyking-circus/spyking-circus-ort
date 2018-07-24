@@ -161,8 +161,8 @@ def load_template(path):
         second_component = TemplateComponent(waveforms, channels, nb_channels)
 
     f.close()
-    template = Template(first_component, channel, second_component, creation_time=creation_time, path=path)
-    template.compressed = compressed
+    template = Template(first_component, channel, second_component, creation_time=creation_time,
+                        compressed=compressed, path=path)
 
     return template
 
@@ -223,7 +223,7 @@ def load_template_from_dict(template_dict, probe):
     else:
         second_component = None
 
-    template = Template(first_component, channel, second_component, creation_time)
-    template.compressed = compressed
+    template = Template(first_component, channel=channel, second_component=second_component,
+                        creation_time=creation_time, compressed=compressed)
 
     return template
