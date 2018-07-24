@@ -52,6 +52,7 @@ class DensityClustering(Block):
         'compression': 0.5,
         'local_merges': 3,
         'debug_plots': None,
+        'debug_ground_truth_templates': None,
         'debug_data': None
     }
 
@@ -82,6 +83,7 @@ class DensityClustering(Block):
         self.compression = self.compression
         self.local_merges = self.local_merges
         self.debug_plots = self.debug_plots
+        self.debug_ground_truth_templates = self.debug_ground_truth_templates
         self.debug_data = self.debug_data
 
         if self.probe_path is None:
@@ -101,6 +103,10 @@ class DensityClustering(Block):
                 if os.path.exists(directory):
                     shutil.rmtree(directory)
                 os.makedirs(directory)
+                # Log info message.
+                string = "{} creates directory {}"
+                message = string.format(self.name, directory)
+                self.log.info(message)
 
         self.add_input('data', structure='dict')
         self.add_input('pcs', structure='dict')
@@ -319,6 +325,7 @@ class DensityClustering(Block):
                     'logger': self.log,
                     'two_components': self.two_components,
                     'debug_plots': self.debug_plots,
+                    'debug_ground_truth_templates': self.debug_ground_truth_templates,
                     'local_merges': self.local_merges
                 }
 
@@ -416,46 +423,50 @@ class DensityClustering(Block):
                             self._remove_nn_peaks(key, peak_idx, channel)
 
                             if channel in self.channels:
-                                waveforms = self._get_snippet(batch, channel, peak, is_neg).T
-                                waveforms = waveforms.reshape(1, waveforms.shape[0], waveforms.shape[1])
+                                snippet = self._get_snippet(batch, channel, peak, is_neg).T
+                                snippet = snippet.reshape(1, snippet.shape[0], snippet.shape[1])
                                 if is_neg:
                                     key = 'negative'
                                 else:
                                     key = 'positive'
 
-                                if not self.managers[key][channel].is_ready:
-                                    self.raw_data[key][channel] = np.vstack((self.raw_data[key][channel], waveforms))
+                                online_manager = self.managers[key][channel]
+                                if not online_manager.is_ready:
+                                    self.raw_data[key][channel] = np.vstack((self.raw_data[key][channel], snippet))
                                 else:
-                                    self.managers[key][channel].update(self.counter, waveforms)
+                                    online_manager.update(self.counter, snippet)
                                 if self.debug_data is not None:
                                     self.times[key][channel] += [offset + peak_idx]
 
                     for channel in self.channels:
 
+                        online_manager = self.managers[key][channel]
+
                         threshold = self.threshold_factor * self.thresholds[0, channel]
-                        self.managers[key][channel].set_physical_threshold(threshold)
+                        online_manager.set_physical_threshold(threshold)
 
                         # Log debug message (if necessary).
                         if self.counter % 50 == 0:
+                            nb_peaks = len(self.raw_data[key][channel])
                             string = "{} We have collected {} {} peaks on channel {}"
-                            message = string.format(self.name_and_counter, len(self.raw_data[key][channel]), key, channel)
+                            message = string.format(self.name_and_counter, nb_peaks, key, channel)
                             self.log.debug(message)
 
-                        if len(self.raw_data[key][channel]) >= \
-                                self.nb_waveforms and not self.managers[key][channel].is_ready:
+                        if len(self.raw_data[key][channel]) >= self.nb_waveforms and not online_manager.is_ready:
                             # Log debug message.
                             string = "{n} Electrode {k} has obtained {m} {t} waveforms: clustering"
                             message = string.format(n=self.name_and_counter, k=channel, m=self.nb_waveforms, t=key)
                             self.log.debug(message)
-                            templates = self.managers[key][channel].initialize(self.counter,
-                                                                               self.raw_data[key][channel])
+                            # First clustering.
+                            templates = online_manager.initialize(self.counter, self.raw_data[key][channel])
                             self._prepare_templates(templates, key, channel)
-                        elif self.managers[key][channel].time_to_cluster(self.nb_waveforms):
+                        elif self.managers[key][channel].time_to_cluster(nb_updates=self.nb_waveforms):
                             # Log debug message.
                             string = "{n} Electrode {k} has obtained {m} {t} waveforms: re-clustering"
                             message = string.format(n=self.name_and_counter, k=channel, m=self.nb_waveforms, t=key)
                             self.log.debug(message)
-                            templates = self.managers[key][channel].cluster(tracking=self.tracking)
+                            # Re-clustering.
+                            templates = online_manager.cluster(tracking=self.tracking)
                             self._prepare_templates(templates, key, channel)
 
                 if len(self.to_reset) > 0:
