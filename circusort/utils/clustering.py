@@ -139,6 +139,9 @@ class OnlineManager(object):
         else:
             self.log = logger
 
+        self._physical_threshold = None
+        self._pc_lim = None
+
         # Log debug message
         string = "{} is created"
         message = string.format(self.name)
@@ -196,7 +199,7 @@ class OnlineManager(object):
         else:
             output = None
 
-        labels = density_clustering(sub_data, n_min=n_min, output=output, local_merges=self.local_merges)
+        labels = self.density_clustering(sub_data, n_min=n_min, output=output, local_merges=self.local_merges)
 
         self.W = len(sub_data) / float(self.time / 20000.)
         self.mu = self.W / 1000.
@@ -240,7 +243,7 @@ class OnlineManager(object):
         if self.debug_plots is not None:
             # Plot tracking.
             path = self.fig_name_2.format(n=self.name, t=self.time)
-            plot_tracking(self.dense_clusters, path)
+            self.plot_tracking(self.dense_clusters, path)
             # Log info message.
             string = "{} creates output {}"
             message = string.format(self.name, path)
@@ -538,7 +541,7 @@ class OnlineManager(object):
 
     def set_physical_threshold(self, threshold):
 
-        self.physical_threshold = self.noise_thr * threshold
+        self._physical_threshold = self.noise_thr * threshold
 
         return
 
@@ -550,12 +553,13 @@ class OnlineManager(object):
         amplitudes /= np.sum(temp_flat ** 2)
         variation = np.median(np.abs(amplitudes - np.median(amplitudes)))
 
-        amp_min = min(0.8, max(self.physical_threshold, np.median(amplitudes) - self.dispersion[0] * variation))
+        amp_min = min(0.8, max(self._physical_threshold, np.median(amplitudes) - self.dispersion[0] * variation))
         amp_max = max(1.2, np.median(amplitudes) + self.dispersion[1] * variation)
 
         return np.array([amp_min, amp_max], dtype=np.float32), amplitudes
 
-    def _compute_second_component(self, data, waveforms, amplitudes=None):
+    @staticmethod
+    def _compute_second_component(data, waveforms, amplitudes=None):
 
         temp_flat = waveforms.reshape(waveforms.size, 1)
         if amplitudes is None:
@@ -589,7 +593,7 @@ class OnlineManager(object):
         else:
             output = None
 
-        labels = density_clustering(centers, n_min=None, output=output, local_merges=self.local_merges)
+        labels = self.density_clustering(centers, n_min=None, output=output, local_merges=self.local_merges)
 
         self.nb_updates = 0
 
@@ -624,7 +628,7 @@ class OnlineManager(object):
 
         if self.debug_plots is not None:
             path = self.fig_name_2.format(n=self.name, t=self.time)
-            plot_tracking(clusters, path)
+            self.plot_tracking(clusters, path)
             # Log info message.
             string = "{} creates output {}"
             message = string.format(self.name, path)
@@ -632,7 +636,158 @@ class OnlineManager(object):
 
         return templates
 
-    def plot_ground_truth(self, marker_size=10, marker_color='C0'):
+    def density_clustering(self, data, n_min=None, output=None, local_merges=None):
+
+        rhos, dist, _ = rho_estimation(data)
+        if len(rhos) == 1:
+            labels, c = np.array([0]), np.array([0])
+        elif len(rhos) > 1:
+            rhos = -rhos + rhos.max()
+            labels, c = density_based_clustering(rhos, dist, n_min)
+        else:
+            labels, c = np.array([]), np.array([])
+
+        if local_merges is not None:
+            labels, merged = greedy_merges(data, labels, local_merges)
+
+        if output is not None:
+            self.plot_cluster(data, labels, output)
+
+        return labels
+
+    def _compute_pc_limits(self, data):
+
+        self._pc_lim = []
+        for k in range(0, data.shape[1]):
+            pc_min = np.min(data[:, k])
+            pc_max = np.max(data[:, k])
+            pc_range = pc_max - pc_min
+            pc_min = pc_min - 0.1 * pc_range
+            pc_max = pc_max + 0.1 * pc_range
+            self._pc_lim.append((pc_min, pc_max))
+
+        return
+
+    def plot_cluster(self, data, labels, output, marker_size=10):
+
+        if self._pc_lim is None:
+            self._compute_pc_limits(data)
+
+        # 1st subplot.
+        k_1, k_2 = 0, 1  # pair of principal components
+        ax = plt.subplot(221)
+        for color in np.unique(labels):
+            c = 'C{}'.format(color % 10)
+            idx = np.where(labels == color)[0]
+            ax.scatter(data[idx, k_1], data[idx, k_2], s=marker_size, c=c)
+        ax.set_xlim(*self._pc_lim[k_1])
+        ax.set_ylim(*self._pc_lim[k_2])
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_xlabel("PC{}".format(k_1))
+        ax.set_ylabel("PC{}".format(k_2))
+        # 2nd subplot.
+        k_1, k_2 = 2, 1
+        ax = plt.subplot(222)
+        for color in np.unique(labels):
+            c = 'C{}'.format(color % 10)
+            idx = np.where(labels == color)[0]
+            ax.scatter(data[idx, k_1], data[idx, k_2], s=marker_size, c=c)
+        ax.set_xlim(*self._pc_lim[k_1])
+        ax.set_ylim(*self._pc_lim[k_2])
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_xlabel("PC{}".format(k_1))
+        ax.set_ylabel("PC{}".format(k_2))
+        # 3rd subplot.
+        k_1, k_2 = 0, 2
+        ax = plt.subplot(223)
+        for color in np.unique(labels):
+            c = 'C{}'.format(color % 10)
+            idx = np.where(labels == color)[0]
+            ax.scatter(data[idx, k_1], data[idx, k_2], s=marker_size, c=c)
+        ax.set_xlim(*self._pc_lim[k_1])
+        ax.set_ylim(*self._pc_lim[k_2])
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_xlabel("PC{}".format(k_1))
+        ax.set_ylabel("PC{}".format(k_2))
+
+        plt.savefig(output)
+        plt.close()
+
+        return
+
+    def plot_tracking(self, dense_clusters, output):
+
+        centers = []
+        sigmas = []
+        colors = []
+        for item in dense_clusters:
+            colors += [item.cluster_id]
+            centers += [item.description[0]]
+            sigmas += [item.description[1]]
+        centers = np.array(centers)
+        sigmas = np.array(sigmas)
+        colors = np.array(colors, dtype=np.int32)
+
+        if len(centers) > 0:
+
+            s_max = sigmas.max()
+            marker_size = 10
+            marker = '+'
+
+            k_1, k_2 = 0, 1  # pair of principal components
+            for center, sigma, color in zip(centers, sigmas, colors):
+                ax = plt.subplot(2, 2, 1)
+                c = 'C{}'.format(color % 10)
+                circle = plt.Circle((center[k_1], center[k_2]), sigma, color=c, fill=True, alpha=0.5)
+                ax.add_artist(circle)
+                plt.scatter(centers[:, k_1], centers[:, k_2], s=marker_size, c='k', marker=marker)
+                if self._pc_lim is not None:
+                    ax.set_xlim(*self._pc_lim[k_1])
+                    ax.set_ylim(*self._pc_lim[k_2])
+                ax.set_xticks([])
+                ax.set_yticks([])
+                ax.set_xlabel("PC{}".format(k_1))
+                ax.set_ylabel("PC{}".format(k_2))
+
+            k_1, k_2 = 2, 1  # pair of principal components
+            for center, sigma, color in zip(centers, sigmas, colors):
+                ax = plt.subplot(2, 2, 2)
+                c = 'C{}'.format(color % 10)
+                circle = plt.Circle((center[k_1], center[k_2]), sigma, color=c, fill=True, alpha=0.5)
+                ax.add_artist(circle)
+                plt.scatter(centers[:, k_1], centers[:, k_2], s=marker_size, c='k', marker=marker)
+                if self._pc_lim is not None:
+                    ax.set_xlim(*self._pc_lim[k_1])
+                    ax.set_ylim(*self._pc_lim[k_2])
+                ax.set_xticks([])
+                ax.set_yticks([])
+                ax.set_xlabel("PC{}".format(k_1))
+                ax.set_ylabel("PC{}".format(k_2))
+
+            k_1, k_2 = 0, 2  # pair of principal components
+            for center, sigma, color in zip(centers, sigmas, colors):
+                ax = plt.subplot(2, 2, 3)
+                c = 'C{}'.format(color % 10)
+                circle = plt.Circle((center[k_1], center[k_2]), sigma, color=c, fill=True, alpha=0.5)
+                ax.add_artist(circle)
+                plt.scatter(centers[:, k_1], centers[:, k_2], s=marker_size, c='k', marker=marker)
+                if self._pc_lim is not None:
+                    ax.set_xlim(*self._pc_lim[k_1])
+                    ax.set_ylim(*self._pc_lim[k_2])
+                ax.set_xticks([])
+                ax.set_yticks([])
+                ax.set_xlabel("PC{}".format(k_1))
+                ax.set_ylabel("PC{}".format(k_2))
+
+        plt.savefig(output)
+        plt.close()
+
+        return
+
+    def plot_ground_truth(self, marker_size=10):
 
         templates = [
             load_template(path)
@@ -645,10 +800,20 @@ class OnlineManager(object):
 
         reduced_data = self.reduce_data(data)
 
+        marker_colors = [
+            'C{}'.format(k % 10)
+            for k in range(0, reduced_data.shape[0])
+        ]
+
+        if self._pc_lim is None:
+            self._compute_pc_limits(reduced_data)
+
         # 1st subplot.
         k_1, k_2 = 0, 1  # pair of principal components
         ax = plt.subplot(2, 2, 1)
-        ax.scatter(reduced_data[:, k_1], reduced_data[:, k_2], s=marker_size, c=marker_color)
+        ax.scatter(reduced_data[:, k_1], reduced_data[:, k_2], s=marker_size, c=marker_colors)
+        ax.set_xlim(*self._pc_lim[k_1])
+        ax.set_ylim(*self._pc_lim[k_2])
         ax.set_xticks([])
         ax.set_yticks([])
         ax.set_xlabel("PC{}".format(k_1))
@@ -656,7 +821,9 @@ class OnlineManager(object):
         # 2nd subplot.
         k_1, k_2 = 2, 1
         ax = plt.subplot(2, 2, 2)
-        ax.scatter(reduced_data[:, k_1], reduced_data[:, k_2], s=marker_size, c=marker_color)
+        ax.scatter(reduced_data[:, k_1], reduced_data[:, k_2], s=marker_size, c=marker_colors)
+        ax.set_xlim(*self._pc_lim[k_1])
+        ax.set_ylim(*self._pc_lim[k_2])
         ax.set_xticks([])
         ax.set_yticks([])
         ax.set_xlabel("PC{}".format(k_1))
@@ -664,7 +831,9 @@ class OnlineManager(object):
         # 3rd subplot.
         k_1, k_2 = 0, 2
         ax = plt.subplot(2, 2, 3)
-        ax.scatter(reduced_data[:, k_1], reduced_data[:, k_2], s=marker_size, c=marker_color)
+        ax.scatter(reduced_data[:, k_1], reduced_data[:, k_2], s=marker_size, c=marker_colors)
+        ax.set_xlim(*self._pc_lim[k_1])
+        ax.set_ylim(*self._pc_lim[k_2])
         ax.set_xticks([])
         ax.set_yticks([])
         ax.set_xlabel("PC{}".format(k_1))
@@ -688,7 +857,7 @@ def fit_rho_delta(xdata, ydata, smart_select=False, max_clusters=10):
         a_0 = (ydata[idx] - off) / np.log(1 + (xmax - xdata[idx]))
 
         def myfunc(x, a, b, c, d):
-            return a * np.log(1. + c * ((xmax - x) ** b)) + d
+            return a * np.log(1. + c * ((xmax - x) ** b)) + d  # TODO fix runtime warning...
 
         try:
             result, pcov = scipy.optimize.curve_fit(myfunc, xdata, ydata, p0=[a_0, 1., 1., off])
@@ -817,150 +986,6 @@ def greedy_merges(data, labels, local_merges):
             merged[1] += 1
     return labels, merged
 
-
-def density_clustering(data, n_min=None, output=None, local_merges=None):
-
-    rhos, dist, _ = rho_estimation(data)
-    if len(rhos) == 1:
-        labels, c = np.array([0]), np.array([0])
-    elif len(rhos) > 1:
-        rhos = -rhos + rhos.max()
-        labels, c = density_based_clustering(rhos, dist, n_min)
-    else:
-        labels, c = np.array([]), np.array([])
-
-    if local_merges is not None:
-        labels, merged = greedy_merges(data, labels, local_merges)
-
-    if output is not None:
-        plot_cluster(data, labels, output)
-
-    return labels
-
-
-def plot_cluster(data, labels, output, marker_size=10):
-
-    # 1st subplot.
-    k_1, k_2 = 0, 1  # pair of principal components
-    ax = plt.subplot(221)
-    for color in np.unique(labels):
-        c = 'C{}'.format(color % 10)
-        idx = np.where(labels == color)[0]
-        ax.scatter(data[idx, k_1], data[idx, k_2], s=marker_size, c=c)
-    ax.set_xticks([])
-    ax.set_yticks([])
-    ax.set_xlabel("PC{}".format(k_1))
-    ax.set_ylabel("PC{}".format(k_2))
-    # 2nd subplot.
-    k_1, k_2 = 2, 1
-    ax = plt.subplot(222)
-    for color in np.unique(labels):
-        c = 'C{}'.format(color % 10)
-        idx = np.where(labels == color)[0]
-        ax.scatter(data[idx, k_1], data[idx, k_2], s=marker_size, c=c)
-    ax.set_xticks([])
-    ax.set_yticks([])
-    ax.set_xlabel("PC{}".format(k_1))
-    ax.set_ylabel("PC{}".format(k_2))
-    # 3rd subplot.
-    k_1, k_2 = 0, 2
-    ax = plt.subplot(223)
-    for color in np.unique(labels):
-        c = 'C{}'.format(color % 10)
-        idx = np.where(labels == color)[0]
-        ax.scatter(data[idx, k_1], data[idx, k_2], s=marker_size, c=c)
-    ax.set_xticks([])
-    ax.set_yticks([])
-    ax.set_xlabel("PC{}".format(k_1))
-    ax.set_ylabel("PC{}".format(k_2))
-
-    plt.savefig(output)
-    plt.close()
-
-    return
-
-
-def plot_tracking(dense_clusters, output):
-
-    centers = []
-    sigmas = []
-    colors = []
-    for item in dense_clusters:
-        colors += [item.cluster_id]
-        centers += [item.description[0]]
-        sigmas += [item.description[1]]
-    centers = np.array(centers)
-    sigmas = np.array(sigmas)
-    colors = np.array(colors, dtype=np.int32)
-
-    if len(centers) > 0:
-
-        s_max = sigmas.max()
-        marker_size = 10
-        marker = '+'
-
-        k_1, k_2 = 0, 1  # pair of principal components
-        for center, sigma, color in zip(centers, sigmas, colors):
-            ax = plt.subplot(2, 2, 1)
-            c = 'C{}'.format(color % 10)
-            circle = plt.Circle((center[k_1], center[k_2]), sigma, color=c, fill=True, alpha=0.5)
-            ax.add_artist(circle)
-            plt.scatter(centers[:, k_1], centers[:, k_2], s=marker_size, c='k', marker=marker)
-            x_min = centers[:, k_1].min()
-            x_max = centers[:, k_1].max()
-            y_min = centers[:, k_2].min()
-            y_max = centers[:, k_2].max()
-            ax.set_xlim(x_min - s_max, x_max + s_max)
-            ax.set_ylim(y_min - s_max, y_max + s_max)
-            ax.set_xticks([])
-            ax.set_yticks([])
-            ax.set_xlabel("PC{}".format(k_1))
-            ax.set_ylabel("PC{}".format(k_2))
-
-        k_1, k_2 = 2, 1  # pair of principal components
-        for center, sigma, color in zip(centers, sigmas, colors):
-            ax = plt.subplot(2, 2, 2)
-            c = 'C{}'.format(color % 10)
-            circle = plt.Circle((center[k_1], center[k_2]), sigma, color=c, fill=True, alpha=0.5)
-            ax.add_artist(circle)
-            plt.scatter(centers[:, k_1], centers[:, k_2], s=marker_size, c='k', marker=marker)
-            x_min = centers[:, k_1].min()
-            x_max = centers[:, k_1].max()
-            y_min = centers[:, k_2].min()
-            y_max = centers[:, k_2].max()
-            ax.set_xlim(x_min - s_max, x_max + s_max)
-            ax.set_ylim(y_min - s_max, y_max + s_max)
-            ax.set_xticks([])
-            ax.set_yticks([])
-            ax.set_xlabel("PC{}".format(k_1))
-            ax.set_ylabel("PC{}".format(k_2))
-
-        k_1, k_2 = 0, 2  # pair of principal components
-        for center, sigma, color in zip(centers, sigmas, colors):
-            ax = plt.subplot(2, 2, 3)
-            c = 'C{}'.format(color % 10)
-            circle = plt.Circle((center[k_1], center[k_2]), sigma, color=c, fill=True, alpha=0.5)
-            ax.add_artist(circle)
-            plt.scatter(centers[:, k_1], centers[:, k_2], s=marker_size, c='k', marker=marker)
-            x_min = centers[:, k_1].min()
-            x_max = centers[:, k_1].max()
-            y_min = centers[:, k_2].min()
-            y_max = centers[:, k_2].max()
-            ax.set_xlim(x_min - s_max, x_max + s_max)
-            ax.set_ylim(y_min - s_max, y_max + s_max)
-            ax.set_xticks([])
-            ax.set_yticks([])
-            ax.set_xlabel("PC{}".format(k_1))
-            ax.set_ylabel("PC{}".format(k_2))
-
-    plt.savefig(output)
-    plt.close()
-
-    return
-
-def plot_ground_truth():
-
-    return
 
 def hdbscan_clustering(data, n_min=None, output=None):
     if n_min is not None:
