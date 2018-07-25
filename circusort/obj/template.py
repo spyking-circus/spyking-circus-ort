@@ -86,6 +86,11 @@ class TemplateComponent(object):
 
         return self.waveforms.shape[1]
 
+    @property
+    def extrema(self):
+        index = self.temporal_width//2 + 1
+        return (np.min(self.waveforms[:, index]), np.max(self.waveforms[:, index]))
+    
     def __str__(self):
 
         string = "TemplateComponent for {} channels with amplitudes {}"
@@ -373,6 +378,10 @@ class Template(object):
         result = [a.norm for a in self]
 
         return result
+
+    @property
+    def extrema(self):
+        return self.first_component.extrema
 
     @property
     def is_compressed(self):
