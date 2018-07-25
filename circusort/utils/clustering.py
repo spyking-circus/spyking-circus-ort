@@ -100,7 +100,7 @@ class OnlineManager(object):
 
     def __init__(self, probe, channel, decay=0.05, mu=2, epsilon='auto', theta=-np.log(0.001), dispersion=(5, 5),
                  n_min=0.01, noise_thr=0.8, pca=None, logger=None, two_components=False, name=None, debug_plots=None,
-                 debug_ground_truth_templates=None, local_merges=3):
+                 debug_ground_truth_templates=None, debug_file_format='pdf', local_merges=3):
 
         if name is None:
             self.name = "OnlineManager"
@@ -120,11 +120,12 @@ class OnlineManager(object):
         self.two_components = two_components
         self.debug_plots = debug_plots
         self.debug_ground_truth_templates = debug_ground_truth_templates
+        self.debug_file_format = debug_file_format
         self.local_merges = local_merges
 
         if self.debug_plots is not None:
-            self.fig_name = os.path.join(self.debug_plots, '{n}_{t}.png')
-            self.fig_name_2 = os.path.join(self.debug_plots, '{n}_{t}_tracking.png')
+            self.fig_name = os.path.join(self.debug_plots, '{n}_{t}.{f}')
+            self.fig_name_2 = os.path.join(self.debug_plots, '{n}_{t}_tracking.{f}')
 
         self.time = 0
         self.is_ready = False
@@ -139,6 +140,9 @@ class OnlineManager(object):
         else:
             self.log = logger
 
+        # Define internal variables.
+        self._width = None
+        self._W = None
         self._physical_threshold = None
         self._pc_lim = None
 
@@ -195,14 +199,14 @@ class OnlineManager(object):
         n_min = np.maximum(self.abs_n_min, int(self.n_min * len(sub_data)))
 
         if self.debug_plots is not None:
-            output = self.fig_name.format(n=self.name, t=self.time)
+            output = self.fig_name.format(n=self.name, t=self.time, f=self.debug_file_format)
         else:
             output = None
 
         labels = self.density_clustering(sub_data, n_min=n_min, output=output, local_merges=self.local_merges)
 
-        self.W = len(sub_data) / float(self.time / 20000.)
-        self.mu = self.W / 1000.
+        self._W = len(sub_data) / float(self.time / 20000.)
+        self.mu = self._W / 1000.
         self.beta = 1.5 / self.mu
 
         mask = labels > -1
@@ -242,7 +246,7 @@ class OnlineManager(object):
 
         if self.debug_plots is not None:
             # Plot tracking.
-            path = self.fig_name_2.format(n=self.name, t=self.time)
+            path = self.fig_name_2.format(n=self.name, t=self.time, f=self.debug_file_format)
             self.plot_tracking(self.dense_clusters, path)
             # Log info message.
             string = "{} creates output {}"
@@ -250,7 +254,11 @@ class OnlineManager(object):
             self.log.info(message)
             if self.debug_ground_truth_templates is not None:
                 # Plot ground truth clusters.
-                self.plot_ground_truth()
+                self.plot_ground_truth_clusters(mode='max_channel')
+                self.plot_ground_truth_clusters(mode='nonzero_channel')
+                # Plot ground truth templates.
+                self.plot_ground_truth_templates(mode='max_channel')
+                self.plot_ground_truth_templates(mode='nonzero_channel')
 
         self.is_ready = True
 
@@ -334,11 +342,13 @@ class OnlineManager(object):
 
         centers = self._get_centers(cluster_type)
         if len(centers) == 0:
-            return None
+            cluster = None
         else:
             new_dist = scipy.spatial.distance.cdist(data, centers, 'euclidean')[0]
-            cluster = self._get_clusters(cluster_type)[np.argmin(new_dist)]
-            return cluster
+            index = int(np.argmin(new_dist))
+            cluster = self._get_clusters(cluster_type)[index]
+
+        return cluster
 
     def _get_template(self, data):
 
@@ -401,7 +411,11 @@ class OnlineManager(object):
                 delta_t = self.theta * (cluster.last_update - t_0) / cluster.density
 
                 if cluster.density < zeta or ((self.time - cluster.last_update) > delta_t):
-                    self.log.debug("{n} removes sparse cluster {l}".format(n=self.name, l=cluster.id))
+                    # Log debug message.
+                    string = "{} removes sparse cluster {}"
+                    message = string.format(self.name, cluster.id)
+                    self.log.debug(message)
+                    # ...
                     self.clusters.pop(cluster.id)
                     count += 1
 
@@ -463,6 +477,8 @@ class OnlineManager(object):
                 data = data.reshape(1, self._width)
                 if self.loc_pca is not None:
                     pca_data = np.dot(data, self.loc_pca)
+                else:
+                    raise NotImplementedError()
 
             if self._merged_into(pca_data, data, 'dense'):
                 # Log debug message.
@@ -508,25 +524,25 @@ class OnlineManager(object):
                 center, sigma = cluster.description
                 new_dist = scipy.spatial.distance.cdist(np.array([center]), all_centers, 'euclidean')
                 dist_min = np.min(new_dist)
-                dist_idx = np.argmin(new_dist)
+                dist_idx = int(np.argmin(new_dist))
 
                 if dist_min <= (sigma + all_sigmas[dist_idx]):
                     self.tracking[all_indices[dist_idx]] = center, sigma
                     modified_templates[cluster_id] = all_indices[dist_idx]
                     cluster.cluster_id = all_indices[dist_idx]
-                    self.log.debug("{n} establishes a match between target {t} and source {s}".format(n=self.name,
-                                                                                                      t=cluster_id,
-                                                                                                      s=all_indices[
-                                                                                                          dist_idx]))
+                    # Log debug message.
+                    string = "{} establishes a match between target {} and source {}"
+                    message = string.format(self.name, cluster_id, all_indices[dist_idx])
+                    self.log.debug(message)
                 else:
                     idx = self._get_tracking_id()
                     self.tracking[idx] = center, sigma
                     new_templates[cluster_id] = idx
                     cluster.cluster_id = idx
-                    self.log.debug(
-                        "{n} can not found a match for target {t}, so creating new template {s}".format(n=self.name,
-                                                                                                        t=cluster_id,
-                                                                                                        s=idx))
+                    # Log debug message.
+                    string = "{n} can not found a match for target {t}, so creating new template {s}"
+                    message = string.format(self.name, cluster_id, idx)
+                    self.log.debug(message)
         else:
             for cluster in new_clusters:
                 cluster_id = cluster.cluster_id
@@ -589,7 +605,7 @@ class OnlineManager(object):
         centers_full = self._get_centers_full('dense')
 
         if self.debug_plots is not None:
-            output = self.fig_name.format(n=self.name, t=self.time)
+            output = self.fig_name.format(n=self.name, t=self.time, f=self.debug_file_format)
         else:
             output = None
 
@@ -627,7 +643,7 @@ class OnlineManager(object):
             self.log.info(message)
 
         if self.debug_plots is not None:
-            path = self.fig_name_2.format(n=self.name, t=self.time)
+            path = self.fig_name_2.format(n=self.name, t=self.time, f=self.debug_file_format)
             self.plot_tracking(clusters, path)
             # Log info message.
             string = "{} creates output {}"
@@ -668,10 +684,16 @@ class OnlineManager(object):
 
         return
 
-    def plot_cluster(self, data, labels, output, marker_size=10):
+    def plot_cluster(self, data, labels, output, marker_size=5):
 
         if self._pc_lim is None:
             self._compute_pc_limits(data)
+
+        text_kwargs = {
+            'fontsize': 'xx-small',
+            'verticalalignment': 'center',
+            'horizontalalignment': 'center',
+        }
 
         # 1st subplot.
         k_1, k_2 = 0, 1  # pair of principal components
@@ -679,7 +701,10 @@ class OnlineManager(object):
         for color in np.unique(labels):
             c = 'C{}'.format(color % 10)
             idx = np.where(labels == color)[0]
-            ax.scatter(data[idx, k_1], data[idx, k_2], s=marker_size, c=c)
+            x = data[idx, k_1]
+            y = data[idx, k_2]
+            ax.scatter(x, y, s=marker_size, c=c)
+            ax.text(np.mean(x), np.mean(y), "{}".format(color), **text_kwargs)
         ax.set_xlim(*self._pc_lim[k_1])
         ax.set_ylim(*self._pc_lim[k_2])
         ax.set_xticks([])
@@ -692,7 +717,10 @@ class OnlineManager(object):
         for color in np.unique(labels):
             c = 'C{}'.format(color % 10)
             idx = np.where(labels == color)[0]
-            ax.scatter(data[idx, k_1], data[idx, k_2], s=marker_size, c=c)
+            x = data[idx, k_1]
+            y = data[idx, k_2]
+            ax.scatter(x, y, s=marker_size, c=c)
+            ax.text(np.mean(x), np.mean(y), "{}".format(color), **text_kwargs)
         ax.set_xlim(*self._pc_lim[k_1])
         ax.set_ylim(*self._pc_lim[k_2])
         ax.set_xticks([])
@@ -705,7 +733,10 @@ class OnlineManager(object):
         for color in np.unique(labels):
             c = 'C{}'.format(color % 10)
             idx = np.where(labels == color)[0]
-            ax.scatter(data[idx, k_1], data[idx, k_2], s=marker_size, c=c)
+            x = data[idx, k_1]
+            y = data[idx, k_2]
+            ax.scatter(x, y, s=marker_size, c=c)
+            ax.text(np.mean(x), np.mean(y), "{}".format(color), **text_kwargs)
         ax.set_xlim(*self._pc_lim[k_1])
         ax.set_ylim(*self._pc_lim[k_2])
         ax.set_xticks([])
@@ -718,7 +749,7 @@ class OnlineManager(object):
 
         return
 
-    def plot_tracking(self, dense_clusters, output):
+    def plot_tracking(self, dense_clusters, output, marker='+', marker_size=5):
 
         centers = []
         sigmas = []
@@ -732,10 +763,6 @@ class OnlineManager(object):
         colors = np.array(colors, dtype=np.int32)
 
         if len(centers) > 0:
-
-            s_max = sigmas.max()
-            marker_size = 10
-            marker = '+'
 
             k_1, k_2 = 0, 1  # pair of principal components
             for center, sigma, color in zip(centers, sigmas, colors):
@@ -787,31 +814,90 @@ class OnlineManager(object):
 
         return
 
-    def plot_ground_truth(self, marker_size=10):
+    def plot_ground_truth_clusters(self, mode='max_channel', marker_size=5):
+        """Plot ground truth clusters.
+
+        Argument:
+            mode: string (optional)
+                The mode can be:
+                    'max_channel': consider templates having their maximal deflection on the channel handle by this
+                        online manager
+                    'nonzero_channel': consider templates showing a deflection on the channel handle by this online
+                        manager
+                The default value is 'max_channel'.
+            marker_size: integer (optional)
+                The default value is 10.
+        """
 
         templates = [
             load_template(path)
             for path in self.debug_ground_truth_templates
         ]
-        data = np.array([
-            template.first_component.to_dense()
-            for template in templates
-        ])
 
-        reduced_data = self.reduce_data(data)
+        if mode == 'max_channel':
+            main_indices = [
+                k
+                for k, template in enumerate(templates)
+                if template.channel == self.channel
+            ]
+            main_data = np.array([
+                template.first_component.to_dense()
+                for template in templates
+                if template.channel == self.channel
+            ])
+            other_data = np.array([
+                template.first_component.to_dense()
+                for template in templates
+                if template.channel != self.channel
+            ])
+        elif mode == 'nonzero_channel':
+            main_indices = [
+                k
+                for k, template in enumerate(templates)
+                if self.channel in template.indices
+            ]
+            main_data = np.array([
+                template.first_component.to_dense()
+                for template in templates
+                if self.channel in template.indices
+            ])
+            other_data = np.array([
+                template.first_component.to_dense()
+                for template in templates
+                if self.channel not in template.indices
+            ])
+        else:
+            string = "unexpected mode value: {}"
+            message = string.format(mode)
+            raise ValueError(message)
 
-        marker_colors = [
+        main_reduced_data = self.reduce_data(main_data)
+        other_reduced_data = self.reduce_data(other_data)
+
+        main_marker_colors = [
             'C{}'.format(k % 10)
-            for k in range(0, reduced_data.shape[0])
+            for k in range(0, main_reduced_data.shape[0])
         ]
 
         if self._pc_lim is None:
-            self._compute_pc_limits(reduced_data)
+            self._compute_pc_limits(main_reduced_data)
+
+        text_kwargs = {
+            'fontsize': 'xx-small',
+            'verticalalignment': 'center',
+            'horizontalalignment': 'center',
+        }
 
         # 1st subplot.
         k_1, k_2 = 0, 1  # pair of principal components
         ax = plt.subplot(2, 2, 1)
-        ax.scatter(reduced_data[:, k_1], reduced_data[:, k_2], s=marker_size, c=marker_colors)
+        ax.scatter(main_reduced_data[:, k_1], main_reduced_data[:, k_2], s=marker_size, c=main_marker_colors)
+        ax.scatter(other_reduced_data[:, k_1], other_reduced_data[:, k_2], s=marker_size / 2, c='gray')
+        for k, index in enumerate(main_indices):
+            x = main_reduced_data[k, k_1]
+            y = main_reduced_data[k, k_2]
+            s = "{}".format(index)
+            ax.text(x, y, s, **text_kwargs)
         ax.set_xlim(*self._pc_lim[k_1])
         ax.set_ylim(*self._pc_lim[k_2])
         ax.set_xticks([])
@@ -821,7 +907,13 @@ class OnlineManager(object):
         # 2nd subplot.
         k_1, k_2 = 2, 1
         ax = plt.subplot(2, 2, 2)
-        ax.scatter(reduced_data[:, k_1], reduced_data[:, k_2], s=marker_size, c=marker_colors)
+        ax.scatter(main_reduced_data[:, k_1], main_reduced_data[:, k_2], s=marker_size, c=main_marker_colors)
+        ax.scatter(other_reduced_data[:, k_1], other_reduced_data[:, k_2], s=marker_size / 2, c='gray')
+        for k, index in enumerate(main_indices):
+            x = main_reduced_data[k, k_1]
+            y = main_reduced_data[k, k_2]
+            s = "{}".format(index)
+            ax.text(x, y, s, **text_kwargs)
         ax.set_xlim(*self._pc_lim[k_1])
         ax.set_ylim(*self._pc_lim[k_2])
         ax.set_xticks([])
@@ -831,7 +923,13 @@ class OnlineManager(object):
         # 3rd subplot.
         k_1, k_2 = 0, 2
         ax = plt.subplot(2, 2, 3)
-        ax.scatter(reduced_data[:, k_1], reduced_data[:, k_2], s=marker_size, c=marker_colors)
+        ax.scatter(main_reduced_data[:, k_1], main_reduced_data[:, k_2], s=marker_size, c=main_marker_colors)
+        ax.scatter(other_reduced_data[:, k_1], other_reduced_data[:, k_2], s=marker_size / 2, c='gray')
+        for k, index in enumerate(main_indices):
+            x = main_reduced_data[k, k_1]
+            y = main_reduced_data[k, k_2]
+            s = "{}".format(index)
+            ax.text(x, y, s, **text_kwargs)
         ax.set_xlim(*self._pc_lim[k_1])
         ax.set_ylim(*self._pc_lim[k_2])
         ax.set_xticks([])
@@ -839,7 +937,59 @@ class OnlineManager(object):
         ax.set_xlabel("PC{}".format(k_1))
         ax.set_ylabel("PC{}".format(k_2))
 
-        filename = "{}_{}_ground_truth.png".format(self.name, self.time)
+        filename = "{}_{}_ground_truth_clusters_{}.{}".format(self.name, self.time, mode, self.debug_file_format)
+        path = os.path.join(self.debug_plots, filename)
+        plt.savefig(path)
+        plt.close()
+
+        return
+
+    def plot_ground_truth_templates(self, mode='max_channel'):
+
+        templates = [
+            load_template(path)
+            for path in self.debug_ground_truth_templates
+        ]
+
+        if mode == 'max_channel':
+            main_indices = [
+                k
+                for k, template in enumerate(templates)
+                if template.channel == self.channel
+            ]
+        elif mode == 'nonzero_channel':
+            main_indices = [
+                k
+                for k, template in enumerate(templates)
+                if self.channel in template.indices
+            ]
+        else:
+            string = "unexpected mode value: {}"
+            message = string.format(mode)
+            raise ValueError(message)
+
+        nb_templates = len(main_indices)
+        a = np.sqrt(float(nb_templates) / 6.0)
+        nb_columns = int(np.ceil(3.0 * a))
+        nb_rows = int(np.ceil(float(nb_templates) / float(nb_columns)))
+        nb_subplots = nb_rows * nb_columns
+
+        fig, ax = plt.subplots(nrows=nb_rows, ncols=nb_columns, figsize=(3.0 * 6.4, 2.0 * 4.8))
+        for k, index in enumerate(main_indices):
+            i, j = k // nb_columns, k % nb_columns
+            template = templates[index]
+            title = "Template {}".format(index)
+            with_xaxis = (i >= nb_rows - 1)
+            with_yaxis = (j == 0)
+            with_scale_bars = (with_xaxis and with_yaxis)
+            color = "C{}".format(k % 10)
+            template.plot(ax=ax[i, j], probe=self.probe, title=title, with_xaxis=with_xaxis,
+                          with_yaxis=with_yaxis, with_scale_bars=with_scale_bars, color=color)
+        for k in range(nb_templates, nb_subplots):
+            i, j = k // nb_columns, k % nb_columns
+            ax[i, j].set_axis_off()
+
+        filename = "{}_{}_ground_truth_templates_{}.{}".format(self.name, self.time, mode, self.debug_file_format)
         path = os.path.join(self.debug_plots, filename)
         plt.savefig(path)
         plt.close()

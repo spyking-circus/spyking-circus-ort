@@ -548,7 +548,7 @@ class Template(object):
             ax.set_ylabel(u"y (µm)")
         else:
             ax.set_yticklabels([])
-        if title:
+        if title is not None:
             ax.set_title(title)
         fig.tight_layout()
 

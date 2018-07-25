@@ -314,16 +314,17 @@ class DensityClustering(Block):
                 params = {
                     'probe': self.probe,
                     'channel': channel,
-                    'dispersion': self.dispersion,
+                    'decay': self.decay_time,
                     'mu': self.mu,
                     'epsilon': self.epsilon,
-                    'decay': self.decay_time,
                     'theta': self.theta,
+                    'dispersion': self.dispersion,
                     'n_min': self.n_min,
                     'noise_thr': self.noise_thr,
-                    'name': 'OnlineManager for {p} peak on channel {c}'.format(p=key, c=channel),
+                    'pca': None,  # see below
                     'logger': self.log,
                     'two_components': self.two_components,
+                    'name': 'OnlineManager for {p} peak on channel {c}'.format(p=key, c=channel),
                     'debug_plots': self.debug_plots,
                     'debug_ground_truth_templates': self.debug_ground_truth_templates,
                     'local_merges': self.local_merges
