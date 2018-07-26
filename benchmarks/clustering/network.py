@@ -125,7 +125,7 @@ def sorting(configuration_name, with_precomputed_templates=True, nb_waveforms_cl
         'nb_waveforms': nb_waveforms_clustering,
         'probe_path': probe_path,
         'two_components': False,
-        'local_merges': 0,  # TODO set to default once debugged
+        'local_merges': 3,
         'debug_plots': debug_directory,
         'debug_ground_truth_templates': precomputed_template_paths,
         'introspection_path': introspection_directory,
