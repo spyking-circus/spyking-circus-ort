@@ -1,7 +1,7 @@
 import scipy.optimize
 import matplotlib.pyplot as plt
 import numpy as np
-import hdbscan
+# import hdbscan
 import os
 import scipy.spatial.distance
 import scipy.stats
@@ -394,9 +394,11 @@ class OnlineManager(object):
                 cluster.set_label('sparse')
                 count += 1
 
-        # TODO uncomment the following line.
         if count > 0:
-            self.log.debug("{n} turns {m} dense clusters into sparse...".format(n=self.name, m=count))
+            # Log debug message.
+            string = "{} turns {} dense clusters into sparse..."
+            message = string.format(self.name, count)
+            self.log.debug(message)
 
         count = 0
         for cluster in self.sparse_clusters:
@@ -419,9 +421,11 @@ class OnlineManager(object):
                     self.clusters.pop(cluster.id)
                     count += 1
 
-        # TODO uncomment the following line.
         if count > 0:
-            self.log.debug("{n} prunes {m} sparse clusters...".format(n=self.name, m=count))
+            # Log debug message.
+            string = "{} prunes {} sparse clusters..."
+            message = string.format(self.name, count)
+            self.log.debug(message)
 
         return
 
@@ -681,7 +685,6 @@ class OnlineManager(object):
         """
 
         nb_samples = len(data)
-        rho = np.inf * np.ones(nb_samples, dtype=np.float32)
 
         def get_condensed_indices(i, j):
             # See also scipy.spatial.distance.pdist.
@@ -705,9 +708,7 @@ class OnlineManager(object):
             # Compute mean distance.
             mean_distances[k] = np.mean(sdist)
 
-        # TODO swap and clean the following lines.
-        # indices = np.nonzero(mean_distances)
-        # rho[indices] = 1.0 / mean_distances[indices]
+        # Compute rho values.
         max_mean_distance = np.amax(mean_distances)
         rho = max_mean_distance - mean_distances
 
@@ -767,7 +768,7 @@ class OnlineManager(object):
 
         return sub_indices, len(sub_indices)
 
-    def density_based_clustering(self, rho, distances, smart_select=True, n_min=None, max_clusters=10):
+    def density_based_clustering(self, rho, distances, smart_select=True, max_clusters=10):
         """Run a density based clustering.
 
         Arguments:
@@ -776,21 +777,24 @@ class OnlineManager(object):
             distances: numpy.ndarray
                 A condensed matrix which contains the distances between pairs of samples.
             smart_select: boolean (optional)
+                If true then we will try to detect automatically the clusters based on the rho and delta values.
                 The default value is True.
-            n_min: integer (optional)
-                The minimal number of samples needed to form a cluster.
             max_clusters: integer (optional)
+                The maximal number of detected clusters (except if the smart selection is activated).
                 The default value is 10.
+        Returns:
+            labels: numpy.ndarray
+                The array which contains the cluster labels of the data samples.
+            nb_clusters: integer
+                The number of detected clusters.
         """
-        # TODO complete docstring.
 
         nb_samples = len(rho)
         max_distance = np.max(distances)
 
         def get_condensed_indices(i, j):
             # See also scipy.spatial.distance.pdist.
-            index = i * nb_samples + j - i * (i + 1) // 2 - i - 1
-            return index
+            return i * nb_samples + j - i * (i + 1) // 2 - i - 1
 
         ordered_rho = np.argsort(rho)[::-1]  # rho values in decreasing order
 
@@ -814,73 +818,58 @@ class OnlineManager(object):
                     nearest_neighbors[ordered_rho[ii]] = ordered_rho[jj]
         delta[ordered_rho[0]] = delta.max()
 
+        # Plot rho and delta values (if necessary).
         if self.debug_plots is not None:
             self.plot_rho_delta(rho, delta)
 
-        cluster_indices, max_clusters = self.fit_rho_delta(rho, delta, smart_select=smart_select,
-                                                           max_clusters=max_clusters)
+        # Fit rho and delta values.
+        center_indices, max_clusters = self.fit_rho_delta(rho, delta, smart_select=smart_select,
+                                                          max_clusters=max_clusters)
 
-        def assign_halo(idx):
-            cl = np.empty(nb_samples, dtype=np.int32)
-            cl[:] = -1
-            nb_clusters = len(idx)
-            cl[idx] = np.arange(nb_clusters)
+        # Assign halos.
+        halos = np.empty(nb_samples, dtype=np.int32)
+        halos[:] = -1
+        halos[center_indices] = range(0, max_clusters)
+        for k in range(0, nb_samples):
+            index = ordered_rho[k]
+            if halos[index] == -1:
+                halos[index] = halos[nearest_neighbors[index]]
 
-            # assignation
-            for i in range(nb_samples):
-                if cl[ordered_rho[i]] == -1:
-                    cl[ordered_rho[i]] = cl[nearest_neighbors[ordered_rho[i]]]
-
-            # Ignoring small cluster (if necessary).
-            halo = cl.copy()
-            # TODO uncomment the following lines.
-            # if n_min is not None:
-            #     for cluster in range(nb_clusters):
-            #         idx = np.where(halo == cluster)[0]
-            #         if len(idx) < n_min:
-            #             halo[idx] = -1
-            #             nb_clusters -= 1
-            _ = n_min
-
-            return halo, nb_clusters
-
-        halo, nb_clusters = assign_halo(cluster_indices[:max_clusters + 1])
-
-        return halo, cluster_indices[:max_clusters]
+        return halos, center_indices[:max_clusters]
 
     @staticmethod
-    def _greedy_merges(data, labels, local_merges):
+    def _do_merging(data, labels, clusters, local_merges):
 
-        def do_merging(data, labels, clusters, local_merges):
+        d_min = np.inf
+        to_merge = [None, None]
 
-            dmin = np.inf
-            to_merge = [None, None]
+        for ic1 in range(len(clusters)):
+            idx1 = np.where(labels == clusters[ic1])[0]
+            sd1 = np.take(data, idx1, axis=0)
+            m1 = np.median(sd1, 0)
+            for ic2 in range(ic1 + 1, len(clusters)):
+                idx2 = np.where(labels == clusters[ic2])[0]
+                sd2 = np.take(data, idx2, axis=0)
+                m2 = np.median(sd2, 0)
+                v_n = m1 - m2
+                pr_1 = np.dot(sd1, v_n)
+                pr_2 = np.dot(sd2, v_n)
 
-            for ic1 in range(len(clusters)):
-                idx1 = np.where(labels == clusters[ic1])[0]
-                sd1 = np.take(data, idx1, axis=0)
-                m1 = np.median(sd1, 0)
-                for ic2 in range(ic1 + 1, len(clusters)):
-                    idx2 = np.where(labels == clusters[ic2])[0]
-                    sd2 = np.take(data, idx2, axis=0)
-                    m2 = np.median(sd2, 0)
-                    v_n = m1 - m2
-                    pr_1 = np.dot(sd1, v_n)
-                    pr_2 = np.dot(sd2, v_n)
+                norm = np.median(np.abs(pr_1 - np.median(pr_1))) ** 2 + np.median(
+                    np.abs(pr_2 - np.median(pr_2))) ** 2
+                dist = np.sum(v_n ** 2) / np.sqrt(norm)
 
-                    norm = np.median(np.abs(pr_1 - np.median(pr_1))) ** 2 + np.median(
-                        np.abs(pr_2 - np.median(pr_2))) ** 2
-                    dist = np.sum(v_n ** 2) / np.sqrt(norm)
+                if dist < d_min:
+                    d_min = dist
+                    to_merge = [ic1, ic2]
 
-                    if dist < dmin:
-                        dmin = dist
-                        to_merge = [ic1, ic2]
+        if d_min < local_merges:
+            labels[np.where(labels == clusters[to_merge[1]])[0]] = clusters[to_merge[0]]
+            return True, labels
 
-            if dmin < local_merges:
-                labels[np.where(labels == clusters[to_merge[1]])[0]] = clusters[to_merge[0]]
-                return True, labels
+        return False, labels
 
-            return False, labels
+    def _greedy_merges(self, data, labels, local_merges):
 
         has_been_merged = True
         mask = np.where(labels > -1)[0]
@@ -888,7 +877,7 @@ class OnlineManager(object):
         merged = [len(clusters), 0]
 
         while has_been_merged:
-            has_been_merged, labels = do_merging(data, labels, clusters, local_merges)
+            has_been_merged, labels = self._do_merging(data, labels, clusters, local_merges)
             if has_been_merged:
                 merged[1] += 1
 
@@ -929,7 +918,7 @@ class OnlineManager(object):
 
         if nb_samples > 1:
             rhos, distances, _ = self.rho_estimation(data)
-            labels, nb_clusters = self.density_based_clustering(rhos, distances, n_min=n_min)
+            labels, nb_clusters = self.density_based_clustering(rhos, distances)
         elif nb_samples == 1:
             labels = np.array([0])
         else:
@@ -1297,7 +1286,14 @@ class OnlineManager(object):
                           with_yaxis=with_yaxis, with_scale_bars=with_scale_bars, color=color)
         for k in range(nb_templates, nb_subplots):
             i, j = k // nb_columns, k % nb_columns
-            ax[i, j].set_axis_off()
+            try:
+                ax_ = ax[i, j]
+            except IndexError:
+                try:
+                    ax_ = ax[k]
+                except IndexError:
+                    ax_ = ax
+            ax_.set_axis_off()
 
         filename = "{}_{}_ground_truth_templates_{}.{}".format(self.name, self.time, mode, self.debug_file_format)
         path = os.path.join(self.debug_plots, filename)
@@ -1305,28 +1301,3 @@ class OnlineManager(object):
         plt.close()
 
         return
-
-
-# TODO remove the following function?
-def hdbscan_clustering(data, n_min=None, output=None):
-    if n_min is not None:
-        cluster_engine = hdbscan.HDBSCAN(min_cluster_size=int(n_min), core_dist_n_jobs=1, allow_single_cluster=True)
-    else:
-        cluster_engine = hdbscan.HDBSCAN(min_cluster_size=1, core_dist_n_jobs=1, allow_single_cluster=True)
-
-    labels = cluster_engine.fit_predict(data)
-
-    if output is not None:
-        import pylab
-        pylab.subplot(221)
-        pylab.scatter(data[:, 0], data[:, 1], c=labels)
-        pylab.subplot(222)
-        pylab.scatter(data[:, 1], data[:, 2], c=labels)
-        pylab.subplot(223)
-        pylab.scatter(data[:, 0], data[:, 2], c=labels)
-        pylab.savefig(output)
-        pylab.close()
-
-    return labels
-
-# def view_mini_clusters(dense, sparse, output=None):

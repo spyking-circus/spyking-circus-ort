@@ -408,14 +408,14 @@ def main():
             pairs, missing_indices, additional_indices = find_matches()
             nb_figures = len(pairs) + len(missing_indices) + len(additional_indices)
 
-            nb_rows_ = 6
-            nb_columns_ = 6
+            a = np.sqrt(float(nb_figures) / 6.0)
+            nb_columns_ = int(np.ceil(3.0 * a))
+            nb_rows_ = int(np.ceil(float(nb_figures) / float(nb_columns_)))
             nb_subplots = nb_rows_ * nb_columns_
             fig, ax = plt.subplots(nrows=nb_rows_, ncols=nb_columns_, figsize=(3.0 * 6.4, 2.0 * 4.8))
             for k, pair in enumerate(pairs):
                 if k < nb_subplots:
-                    i = k // nb_columns_
-                    j = k % nb_columns_
+                    i, j = k // nb_columns_, k % nb_columns_
                     k_1, k_2 = pair
                     template_1 = injected_templates[k_1]
                     template_2 = templates[k_2]
@@ -423,42 +423,71 @@ def main():
                     with_xaxis = (i == (nb_rows_ - 1))
                     with_yaxis = (j == 0)
                     with_scale_bars = (i == (nb_rows_ - 1)) and (j == 0)
-                    template_1.plot(ax=ax[i, j], probe=template_store.probe, title=title, with_xaxis=with_xaxis,
+                    try:
+                        ax_ = ax[i, j]
+                    except IndexError:
+                        try:
+                            ax_ = ax[k]
+                        except IndexError:
+                            ax_ = ax
+                    template_1.plot(ax=ax_, probe=template_store.probe, title=title, with_xaxis=with_xaxis,
                                     with_yaxis=with_yaxis, with_scale_bars=with_scale_bars, color='C0')
-                    template_2.plot(ax=ax[i, j], probe=template_store.probe, title=title, with_xaxis=with_xaxis,
+                    template_2.plot(ax=ax_, probe=template_store.probe, title=title, with_xaxis=with_xaxis,
                                     with_yaxis=with_yaxis, with_scale_bars=False, color='C1')
             for k, index in enumerate(missing_indices):
                 k_ = k + len(pairs)
                 if k_ < nb_subplots:
-                    i = k_ // nb_columns_
-                    j = k_ % nb_columns_
+                    i, j = k_ // nb_columns_, k_ % nb_columns_
                     template = injected_templates[index]
                     title = "Missing template {}".format(index)
                     with_xaxis = (i == (nb_rows_ - 1))
                     with_yaxis = (j == 0)
                     with_scale_bars = (i == (nb_rows_ - 1)) and (j == 0)
-                    template.plot(ax=ax[i, j], probe=template_store.probe, title=title, with_xaxis=with_xaxis,
+                    try:
+                        ax_ = ax[i, j]
+                    except IndexError:
+                        try:
+                            ax_ = ax[k]
+                        except IndexError:
+                            ax_ = ax
+                    template.plot(ax=ax_, probe=template_store.probe, title=title, with_xaxis=with_xaxis,
                                   with_yaxis=with_yaxis, with_scale_bars=with_scale_bars, color='C0')
             for k, index in enumerate(additional_indices):
                 k_ = k + len(pairs) + len(missing_indices)
                 if k_ < nb_subplots:
-                    i = k_ // nb_columns_
-                    j = k_ % nb_columns_
+                    i, j = k_ // nb_columns_, k_ % nb_columns_
                     template = templates[index]
                     title = "Additional template {}".format(index)
                     with_xaxis = (i == (nb_rows_ - 1))
                     with_yaxis = (j == 0)
                     with_scale_bars = (i == (nb_rows_ - 1)) and (j == 0)
-                    template.plot(ax=ax[i, j], probe=template_store.probe, title=title, with_xaxis=with_xaxis,
+                    try:
+                        ax_ = ax[i, j]
+                    except IndexError:
+                        try:
+                            ax_ = ax[k]
+                        except IndexError:
+                            ax_ = ax
+                    template.plot(ax=ax_, probe=template_store.probe, title=title, with_xaxis=with_xaxis,
                                   with_yaxis=with_yaxis, with_scale_bars=with_scale_bars, color='C1')
+            for k in range(nb_figures, nb_subplots):
+                i, j = k // nb_columns_, k % nb_columns_
+                try:
+                    ax_ = ax[i, j]
+                except IndexError:
+                    try:
+                        ax_ = ax[k]
+                    except IndexError:
+                        ax_ = ax
+                ax_.set_axis_off()
 
-            detected_templates = templates
-            generated_templates = injected_templates
-
-            fig, ax = plt.subplots()
-            title = "Templates g26 & d21"
-            generated_templates[26].plot(ax=ax, probe=template_store.probe, color='C0')
-            detected_templates[21].plot(ax=ax, probe=template_store.probe, title=title, color='C1')
+            # detected_templates = templates
+            # generated_templates = injected_templates
+            #
+            # fig, ax = plt.subplots()
+            # title = "Templates g26 & d21"
+            # generated_templates[26].plot(ax=ax, probe=template_store.probe, color='C0')
+            # detected_templates[21].plot(ax=ax, probe=template_store.probe, title=title, color='C1')
             #
             # fig, ax = plt.subplots()
             # title = "Templates d13 & g11 & d28"
