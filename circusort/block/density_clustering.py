@@ -352,7 +352,7 @@ class DensityClustering(Block):
                                 
                                 online_manager = self.managers[key][best_channel]
                                 if not online_manager.is_ready:
-                                    self.raw_data[key][best_channel] = np.vstack((online_manager, waveforms))
+                                    self.raw_data[key][best_channel] = np.vstack((self.raw_data[key][best_channel], waveforms))
                                 else:
                                     online_manager.update(self.counter, waveforms)
 
