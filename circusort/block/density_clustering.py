@@ -54,6 +54,7 @@ class DensityClustering(Block):
         'local_merges': 3,
         'debug_plots': None,
         'debug_ground_truth_templates': None,
+        'debug_file_format': 'png',
         'debug_data': None
     }
 
@@ -85,6 +86,7 @@ class DensityClustering(Block):
         self.local_merges = self.local_merges
         self.debug_plots = self.debug_plots
         self.debug_ground_truth_templates = self.debug_ground_truth_templates
+        self.debug_file_format = self.debug_file_format
         self.debug_data = self.debug_data
 
         if self.probe_path is None:
@@ -310,6 +312,8 @@ class DensityClustering(Block):
                 self.log.info(message)
                 self.receive_pcs = False
                 self._init_data_structures()
+                if self.debug_data is not None:
+                    np.save(os.path.join(self.debug_data, 'pca', self.pcs))
 
             if (peaks is not None) and (self.thresholds is not None):  # (i.e. if we receive some peaks and MADs)
 
@@ -352,7 +356,7 @@ class DensityClustering(Block):
                                 
                                 online_manager = self.managers[key][best_channel]
                                 if not online_manager.is_ready:
-                                    self.raw_data[key][best_channel] = np.vstack((online_manager, waveforms))
+                                    self.raw_data[key][best_channel] = np.vstack((self.raw_data[key][best_channel], waveforms))
                                 else:
                                     online_manager.update(self.counter, waveforms)
 

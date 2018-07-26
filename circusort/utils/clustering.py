@@ -1002,25 +1002,12 @@ class OnlineManager(object):
 def fit_rho_delta(xdata, ydata, smart_select=True, max_clusters=20):
 
     if smart_select:
-
-        # xmax = xdata.max()
-        # off = ydata.min()
-        # idx = np.argmin(xdata)
-        # a_0 = (ydata[idx] - off) / np.log(1 + (xmax - xdata[idx]))
-        
-        # def myfunc(x, a, b, c, d):
-        #     return a * np.log(1. + c * ((xmax - x) ** b)) + d
-
-        try:
-            x = sm.add_constant(numpy.log(1/xdata))
-            model = sm.OLS(numpy.log(1/ydata),x)
-            results = model.fit()
-            _,_,prediction = wls_prediction_std(results,alpha=99.9)
-            prediction = numpy.exp(prediction) # to linear form
-            subidx = numpy.where(ydata>prediction)
-        except Exception:
-            subidx = np.argsort(xdata * np.log(1 + ydata))[::-1][:max_clusters]
-
+        x = sm.add_constant(xdata)
+        model = sm.RLM(ydata, x)
+        results = model.fit()
+        difference = ydata - results.fittedvalues
+        z_score = (difference - difference.mean()) / difference.std()
+        subidx = np.where(z_score >= 3.)[0]
     else:
         subidx = np.argsort(xdata * np.log(1 + ydata))[::-1][:max_clusters]
 

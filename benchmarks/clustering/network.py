@@ -124,7 +124,8 @@ def sorting(configuration_name, preload_templates=True, nb_replay=1, nb_waveform
         'two_components': False,
         'introspection_path': introspection_directory,
         'log_level': INFO,
-        'debug_plots': debug_directory
+        'debug_plots': debug_directory,
+        'debug_ground_truth_templates': precomputed_template_paths
     }
 
     if preload_templates:

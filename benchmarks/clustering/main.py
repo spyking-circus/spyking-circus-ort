@@ -18,7 +18,7 @@ nb_cells_range = [27]
 duration = 2.5 * 60.0  # s
 preload_templates = False
 nb_waveforms_clustering = 400
-nb_replay = 2
+nb_replay = 3
 
 def main():
 
