@@ -23,7 +23,7 @@ block_nb_buffers = {}
 block_labels = {}
 
 
-def sorting(configuration_name):
+def sorting(configuration_name, with_precomputed_templates=True):
     """Create the 1st sorting subnetwork.
 
     Parameter:
@@ -36,6 +36,7 @@ def sorting(configuration_name):
     sorting_directory = os.path.join(directory, "sorting", configuration_name)
     introspection_directory = os.path.join(directory, "introspection", configuration_name)
     log_directory = os.path.join(directory, "log", configuration_name)
+    output_directory = os.path.join(directory, "output", configuration_name)
 
     # Load generation parameters.
     parameters = circusort.io.get_data_parameters(generation_directory)
@@ -65,6 +66,8 @@ def sorting(configuration_name):
         os.makedirs(introspection_directory)
     if not os.path.isdir(log_directory):
         os.makedirs(log_directory)
+    if not os.path.isdir(output_directory):
+        os.makedirs(output_directory)
 
     # Define keyword arguments.
     director_kwargs = {
@@ -117,9 +120,12 @@ def sorting(configuration_name):
         'name': "cluster",
         'threshold_factor': threshold_factor,
         'sampling_rate': sampling_rate,
-        'nb_waveforms': 400,
+        'nb_waveforms': 500,
         'probe_path': probe_path,
         'two_components': False,
+        'local_merges': 0,  # TODO set to default once debugged
+        'debug_plots': os.path.join(output_directory, "clustering"),
+        'debug_ground_truth_templates': precomputed_template_paths,
         'introspection_path': introspection_directory,
         'log_level': DEBUG,
     }
@@ -134,7 +140,7 @@ def sorting(configuration_name):
         'probe_path': probe_path,
         'templates_path': os.path.join(sorting_directory, "templates.h5"),
         'overlaps_path': os.path.join(sorting_directory, "overlaps.p"),
-        'precomputed_template_paths': precomputed_template_paths,
+        'precomputed_template_paths': precomputed_template_paths if with_precomputed_templates else None,
         'sampling_rate': sampling_rate,
         'nb_samples': nb_samples,
         'introspection_path': introspection_directory,

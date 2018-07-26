@@ -7,6 +7,8 @@ import shutil
 
 import circusort
 
+# from mpl_toolkits.axes_grid1 import make_axes_locatable
+
 from collections import OrderedDict
 
 import network
@@ -15,7 +17,7 @@ nb_rows = 3
 nb_columns = 3
 radius = 100.0  # µm
 nb_cells_range = [27]
-duration = 2.5 * 60.0  # s
+duration = 5.0 * 60.0  # s
 
 
 def main():
@@ -103,7 +105,7 @@ def main():
         # Sort data (if necessary).
         if args.pending_sorting:
 
-            network.sorting(name)
+            network.sorting(name, with_precomputed_templates=False)
 
     # Introspect sorting (if necessary).
     if args.pending_introspection:
@@ -324,33 +326,217 @@ def main():
     if args.pending_validation:
 
         for configuration in configurations:
+
             # Define template store path.
             name = configuration['general']['name']
+            generation_directory = os.path.join(directory, "generation", name)
             sorting_directory = os.path.join(directory, "sorting", name)
             template_store_filename = "templates.h5"
             template_store_path = os.path.join(sorting_directory, template_store_filename)
+
             # Load template store.
             from circusort.io import load_template_store
             template_store = load_template_store(template_store_path)
+
             # Print number of template in store.
             string = "There are {} templates in the store."
             message = string.format(template_store.nb_templates)
             print(message)
-            # Plot the first templates of the store.
+
+            # Extract templates from the store.
             templates = template_store.get()
+
+            # # Plot the first templates of the store.
+            # nb_rows_ = 6
+            # nb_columns_ = 6
+            # fig, ax = plt.subplots(nrows=nb_rows_, ncols=nb_columns_, figsize=(3.0 * 6.4, 2.0 * 4.8))
+            # for k, template in enumerate(templates):
+            #     if k < nb_rows_ * nb_columns_:
+            #         i = k // nb_columns_
+            #         j = k % nb_columns_
+            #         title = "Template {}".format(k)
+            #         with_xaxis = (i == (nb_rows_ - 1))
+            #         with_yaxis = (j == 0)
+            #         with_scale_bars = (i == (nb_rows_ - 1)) and (j == 0)
+            #         template.plot(ax=ax[i, j], probe=template_store.probe, title=title, with_xaxis=with_xaxis,
+            #                       with_yaxis=with_yaxis, with_scale_bars=with_scale_bars)
+
+            # TODO match detected templates with generated templates.
+            # TODO   am I missing some template (i.e. generated)
+            # TODO   am I adding some template (i.e. detected)
+
+            injected_cells = circusort.io.load_cells(generation_directory)
+            injected_templates = [
+                injected_cell.template
+                for injected_cell in injected_cells
+            ]
+            similarities = np.array([
+                [
+                    template.similarity(injected_template)
+                    for template in templates
+                ]
+                for injected_template in injected_templates
+            ])
+
+            def find_matches():
+
+                nb_injected_templates = len(injected_templates)
+                nb_detected_templates = len(templates)
+
+                injected_indices = list(range(0, nb_injected_templates))
+                detected_indices = list(range(0, nb_detected_templates))
+
+                pairs = []
+                for k in range(0, min(nb_injected_templates, nb_detected_templates)):
+                    sub_s = similarities[injected_indices, :]
+                    sub_s = sub_s[:, detected_indices]
+                    i = np.argmax(sub_s)
+                    i, j = np.unravel_index(i, sub_s.shape)
+                    i, j = injected_indices[i], detected_indices[j]
+                    pairs.append((i, j))
+                    injected_indices.remove(i)
+                    detected_indices.remove(j)
+
+                missing_indices = np.array(injected_indices)
+                additional_indices = np.array(detected_indices)
+
+                return pairs, missing_indices, additional_indices
+
+            pairs, missing_indices, additional_indices = find_matches()
+            nb_figures = len(pairs) + len(missing_indices) + len(additional_indices)
+
             nb_rows_ = 6
             nb_columns_ = 6
+            nb_subplots = nb_rows_ * nb_columns_
             fig, ax = plt.subplots(nrows=nb_rows_, ncols=nb_columns_, figsize=(3.0 * 6.4, 2.0 * 4.8))
-            for k, template in enumerate(templates):
-                if k < nb_rows_ * nb_columns_:
+            for k, pair in enumerate(pairs):
+                if k < nb_subplots:
                     i = k // nb_columns_
                     j = k % nb_columns_
-                    title = "Template {}".format(k)
+                    k_1, k_2 = pair
+                    template_1 = injected_templates[k_1]
+                    template_2 = templates[k_2]
+                    title = "Matched templates g{} & d{}".format(k_1, k_2)
+                    with_xaxis = (i == (nb_rows_ - 1))
+                    with_yaxis = (j == 0)
+                    with_scale_bars = (i == (nb_rows_ - 1)) and (j == 0)
+                    template_1.plot(ax=ax[i, j], probe=template_store.probe, title=title, with_xaxis=with_xaxis,
+                                    with_yaxis=with_yaxis, with_scale_bars=with_scale_bars, color='C0')
+                    template_2.plot(ax=ax[i, j], probe=template_store.probe, title=title, with_xaxis=with_xaxis,
+                                    with_yaxis=with_yaxis, with_scale_bars=False, color='C1')
+            for k, index in enumerate(missing_indices):
+                k_ = k + len(pairs)
+                if k_ < nb_subplots:
+                    i = k_ // nb_columns_
+                    j = k_ % nb_columns_
+                    template = injected_templates[index]
+                    title = "Missing template {}".format(index)
                     with_xaxis = (i == (nb_rows_ - 1))
                     with_yaxis = (j == 0)
                     with_scale_bars = (i == (nb_rows_ - 1)) and (j == 0)
                     template.plot(ax=ax[i, j], probe=template_store.probe, title=title, with_xaxis=with_xaxis,
-                                  with_yaxis=with_yaxis, with_scale_bars=with_scale_bars)
+                                  with_yaxis=with_yaxis, with_scale_bars=with_scale_bars, color='C0')
+            for k, index in enumerate(additional_indices):
+                k_ = k + len(pairs) + len(missing_indices)
+                if k_ < nb_subplots:
+                    i = k_ // nb_columns_
+                    j = k_ % nb_columns_
+                    template = templates[index]
+                    title = "Additional template {}".format(index)
+                    with_xaxis = (i == (nb_rows_ - 1))
+                    with_yaxis = (j == 0)
+                    with_scale_bars = (i == (nb_rows_ - 1)) and (j == 0)
+                    template.plot(ax=ax[i, j], probe=template_store.probe, title=title, with_xaxis=with_xaxis,
+                                  with_yaxis=with_yaxis, with_scale_bars=with_scale_bars, color='C1')
+
+            detected_templates = templates
+            generated_templates = injected_templates
+
+            fig, ax = plt.subplots()
+            title = "Templates g26 & d21"
+            generated_templates[26].plot(ax=ax, probe=template_store.probe, color='C0')
+            detected_templates[21].plot(ax=ax, probe=template_store.probe, title=title, color='C1')
+            #
+            # fig, ax = plt.subplots()
+            # title = "Templates d13 & g11 & d28"
+            # detected_templates[13].plot(ax=ax, probe=template_store.probe, color='C2')
+            # generated_templates[11].plot(ax=ax, probe=template_store.probe, color='C0')
+            # detected_templates[28].plot(ax=ax, probe=template_store.probe, title=title, color='C1')
+            #
+            # fig, ax = plt.subplots()
+            # title = "Template d13 vs d26+28"
+            # detected_templates[13].plot(ax=ax, probe=template_store.probe, color='C2')
+            # mixed_template = (detected_templates[26] + detected_templates[28]) * 0.5
+            # mixed_template.plot(ax=ax, probe=template_store.probe, title=title, color='C1')
+            #
+            # fig, ax = plt.subplots()
+            # title = "Templates d23 & g19 & d26"
+            # detected_templates[23].plot(ax=ax, probe=template_store.probe, color='C2')
+            # generated_templates[19].plot(ax=ax, probe=template_store.probe, color='C0')
+            # detected_templates[26].plot(ax=ax, probe=template_store.probe, title=title, color='C1')
+            #
+            # fig, ax = plt.subplots()
+            # title = "Templates d23 & g11 & d28"
+            # detected_templates[23].plot(ax=ax, probe=template_store.probe, color='C2')
+            # generated_templates[11].plot(ax=ax, probe=template_store.probe, color='C0')
+            # detected_templates[28].plot(ax=ax, probe=template_store.probe, title=title, color='C1')
+            #
+            # fig, ax = plt.subplots()
+            # title = "Templates d14 & g10 & d12"
+            # detected_templates[14].plot(ax=ax, probe=template_store.probe, color='C1')
+            # generated_templates[10].plot(ax=ax, probe=template_store.probe, color='C0')
+            # detected_templates[12].plot(ax=ax, probe=template_store.probe, title=title, color='C2')
+            #
+            # fig, ax = plt.subplots()
+            # title = "Templates d3 & g22 & d25"
+            # detected_templates[3].plot(ax=ax, probe=template_store.probe, color='C1')
+            # generated_templates[22].plot(ax=ax, probe=template_store.probe, color='C0')
+            # detected_templates[25].plot(ax=ax, probe=template_store.probe, title=title, color='C2')
+
+            # def order_similarities(similarities):
+            #
+            #     nb_injected_templates = len(injected_templates)
+            #     nb_detected_templates = len(templates)
+            #
+            #     s = similarities.copy()
+            #     for k in range(0, min(nb_injected_templates, nb_detected_templates)):
+            #         sub_s = s[k:, k:]
+            #         i = np.argmax(sub_s)
+            #         i, j = np.unravel_index(i, sub_s.shape)
+            #         i, j = i + k, j + k
+            #         # Swap row.
+            #         tmp = s[k, :].copy()
+            #         s[k, :] = s[i, :]
+            #         s[i, :] = tmp
+            #         # Swap column.
+            #         tmp = s[:, k].copy()
+            #         s[:, k] = s[:, j]
+            #         s[:, j]= tmp
+            #
+            #     if nb_injected_templates > nb_detected_templates:
+            #         for k in range(nb_detected_templates, nb_injected_templates):
+            #             sub_s = s[k:, :]
+            #             i = np.argmax(sub_s)
+            #             print(i)
+            #             i, j = np.unravel_index(i, sub_s.shape)
+            #             i, j = i + k, j
+            #             # Swap row.
+            #             tmp = s[k, :].copy()
+            #             s[k, :] = s[i, :]
+            #             s[i, :] = tmp
+            #
+            #     return s
+            #
+            # ordered_similarities = order_similarities(similarities)
+            #
+            # fig, ax = plt.subplots()
+            # im = ax.imshow(ordered_similarities, cmap='coolwarm', vmin=-1.0, vmax=+1.0)
+            # divider = make_axes_locatable(ax)
+            # cax = divider.append_axes("right", size="5%", pad=0.05)
+            # plt.colorbar(im, cax=cax)
+            # ax.set_xlabel(u"detected templates")
+            # ax.set_ylabel(u"injected templates")
+            # ax.set_title(u"Template similarities")
 
             plt.tight_layout()
             plt.show()
