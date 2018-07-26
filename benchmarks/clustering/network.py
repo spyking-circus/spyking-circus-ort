@@ -23,7 +23,7 @@ block_nb_buffers = {}
 block_labels = {}
 
 
-def sorting(configuration_name, with_precomputed_templates=True):
+def sorting(configuration_name, with_precomputed_templates=True, nb_waveforms_clustering=400):
     """Create the 1st sorting subnetwork.
 
     Parameter:
@@ -37,6 +37,7 @@ def sorting(configuration_name, with_precomputed_templates=True):
     introspection_directory = os.path.join(directory, "introspection", configuration_name)
     log_directory = os.path.join(directory, "log", configuration_name)
     output_directory = os.path.join(directory, "output", configuration_name)
+    debug_directory = os.path.join(directory, "debug", configuration_name)
 
     # Load generation parameters.
     parameters = circusort.io.get_data_parameters(generation_directory)
@@ -120,11 +121,11 @@ def sorting(configuration_name, with_precomputed_templates=True):
         'name': "cluster",
         'threshold_factor': threshold_factor,
         'sampling_rate': sampling_rate,
-        'nb_waveforms': 500,
+        'nb_waveforms': nb_waveforms_clustering,
         'probe_path': probe_path,
         'two_components': False,
         'local_merges': 0,  # TODO set to default once debugged
-        'debug_plots': os.path.join(output_directory, "clustering"),
+        'debug_plots': debug_directory,
         'debug_ground_truth_templates': precomputed_template_paths,
         'introspection_path': introspection_directory,
         'log_level': DEBUG,

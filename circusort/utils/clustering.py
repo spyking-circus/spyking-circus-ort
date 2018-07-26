@@ -746,13 +746,13 @@ class OnlineManager(object):
                 # TODO swap and clean the following lines.
                 # z_score = (difference - difference.mean()) / difference.std()
                 difference_median = np.median(difference)
-                difference_mad = np.median(np.absolute(difference - difference_median))
+                difference_mad = 1.4826 * np.median(np.absolute(difference - difference_median))
                 z_score = (difference - difference_median) / difference_mad
                 # sub_indices = np.where(z_score >= 3.0)[0]
-                sub_indices = np.where(z_score >= 2.0)[0]
+                sub_indices = np.where(z_score >= 4.0)[0]
                 if self.debug_plots is not None:
                     # labels = z_score >= 3.0
-                    labels = z_score >= 2.0
+                    labels = z_score >= 4.0
                     self.plot_rho_delta(rho, delta - prediction, labels=labels, filename_suffix="modified")
             except Exception as exception:
                 # Log debug message.
@@ -949,7 +949,7 @@ class OnlineManager(object):
             x = data[indices, k_1]
             y = data[indices, k_2]
             ax.scatter(x, y, s=marker_size, c=c)
-            ax.text(np.mean(x), np.mean(y), "{}".format(label), **text_kwargs)
+            ax.text(np.median(x), np.median(y), "{}".format(label), **text_kwargs)
         ax.set_xlim(*self._pc_lim[k_1])
         ax.set_ylim(*self._pc_lim[k_2])
         ax.set_xticks([])
@@ -965,7 +965,7 @@ class OnlineManager(object):
             x = data[indices, k_1]
             y = data[indices, k_2]
             ax.scatter(x, y, s=marker_size, c=c)
-            ax.text(np.mean(x), np.mean(y), "{}".format(label), **text_kwargs)
+            ax.text(np.median(x), np.median(y), "{}".format(label), **text_kwargs)
         ax.set_xlim(*self._pc_lim[k_1])
         ax.set_ylim(*self._pc_lim[k_2])
         ax.set_xticks([])
@@ -981,7 +981,7 @@ class OnlineManager(object):
             x = data[indices, k_1]
             y = data[indices, k_2]
             ax.scatter(x, y, s=marker_size, c=c)
-            ax.text(np.mean(x), np.mean(y), "{}".format(label), **text_kwargs)
+            ax.text(np.median(x), np.median(y), "{}".format(label), **text_kwargs)
         ax.set_xlim(*self._pc_lim[k_1])
         ax.set_ylim(*self._pc_lim[k_2])
         ax.set_xticks([])

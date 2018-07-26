@@ -31,7 +31,6 @@ class Whitening(Block):
     name   = "Whitening"
 
     params = {
-        'spike_width': 5,
         'radius': 'auto',
         'fudge': 1e-18,
         'sampling_rate': 20000,  # Hz

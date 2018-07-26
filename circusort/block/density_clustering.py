@@ -6,6 +6,7 @@ import shutil
 
 from circusort.io.probe import load_probe
 from circusort.utils.clustering import OnlineManager
+from circusort.obj.buffer import Buffer
 
 
 __classname__ = 'DensityClustering'
@@ -122,26 +123,11 @@ class DensityClustering(Block):
 
     def _initialize(self):
 
-        self._spike_width_ = int(self.sampling_rate * self.spike_width * 1e-3)
+        self.batch = Buffer(self.sampling_rate, self.spike_width, alignment=self.alignment)
         self.sign_peaks = []
         self.receive_pcs = True
         self.masks = {}
-        if np.mod(self._spike_width_, 2) == 0:
-            self._spike_width_ += 1
-        self._width = (self._spike_width_ - 1) // 2
-        self._2_width = 2 * self._width
-
-        if self.safety_time == 'auto':
-            self.safety_time = self._spike_width_ // 3
-        else:
-            self.safety_time = int(self.safety_time * self.sampling_rate * 1e-3)
-
-        if self.alignment:
-            num = 5 * self._spike_width_
-            self.cdata = np.linspace(-self._width, self._width, num)
-            self.xdata = np.arange(-self._2_width, self._2_width + 1)
-            self.xoff = len(self.cdata) / 2.
-
+        self.safety_time = self.batch.get_safety_time(self.safety_time)
         return
 
     def _get_all_valid_peaks(self, peaks):
@@ -153,7 +139,7 @@ class DensityClustering(Block):
                 all_peaks[key] = all_peaks[key].union(peaks[key][channel])
 
             all_peaks[key] = np.array(list(all_peaks[key]), dtype=np.int32)
-            mask = self._is_valid(all_peaks[key])
+            mask = self.batch.valid_peaks(all_peaks[key])
             all_peaks[key] = all_peaks[key][mask]
 
             if len(all_peaks[key]) > 0:
@@ -185,17 +171,6 @@ class DensityClustering(Block):
 
         return not myslice.any()
 
-    def _is_valid(self, peak):
-
-        if self.alignment:
-            cond_1 = (peak >= self._2_width)
-            cond_2 = (peak + self._2_width < self._nb_samples)
-        else:
-            cond_1 = (peak >= self._width)
-            cond_2 = (peak + self._width < self._nb_samples)
-
-        return cond_1 & cond_2
-
     @staticmethod
     def _get_extrema_indices(peak, peaks):
 
@@ -206,61 +181,6 @@ class DensityClustering(Block):
                     res += [int(channel)]
 
         return res
-
-    def _get_best_channel(self, batch, key, peak, peaks):
-
-        indices = self._get_extrema_indices(peak, peaks)
-
-        if key == 'negative':
-            channel = int(np.argmin(batch[peak, indices]))
-            is_neg = True
-        elif key == 'positive':
-            channel = int(np.argmax(batch[peak, indices]))
-            is_neg = False
-        elif key == 'both':
-            v_max = np.max(batch[peak, indices])
-            v_min = np.min(batch[peak, indices])
-            if np.abs(v_max) > np.abs(v_min):
-                channel = int(np.argmax(batch[peak, indices]))
-                is_neg = False
-            else:
-                channel = int(np.argmin(batch[peak, indices]))
-                is_neg = True
-        else:
-            raise NotImplementedError()  # TODO complete.
-
-        return indices[channel], is_neg
-
-    def _get_snippet(self, batch, channel, peak, is_neg):
-
-        indices = self.probe.edges[channel]
-        if self.alignment:
-            idx = self.chan_positions[channel]
-            k_min = peak - self._2_width
-            k_max = peak + self._2_width + 1
-            zdata = batch[k_min:k_max, indices]
-            ydata = np.arange(len(indices))
-
-            if len(ydata) == 1:
-                f = scipy.interpolate.UnivariateSpline(self.xdata, zdata, s=0)
-                if is_neg:
-                    rmin = float(np.argmin(f(self.cdata)) - self.xoff) / 5.0
-                else:
-                    rmin = float(np.argmax(f(self.cdata)) - self.xoff) / 5.0
-                ddata = np.linspace(rmin - self._width, rmin + self._width, self._spike_width_)
-                sub_mat = f(ddata).astype(np.float32).reshape(1, self._spike_width_)
-            else:
-                f = scipy.interpolate.RectBivariateSpline(self.xdata, ydata, zdata, s=0, ky=min(len(ydata) - 1, 3))
-                if is_neg:
-                    rmin = float(np.argmin(f(self.cdata, idx)[:, 0]) - self.xoff) / 5.0
-                else:
-                    rmin = float(np.argmax(f(self.cdata, idx)[:, 0]) - self.xoff) / 5.0
-                ddata = np.linspace(rmin-self._width, rmin+self._width, self._spike_width_)
-                sub_mat = f(ddata, ydata).astype(np.float32)
-        else:
-            sub_mat = batch[peak - self._width:peak + self._width + 1, indices]
-
-        return sub_mat
 
     def _configure_input_parameters(self, dtype=None, nb_channels=None, nb_samples=None, **kwargs):
 
@@ -357,7 +277,7 @@ class DensityClustering(Block):
 
     def _reset_data_structures(self, key, channel):
 
-        shape = (0, len(self.probe.edges[channel]), self._spike_width_)
+        shape = (0, len(self.probe.edges[channel]), self.batch.temporal_width)
         self.raw_data[key][channel] = np.zeros(shape, dtype=np.float32)
         self.templates[key][str(channel)] = {}
         self.times[key][channel] = []
@@ -367,7 +287,7 @@ class DensityClustering(Block):
     def _process(self):
 
         data_packet = self.inputs['data'].receive()
-        batch = data_packet['payload']
+        self.batch.update(data_packet['payload'])
         if self.is_active:
             peaks_packet = self.inputs['peaks'].receive()
             peaks = peaks_packet['payload']
@@ -417,27 +337,27 @@ class DensityClustering(Block):
 
                     for peak_idx, peak in zip(peak_indices, peak_values):
 
-                        channel, is_neg = self._get_best_channel(batch, key, peak, peaks)
+                        channels = self._get_extrema_indices(peak, peaks)
+                        best_channel, peak_type = self.batch.get_best_channel(channels, peak, key)
 
-                        if self._isolated_peak(key, peak_idx, channel):
+                        if self._isolated_peak(peak_type, peak_idx, best_channel):
 
-                            self._remove_nn_peaks(key, peak_idx, channel)
-
-                            if channel in self.channels:
-                                snippet = self._get_snippet(batch, channel, peak, is_neg).T
-                                snippet = snippet.reshape(1, snippet.shape[0], snippet.shape[1])
-                                if is_neg:
-                                    key = 'negative'
-                                else:
-                                    key = 'positive'
-
-                                online_manager = self.managers[key][channel]
+                            self._remove_nn_peaks(peak_type, peak_idx, best_channel)
+                            
+                            if best_channel in self.channels:
+                                channels = self.probe.edges[best_channel]
+                                ref_channel = self.chan_positions[best_channel]
+                                waveforms = self.batch.get_snippet(channels, peak, peak_type, ref_channel).T
+                                waveforms = waveforms.reshape(1, waveforms.shape[0], waveforms.shape[1])
+                                
+                                online_manager = self.managers[key][best_channel]
                                 if not online_manager.is_ready:
-                                    self.raw_data[key][channel] = np.vstack((self.raw_data[key][channel], snippet))
+                                    self.raw_data[key][best_channel] = np.vstack((self.raw_data[key][best_channel], waveforms))
                                 else:
-                                    online_manager.update(self.counter, snippet)
+                                    online_manager.update(self.counter, waveforms)
+
                                 if self.debug_data is not None:
-                                    self.times[key][channel] += [offset + peak_idx]
+                                    self.times[key][best_channel] += [offset + peak_idx]
 
                     for channel in self.channels:
 
