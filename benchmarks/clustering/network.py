@@ -23,7 +23,7 @@ block_nb_buffers = {}
 block_labels = {}
 
 
-def sorting(configuration_name, preload_templates=True, nb_replay=1, nb_waveforms_clustering=400):
+def sorting(configuration_name, with_precomputed_templates=True, nb_waveforms_clustering=400, nb_replay=1):
     """Create the 1st sorting subnetwork.
 
     Parameter:
@@ -36,6 +36,7 @@ def sorting(configuration_name, preload_templates=True, nb_replay=1, nb_waveform
     sorting_directory = os.path.join(directory, "sorting", configuration_name)
     introspection_directory = os.path.join(directory, "introspection", configuration_name)
     log_directory = os.path.join(directory, "log", configuration_name)
+    output_directory = os.path.join(directory, "output", configuration_name)
     debug_directory = os.path.join(directory, "debug", configuration_name)
 
     # Load generation parameters.
@@ -66,6 +67,8 @@ def sorting(configuration_name, preload_templates=True, nb_replay=1, nb_waveform
         os.makedirs(introspection_directory)
     if not os.path.isdir(log_directory):
         os.makedirs(log_directory)
+    if not os.path.isdir(output_directory):
+        os.makedirs(output_directory)
 
     # Define keyword arguments.
     director_kwargs = {
@@ -122,15 +125,15 @@ def sorting(configuration_name, preload_templates=True, nb_replay=1, nb_waveform
         'nb_waveforms': nb_waveforms_clustering,
         'probe_path': probe_path,
         'two_components': False,
+        'local_merges': 0,  # TODO set to default once debugged
+        'debug_plots': debug_directory,
+        'debug_ground_truth_templates': precomputed_template_paths,
         'introspection_path': introspection_directory,
         'log_level': INFO,
         'debug_plots': debug_directory,
+        'debug_ground_truth_templates': precomputed_template_paths,
         'debug_ground_truth_templates': precomputed_template_paths
     }
-
-    if preload_templates:
-            cluster_kwargs['channels'] = []
-
     cluster_writer_kwargs = {
         'name': "cluster_writer",
         'output_directory': sorting_directory,
@@ -142,15 +145,12 @@ def sorting(configuration_name, preload_templates=True, nb_replay=1, nb_waveform
         'probe_path': probe_path,
         'templates_path': os.path.join(sorting_directory, "templates.h5"),
         'overlaps_path': os.path.join(sorting_directory, "overlaps.p"),
+        'precomputed_template_paths': precomputed_template_paths if with_precomputed_templates else None,
         'sampling_rate': sampling_rate,
         'nb_samples': nb_samples,
         'introspection_path': introspection_directory,
         'log_level': DEBUG,
     }
-
-    if preload_templates:
-        updater_bis_kwargs['precomputed_template_paths'] = precomputed_template_paths
-
     updater_writer_kwargs = {
         'name': "updater_writer",
         'output_directory': sorting_directory,

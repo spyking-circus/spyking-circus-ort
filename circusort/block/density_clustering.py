@@ -249,7 +249,8 @@ class DensityClustering(Block):
                     'name': 'OnlineManager for {p} peak on channel {c}'.format(p=key, c=channel),
                     'debug_plots': self.debug_plots,
                     'debug_ground_truth_templates': self.debug_ground_truth_templates,
-                    'local_merges': self.local_merges
+                    'local_merges': self.local_merges,
+                    'debug_file_format': self.debug_file_format
                 }
 
                 if key == 'negative':
