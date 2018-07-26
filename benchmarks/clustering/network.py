@@ -131,8 +131,7 @@ def sorting(configuration_name, with_precomputed_templates=True, nb_waveforms_cl
         'introspection_path': introspection_directory,
         'log_level': INFO,
         'debug_plots': debug_directory,
-        'debug_ground_truth_templates': precomputed_template_paths,
-        'debug_ground_truth_templates': precomputed_template_paths
+        #'debug_ground_truth_templates': precomputed_template_paths
     }
     cluster_writer_kwargs = {
         'name': "cluster_writer",

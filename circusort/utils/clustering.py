@@ -8,7 +8,7 @@ import scipy.stats
 import logging
 
 from sklearn.decomposition import PCA
-
+import statsmodels.api as sm
 from circusort.io.template import load_template
 from circusort.obj.template import Template, TemplateComponent
 
@@ -713,7 +713,7 @@ class OnlineManager(object):
 
         return rho, distances, nb_neighbors
 
-    def fit_rho_delta(self, rho, delta, smart_select=False, max_clusters=10):
+    def fit_rho_delta(self, rho, delta, smart_select=True, max_clusters=10):
         """Fit relation between rho and delta values.
 
         Arguments:
@@ -729,32 +729,23 @@ class OnlineManager(object):
         if smart_select:
 
             # TODO try to use RANSAC
-            try:
-                x = sm.add_constant(rho)
-                model = sm.RLM(delta, x)
-                results = model.fit()
-                difference = rho - results.fittedvalues
-                # TODO swap and clean the following lines.
-                z_score = (difference - difference.mean()) / difference.std()
-                sub_indices = np.where(z_score >= 3.)[0]
-
-                #difference_median = np.median(difference)
-                #difference_mad = 1.4826 * np.median(np.absolute(difference - difference_median))
-                #z_score = (difference - difference_median) / difference_mad
-                #sub_indices = np.where(z_score >= 4.0)[0]
-                if self.debug_plots is not None:
-                    # labels = z_score >= 3.0
-                    labels = z_score >= 4.0
-                    self.plot_rho_delta(rho, delta - results.fittedvalues, labels=labels, filename_suffix="modified")
-            except Exception as exception:
-                # Log debug message.
-                string = "{} raises an error in 'fit_rho_delta': {}"
-                message = string.format(self.name, exception)
-                self.log.debug(message)
-                sub_indices = np.argsort(rho * np.log(1 + delta))[::-1][:max_clusters]
-
+            x = sm.add_constant(rho)
+            model = sm.RLM(delta, x)
+            results = model.fit()
+            difference = delta - results.fittedvalues
+            # TODO swap and clean the following lines.
+            z_score = (difference - difference.mean()) / difference.std()
+            sub_indices = np.where(z_score >= 3.)[0]
+            print sub_indices
+            #difference_median = np.median(difference)
+            #difference_mad = 1.4826 * np.median(np.absolute(difference - difference_median))
+            #z_score = (difference - difference_median) / difference_mad
+            #sub_indices = np.where(z_score >= 4.0)[0]
+            if self.debug_plots is not None:
+                # labels = z_score >= 3.0
+                labels = z_score >= 3.0
+                self.plot_rho_delta(rho, delta - results.fittedvalues, labels=labels, filename_suffix="modified")
         else:
-
             sub_indices = np.argsort(rho * np.log(1 + delta))[::-1][:max_clusters]
 
         return sub_indices, len(sub_indices)
