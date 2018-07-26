@@ -911,14 +911,19 @@ class OnlineManager(object):
 
         Arguments:
             data: numpy.ndarray
-            n_min: none |
+            n_min: none | float (optional)
                 Minimal number in any cluster.
-            output: none |
-            local_merges: none | float
+                The default value is None.
+            output: none | string (optional)
+                The path used to create the debug plots.
+                The default value is None.
+            local_merges: none | float (optional)
                 Threshold for merging clusters on this electrode (i.e. similar clusters).
                 The default value is None.
+        Return:
+            labels: numpy.ndarray
+                An array which contains the cluster labels of the data samples.
         """
-        # TODO complete docstring.
 
         nb_samples = len(data)
 
@@ -993,8 +998,10 @@ class OnlineManager(object):
 
         # 1st subplot.
         k_1, k_2 = 0, 1  # pair of principal components
-        ax = plt.subplot(221)
-        for k, label in enumerate(np.unique(labels)):
+        ax = plt.subplot(2, 2, 1)
+        unique_labels = np.unique(labels)
+        unique_labels = unique_labels[np.where(unique_labels >= 0)[0]]  # i.e. remove -1 label
+        for k, label in enumerate(unique_labels):
             c = 'C{}'.format(k % 10)
             indices = np.where(labels == label)[0]
             x = data[indices, k_1]
@@ -1009,9 +1016,9 @@ class OnlineManager(object):
         ax.set_ylabel("PC{}".format(k_2))
         # 2nd subplot.
         k_1, k_2 = 2, 1
-        ax = plt.subplot(222)
-        for label in np.unique(labels):
-            c = 'C{}'.format(label % 10)
+        ax = plt.subplot(2, 2, 2)
+        for k, label in enumerate(unique_labels):
+            c = 'C{}'.format(k % 10)
             indices = np.where(labels == label)[0]
             x = data[indices, k_1]
             y = data[indices, k_2]
@@ -1025,9 +1032,9 @@ class OnlineManager(object):
         ax.set_ylabel("PC{}".format(k_2))
         # 3rd subplot.
         k_1, k_2 = 0, 2
-        ax = plt.subplot(223)
-        for label in np.unique(labels):
-            c = 'C{}'.format(label % 10)
+        ax = plt.subplot(2, 2, 3)
+        for k, label in enumerate(unique_labels):
+            c = 'C{}'.format(k % 10)
             indices = np.where(labels == label)[0]
             x = data[indices, k_1]
             y = data[indices, k_2]
