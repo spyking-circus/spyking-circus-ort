@@ -129,7 +129,7 @@ class OnlineManager(object):
 
         self.time = 0
         self.is_ready = False
-        self.abs_n_min = 20
+        self.abs_n_min = 10
         self.nb_updates = 0
         self.sub_dim = 5
         self.loc_pca = None
@@ -848,6 +848,64 @@ class OnlineManager(object):
 
         return halo, cluster_indices[:max_clusters]
 
+    @staticmethod
+    def _greedy_merges(data, labels, local_merges):
+
+        def do_merging(data, labels, clusters, local_merges):
+
+            dmin = np.inf
+            to_merge = [None, None]
+
+            for ic1 in range(len(clusters)):
+                idx1 = np.where(labels == clusters[ic1])[0]
+                sd1 = np.take(data, idx1, axis=0)
+                m1 = np.median(sd1, 0)
+                for ic2 in range(ic1 + 1, len(clusters)):
+                    idx2 = np.where(labels == clusters[ic2])[0]
+                    sd2 = np.take(data, idx2, axis=0)
+                    m2 = np.median(sd2, 0)
+                    v_n = m1 - m2
+                    pr_1 = np.dot(sd1, v_n)
+                    pr_2 = np.dot(sd2, v_n)
+
+                    norm = np.median(np.abs(pr_1 - np.median(pr_1))) ** 2 + np.median(
+                        np.abs(pr_2 - np.median(pr_2))) ** 2
+                    dist = np.sum(v_n ** 2) / np.sqrt(norm)
+
+                    if dist < dmin:
+                        dmin = dist
+                        to_merge = [ic1, ic2]
+
+            if dmin < local_merges:
+                labels[np.where(labels == clusters[to_merge[1]])[0]] = clusters[to_merge[0]]
+                return True, labels
+
+            return False, labels
+
+        has_been_merged = True
+        mask = np.where(labels > -1)[0]
+        clusters = np.unique(labels[mask])
+        merged = [len(clusters), 0]
+
+        while has_been_merged:
+            has_been_merged, labels = do_merging(data, labels, clusters, local_merges)
+            if has_been_merged:
+                merged[1] += 1
+
+        return labels, merged
+
+    @staticmethod
+    def _discard_small_clusters(labels, n_min):
+
+        for cluster_index in np.unique(labels):
+            if cluster_index < 0:
+                continue
+            samples_indices = np.where(labels == cluster_index)[0]
+            if len(samples_indices) < n_min:
+                labels[samples_indices] = -1
+
+        return labels
+
     def density_clustering(self, data, n_min=None, output=None, local_merges=None):
         """Run a density clustering on the given data.
 
@@ -866,26 +924,19 @@ class OnlineManager(object):
 
         if nb_samples > 1:
             rhos, distances, _ = self.rho_estimation(data)
-            labels, _ = self.density_based_clustering(rhos, distances, n_min=n_min)
+            labels, nb_clusters = self.density_based_clustering(rhos, distances, n_min=n_min)
         elif nb_samples == 1:
             labels = np.array([0])
         else:
             labels = np.array([])
 
-        # TODO remove the following lines.
-        # rhos, dist, _ = rho_estimation(data)
-        # if len(rhos) == 1:
-        #     labels, c = np.array([0]), np.array([0])
-        # elif len(rhos) > 1:
-        #     rhos = -rhos + rhos.max()
-        #     labels, c = density_based_clustering(rhos, dist, n_min=n_min)
-        # else:
-        #     labels, c = np.array([]), np.array([])
+        # Merge similar clusters (if necessary).
+        if local_merges is not None:
+            labels, _ = self._greedy_merges(data, labels, local_merges)
 
-        # TODO uncomment the following lines.
-        # if local_merges is not None:
-        #     labels, merged = greedy_merges(data, labels, local_merges)
-        _ = local_merges
+        # Discard small clusters (if necessary).
+        if n_min is not None:
+            labels = self._discard_small_clusters(labels, n_min)
 
         if output is not None:
             self.plot_cluster(data, labels, output)
@@ -1249,51 +1300,7 @@ class OnlineManager(object):
         return
 
 
-def greedy_merges(data, labels, local_merges):
-
-    def do_merging(data, labels, clusters, local_merges):
-
-        dmin = np.inf
-        to_merge = [None, None]
-
-        for ic1 in range(len(clusters)):
-            idx1 = np.where(labels == clusters[ic1])[0]
-            sd1 = np.take(data, idx1, axis=0)
-            m1 = np.median(sd1, 0)
-            for ic2 in range(ic1 + 1, len(clusters)):
-                idx2 = np.where(labels == clusters[ic2])[0]
-                sd2 = np.take(data, idx2, axis=0)
-                m2 = np.median(sd2, 0)
-                v_n = m1 - m2
-                pr_1 = np.dot(sd1, v_n)
-                pr_2 = np.dot(sd2, v_n)
-
-                norm = np.median(np.abs(pr_1 - np.median(pr_1))) ** 2 + np.median(
-                    np.abs(pr_2 - np.median(pr_2))) ** 2
-                dist = np.sum(v_n ** 2) / np.sqrt(norm)
-
-                if dist < dmin:
-                    dmin = dist
-                    to_merge = [ic1, ic2]
-
-        if dmin < local_merges:
-            labels[np.where(labels == clusters[to_merge[1]])[0]] = clusters[to_merge[0]]
-            return True, labels
-
-        return False, labels
-
-    has_been_merged = True
-    mask = np.where(labels > -1)[0]
-    clusters = np.unique(labels[mask])
-    merged = [len(clusters), 0]
-
-    while has_been_merged:
-        has_been_merged, labels = do_merging(data, labels, clusters, local_merges)
-        if has_been_merged:
-            merged[1] += 1
-    return labels, merged
-
-
+# TODO remove the following function?
 def hdbscan_clustering(data, n_min=None, output=None):
     if n_min is not None:
         cluster_engine = hdbscan.HDBSCAN(min_cluster_size=int(n_min), core_dist_n_jobs=1, allow_single_cluster=True)
