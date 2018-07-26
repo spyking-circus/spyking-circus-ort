@@ -86,6 +86,11 @@ class TemplateComponent(object):
 
         return self.waveforms.shape[1]
 
+    @property
+    def extrema(self):
+        index = self.temporal_width//2 + 1
+        return (np.min(self.waveforms[:, index]), np.max(self.waveforms[:, index]))
+    
     def __str__(self):
 
         string = "TemplateComponent for {} channels with amplitudes {}"
@@ -375,6 +380,10 @@ class Template(object):
         return result
 
     @property
+    def extrema(self):
+        return self.first_component.extrema
+
+    @property
     def is_compressed(self):
 
         return self._compressed
@@ -537,15 +546,15 @@ class Template(object):
                 x = [x_anchor, x_anchor]
                 y = [y_anchor, y_anchor - 0.3 * float(height)]
                 ax.plot(x, y, color='black')
-                ax.text(np.mean(x), np.mean(y), u"{} µV".format(height), fontsize=8,
+                ax.text(np.mean(x), np.mean(y), r"{} $\mu$V".format(height), fontsize=8,
                         horizontalalignment='left', verticalalignment='center')
 
         if with_xaxis:
-            ax.set_xlabel(u"x (µm)")
+            ax.set_xlabel(r"x ($\mu$m)")
         else:
             ax.set_xticklabels([])
         if with_yaxis:
-            ax.set_ylabel(u"y (µm)")
+            ax.set_ylabel(r"y ($\mu$m)")
         else:
             ax.set_yticklabels([])
         if title is not None:

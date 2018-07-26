@@ -102,6 +102,7 @@ class Meta_merger(Block):
                         full_cc, control_value = self._cross_corr(spikes_1, spikes_2)
                         cc_dip = full_cc[:np.abs(self.raw_lags) <= lag]
                         score = control_value - cc_dip.mean()
+                        
 
             self._measure_time('end', frequency=100)
 

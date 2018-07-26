@@ -16,7 +16,9 @@ nb_columns = 3
 radius = 100.0  # µm
 nb_cells_range = [27]
 duration = 2.5 * 60.0  # s
-
+preload_templates = False
+nb_waveforms_clustering = 400
+nb_replay = 2
 
 def main():
 
@@ -103,7 +105,7 @@ def main():
         # Sort data (if necessary).
         if args.pending_sorting:
 
-            network.sorting(name)
+            network.sorting(name, preload_templates, nb_replay, nb_waveforms_clustering)
 
     # Introspect sorting (if necessary).
     if args.pending_introspection:
