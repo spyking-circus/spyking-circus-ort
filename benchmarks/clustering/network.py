@@ -2,7 +2,7 @@ import os
 
 import circusort
 
-from logging import DEBUG
+from logging import DEBUG, INFO
 
 
 name = "network"
@@ -23,7 +23,7 @@ block_nb_buffers = {}
 block_labels = {}
 
 
-def sorting(configuration_name):
+def sorting(configuration_name, preload_templates=True, nb_replay=1, nb_waveforms_clustering=400):
     """Create the 1st sorting subnetwork.
 
     Parameter:
@@ -36,6 +36,7 @@ def sorting(configuration_name):
     sorting_directory = os.path.join(directory, "sorting", configuration_name)
     introspection_directory = os.path.join(directory, "introspection", configuration_name)
     log_directory = os.path.join(directory, "log", configuration_name)
+    debug_directory = os.path.join(directory, "debug", configuration_name)
 
     # Load generation parameters.
     parameters = circusort.io.get_data_parameters(generation_directory)
@@ -81,6 +82,7 @@ def sorting(configuration_name):
         'speed_factor': 2.0,
         'introspection_path': introspection_directory,
         'log_level': DEBUG,
+        'nb_replay' : nb_replay
     }
     filter_kwargs = {
         'name': "filter",
@@ -117,12 +119,17 @@ def sorting(configuration_name):
         'name': "cluster",
         'threshold_factor': threshold_factor,
         'sampling_rate': sampling_rate,
-        'nb_waveforms': 400,
+        'nb_waveforms': nb_waveforms_clustering,
         'probe_path': probe_path,
         'two_components': False,
         'introspection_path': introspection_directory,
-        'log_level': DEBUG,
+        'log_level': INFO,
+        'debug_plots': debug_directory
     }
+
+    if preload_templates:
+            cluster_kwargs['channels'] = []
+
     cluster_writer_kwargs = {
         'name': "cluster_writer",
         'output_directory': sorting_directory,
@@ -134,12 +141,15 @@ def sorting(configuration_name):
         'probe_path': probe_path,
         'templates_path': os.path.join(sorting_directory, "templates.h5"),
         'overlaps_path': os.path.join(sorting_directory, "overlaps.p"),
-        'precomputed_template_paths': precomputed_template_paths,
         'sampling_rate': sampling_rate,
         'nb_samples': nb_samples,
         'introspection_path': introspection_directory,
         'log_level': DEBUG,
     }
+
+    if preload_templates:
+        updater_bis_kwargs['precomputed_template_paths'] = precomputed_template_paths
+
     updater_writer_kwargs = {
         'name': "updater_writer",
         'output_directory': sorting_directory,

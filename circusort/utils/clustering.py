@@ -8,6 +8,8 @@ import warnings
 import logging
 from circusort.obj.template import Template, TemplateComponent
 from sklearn.decomposition import PCA
+import statsmodels.api as sm
+from statsmodels.sandbox.regression.predstd import wls_prediction_std
 
 warnings.filterwarnings("ignore")
 
@@ -559,24 +561,25 @@ class OnlineManager(object):
         return templates
 
 
-def fit_rho_delta(xdata, ydata, smart_select=False, max_clusters=10):
+def fit_rho_delta(xdata, ydata, smart_select=True, max_clusters=20):
 
     if smart_select:
 
-        xmax = xdata.max()
-        off = ydata.min()
-        idx = np.argmin(xdata)
-        a_0 = (ydata[idx] - off) / np.log(1 + (xmax - xdata[idx]))
+        # xmax = xdata.max()
+        # off = ydata.min()
+        # idx = np.argmin(xdata)
+        # a_0 = (ydata[idx] - off) / np.log(1 + (xmax - xdata[idx]))
 
-        def myfunc(x, a, b, c, d):
-            return a * np.log(1. + c * ((xmax - x) ** b)) + d
+        # def myfunc(x, a, b, c, d):
+        #     return a * np.log(1. + c * ((xmax - x) ** b)) + d
 
         try:
-            result, pcov = scipy.optimize.curve_fit(myfunc, xdata, ydata, p0=[a_0, 1., 1., off])
-            prediction = myfunc(xdata, result[0], result[1], result[2], result[3])
-            difference = xdata * (ydata - prediction)
-            z_score = (difference - difference.mean()) / difference.std()
-            subidx = np.where(z_score >= 3.)[0]
+            x = sm.add_constant(numpy.log(1/xdata))
+            model = sm.OLS(numpy.log(1/ydata),x)
+            results = model.fit()
+            _,_,prediction = wls_prediction_std(results,alpha=99.9)
+            prediction = numpy.exp(prediction) # to linear form
+            subidx = numpy.where(ydata>prediction)
         except Exception:
             subidx = np.argsort(xdata * np.log(1 + ydata))[::-1][:max_clusters]
 
@@ -603,7 +606,7 @@ def rho_estimation(data, mratio=0.01):
     return rho, dist, nb_selec
 
 
-def density_based_clustering(rho, dist, smart_select=True, n_min=None, max_clusters=10):
+def density_based_clustering(rho, dist, smart_select=False, n_min=None, max_clusters=20):
 
     N = len(rho)
     maxd = np.max(dist)
