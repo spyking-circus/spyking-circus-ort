@@ -34,6 +34,7 @@ class DensityClustering(Block):
         'sampling_rate': 20000.,
         'spike_width': 5,
         'nb_waveforms': 10000,
+        'nb_waveforms_tracking': 500,
         'channels': None,
         'probe_path': None,
         'radius': None,
@@ -68,6 +69,7 @@ class DensityClustering(Block):
         self.sampling_rate = self.sampling_rate
         self.spike_width = self.spike_width
         self.nb_waveforms = self.nb_waveforms
+        self.nb_waveforms_tracking = self.nb_waveforms_tracking
         self.channels = self.channels
         self.probe_path = self.probe_path
         self.radius = self.radius
@@ -250,7 +252,8 @@ class DensityClustering(Block):
                     'debug_plots': self.debug_plots,
                     'debug_ground_truth_templates': self.debug_ground_truth_templates,
                     'local_merges': self.local_merges,
-                    'debug_file_format': self.debug_file_format
+                    'debug_file_format': self.debug_file_format,
+                    'sampling_rate': self.sampling_rate
                 }
 
                 if key == 'negative':
@@ -372,11 +375,11 @@ class DensityClustering(Block):
                         online_manager.set_physical_threshold(threshold)
 
                         # Log debug message (if necessary).
-                        if self.counter % 50 == 0:
-                            nb_peaks = len(self.raw_data[key][channel])
-                            string = "{} We have collected {} {} peaks on channel {}"
-                            message = string.format(self.name_and_counter, nb_peaks, key, channel)
-                            self.log.debug(message)
+                        #if self.counter % 50 == 0:
+                        #    nb_peaks = len(self.raw_data[key][channel])
+                        #    string = "{} We have collected {} {} peaks on channel {}"
+                        #    message = string.format(self.name_and_counter, nb_peaks, key, channel)
+                        #    self.log.debug(message)
 
                         if len(self.raw_data[key][channel]) >= self.nb_waveforms and not online_manager.is_ready:
                             # Log debug message.
@@ -386,10 +389,10 @@ class DensityClustering(Block):
                             # First clustering.
                             templates = online_manager.initialize(self.counter, self.raw_data[key][channel])
                             self._prepare_templates(templates, key, channel)
-                        elif self.managers[key][channel].time_to_cluster(nb_updates=self.nb_waveforms):
+                        elif self.managers[key][channel].time_to_cluster(nb_updates=self.nb_waveforms_tracking):
                             # Log debug message.
                             string = "{n} Electrode {k} has obtained {m} {t} waveforms: re-clustering"
-                            message = string.format(n=self.name_and_counter, k=channel, m=self.nb_waveforms, t=key)
+                            message = string.format(n=self.name_and_counter, k=channel, m=self.nb_waveforms_tracking, t=key)
                             self.log.debug(message)
                             # Re-clustering.
                             templates = online_manager.cluster(tracking=self.tracking)

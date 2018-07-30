@@ -1,5 +1,9 @@
 import scipy.optimize
-import matplotlib.pyplot as plt
+import warnings
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore", category=FutureWarning)
+    import matplotlib.pyplot as plt
+
 import numpy as np
 import hdbscan
 import os
@@ -26,6 +30,24 @@ class MacroCluster(object):
         self.last_update = creation_time
         self.label = 'sparse'
         self.cluster_id = -1
+
+    def __add__(self, other):
+        """Add two clusters together.
+
+        Argument:
+            other: MacroCluster
+                cluster to add to the current one.
+        Return:
+            result: MacroCluster
+
+        """
+
+        if not isinstance(other, MacroCluster):
+            string = "unsupported operand type(s) for +: '{}' and '{}'"
+            message = string.format(type(self), type(other))
+            raise TypeError(message)
+
+        pass
 
     def set_label(self, label):
 
@@ -98,7 +120,7 @@ class MacroCluster(object):
 
 class OnlineManager(object):
 
-    def __init__(self, probe, channel, decay=0.05, mu=2, epsilon='auto', theta=-np.log(0.001), dispersion=(5, 5),
+    def __init__(self, probe, channel, sampling_rate, decay=0.05, mu=2, epsilon='auto', theta=-np.log(0.001), dispersion=(5, 5),
                  n_min=0.01, noise_thr=0.8, pca=None, logger=None, two_components=False, name=None, debug_plots=None,
                  debug_ground_truth_templates=None, debug_file_format='pdf', local_merges=3):
 
@@ -122,6 +144,7 @@ class OnlineManager(object):
         self.debug_ground_truth_templates = debug_ground_truth_templates
         self.debug_file_format = debug_file_format
         self.local_merges = local_merges
+        self.sampling_rate = sampling_rate
 
         if self.debug_plots is not None:
             self.fig_name = os.path.join(self.debug_plots, '{n}_{t}.{f}')
@@ -205,7 +228,7 @@ class OnlineManager(object):
 
         labels = self.density_clustering(sub_data, n_min=n_min, output=output, local_merges=self.local_merges)
 
-        self._W = len(sub_data) / float(self.time / 20000.)
+        self._W = len(sub_data) / float(self.time / self.sampling_rate)
         self.mu = self._W / 1000.
         self.beta = 1.5 / self.mu
 
@@ -690,7 +713,7 @@ class OnlineManager(object):
 
         distances = scipy.spatial.distance.pdist(data, metric='euclidean')
         distances = distances.astype(np.float32)
-        nb_neighbors = max(5, int(neighbors_ratio * float(nb_samples)))
+        nb_neighbors = max(2, int(neighbors_ratio * float(nb_samples)))
 
         # Estimate mean distance with nearest neighbors for each sample.
         mean_distances = np.zeros(nb_samples, dtype=np.float32)
@@ -713,7 +736,7 @@ class OnlineManager(object):
 
         return rho, distances, nb_neighbors
 
-    def fit_rho_delta(self, rho, delta, smart_select=True, max_clusters=10):
+    def fit_rho_delta(self, rho, delta, smart_select=True, max_clusters=10, treshold=4):
         """Fit relation between rho and delta values.
 
         Arguments:
@@ -734,16 +757,15 @@ class OnlineManager(object):
             results = model.fit()
             difference = delta - results.fittedvalues
             # TODO swap and clean the following lines.
-            z_score = (difference - difference.mean()) / difference.std()
-            sub_indices = np.where(z_score >= 3.)[0]
-            print sub_indices
-            #difference_median = np.median(difference)
-            #difference_mad = 1.4826 * np.median(np.absolute(difference - difference_median))
-            #z_score = (difference - difference_median) / difference_mad
-            #sub_indices = np.where(z_score >= 4.0)[0]
+            #z_score = (difference - difference.mean()) / difference.std()
+            #sub_indices = np.where(z_score >= treshold)[0]
+
+            difference_median = np.median(difference)
+            difference_mad = 1.4826 * np.median(np.absolute(difference - difference_median))
+            z_score = (difference - difference_median) / difference_mad
+            sub_indices = np.where(z_score >= treshold)[0]
             if self.debug_plots is not None:
-                # labels = z_score >= 3.0
-                labels = z_score >= 3.0
+                labels = z_score >= treshold
                 self.plot_rho_delta(rho, delta - results.fittedvalues, labels=labels, filename_suffix="modified")
         else:
             sub_indices = np.argsort(rho * np.log(1 + delta))[::-1][:max_clusters]

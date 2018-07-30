@@ -84,50 +84,50 @@ def sorting(configuration_name, with_precomputed_templates=True, nb_waveforms_cl
         'is_realistic': True,
         'speed_factor': 2.0,
         'introspection_path': introspection_directory,
-        'log_level': DEBUG,
+        'log_level': INFO,
         'nb_replay' : nb_replay
     }
     filter_kwargs = {
         'name': "filter",
         'cut_off': 1.0,  # Hz
         'introspection_path': introspection_directory,
-        'log_level': DEBUG,
+        'log_level': INFO,
     }
     mad_kwargs = {
         'name': "mad",
         'time_constant': 10.0,
         'introspection_path': introspection_directory,
-        'log_level': DEBUG,
+        'log_level': INFO,
     }
     detector_kwargs = {
         'name': "detector",
         'threshold_factor': threshold_factor,
         'sampling_rate': sampling_rate,
         'introspection_path': introspection_directory,
-        'log_level': DEBUG,
+        'log_level': INFO,
     }
     peak_writer_kwargs = {
         'name': "peak_writer",
         'data_path': os.path.join(sorting_directory, "peaks.h5"),
         'introspection_path': introspection_directory,
-        'log_level': DEBUG,
+        'log_level': INFO,
     }
     pca_kwargs = {
         'name': "pca",
         'nb_waveforms': 1000,
         'introspection_path': introspection_directory,
-        'log_level': DEBUG,
+        'log_level': INFO,
     }
     cluster_kwargs = {
         'name': "cluster",
         'threshold_factor': threshold_factor,
         'sampling_rate': sampling_rate,
         'nb_waveforms': nb_waveforms_clustering,
+        'nb_waveforms_tracking' : 2*nb_waveforms_clustering,
         'probe_path': probe_path,
         'two_components': False,
         'local_merges': 3,
         'debug_plots': debug_directory,
-        'debug_ground_truth_templates': precomputed_template_paths,
         'introspection_path': introspection_directory,
         'log_level': INFO,
         'debug_plots': debug_directory,
@@ -137,7 +137,7 @@ def sorting(configuration_name, with_precomputed_templates=True, nb_waveforms_cl
         'name': "cluster_writer",
         'output_directory': sorting_directory,
         'introspection_path': introspection_directory,
-        'log_level': DEBUG,
+        'log_level': INFO,
     }
     updater_bis_kwargs = {
         'name': "updater_bis",
@@ -148,13 +148,13 @@ def sorting(configuration_name, with_precomputed_templates=True, nb_waveforms_cl
         'sampling_rate': sampling_rate,
         'nb_samples': nb_samples,
         'introspection_path': introspection_directory,
-        'log_level': DEBUG,
+        'log_level': INFO,
     }
     updater_writer_kwargs = {
         'name': "updater_writer",
         'output_directory': sorting_directory,
         'introspection_path': introspection_directory,
-        'log_level': DEBUG,
+        'log_level': INFO,
     }
 
     # Define the elements of the network.
