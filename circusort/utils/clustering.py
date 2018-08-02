@@ -720,7 +720,7 @@ class OnlineManager(object):
         for k in range(nb_samples):
             # Find the distances with the nb_select nearest neighbors.
             indices_1 = get_condensed_indices(k, np.arange(k + 1, nb_samples))
-            indices_2 = get_condensed_indices(np.arange(0, k - 1), k)
+            indices_2 = get_condensed_indices(np.arange(0, k), k)
             indices = np.concatenate((indices_1, indices_2))
             tmp = np.argsort(np.take(distances, indices))
             tmp = tmp[0:nb_neighbors]
