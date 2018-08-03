@@ -5,6 +5,7 @@ import numpy as np
 import os
 import scipy.spatial.distance
 import scipy.stats
+import statsmodels.api as sm
 import logging
 
 from sklearn.decomposition import PCA
@@ -714,7 +715,7 @@ class OnlineManager(object):
 
         return rho, distances, nb_neighbors
 
-    def fit_rho_delta(self, rho, delta, smart_select=False, max_clusters=10):
+    def fit_rho_delta(self, rho, delta, smart_select=False, max_clusters=10, smart_select_mode='ransac_bis'):
         """Fit relation between rho and delta values.
 
         Arguments:
@@ -726,41 +727,101 @@ class OnlineManager(object):
             max_clusters: integer (optional)
                 The maximal number of detected clusters (except if smart select is activated).
                 The default value is 10.
+            smart_select_mode: string (optional)
+                Either 'curve_fit' or 'ransac'.
         """
 
         if smart_select:
 
-            # TODO try to use RANSAC.
+            if smart_select_mode == 'curve_fit':
 
-            rho_max = rho.max()
-            off = delta.min()
-            idx = np.argmin(rho)
-            a_0 = (delta[idx] - off) / np.log(1 + (rho_max - rho[idx]))
+                z_score_threshold = 3.0
 
-            def myfunc(x, a, b, c, d):
-                return a * np.log(1.0 + c * ((rho_max - x) ** b)) + d  # TODO fix runtime warning...
+                rho_max = rho.max()
+                off = delta.min()
+                idx = np.argmin(rho)
+                a_0 = (delta[idx] - off) / np.log(1 + (rho_max - rho[idx]))
 
-            try:
-                result, pcov = scipy.optimize.curve_fit(myfunc, rho, delta, p0=[a_0, 1., 1., off])
-                prediction = myfunc(rho, result[0], result[1], result[2], result[3])
-                difference = rho * (delta - prediction)
+                def my_func(t, a, b, c, d):
+                    return a * np.log(1.0 + c * ((rho_max - t) ** b)) + d  # TODO fix runtime warning...
+
+                try:
+                    result, pcov = scipy.optimize.curve_fit(my_func, rho, delta, p0=[a_0, 1., 1., off])
+                    prediction = my_func(rho, result[0], result[1], result[2], result[3])
+                    difference = rho * (delta - prediction)
+                    # TODO swap and clean the following lines.
+                    # z_score = (difference - difference.mean()) / difference.std()
+                    difference_median = np.median(difference)
+                    difference_mad = 1.4826 * np.median(np.absolute(difference - difference_median))
+                    z_score = (difference - difference_median) / difference_mad
+                    sub_indices = np.where(z_score >= z_score_threshold)[0]
+                    # Plot rho and delta values (if necessary).
+                    if self.debug_plots is not None:
+                        labels = z_score >= z_score_threshold
+                        self.plot_rho_delta(rho, delta - prediction, labels=labels, filename_suffix="modified")
+                except Exception as exception:
+                    # Log debug message.
+                    string = "{} raises an error in 'fit_rho_delta': {}"
+                    message = string.format(self.name, exception)
+                    self.log.debug(message)
+                    sub_indices = np.argsort(rho * np.log(1 + delta))[::-1][:max_clusters]
+
+            elif smart_select_mode == 'ransac':
+
+                z_score_threshold = 4.0
+
+                x = sm.add_constant(rho)
+                model = sm.RLM(delta, x)
+                results = model.fit()
+                prediction = results.fittedvalues
+                difference = delta - prediction
                 # TODO swap and clean the following lines.
                 # z_score = (difference - difference.mean()) / difference.std()
                 difference_median = np.median(difference)
                 difference_mad = 1.4826 * np.median(np.absolute(difference - difference_median))
                 z_score = (difference - difference_median) / difference_mad
-                # sub_indices = np.where(z_score >= 3.0)[0]
-                sub_indices = np.where(z_score >= 4.0)[0]
+                sub_indices = np.where(z_score >= z_score_threshold)[0]
+                # Plot rho and delta values (if necessary).
                 if self.debug_plots is not None:
-                    # labels = z_score >= 3.0
-                    labels = z_score >= 4.0
+                    labels = z_score >= z_score_threshold
                     self.plot_rho_delta(rho, delta - prediction, labels=labels, filename_suffix="modified")
-            except Exception as exception:
-                # Log debug message.
-                string = "{} raises an error in 'fit_rho_delta': {}"
-                message = string.format(self.name, exception)
-                self.log.debug(message)
-                sub_indices = np.argsort(rho * np.log(1 + delta))[::-1][:max_clusters]
+
+            elif smart_select_mode == 'ransac_bis':
+
+                x = sm.add_constant(rho)
+                model = sm.RLM(delta, x)
+                results = model.fit()
+                delta_mean = results.fittedvalues
+                difference = delta - delta_mean
+                # 1st solution.
+                # sigma = difference.std()  # TODO this estimation is sensible to outliers
+                # 2nd solution.
+                # difference_median = np.median(difference)
+                # difference_mad = 1.4826 * np.median(np.absolute(difference - difference_median))
+                # sigma = difference_mad
+                # upper = + 3.0 * sigma  # + sigma * prediction  # TODO check/optimize this last term?
+                # 3rd solution (fit variance also).
+                sigma = 1.4826 * np.median(np.absolute(difference - np.median(difference)))
+                variance_model = sm.RLM(np.square(difference), x)
+                variance_result = variance_model.fit()
+                variance_delta = variance_result.fittedvalues
+                variance_delta = np.maximum(sigma ** 2.0, variance_delta)  # i.e. rectify negative values
+                delta_std = np.sqrt(variance_delta)
+                upper = 4.0 * delta_std
+                # lower = - 3.0 * sigma  # - sigma * prediction  # TODO idem?
+                z_score = difference - upper  # TODO define correctly the z-score.
+                sub_indices = np.where(z_score >= 0)[0]  # TODO reintroduce the z-score threshold.
+                # Plot rho and delta values (if necessary).
+                if self.debug_plots is not None:
+                    labels = z_score >= 0
+                    self.plot_rho_delta(rho, delta, labels=labels, mean=delta_mean, std=delta_std,
+                                        threshold=delta_mean + upper, filename_suffix="ransac_bis")
+
+            else:
+
+                string = "unexpected smart select mode: {}"
+                message = string.format(smart_select_mode)
+                raise ValueError(message)
 
         else:
 
@@ -950,7 +1011,8 @@ class OnlineManager(object):
 
         return
 
-    def plot_rho_delta(self, rho, delta, labels=None, marker_size=5, marker_color='C0', filename_suffix=None):
+    def plot_rho_delta(self, rho, delta, labels=None, mean=None, std=None, threshold=None, marker_size=5,
+                       marker_color='C0', filename_suffix=None):
 
         fig, ax = plt.subplots()
         if labels is not None:
@@ -960,6 +1022,14 @@ class OnlineManager(object):
                 ax.scatter(rho[indices], delta[indices], s=marker_size, c=marker_color)
         else:
             ax.scatter(rho, delta, s=marker_size, c=marker_color)
+        indices = np.argsort(rho)
+        if mean is not None:
+            ax.plot(rho[indices], mean[indices], color='red', linestyle='--', linewidth=1)
+        if std is not None:
+            ax.plot(rho[indices], mean[indices] + std[indices], color='red', linestyle=':', linewidth=1)
+            ax.plot(rho[indices], mean[indices] - std[indices], color='red', linestyle=':', linewidth=1)
+        if threshold is not None:
+            ax.plot(rho[indices], threshold[indices], color='red', linestyle='-', linewidth=1)
         ax.set_xlabel("rho")
         ax.set_ylabel("delta")
 

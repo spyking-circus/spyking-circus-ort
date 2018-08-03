@@ -19,7 +19,8 @@ requires = [
     'pyopencl',
     'filelock',
     'vispy',
-    'filelock'
+    'filelock',
+    'statsmodels'
 ]
 
 
