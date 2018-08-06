@@ -26,7 +26,7 @@ class DataFile(object):
             nb_channels: integer
             dtype: string (optional)
                 The default value is 'float32'.
-            gain: float
+            gain: float (optional)
                 The default value is 1.0.
         """
 
@@ -60,6 +60,20 @@ class DataFile(object):
         data = self.gain * data
 
         return data
+
+    def take(self, channels=None, ts_min=None, ts_max=None):
+
+        time_steps = np.arange(ts_min, ts_max + 1)
+        data = self.data[np.ix_(time_steps, channels)]
+
+        return data
+
+    def put(self, data, channels=None, ts_min=None, ts_max=None):
+
+        time_steps = np.arange(ts_min, ts_max + 1)
+        self.data[np.ix_(time_steps, channels)] = data
+
+        return
 
     def _plot(self, ax, t_min=0.0, t_max=0.5, **kwargs):
         """Plot data from file.

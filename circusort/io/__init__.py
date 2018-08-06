@@ -6,6 +6,8 @@ from .load import load, load_peaks, load_times
 from .configure import Configuration
 from .parse import find_parameters_path, parse_parameters_file, parse_parameters
 from .probe import generate_probe, save_probe, load_probe, get_probe
+from .datafile import load_datafile
+from .record import load_record
 from .trains import generate_trains, save_trains, list_trains, load_train, load_trains, get_train
 from .template import load_template, get_template
 from .template_store import load_template_store
