@@ -807,7 +807,7 @@ class OnlineManager(object):
                 variance_delta = variance_result.fittedvalues
                 variance_delta = np.maximum(sigma ** 2.0, variance_delta)  # i.e. rectify negative values
                 delta_std = np.sqrt(variance_delta)
-                upper = 4.0 * delta_std
+                upper = 5.0 * delta_std
                 # lower = - 3.0 * sigma  # - sigma * prediction  # TODO idem?
                 z_score = difference - upper  # TODO define correctly the z-score.
                 sub_indices = np.where(z_score >= 0)[0]  # TODO reintroduce the z-score threshold.
