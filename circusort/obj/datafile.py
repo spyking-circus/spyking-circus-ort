@@ -38,7 +38,12 @@ class DataFile(object):
         self.data = np.memmap(self.path, dtype=self.dtype)
 
         if self.nb_channels > 1:
-            self.data = self.data.reshape(self.data.shape[0] // self.nb_channels, self.nb_channels)
+            self.nb_samples = self.data.shape[0] // self.nb_channels
+            self.data = self.data.reshape(self.nb_samples, self.nb_channels)
+        elif self.nb_channels == 1:
+            self.nb_samples = self.data.shape[0]
+        else:
+            raise NotImplementedError()
 
     def __len__(self):
 
@@ -50,6 +55,8 @@ class DataFile(object):
         Arguments:
             t_min: float
             t_max: float
+        Return:
+            data: numpy.ndarray
         """
 
         b_min = int(np.ceil(t_min * self.sampling_rate))
@@ -62,16 +69,63 @@ class DataFile(object):
         return data
 
     def take(self, channels=None, ts_min=None, ts_max=None):
+        """Take samples from data file.
 
-        time_steps = np.arange(ts_min, ts_max + 1)
-        data = self.data[np.ix_(time_steps, channels)]
+        Arguments:
+            channels: none | iterable (optional)
+                The indices of the channels to extract.
+                The default value is None.
+            ts_min: none | integer (optional)
+                The minimum time step to extract.
+                The default value is None.
+            ts_max: none | integer (optional)
+                The maximum time step to extract.
+                The default value is None.
+        Return:
+            data: numpy.ndarray
+                The extracted samples.
+        """
+
+        if ts_min is None:
+            ts_min = 0
+        if ts_max is None:
+            ts_max = self.data.shape[0] - 1
+
+        if channels is None:
+            data = self.data[ts_min:ts_max + 1, :]
+        else:
+            time_steps = np.arange(ts_min, ts_max + 1)
+            data = self.data[np.ix_(time_steps, channels)]
 
         return data
 
     def put(self, data, channels=None, ts_min=None, ts_max=None):
+        """"Put samples in data file.
 
-        time_steps = np.arange(ts_min, ts_max + 1)
-        self.data[np.ix_(time_steps, channels)] = data
+        Arguments:
+            data: numpy.ndarray
+                The data to inject.
+            channels: none | iterable (optional)
+                The indices of the channels for the injection.
+                The default value is None.
+            ts_min: none | integer (optional)
+                The minimum time step for the injection.
+                The default value is None.
+            ts_max: none | integer (optional)
+                The maximum time step for the injection.
+                The default value is None.
+        """
+
+        if ts_min is None:
+            ts_min = 0
+        if ts_max is None:
+            ts_max = self.data.shape[0] - 1
+
+        if channels is None:
+            self.data[ts_min:ts_max+1, :] = data
+        else:
+            time_steps = np.arange(ts_min, ts_max + 1)
+            self.data[np.ix_(time_steps, channels)] = data
 
         return
 

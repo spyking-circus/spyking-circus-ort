@@ -7,7 +7,7 @@ from circusort.obj.datafile import DataFile
 def load_datafile(path, sampling_rate, nb_channels, dtype, gain=1.0):
     """Load datafile from path.
 
-    Parameter:
+    Arguments:
         path: string
             Path from which to load the train.
         sampling_rate: float
@@ -19,7 +19,6 @@ def load_datafile(path, sampling_rate, nb_channels, dtype, gain=1.0):
         gain: float (optional)
             The data gain.
             The default value is 1.0.
-
     Return:
         train: numpy.array
             Train. An array of spike times.
@@ -37,6 +36,30 @@ def load_datafile(path, sampling_rate, nb_channels, dtype, gain=1.0):
 
 
 def create_datafile(path, nb_samples, nb_channels, sampling_rate, dtype, gain=1.0):
+    """Create a new data file.
+
+    Arguments:
+        path: string
+            The path to save the new file.
+        nb_samples: integer
+            The number of samples.
+        nb_channels: integer
+            The number of channels.
+        sampling_rate: float
+            The sampling rate.
+        dtype: string
+            The data type.
+        gain: float (optional)
+            The default value is 1.0.
+    Return:
+        datafile: circusort.obj.Datafile
+            The created data file.
+    """
+
+    # Create directory (if necessary).
+    directory = os.path.dirname(path)
+    if not os.path.isdir(directory):
+        os.makedirs(directory)
 
     mode = 'w+'
     shape = (nb_samples, nb_channels)

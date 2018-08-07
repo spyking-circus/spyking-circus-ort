@@ -518,3 +518,64 @@ class Probe(object):
         # TODO add other parameters (i.e. mode, nb_rows, nb_columns, interelectrode_distance).
 
         return parameters
+
+    def copy(self):
+        """Copy probe.
+
+        Return:
+            copied_probe: circusort.obj.Probe
+                The copied probe.
+        """
+
+        copied_probe = Probe(self.channel_groups, self.total_nb_channels, self.radius)
+
+        return copied_probe
+
+    def keep(self, selection):
+        """Keep the specified channels only.
+
+        Argument:
+            selection: none | iterable | dictionary
+                A data structure which describe the channels to keep.
+        """
+
+        if selection is None:
+
+            pass
+
+        else:
+
+            if not isinstance(selection, dict):
+                nb_channel_groups = len(self.channel_groups)
+                assert nb_channel_groups == 1, "nb_channel_groups: {}".format(nb_channel_groups)
+                selection = {
+                    group_key: selection
+                    for group_key in self.channel_groups
+                }
+
+            selected_channel_groups = {}
+            total_nb_selected_channels = 0
+
+            for group_key in selection:
+                assert group_key in self.channel_groups, "group_key: {}".format(group_key)
+                selected_channels = selection[group_key]
+                selected_graph = []
+                selected_geometry = {}
+                channels = self.channel_groups[group_key]['channels']
+                graph = self.channel_groups[group_key]['graph']
+                geometry = self.channel_groups[group_key]['geometry']
+                assert graph == [], "graph: {}".format(graph)
+                for channel_key in selected_channels:
+                    assert channel_key in channels, "channel_key: {}".format(channel_key)
+                    total_nb_selected_channels += 1
+                    selected_geometry[channel_key] = geometry[channel_key]
+                selected_channel_groups[group_key] = {
+                    'channels': selected_channels,
+                    'graph': selected_graph,
+                    'geometry': selected_geometry,
+                }
+
+            self.channel_groups = selected_channel_groups
+            self.total_nb_channels = total_nb_selected_channels
+
+        return
