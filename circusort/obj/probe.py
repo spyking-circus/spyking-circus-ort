@@ -361,7 +361,7 @@ class Probe(object):
         for channel_group_id, channel_group in self.channel_groups.items():
             line = " {}: {{\n".format(channel_group_id)
             lines.append(line)
-            line = "  'channels': {},\n".format(channel_group['channels'])
+            line = "  'channels': [{}],\n".format(", ".join([str(k) for k in channel_group['channels']]))
             lines.append(line)
             line = "  'graph': {},\n".format(channel_group['graph'])
             lines.append(line)
@@ -559,20 +559,22 @@ class Probe(object):
             for group_key in selection:
                 assert group_key in self.channel_groups, "group_key: {}".format(group_key)
                 selected_channels = selection[group_key]
-                selected_graph = []
-                selected_geometry = {}
+                kept_channels = []
+                kept_graph = []
+                kept_geometry = {}
                 channels = self.channel_groups[group_key]['channels']
                 graph = self.channel_groups[group_key]['graph']
                 geometry = self.channel_groups[group_key]['geometry']
                 assert graph == [], "graph: {}".format(graph)
-                for channel_key in selected_channels:
+                for k, channel_key in enumerate(selected_channels):
                     assert channel_key in channels, "channel_key: {}".format(channel_key)
                     total_nb_selected_channels += 1
-                    selected_geometry[channel_key] = geometry[channel_key]
+                    kept_channels.append(k)
+                    kept_geometry[k] = geometry[channel_key]
                 selected_channel_groups[group_key] = {
-                    'channels': selected_channels,
-                    'graph': selected_graph,
-                    'geometry': selected_geometry,
+                    'channels': kept_channels,
+                    'graph': kept_graph,
+                    'geometry': kept_geometry,
                 }
 
             self.channel_groups = selected_channel_groups

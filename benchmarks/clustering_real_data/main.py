@@ -5,10 +5,10 @@ import os
 
 import circusort
 
+import network
 
-user_directory = os.path.expanduser("~")
-circus_directory = os.path.join(user_directory, ".spyking-circus-ort")
-directory = os.path.join(circus_directory, "benchmarks", "clustering_real_data")
+
+directory = network.directory
 configuration_directory = os.path.join(directory, "configuration")
 original_data_path = os.path.join(configuration_directory, "data.raw")
 original_probe_path = os.path.join(configuration_directory, "probe.prb")
@@ -71,20 +71,22 @@ def main():
         record = circusort.io.load_record(original_data_path, original_probe_path, sampling_rate=sampling_rate,
                                           dtype=dtype, gain=gain)
 
-        channels = np.array([133, 201, 231, 232]) - 1
-        t_min, t_max = 0.0, 5.0 * 60.0
+        channels = np.array([133, 134, 161, 166, 201, 202, 229, 231, 232]) - 1
+        t_min, t_max = 2.0 * 60.0, 7.0 * 60.0
         copied_data_path = os.path.join(recording_directory, "data.raw")
         copied_probe_path = os.path.join(recording_directory, "probe.prb")
         record.copy(copied_data_path, copied_probe_path, channels=channels, t_min=t_min, t_max=t_max)
 
         data = circusort.io.load_datafile(copied_data_path, sampling_rate, len(channels), dtype, gain=gain)
 
-        data.plot(t_min=60.0, t_max=70.0)
+        data.plot(t_min=2.0 * 60.0, t_max=3.0 * 60.0)
         plt.show()
 
     # Sorting.
 
     if args.pending_sorting:
+
+        network.sorting()
 
         # TODO sort spikes from data.
 
