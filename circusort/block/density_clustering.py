@@ -1,10 +1,10 @@
 from .block import Block
 import numpy as np
-import scipy.interpolate
 import os
 import shutil
 
 from circusort.io.probe import load_probe
+from circusort.io.snippets import empty as empty_snippets
 from circusort.utils.clustering import OnlineManager
 from circusort.obj.buffer import Buffer
 
@@ -123,11 +123,12 @@ class DensityClustering(Block):
 
     def _initialize(self):
 
-        self.batch = Buffer(self.sampling_rate, self.spike_width, alignment=self.alignment)
+        self.batch = Buffer(self.sampling_rate, self.spike_width, alignment=self.alignment, probe=self.probe)
         self.sign_peaks = []
         self.receive_pcs = True
         self.masks = {}
         self.safety_time = self.batch.get_safety_time(self.safety_time)
+
         return
 
     def _get_all_valid_peaks(self, peaks):
@@ -143,13 +144,13 @@ class DensityClustering(Block):
             all_peaks[key] = all_peaks[key][mask]
 
             if len(all_peaks[key]) > 0:
-                rmin = all_peaks[key].min()
-                rmax = all_peaks[key].max()
-                diff_times = rmax - rmin
+                r_min = all_peaks[key].min()
+                r_max = all_peaks[key].max()
+                diff_times = r_max - r_min
                 self.masks[key] = {}
                 self.masks[key]['all_times'] = np.zeros((self._nb_channels, diff_times + 1), dtype=np.bool)
-                self.masks[key]['min_times'] = np.maximum(all_peaks[key] - rmin - self.safety_time, 0)
-                self.masks[key]['max_times'] = np.minimum(all_peaks[key] - rmin + self.safety_time + 1, diff_times)
+                self.masks[key]['min_times'] = np.maximum(all_peaks[key] - r_min - self.safety_time, 0)
+                self.masks[key]['max_times'] = np.minimum(all_peaks[key] - r_min + self.safety_time + 1, diff_times)
 
         return all_peaks
 
@@ -277,8 +278,10 @@ class DensityClustering(Block):
 
     def _reset_data_structures(self, key, channel):
 
-        shape = (0, len(self.probe.edges[channel]), self.batch.temporal_width)
-        self.raw_data[key][channel] = np.zeros(shape, dtype=np.float32)
+        # TODO swap and clean the 3 following lines.
+        # shape = (0, len(self.probe.edges[channel]), self.batch.temporal_width)
+        # self.raw_data[key][channel] = np.zeros(shape, dtype=np.float32)
+        self.raw_data[key][channel] = empty_snippets()
         self.templates[key][str(channel)] = {}
         self.times[key][channel] = []
 
@@ -346,13 +349,18 @@ class DensityClustering(Block):
                             
                             if best_channel in self.channels:
                                 channels = self.probe.edges[best_channel]
-                                ref_channel = self.chan_positions[best_channel]
-                                waveforms = self.batch.get_snippet(channels, peak, peak_type, ref_channel).T
-                                waveforms = waveforms.reshape(1, waveforms.shape[0], waveforms.shape[1])
-                                
+                                # TODO clean and swap the 4 following lines.
+                                # ref_channel = self.chan_positions[best_channel]
+                                # waveforms = self.batch.get_snippet(channels, peak, peak_type, ref_channel).T
+                                # waveforms = waveforms.reshape(1, waveforms.shape[0], waveforms.shape[1])
+                                waveforms = self.batch.get_snippet(channels, peak, peak_type, best_channel)
+
                                 online_manager = self.managers[key][best_channel]
                                 if not online_manager.is_ready:
-                                    self.raw_data[key][best_channel] = np.vstack((self.raw_data[key][best_channel], waveforms))
+                                    # TODO swap and clean the 3 following lines.
+                                    # self.raw_data[key][best_channel] = \
+                                    #     np.vstack((self.raw_data[key][best_channel], waveforms))
+                                    self.raw_data[key][best_channel].add(waveforms)
                                 else:
                                     online_manager.update(self.counter, waveforms)
 

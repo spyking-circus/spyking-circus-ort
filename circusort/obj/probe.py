@@ -2,7 +2,7 @@
 
 import matplotlib.patches as ptc
 import matplotlib.pyplot as plt
-import matplotlib.textpath as ttp
+# import matplotlib.textpath as ttp
 import numpy as np
 import os
 
@@ -18,18 +18,23 @@ class Probe(object):
         radius: float
     """
 
-    def __init__(self, channel_groups, total_nb_channels, radius):
+    def __init__(self, channel_groups, total_nb_channels, radius, electrode_diameter=8.0):
         """Initialization.
 
         Parameters:
             channel_groups: dictionary
             total_nb_channels: integer
             radius: float
+            electrode_diameter: float
+                The diameter of the electrodes.
+                The default value is 8.0.
         """
 
         self.channel_groups = channel_groups
         self.total_nb_channels = total_nb_channels
         self.radius = radius
+
+        self._electrode_diameter = electrode_diameter  # µm
 
         self._edges = None
         self._nodes = None
@@ -393,15 +398,26 @@ class Probe(object):
 
         return
 
-    def plot(self, path=None, fig=None, ax=None, **kwargs):
+    def plot(self, path=None, fig=None, ax=None, annotation_size=None, **kwargs):
+        """Plot probe.
+
+        Arguments:
+            path: none | string (optional)
+            fig: none | matplotlib.figure.Figure (optional)
+            ax: none | matplotlib.axes.Axes (optional)
+            annotation_size: none | float | string (optional)
+                Font size of the annotations. Maybe either None (default font size), a size string (relative to the
+                default font size), or an absolute font size in points.
+                The default value is None.
+            kwargs: dictionary (optional)
+        """
 
         _ = kwargs  # Discard additional keyword arguments.
 
         x = self.x
         y = self.y
-        r = 4.0  # µm
+        r = self._electrode_diameter / 2.0  # µm
         s = self.labels
-        size = 3
 
         if path is not None and ax is None:
             plt.ioff()
@@ -419,27 +435,18 @@ class Probe(object):
         collection = PatchCollection(circles, match_original=True)
         ax.add_collection(collection)
         # Draw the labels of the electrodes.
-        x_ = [
-            _x - 0.3 * float(len(_s) * size)
-            for _x, _s in zip(x, s)
-        ]
-        y_ = [
-            _y - 0.4 * float(size)
-            for _y, _s in zip(y, s)
-        ]
-        text_paths = [
-            ttp.TextPath((_x, _y), _s, size=size, horizontalalignment='center')
-            for _x, _y, _s in zip(x_, y_, s)
-        ]
-        paths = [
-            ptc.PathPatch(text_path, facecolor="black")
-            for text_path in text_paths
-        ]
-        collection = PatchCollection(paths, match_original=True)
+        for _x, _y, _s in zip(x, y, s):
+            ax.annotate(_s, xy=(_x, _y), xytext=(_x, _y), size=annotation_size,
+                        horizontalalignment='center', verticalalignment='center')
+        # Draw the default spatial extent of the templates.
+        circle = ptc.Circle((np.mean(self.x_limits), np.mean(self.y_limits)), radius=self.radius,
+                            fill=False, color='grey', linestyle='--')
+        collection = PatchCollection([circle], match_original=True, zorder=-1)
         ax.add_collection(collection)
-        ax.set_xlabel(u"x (µm)")
-        ax.set_ylabel(u"y (µm)")
-        ax.set_title(u"Spatial layout of the electrodes")
+        # Add labels and title.
+        ax.set_xlabel("x (µm)")
+        ax.set_ylabel("y (µm)")
+        ax.set_title("Spatial layout of the electrodes")
 
         if fig is not None and path is None:
             plt.tight_layout()

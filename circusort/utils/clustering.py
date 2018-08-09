@@ -162,15 +162,17 @@ class OnlineManager(object):
 
         return np.ceil((1 / self.decay_factor) * np.log(self.d_threshold / (self.d_threshold - 1)))
 
-    def initialize(self, time, data):
+    def initialize(self, time, snippets):
         """Initialize the clustering.
 
         Arguments:
             time: integer
                 Creation time.
-            data: numpy.ndarray
+            snippets: circusort.obj.Snippets
                 Data snippets which correspond to multiple peaks.
         """
+
+        data = snippets.to_array()
 
         self.time = time
 
@@ -450,13 +452,13 @@ class OnlineManager(object):
 
         return reduced_data
 
-    def update(self, time, data=None):
+    def update(self, time, snippets=None):
         """Update clustering.
 
         Arguments:
             time: integer
                 Creation time.
-            data: none | numpy.ndarray (optional)
+            snippets: none | circusort.obj.Snippets (optional)
                 Data snippet which corresponds to one peak.
         """
 
@@ -467,7 +469,9 @@ class OnlineManager(object):
         message = string.format(self.name, time, self.nb_sparse, self.nb_dense, self.time_gap)
         self.log.debug(message)
 
-        if data is not None:
+        if snippets is not None:
+
+            data = snippets.to_array()
 
             if self.glob_pca is not None:
                 red_data = np.dot(data, self.glob_pca)

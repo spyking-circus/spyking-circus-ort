@@ -63,7 +63,7 @@ def sorting(nb_waveforms_clustering=400):
     }
     filter_kwargs = {
         'name': "filter",
-        'cut_off': 1.0,  # Hz
+        'cut_off': 80.0,  # Hz
         # 'introspection_path': introspection_directory,
         'log_level': DEBUG,
     }
