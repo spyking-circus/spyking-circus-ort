@@ -129,7 +129,7 @@ class DataFile(object):
 
         return
 
-    def _plot(self, ax, t_min=0.0, t_max=0.5, **kwargs):
+    def _plot(self, ax, t_min=0.0, t_max=0.5, colors=None, **kwargs):
         """Plot data from file.
 
         Arguments:
@@ -138,6 +138,8 @@ class DataFile(object):
                 The default value is 0.0.
             t_max: float (optional)
                 The default value is 0.5.
+            colors: none | iterable (optional)
+                The default value is None.
             kwargs: dict (optional)
                 Additional keyword arguments. See matplotlib.axes.Axes.plot for details.
         Return:
@@ -164,7 +166,11 @@ class DataFile(object):
             y = snippet[0:nb_samples, channel]
             y = y - np.mean(y)
             y = count + 0.5 * y / factor
-            ax.plot(x, y, **kwargs)
+            if colors is None:
+                ax.plot(x, y, **kwargs)
+            else:
+                kwargs.update(color=colors[channel])
+                ax.plot(x, y, )
 
         ax.set_yticks([])
         ax.set_xlabel(u"time (s)")

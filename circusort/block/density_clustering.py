@@ -32,7 +32,8 @@ class DensityClustering(Block):
         'threshold_factor': 7.0,
         'alignment': True,
         'sampling_rate': 20000.,
-        'spike_width': 5,
+        'spike_width': 5.0,
+        'spike_jitter': 1.0,
         'nb_waveforms': 10000,
         'channels': None,
         'probe_path': None,
@@ -66,6 +67,7 @@ class DensityClustering(Block):
         self.alignment = self.alignment
         self.sampling_rate = self.sampling_rate
         self.spike_width = self.spike_width
+        self.spike_jitter = self.spike_jitter
         self.nb_waveforms = self.nb_waveforms
         self.channels = self.channels
         self.probe_path = self.probe_path
@@ -123,7 +125,8 @@ class DensityClustering(Block):
 
     def _initialize(self):
 
-        self.batch = Buffer(self.sampling_rate, self.spike_width, alignment=self.alignment, probe=self.probe)
+        self.batch = Buffer(self.sampling_rate, self.spike_width, self.spike_jitter,
+                            alignment=self.alignment, probe=self.probe)
         self.sign_peaks = []
         self.receive_pcs = True
         self.masks = {}

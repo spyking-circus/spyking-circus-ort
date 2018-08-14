@@ -1,6 +1,6 @@
 import numpy as np
-import scipy
-import scipy.interpolate
+# import scipy
+# import scipy.interpolate
 
 
 from circusort.obj.snippet import Snippet
@@ -8,24 +8,29 @@ from circusort.obj.snippet import Snippet
 
 class Buffer(object):
 
-    def __init__(self, sampling_rate, snippet_duration, data=None, alignment=True, factor=5, probe=None):
+    def __init__(self, sampling_rate, snippet_duration, snippet_jitter,
+                 data=None, alignment=True, factor=5, probe=None):
 
         self.sampling_rate = sampling_rate
         self.alignment = alignment
         self.snippet_duration = snippet_duration
+        self.snippet_jitter = snippet_jitter
 
-        self._spike_width_ = int(self.sampling_rate * self.snippet_duration * 1e-3)
+        self._spike_width_ = int(np.floor(self.sampling_rate * self.snippet_duration * 1e-3))
         if np.mod(self._spike_width_, 2) == 0:
             self._spike_width_ += 1
         self._width = (self._spike_width_ - 1) // 2
-        self._2_width = 2 * self._width
+        # TODO swap and clean the 3 following lines.
+        # self._2_width = 2 * self._width
+        self._jitter = int(np.ceil(self.sampling_rate * self.snippet_jitter * 1e-3))
+        self._2_width = self._width + self._jitter
         self._limits = None
 
         if self.alignment:
             self.factor = factor
-            self._cdata = np.linspace(-self._width, self._width, self.factor * self._spike_width_)
-            self._xdata = np.arange(-self._2_width, self._2_width + 1)
-            self._xoff = len(self._cdata) / 2.0
+            # self._cdata = np.linspace(-self._width, self._width, self.factor * self._spike_width_)
+            # self._xdata = np.arange(-self._2_width, self._2_width + 1)
+            # self._xoff = len(self._cdata) / 2.0
 
         self._probe = probe
 
@@ -90,8 +95,8 @@ class Buffer(object):
         ts_min = peak - self._2_width
         ts_max = peak + self._2_width
         data = self.data[ts_min:ts_max + 1, channels]
-        snippet = Snippet(data, time_step=peak, channel=ref_channel, channels=channels,
-                          sampling_rate=self.sampling_rate, probe=self._probe)
+        snippet = Snippet(data, width=self._width, jitter=self._jitter, time_step=peak, channel=ref_channel,
+                          channels=channels, sampling_rate=self.sampling_rate, probe=self._probe)
         if self.alignment:
             snippet.align(peak_type=peak_type, factor=self.factor)
 
@@ -127,8 +132,8 @@ class Buffer(object):
         ts_min = peak - self._2_width
         ts_max = peak + self._2_width
         data = self.data[ts_min:ts_max + 1, channel]
-        snippet = Snippet(data, time_step=peak, channel=channel, channels=np.array([channel]),
-                          sampling_rate=self.sampling_rate, probe=self._probe)
+        snippet = Snippet(data, width=self._width, jitter=self._jitter, time_step=peak, channel=channel,
+                          channels=np.array([channel]), sampling_rate=self.sampling_rate, probe=self._probe)
         if self.alignment:
             snippet.align(peak_type=peak_type, factor=self.factor)
         data = snippet.to_array()

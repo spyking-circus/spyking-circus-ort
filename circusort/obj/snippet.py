@@ -6,10 +6,23 @@ import scipy.interpolate
 
 class Snippet(object):
 
-    def __init__(self, data, time_step=None, channel=None, channels=None,
+    def __init__(self, data, width=None, jitter=None, time_step=None, channel=None, channels=None,
                  sampling_rate=None, probe=None):
 
         self._data = data
+
+        if width is not None:
+            self._width = width
+            if jitter is not None:
+                self._jitter = jitter
+            else:
+                self._jitter = (self._nb_time_steps - 1 - 2 * self._width) // 2
+        else:
+            if jitter is not None:
+                self._jitter = jitter
+            else:
+                self._jitter = (self._nb_time_steps - 1) // 4
+            self._width = (self._nb_time_steps - 1 - 2 * self._jitter) // 2
 
         self._time_step = time_step
         self._channel = channel
@@ -29,14 +42,19 @@ class Snippet(object):
 
         # TODO check value in `__init__`.
 
-        return (self._data.shape[0] - 1) // 2 + 1
+        return self._width + 1 + self._width
 
     @property
     def _nb_extended_time_steps(self):
 
         # TODO check value in `__init__`.
 
-        return self._data.shape[0]
+        return self._jitter + self._width + 1 + self._width + self._jitter
+
+    @property
+    def _nb_jittered_time_steps(self):
+
+        return self._jitter + 1 + self._jitter
 
     @property
     def _is_bivariate(self):
@@ -56,14 +74,9 @@ class Snippet(object):
         return nb_channels
 
     @property
-    def _width(self):
-
-        return (self._nb_time_steps - 1) // 2
-
-    @property
     def _extended_width(self):
 
-        return (self._nb_extended_time_steps - 1) // 2
+        return self._width + self._jitter
 
     @property
     def _minimum_time_step(self):
@@ -76,6 +89,11 @@ class Snippet(object):
         return self._time_step - self._extended_width
 
     @property
+    def _minimum_jittered_time_step(self):
+
+        return self._time_step - self._jitter
+
+    @property
     def _maximum_time_step(self):
 
         return self._time_step + self._width
@@ -84,6 +102,11 @@ class Snippet(object):
     def _maximum_extended_time_step(self):
 
         return self._time_step + self._extended_width
+
+    @property
+    def _maximum_jittered_time_step(self):
+
+        return self._time_step + self._jitter
 
     @property
     def _time_steps(self):
@@ -95,11 +118,11 @@ class Snippet(object):
 
         return np.arange(self._minimum_extended_time_step, self._maximum_extended_time_step + 1)
 
-    def _densified_time_steps(self, factor=5):
+    def _jittered_time_steps(self, factor=5):
 
-        num = factor * self._nb_time_steps
+        num = factor * self._nb_jittered_time_steps
 
-        return np.linspace(self._minimum_time_step, self._maximum_time_step, num=num)
+        return np.linspace(self._minimum_jittered_time_step, self._maximum_jittered_time_step, num=num)
 
     def _aligned_time_steps(self, time_step):
 
@@ -128,7 +151,7 @@ class Snippet(object):
         f = scipy.interpolate.RectBivariateSpline(x, y, z, kx=kx, ky=ky, s=s)
 
         # Find central time step.
-        x = self._densified_time_steps(factor=factor)
+        x = self._jittered_time_steps(factor=factor)
         y = self._channel
         z = f(x, y)
         if peak_type == 'negative':
@@ -138,9 +161,6 @@ class Snippet(object):
         else:
             raise NotImplementedError()
         central_time_step = x[index]
-
-        # TODO remove the following line.
-        print(central_time_step - self._time_step)
 
         # Align data.
         x = self._aligned_time_steps(central_time_step)
@@ -160,7 +180,7 @@ class Snippet(object):
         f = scipy.interpolate.UnivariateSpline(x, y, s=s)
 
         # Find central time step.
-        x = self._densified_time_steps(factor=factor)
+        x = self._jittered_time_steps(factor=factor)
         y = f(x)
         if peak_type == 'negative':
             index = np.argmin(y)

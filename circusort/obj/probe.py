@@ -398,7 +398,7 @@ class Probe(object):
 
         return
 
-    def plot(self, path=None, fig=None, ax=None, annotation_size=None, **kwargs):
+    def plot(self, path=None, fig=None, ax=None, annotation_size=None, colors=None, **kwargs):
         """Plot probe.
 
         Arguments:
@@ -408,6 +408,9 @@ class Probe(object):
             annotation_size: none | float | string (optional)
                 Font size of the annotations. Maybe either None (default font size), a size string (relative to the
                 default font size), or an absolute font size in points.
+                The default value is None.
+            colors: none | iterable (optional)
+                The colors of the tips of the electrodes.
                 The default value is None.
             kwargs: dictionary (optional)
         """
@@ -428,10 +431,16 @@ class Probe(object):
         ax.set_xlim(*self.x_limits)
         ax.set_ylim(*self.y_limits)
         # Draw the tips of the electrodes.
-        circles = [
-            ptc.Circle((_x, _y), radius=r, color='C0')
-            for _x, _y in zip(x, y)
-        ]
+        if colors is None:
+            circles = [
+                ptc.Circle((_x, _y), radius=r, color='C0')
+                for _x, _y in zip(x, y)
+            ]
+        else:
+            circles = [
+                ptc.Circle((x[k], y[k]), radius=r, color=colors[k])
+                for k in range(0, self.nb_channels)
+            ]
         collection = PatchCollection(circles, match_original=True)
         ax.add_collection(collection)
         # Draw the labels of the electrodes.
@@ -588,3 +597,14 @@ class Probe(object):
             self.total_nb_channels = total_nb_selected_channels
 
         return
+
+    def get_channel_colors(self, selection=None):
+
+        if selection is None:
+            selection = range(0, self.nb_channels)
+
+        channel_colors = self.nb_channels * ['grey']
+        for channel in selection:
+            channel_colors[channel] = 'C{}'.format(channel % 10)
+
+        return channel_colors

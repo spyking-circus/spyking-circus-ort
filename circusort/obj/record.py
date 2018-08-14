@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import numpy as np
 
 from circusort.io.probe import load_probe
@@ -99,5 +100,17 @@ class Record(object):
         copied_probe.keep(channels)
         # Save copied probe.
         copied_probe.save(probe_path)
+
+        return
+
+    def plot(self, ax=None, channels=None, **kwargs):
+
+        if ax is None:
+            _, ax = plt.subplots(ncols=2)
+
+        channel_colors = self._probe.get_channel_colors(selection=channels)
+
+        self._data.plot(ax=ax[0], colors=channel_colors, **kwargs)
+        self._probe.plot(ax=ax[1], colors=channel_colors)
 
         return

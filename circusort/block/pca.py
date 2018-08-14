@@ -15,7 +15,8 @@ class PCA(Block):
     """PCA
 
     Attributes:
-        spike_width
+        spike_width: float
+        spike_jitter: float
         output_dim
         alignment
         nb_waveforms
@@ -33,7 +34,8 @@ class PCA(Block):
     name = "PCA"
 
     params = {
-        'spike_width': 5,
+        'spike_width': 5.0,
+        'spike_jitter': 1.0,
         'output_dim': 5,
         'alignment': True,
         'nb_waveforms': 10000,
@@ -46,6 +48,7 @@ class PCA(Block):
 
         # The following lines are useful to avoid some PyCharm's warnings.
         self.spike_width = self.spike_width
+        self.spike_jitter = self.spike_jitter
         self.output_dim = self.output_dim
         self.alignment = self.alignment
         self.nb_waveforms = self.nb_waveforms
@@ -65,7 +68,7 @@ class PCA(Block):
 
         self.sign_peaks = None
         self.send_pcs = True
-        self.batch = Buffer(self.sampling_rate, self.spike_width, alignment=self.alignment)
+        self.batch = Buffer(self.sampling_rate, self.spike_width, self.spike_jitter, alignment=self.alignment)
         self._output_shape = (2, self.batch.temporal_width, self.output_dim)
         self.pcs = np.zeros(self._output_shape, dtype=self._output_dtype)
 
@@ -169,7 +172,7 @@ class PCA(Block):
                             waveform = self.waveforms[key][k]
                             ax.plot(waveform, color='C0', linewidth=1, alpha=0.25)
                         ax.axvline(x=(len(waveform) - 1) // 2, color='grey')
-                        fig.savefig("/tmp/waveforms/{}_waveforms.pdf".format(key, k))
+                        fig.savefig("/tmp/waveforms/{}_waveforms.pdf".format(key))
                         plt.close(fig)
                         # 3rd plot.
                         fig, ax = plt.subplots()
@@ -179,7 +182,7 @@ class PCA(Block):
                             if np.argmin(waveform) != central_time_step:
                                 ax.plot(waveform, color='C0', linewidth=1, alpha=0.25)
                         ax.axvline(x=(len(waveform) - 1) // 2, color='grey')
-                        fig.savefig("/tmp/waveforms/misaligned_{}_waveforms.pdf".format(key, k))
+                        fig.savefig("/tmp/waveforms/misaligned_{}_waveforms.pdf".format(key))
                         plt.close(fig)
 
                         if key == 'negative':

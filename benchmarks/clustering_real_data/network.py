@@ -63,10 +63,17 @@ def sorting(nb_waveforms_clustering=400):
     }
     filter_kwargs = {
         'name': "filter",
-        'cut_off': 80.0,  # Hz
+        'cut_off': 500.0,  # Hz
+        'order': 1,
         # 'introspection_path': introspection_directory,
         'log_level': DEBUG,
     }
+    # writer_kwargs = {
+    #     'name': "writer",
+    #     'data_path': os.path.join(recording_directory, "filtered_data.raw"),
+    #     # 'introspection_path': introspection_directory,
+    #     'log_level': DEBUG,
+    # }
     mad_kwargs = {
         'name': "mad",
         'time_constant': 10.0,
@@ -137,6 +144,7 @@ def sorting(nb_waveforms_clustering=400):
     }
     reader = managers['master'].create_block('reader', **reader_kwargs)
     filter_ = managers['master'].create_block('filter', **filter_kwargs)
+    # writer = managers['master'].create_block('writer', **writer_kwargs)
     mad = managers['master'].create_block('mad_estimator', **mad_kwargs)
     detector = managers['master'].create_block('peak_detector', **detector_kwargs)
     peak_writer = managers['master'].create_block('peak_writer', **peak_writer_kwargs)
@@ -149,10 +157,11 @@ def sorting(nb_waveforms_clustering=400):
     director.initialize()
     # Connect the elements of the network.
     director.connect(reader.output, [
-        filter_.input
+        filter_.get_input('data'),
     ])
     director.connect(filter_.output, [
-        mad.input,
+        # writer.get_input('data'),
+        mad.get_input('data'),
         detector.get_input('data'),
         pca.get_input('data'),
         cluster.get_input('data'),
