@@ -1,6 +1,4 @@
 import numpy as np
-# import scipy
-# import scipy.interpolate
 
 
 from circusort.obj.snippet import Snippet
@@ -20,17 +18,12 @@ class Buffer(object):
         if np.mod(self._spike_width_, 2) == 0:
             self._spike_width_ += 1
         self._width = (self._spike_width_ - 1) // 2
-        # TODO swap and clean the 3 following lines.
-        # self._2_width = 2 * self._width
         self._jitter = int(np.ceil(self.sampling_rate * self.snippet_jitter * 1e-3))
-        self._2_width = self._width + self._jitter
+        self._extended_width = self._width + self._jitter
         self._limits = None
 
         if self.alignment:
             self.factor = factor
-            # self._cdata = np.linspace(-self._width, self._width, self.factor * self._spike_width_)
-            # self._xdata = np.arange(-self._2_width, self._2_width + 1)
-            # self._xoff = len(self._cdata) / 2.0
 
         self._probe = probe
 
@@ -51,7 +44,7 @@ class Buffer(object):
 
         if self._limits is None:
             if self.alignment:
-                self._limits = (self._2_width, self.nb_samples - self._2_width)
+                self._limits = (self._extended_width, self.nb_samples - self._extended_width)
             else:
                 self._limits = (self._width, self.nb_samples - self._width)
 
@@ -92,67 +85,26 @@ class Buffer(object):
 
     def get_snippet(self, channels, peak, peak_type='negative', ref_channel=None):
 
-        ts_min = peak - self._2_width
-        ts_max = peak + self._2_width
+        ts_min = peak - self._extended_width
+        ts_max = peak + self._extended_width
         data = self.data[ts_min:ts_max + 1, channels]
         snippet = Snippet(data, width=self._width, jitter=self._jitter, time_step=peak, channel=ref_channel,
                           channels=channels, sampling_rate=self.sampling_rate, probe=self._probe)
         if self.alignment:
             snippet.align(peak_type=peak_type, factor=self.factor)
 
-        # # TODO remove the following lines?
-        # if len(channels) == 1:
-        #     snippet = self.get_waveform(channels[0], peak, peak_type)
-        # else:
-        #     if self.alignment:
-        #
-        #         k_min = peak - self._2_width
-        #         k_max = peak + self._2_width + 1
-        #         zdata = self.data[k_min:k_max, channels]
-        #         ydata = np.arange(len(channels))
-        #
-        #         f = scipy.interpolate.RectBivariateSpline(self._xdata, ydata, zdata, s=0, ky=min(len(ydata) - 1, 3))
-        #         if peak_type == 'negative':
-        #             r_min = float(np.argmin(f(self._cdata, ref_channel)[:, 0]) - self._xoff) / 5.0
-        #         elif peak_type == 'positive':
-        #             r_min = float(np.argmax(f(self._cdata, ref_channel)[:, 0]) - self._xoff) / 5.0
-        #         else:
-        #             raise NotImplementedError()
-        #         ddata = np.linspace(r_min - self._width, r_min + self._width, self._spike_width_)
-        #         data = f(ddata, ydata).astype(np.float32)
-        #     else:
-        #         data = self.data[peak - self._width:peak + self._width + 1, channels]
-        #
-        #     snippet = data
-
         return snippet
 
     def get_waveform(self, channel, peak, peak_type='negative'):
 
-        ts_min = peak - self._2_width
-        ts_max = peak + self._2_width
+        ts_min = peak - self._extended_width
+        ts_max = peak + self._extended_width
         data = self.data[ts_min:ts_max + 1, channel]
         snippet = Snippet(data, width=self._width, jitter=self._jitter, time_step=peak, channel=channel,
                           channels=np.array([channel]), sampling_rate=self.sampling_rate, probe=self._probe)
         if self.alignment:
             snippet.align(peak_type=peak_type, factor=self.factor)
         data = snippet.to_array()
-
-        # # TODO remove the following lines?
-        # if self.alignment:
-        #     ydata = self.data[peak - self._2_width:peak + self._2_width + 1, channel]
-        #     f = scipy.interpolate.UnivariateSpline(self._xdata, ydata, s=0)
-        #     if peak_type == 'negative':
-        #         r_min = float(np.argmin(f(self._cdata)) - self._xoff) / self.factor
-        #     elif peak_type == 'positive':
-        #         r_min = float(np.argmax(f(self._cdata)) - self._xoff) / self.factor
-        #     else:
-        #         raise NotImplementedError()
-        #     ddata = np.linspace(r_min - self._width, r_min + self._width, self._spike_width_)
-        #
-        #     data = f(ddata).astype(np.float32)
-        # else:
-        #     data = self.data[peak - self._width:peak + self._width + 1, channel]
 
         return data
 
