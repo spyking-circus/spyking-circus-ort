@@ -33,6 +33,11 @@ def sorting(nb_waveforms_clustering=400):
     nb_samples = 1024
     sampling_rate = 20e+3
     threshold_factor = 7.0
+    alignment = True
+    # TODO swap and clean the 2 following lines.
+    spike_width = 5.0  # ms
+    # spike_width = 4.0  # ms
+    spike_jitter = 1.0  # ms
     probe_path = os.path.join(recording_directory, "probe.prb")
 
     # Create directories (if necessary).
@@ -95,6 +100,9 @@ def sorting(nb_waveforms_clustering=400):
     }
     pca_kwargs = {
         'name': "pca",
+        'spike_width': spike_width,
+        'spike_jitter': spike_jitter,
+        'alignment': alignment,
         'nb_waveforms': 1000,
         # 'introspection_path': introspection_directory,
         'log_level': DEBUG,
@@ -102,7 +110,10 @@ def sorting(nb_waveforms_clustering=400):
     cluster_kwargs = {
         'name': "cluster",
         'threshold_factor': threshold_factor,
+        'alignment': alignment,
         'sampling_rate': sampling_rate,
+        'spike_width': spike_width,
+        'spike_jitter': spike_jitter,
         'nb_waveforms': nb_waveforms_clustering,
         'probe_path': probe_path,
         'two_components': False,

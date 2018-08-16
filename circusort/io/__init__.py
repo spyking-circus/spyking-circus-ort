@@ -2,7 +2,10 @@ from .base import get_config_dirname, get_tmp_dirname, isdata
 from .configure import load_configuration
 from . import configure
 from . import generate
-from .load import load, load_peaks, load_times
+# TODO swap and clean the following lines.
+# from .load import load, load_peaks, load_times
+from .load import load, load_times
+from .peaks import load_peaks
 from .configure import Configuration
 from .parse import find_parameters_path, parse_parameters_file, parse_parameters
 from .probe import generate_probe, save_probe, load_probe, get_probe

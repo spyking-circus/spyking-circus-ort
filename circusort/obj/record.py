@@ -1,8 +1,10 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
+from circusort.obj.snippet import Snippet
 from circusort.io.probe import load_probe
 from circusort.io.datafile import load_datafile, create_datafile
+from circusort.utils import compute_snippet_width, compute_maximum_snippet_jitter
 
 
 class Record(object):
@@ -102,6 +104,42 @@ class Record(object):
         copied_probe.save(probe_path)
 
         return
+
+    def get_snippet(self, channels, peak_time_step, ref_channel=None, peak_duration=5.0, peak_jitter=1.0):
+        """Extract data snippet.
+
+        Arguments:
+            channels: iterable
+                The channels to extract.
+            peak_time_step: integer
+                The time step of the peak.
+            ref_channel: integer (optional)
+                The channel of reference.
+                The default value is None.
+            peak_duration: float (optional)
+                The duration of the peak [ms].
+                The default value is 5.0.
+            peak_jitter: float(optional)
+                The maximum time jitter of the peak.
+                The default value is 1.0.
+        Return:
+            snippet: circusort.obj.Snippet
+                The extracted data snippet.
+        """
+
+        snippet_width = compute_snippet_width(peak_duration, self._sampling_rate)
+        half_width = (snippet_width - 1) // 2
+        max_jitter = compute_maximum_snippet_jitter(peak_jitter, self._sampling_rate)
+        extended_half_width = half_width + max_jitter
+
+        ts_min = peak_time_step - extended_half_width
+        ts_max = peak_time_step + extended_half_width
+        data = self._data.take(channels=channels, ts_min=ts_min, ts_max=ts_max)
+
+        snippet = Snippet(data, width=half_width, jitter=max_jitter, time_step=peak_time_step, channel=ref_channel,
+                          channels=channels, sampling_rate=self._sampling_rate, probe=self._probe)
+
+        return snippet
 
     def plot(self, ax=None, channels=None, **kwargs):
 

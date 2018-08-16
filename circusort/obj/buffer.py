@@ -2,6 +2,7 @@ import numpy as np
 
 
 from circusort.obj.snippet import Snippet
+from circusort.utils import compute_snippet_width, compute_maximum_snippet_jitter
 
 
 class Buffer(object):
@@ -14,11 +15,9 @@ class Buffer(object):
         self.snippet_duration = snippet_duration
         self.snippet_jitter = snippet_jitter
 
-        self._spike_width_ = int(np.floor(self.sampling_rate * self.snippet_duration * 1e-3))
-        if np.mod(self._spike_width_, 2) == 0:
-            self._spike_width_ += 1
+        self._spike_width_ = compute_snippet_width(self.snippet_duration, self.sampling_rate)
         self._width = (self._spike_width_ - 1) // 2
-        self._jitter = int(np.ceil(self.sampling_rate * self.snippet_jitter * 1e-3))
+        self._jitter = compute_maximum_snippet_jitter(self.snippet_jitter, self.sampling_rate)
         self._extended_width = self._width + self._jitter
         self._limits = None
 

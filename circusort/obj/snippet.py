@@ -11,18 +11,21 @@ class Snippet(object):
 
         self._data = data
 
+        nb_time_steps = data.shape[0]
+
         if width is not None:
             self._width = width
             if jitter is not None:
                 self._jitter = jitter
+                assert nb_time_steps
             else:
-                self._jitter = (self._nb_time_steps - 1 - 2 * self._width) // 2
+                self._jitter = (nb_time_steps - 1 - 2 * self._width) // 2
         else:
             if jitter is not None:
                 self._jitter = jitter
             else:
-                self._jitter = (self._nb_time_steps - 1) // 4
-            self._width = (self._nb_time_steps - 1 - 2 * self._jitter) // 2
+                self._jitter = (nb_time_steps - 1) // 4
+            self._width = (nb_time_steps - 1 - 2 * self._jitter) // 2
 
         self._time_step = time_step
         self._channel = channel
@@ -128,6 +131,13 @@ class Snippet(object):
 
         return (self._time_steps - self._time_step) + time_step
 
+    @property
+    def _amplitude(self):
+
+        amplitude = 2.0 * np.amax(np.abs(self._data))
+
+        return amplitude
+
     def align(self, peak_type='negative', factor=5):
 
         if not self._is_aligned:
@@ -139,16 +149,27 @@ class Snippet(object):
 
         return
 
-    def _align_bivariate(self, peak_type='negative', factor=5):
+    def _interpolate_bivariate(self):
 
-        # Interpolate data.
+        nb_points = self._data.size
+        # TODO swap and clean the following lines.
+        sigma = 2.5  # µV
+        sigma = 0.0  # µV  # i.e. interpolation
+
         x = self._extended_time_steps
         y = self._channels
         z = self._data
         kx = 3  # i.e. x-degree of the bivariate spline  # TODO check if correct.
         ky = 1  # i.e. y-degree of the bivariate spline  # TODO check if correct.
-        s = 0  # i.e. interpolate through all the data
+        s = nb_points * sigma ** 2.0  # i.e. interpolate through all the data
         f = scipy.interpolate.RectBivariateSpline(x, y, z, kx=kx, ky=ky, s=s)
+
+        return f
+
+    def _align_bivariate(self, peak_type='negative', factor=5):
+
+        # Interpolate data.
+        f = self._interpolate_bivariate()
 
         # Find central time step.
         x = self._jittered_time_steps(factor=factor)
@@ -170,14 +191,22 @@ class Snippet(object):
 
         return central_time_step, aligned_data
 
+    def _interpolate_univariate(self):
+
+        x = self._extended_time_steps
+        y = self._data
+        k = 3  # i.e. degree of the univariate spline
+        # TODO swap and clean the 2 following lines.
+        # s = 0  # i.e. interpolate through all the data
+        s = 2
+        f = scipy.interpolate.UnivariateSpline(x, y, k=k, s=s)
+
+        return f
+
     def _align_univariate(self, peak_type='negative', factor=5):
 
         # Interpolate data.
-        x = self._extended_time_steps
-        y = self._data
-        # s = 0  # i.e. interpolate through all the data
-        s = 2
-        f = scipy.interpolate.UnivariateSpline(x, y, s=s)
+        f = self._interpolate_univariate()
 
         # Find central time step.
         x = self._jittered_time_steps(factor=factor)
@@ -214,3 +243,64 @@ class Snippet(object):
             array = np.transpose(self._data)
 
         return array
+
+    def plot(self, ax=None, **kwargs):
+
+        if ax is None:
+            _, ax = plt.subplots()
+
+        data = 0.9 * self._data / self._amplitude if self._amplitude > 0.0 else self._data
+
+        ax.axvline(x=self._time_step, color='grey', linestyle='dashed')
+
+        x = self._extended_time_steps
+        if self._is_bivariate:
+            for k in range(0, self._nb_channels):
+                y_offset = float(k)
+                y = data[:, k] + y_offset
+                ax.plot(x, y, **kwargs)
+        else:
+            y = data
+            ax.plot(x, y, **kwargs)
+
+        return ax
+
+    def plot_aligned(self, ax=None, **kwargs):
+
+        if ax is None:
+            _, ax = plt.subplots()
+
+        data = 0.9 * self._aligned_data / self._amplitude if self._amplitude > 0.0 else self._aligned_data
+
+        ax.axvline(x=self._aligned_time_step, color='grey', linestyle='dashed')
+
+        x = self._aligned_time_steps(self._aligned_time_step)
+        if self._is_bivariate:
+            for k in range(0, self._nb_channels):
+                y_offset = float(k)
+                y = data[:, k] + y_offset
+                ax.plot(x, y, **kwargs)
+        else:
+            y = data
+            ax.plot(x, y, **kwargs)
+
+        return ax
+
+    def plot_jittered(self, ax=None, **kwargs):
+
+        if ax is None:
+            _, ax = plt.subplots()
+
+        if self._is_bivariate:
+            f = self._interpolate_bivariate()
+            x = self._jittered_time_steps()
+            y = self._channels
+            data = 0.9 * f(x, y) / self._amplitude if self._amplitude > 0.0 else f(x, y)
+            for k in range(0, self._nb_channels):
+                y_offset = float(k)
+                y = data[:, k] + y_offset
+                ax.plot(x, y, **kwargs)
+        else:
+            raise NotImplementedError()
+
+        return ax
