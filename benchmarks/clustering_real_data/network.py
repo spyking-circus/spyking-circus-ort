@@ -38,6 +38,7 @@ def sorting(nb_waveforms_clustering=400):
     spike_width = 5.0  # ms
     # spike_width = 4.0  # ms
     spike_jitter = 1.0  # ms
+    spike_sigma = 2.75  # µV
     probe_path = os.path.join(recording_directory, "probe.prb")
 
     # Create directories (if necessary).
@@ -102,6 +103,7 @@ def sorting(nb_waveforms_clustering=400):
         'name': "pca",
         'spike_width': spike_width,
         'spike_jitter': spike_jitter,
+        'spike_sigma': spike_sigma,
         'alignment': alignment,
         'nb_waveforms': 1000,
         # 'introspection_path': introspection_directory,
@@ -114,6 +116,7 @@ def sorting(nb_waveforms_clustering=400):
         'sampling_rate': sampling_rate,
         'spike_width': spike_width,
         'spike_jitter': spike_jitter,
+        'spike_sigma': spike_sigma,
         'nb_waveforms': nb_waveforms_clustering,
         'probe_path': probe_path,
         'two_components': False,

@@ -96,8 +96,11 @@ class MADEstimator(Block):
         test = np.mean(np.abs(test - 1.0))
         if test < self.epsilon:
             # Log info message.
-            string = "{} has converged."
-            message = string.format(self.name_and_counter)
+            min_mad = np.amin(self._mads)
+            median_mad = np.median(self._mads)
+            max_mad = np.amax(self._mads)
+            string = "{} has converged (min={}, median={}, max={})."
+            message = string.format(self.name_and_counter, min_mad, median_mad, max_mad)
             self.log.info(message)
             # Set block as active.
             self._set_active_mode()

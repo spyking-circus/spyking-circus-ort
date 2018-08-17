@@ -248,6 +248,11 @@ class OnlineManager(object):
                 cluster.set_label('sparse')
 
         if self.debug_plots is not None:
+            # Plot templates.
+            filename = "{}_{}_templates.{}".format(self.name, self.time, self.debug_file_format)
+            path = os.path.join(self.debug_plots, filename)
+            self.plot_templates(templates, path)
+            # TODO complete.
             # Plot tracking.
             path = self.fig_name_2.format(n=self.name, t=self.time, f=self.debug_file_format)
             self.plot_tracking(self.dense_clusters, path)
@@ -1109,6 +1114,21 @@ class OnlineManager(object):
         ax.set_yticks([])
         ax.set_xlabel("PC{}".format(k_1))
         ax.set_ylabel("PC{}".format(k_2))
+
+        plt.savefig(output)
+        plt.close()
+
+        return
+
+    def plot_templates(self, templates, output):
+
+        nb_templates = len(templates)
+
+        _, ax = plt.subplots(nrows=1, ncols=nb_templates)
+        for k in range(0, nb_templates):
+            template = templates[k]
+            color = 'C{}'.format(k % 10)
+            template.plot(ax=ax[k], probe=self.probe, color=color)
 
         plt.savefig(output)
         plt.close()

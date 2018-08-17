@@ -8,7 +8,7 @@ from circusort.utils import compute_snippet_width, compute_maximum_snippet_jitte
 class Buffer(object):
 
     def __init__(self, sampling_rate, snippet_duration, snippet_jitter,
-                 data=None, alignment=True, factor=5, probe=None):
+                 data=None, offset=0, alignment=True, factor=5, probe=None):
 
         self.sampling_rate = sampling_rate
         self.alignment = alignment
@@ -27,6 +27,7 @@ class Buffer(object):
         self._probe = probe
 
         self.data = data
+        self._offset = offset
 
     @property
     def nb_samples(self):
@@ -71,9 +72,11 @@ class Buffer(object):
         else:
             return (peaks >= t_min) and (peaks < t_max)
 
-    def update(self, data):
+    def update(self, data, offset=0):
 
         self.data = data
+        self._offset = offset
+
         self._limits = None
 
         return
@@ -82,27 +85,30 @@ class Buffer(object):
 
         return np.median(self.data, 1)
 
-    def get_snippet(self, channels, peak, peak_type='negative', ref_channel=None):
+    def get_snippet(self, channels, peak, peak_type='negative', ref_channel=None, sigma=0.0):
 
         ts_min = peak - self._extended_width
         ts_max = peak + self._extended_width
         data = self.data[ts_min:ts_max + 1, channels]
-        snippet = Snippet(data, width=self._width, jitter=self._jitter, time_step=peak, channel=ref_channel,
+        time_step = self._offset + peak
+        snippet = Snippet(data, width=self._width, jitter=self._jitter, time_step=time_step, channel=ref_channel,
                           channels=channels, sampling_rate=self.sampling_rate, probe=self._probe)
         if self.alignment:
-            snippet.align(peak_type=peak_type, factor=self.factor)
+            snippet.align(peak_type=peak_type, factor=self.factor, sigma=sigma)
 
         return snippet
 
-    def get_waveform(self, channel, peak, peak_type='negative'):
+    def get_waveform(self, channel, peak, peak_type='negative', sigma=0.0):
 
         ts_min = peak - self._extended_width
         ts_max = peak + self._extended_width
         data = self.data[ts_min:ts_max + 1, channel]
-        snippet = Snippet(data, width=self._width, jitter=self._jitter, time_step=peak, channel=channel,
+        time_step = self._offset + peak
+        snippet = Snippet(data, width=self._width, jitter=self._jitter, time_step=time_step, channel=channel,
                           channels=np.array([channel]), sampling_rate=self.sampling_rate, probe=self._probe)
         if self.alignment:
-            snippet.align(peak_type=peak_type, factor=self.factor)
+            snippet.align(peak_type=peak_type, factor=self.factor, sigma=sigma)
+
         data = snippet.to_array()
 
         return data

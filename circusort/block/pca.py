@@ -17,10 +17,11 @@ class PCA(Block):
     Attributes:
         spike_width: float
         spike_jitter: float
-        output_dim
-        alignment
-        nb_waveforms
-        sampling_rate
+        spike_sigma: float
+        output_dim: integer
+        alignment: boolean
+        nb_waveforms: integer
+        sampling_rate: float
 
     Inputs:
         data
@@ -34,12 +35,13 @@ class PCA(Block):
     name = "PCA"
 
     params = {
-        'spike_width': 5.0,
-        'spike_jitter': 1.0,
+        'spike_width': 5.0,  # ms
+        'spike_jitter': 1.0,  # ms
+        'spike_sigma': 0.0,  # µV
         'output_dim': 5,
         'alignment': True,
         'nb_waveforms': 10000,
-        'sampling_rate': 20000,
+        'sampling_rate': 20e+3,  # Hz
     }
 
     def __init__(self, **kwargs):
@@ -49,6 +51,7 @@ class PCA(Block):
         # The following lines are useful to avoid some PyCharm's warnings.
         self.spike_width = self.spike_width
         self.spike_jitter = self.spike_jitter
+        self.spike_sigma = self.spike_sigma
         self.output_dim = self.output_dim
         self.alignment = self.alignment
         self.nb_waveforms = self.nb_waveforms
@@ -108,8 +111,10 @@ class PCA(Block):
 
         # Receive input data.
         data_packet = self.get_input('data').receive()
+        data = data_packet['payload']
         number = data_packet['number']
-        self.batch.update(data_packet['payload'])
+        offset = number * self._nb_samples
+        self.batch.update(data, offset=offset)
         # Receive peaks (if necessary).
         if self.is_active:
             peaks_packet = self.get_input('peaks').receive(blocking=True, number=number)
@@ -138,13 +143,15 @@ class PCA(Block):
                             # Collect more waveforms.
                             for peak in signed_peaks:
                                 if self.nb_spikes[key] < self.nb_waveforms and self.batch.valid_peaks(peak):
-                                    waveform = self.batch.get_waveform(int(channel), peak, key)
+                                    waveform = self.batch.get_waveform(int(channel), peak, peak_type=key,
+                                                                       sigma=self.spike_sigma)
                                     self.waveforms[key][self.nb_spikes[key]] = waveform
                                     self.nb_spikes[key] += 1
                             # Log debug message (if necessary).
                             if self.counter % 50 == 0:
                                 string = "{} gathers {} {} peaks ({} wanted)"
-                                message = string.format(self.name_and_counter, self.nb_spikes[key], key, self.nb_waveforms)
+                                message = string.format(self.name_and_counter, self.nb_spikes[key], key,
+                                                        self.nb_waveforms)
                                 self.log.debug(message)
 
                     if self.is_ready(key):
@@ -155,6 +162,7 @@ class PCA(Block):
                         # Initialize and fit PCA.
                         pca = PCA_(self.output_dim)
                         pca.fit(self.waveforms[key])
+
                         # TODO remove the following lines.
                         # 1st plot.
                         if not os.path.isdir("/tmp/waveforms"):

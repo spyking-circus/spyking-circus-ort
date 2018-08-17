@@ -38,8 +38,6 @@ class Snippet(object):
         self._aligned_time_step = None
         self._aligned_data = None
 
-        # TODO complete.
-
     @property
     def _nb_time_steps(self):
 
@@ -138,38 +136,51 @@ class Snippet(object):
 
         return amplitude
 
-    def align(self, peak_type='negative', factor=5):
+    def align(self, peak_type='negative', factor=5, sigma=0.0, degree=3):
 
         if not self._is_aligned:
             if self._is_bivariate:
-                self._aligned_time_step, self._aligned_data = self._align_bivariate(peak_type=peak_type, factor=factor)
+                self._aligned_time_step, self._aligned_data = self._align_bivariate(peak_type=peak_type, factor=factor,
+                                                                                    sigma=sigma, degree=degree)
             else:
-                self._aligned_time_step, self._aligned_data = self._align_univariate(peak_type=peak_type, factor=factor)
+                self._aligned_time_step, self._aligned_data = self._align_univariate(peak_type=peak_type, factor=factor,
+                                                                                     sigma=sigma, degree=degree)
             self._is_aligned = True
 
         return
 
-    def _interpolate_bivariate(self):
+    def _approximate_bivariate(self, sigma=0.0, degree=3):
+        """Bivariate approximation of the snippet.
 
-        nb_points = self._data.size
-        # TODO swap and clean the following lines.
-        sigma = 2.5  # µV
-        sigma = 0.0  # µV  # i.e. interpolation
+        Arguments:
+            sigma: float (optional)
+                Smoothing factor. Ideally, it should be an estimate of the standard deviation for all the data points.
+                If 0.0, spline will interpolate through all the data points (i.e. no smoothing at all).
+                The default value is 0.0.
+            degree: integer (optional)
+                Degree of the spline along the x-axis.
+                The default value is 3.
+        Return:
+            f: scipy.interpolate.RectBivariateSpline
+                Bivariate spline approximation.
+        """
+
+        nb_data_points = self._data.size
 
         x = self._extended_time_steps
         y = self._channels
         z = self._data
-        kx = 3  # i.e. x-degree of the bivariate spline  # TODO check if correct.
-        ky = 1  # i.e. y-degree of the bivariate spline  # TODO check if correct.
-        s = nb_points * sigma ** 2.0  # i.e. interpolate through all the data
+        kx = degree  # i.e. degree of the bivariate spline along the x-axis
+        ky = 1  # i.e. degree of the bivariate spline along the y-axis
+        s = nb_data_points * sigma ** 2.0  # i.e. smoothing factor
         f = scipy.interpolate.RectBivariateSpline(x, y, z, kx=kx, ky=ky, s=s)
 
         return f
 
-    def _align_bivariate(self, peak_type='negative', factor=5):
+    def _align_bivariate(self, peak_type='negative', factor=5, sigma=0.0, degree=3):
 
         # Interpolate data.
-        f = self._interpolate_bivariate()
+        f = self._approximate_bivariate(sigma=sigma, degree=degree)
 
         # Find central time step.
         x = self._jittered_time_steps(factor=factor)
@@ -191,22 +202,36 @@ class Snippet(object):
 
         return central_time_step, aligned_data
 
-    def _interpolate_univariate(self):
+    def _approximate_univariate(self, sigma=0.0, degree=3):
+        """Univariate approximation of the snippet.
+
+        Arguments:
+            sigma: float (optional)
+                Smoothing factor. Ideally, it should be an estimate of the standard deviation for all the data points.
+                If 0.0, spline will interpolate through all the data points (i.e. no smoothing at all).
+                The default value is 0.0.
+            degree: integer (optional)
+                Degree of the spline.
+                The default value is 3.
+        Return:
+            f: scipy.interpolate.RectBivariateSpline
+                Bivariate spline approximation.
+        """
+
+        nb_data_points = self._data.size
 
         x = self._extended_time_steps
         y = self._data
-        k = 3  # i.e. degree of the univariate spline
-        # TODO swap and clean the 2 following lines.
-        # s = 0  # i.e. interpolate through all the data
-        s = 2
+        k = degree  # i.e. degree of the univariate spline
+        s = float(nb_data_points) * sigma  # i.e. smoothing factor
         f = scipy.interpolate.UnivariateSpline(x, y, k=k, s=s)
 
         return f
 
-    def _align_univariate(self, peak_type='negative', factor=5):
+    def _align_univariate(self, peak_type='negative', factor=5, sigma=0.0, degree=3):
 
         # Interpolate data.
-        f = self._interpolate_univariate()
+        f = self._approximate_univariate(sigma=sigma, degree=degree)
 
         # Find central time step.
         x = self._jittered_time_steps(factor=factor)
@@ -225,12 +250,16 @@ class Snippet(object):
         aligned_data = aligned_data.astype('float32')
 
         # TODO remove the following line.
+        import os
+        if not os.path.isdir("/tmp/waveforms"):
+            os.makedirs("/tmp/waveforms")
         central_index = (len(aligned_data) - 1) // 2
         if np.argmin(aligned_data) != central_index:
             fig, ax = plt.subplots()
             ax.plot(self._extended_time_steps, self._data, color='C0')
             ax.plot(x, aligned_data, color='C1')
-            fig.savefig("/tmp/waveforms/{}.pdf".format(int(1e+6 * np.random.uniform())))
+            ax.set_title("c{} ts{}".format(self._channel, self._time_step))
+            fig.savefig("/tmp/waveforms/c{}_ts{}.pdf".format(self._channel, self._time_step))
             plt.close(fig)
 
         return central_time_step, aligned_data
@@ -286,14 +315,14 @@ class Snippet(object):
 
         return ax
 
-    def plot_jittered(self, ax=None, **kwargs):
+    def plot_jittered(self, ax=None, sigma=0.0, degree=3, **kwargs):
 
         if ax is None:
             _, ax = plt.subplots()
 
+        x = self._jittered_time_steps()
         if self._is_bivariate:
-            f = self._interpolate_bivariate()
-            x = self._jittered_time_steps()
+            f = self._approximate_bivariate(sigma=sigma, degree=degree)
             y = self._channels
             data = 0.9 * f(x, y) / self._amplitude if self._amplitude > 0.0 else f(x, y)
             for k in range(0, self._nb_channels):
@@ -301,6 +330,9 @@ class Snippet(object):
                 y = data[:, k] + y_offset
                 ax.plot(x, y, **kwargs)
         else:
-            raise NotImplementedError()
+            f = self._approximate_univariate(sigma=sigma, degree=degree)
+            data = 0.9 * f(x) / self._amplitude if self._amplitude > 0.0 else f(x)
+            y = data
+            ax.plot(x, y, **kwargs)
 
         return ax

@@ -31,9 +31,10 @@ class DensityClustering(Block):
     params = {
         'threshold_factor': 7.0,
         'alignment': True,
-        'sampling_rate': 20000.,
-        'spike_width': 5.0,
-        'spike_jitter': 1.0,
+        'sampling_rate': 20.e+3,  # Hz
+        'spike_width': 5.0,  # ms
+        'spike_jitter': 1.0,  # ms
+        'spike_sigma': 0.0,  # µV
         'nb_waveforms': 10000,
         'channels': None,
         'probe_path': None,
@@ -68,6 +69,7 @@ class DensityClustering(Block):
         self.sampling_rate = self.sampling_rate
         self.spike_width = self.spike_width
         self.spike_jitter = self.spike_jitter
+        self.spike_sigma = self.spike_sigma
         self.nb_waveforms = self.nb_waveforms
         self.channels = self.channels
         self.probe_path = self.probe_path
@@ -171,9 +173,9 @@ class DensityClustering(Block):
         indices = self.probe.edges[channel]
         min_times_mask = self.masks[key]['min_times'][peak_idx]
         max_times_mask = self.masks[key]['max_times'][peak_idx]
-        myslice = self.masks[key]['all_times'][indices, min_times_mask:max_times_mask]
+        my_slice = self.masks[key]['all_times'][indices, min_times_mask:max_times_mask]
 
-        return not myslice.any()
+        return not my_slice.any()
 
     @staticmethod
     def _get_extrema_indices(peak, peaks):
@@ -281,9 +283,6 @@ class DensityClustering(Block):
 
     def _reset_data_structures(self, key, channel):
 
-        # TODO swap and clean the 3 following lines.
-        # shape = (0, len(self.probe.edges[channel]), self.batch.temporal_width)
-        # self.raw_data[key][channel] = np.zeros(shape, dtype=np.float32)
         self.raw_data[key][channel] = empty_snippets()
         self.templates[key][str(channel)] = {}
         self.times[key][channel] = []
@@ -293,7 +292,9 @@ class DensityClustering(Block):
     def _process(self):
 
         data_packet = self.inputs['data'].receive()
-        self.batch.update(data_packet['payload'])
+        data = data_packet['payload']
+        offset = data_packet['number'] * self._nb_samples
+        self.batch.update(data, offset=offset)
         if self.is_active:
             peaks_packet = self.inputs['peaks'].receive()
             peaks = peaks_packet['payload']
@@ -352,17 +353,11 @@ class DensityClustering(Block):
                             
                             if best_channel in self.channels:
                                 channels = self.probe.edges[best_channel]
-                                # TODO clean and swap the 4 following lines.
-                                # ref_channel = self.chan_positions[best_channel]
-                                # waveforms = self.batch.get_snippet(channels, peak, peak_type, ref_channel).T
-                                # waveforms = waveforms.reshape(1, waveforms.shape[0], waveforms.shape[1])
-                                waveforms = self.batch.get_snippet(channels, peak, peak_type, best_channel)
+                                waveforms = self.batch.get_snippet(channels, peak, peak_type=peak_type,
+                                                                   ref_channel=best_channel, sigma=self.spike_sigma)
 
                                 online_manager = self.managers[key][best_channel]
                                 if not online_manager.is_ready:
-                                    # TODO swap and clean the 3 following lines.
-                                    # self.raw_data[key][best_channel] = \
-                                    #     np.vstack((self.raw_data[key][best_channel], waveforms))
                                     self.raw_data[key][best_channel].add(waveforms)
                                 else:
                                     online_manager.update(self.counter, waveforms)
@@ -386,16 +381,16 @@ class DensityClustering(Block):
 
                         if len(self.raw_data[key][channel]) >= self.nb_waveforms and not online_manager.is_ready:
                             # Log debug message.
-                            string = "{n} Electrode {k} has obtained {m} {t} waveforms: clustering"
-                            message = string.format(n=self.name_and_counter, k=channel, m=self.nb_waveforms, t=key)
+                            string = "{} Electrode {} has obtained {} {} waveforms: clustering"
+                            message = string.format(self.name_and_counter, channel, self.nb_waveforms, key)
                             self.log.debug(message)
                             # First clustering.
                             templates = online_manager.initialize(self.counter, self.raw_data[key][channel])
                             self._prepare_templates(templates, key, channel)
                         elif self.managers[key][channel].time_to_cluster(nb_updates=self.nb_waveforms):
                             # Log debug message.
-                            string = "{n} Electrode {k} has obtained {m} {t} waveforms: re-clustering"
-                            message = string.format(n=self.name_and_counter, k=channel, m=self.nb_waveforms, t=key)
+                            string = "{} Electrode {} has obtained {} {} waveforms: re-clustering"
+                            message = string.format(self.name_and_counter, channel, self.nb_waveforms, key)
                             self.log.debug(message)
                             # Re-clustering.
                             templates = online_manager.cluster(tracking=self.tracking)
