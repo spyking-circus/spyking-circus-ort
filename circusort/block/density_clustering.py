@@ -36,6 +36,7 @@ class DensityClustering(Block):
         'spike_jitter': 1.0,  # ms
         'spike_sigma': 0.0,  # µV
         'nb_waveforms': 10000,
+        'nb_waveforms_tracking': 500,
         'channels': None,
         'probe_path': None,
         'radius': None,
@@ -56,6 +57,7 @@ class DensityClustering(Block):
         'local_merges': 3,
         'debug_plots': None,
         'debug_ground_truth_templates': None,
+        'debug_file_format': 'png',
         'debug_data': None
     }
 
@@ -71,6 +73,7 @@ class DensityClustering(Block):
         self.spike_jitter = self.spike_jitter
         self.spike_sigma = self.spike_sigma
         self.nb_waveforms = self.nb_waveforms
+        self.nb_waveforms_tracking = self.nb_waveforms_tracking
         self.channels = self.channels
         self.probe_path = self.probe_path
         self.radius = self.radius
@@ -89,6 +92,7 @@ class DensityClustering(Block):
         self.local_merges = self.local_merges
         self.debug_plots = self.debug_plots
         self.debug_ground_truth_templates = self.debug_ground_truth_templates
+        self.debug_file_format = self.debug_file_format
         self.debug_data = self.debug_data
 
         if self.probe_path is None:
@@ -253,7 +257,9 @@ class DensityClustering(Block):
                     'name': 'OnlineManager for {p} peak on channel {c}'.format(p=key, c=channel),
                     'debug_plots': self.debug_plots,
                     'debug_ground_truth_templates': self.debug_ground_truth_templates,
-                    'local_merges': self.local_merges
+                    'local_merges': self.local_merges,
+                    'debug_file_format': self.debug_file_format,
+                    'sampling_rate': self.sampling_rate
                 }
 
                 if key == 'negative':
@@ -317,6 +323,8 @@ class DensityClustering(Block):
                 self.log.info(message)
                 self.receive_pcs = False
                 self._init_data_structures()
+                if self.debug_data is not None:
+                    np.save(os.path.join(self.debug_data, 'pca', self.pcs))
 
             if (peaks is not None) and (self.thresholds is not None):  # (i.e. if we receive some peaks and MADs)
 
@@ -373,11 +381,11 @@ class DensityClustering(Block):
                         online_manager.set_physical_threshold(threshold)
 
                         # Log debug message (if necessary).
-                        if self.counter % 50 == 0:
-                            nb_peaks = len(self.raw_data[key][channel])
-                            string = "{} We have collected {} {} peaks on channel {}"
-                            message = string.format(self.name_and_counter, nb_peaks, key, channel)
-                            self.log.debug(message)
+                        #if self.counter % 50 == 0:
+                        #    nb_peaks = len(self.raw_data[key][channel])
+                        #    string = "{} We have collected {} {} peaks on channel {}"
+                        #    message = string.format(self.name_and_counter, nb_peaks, key, channel)
+                        #    self.log.debug(message)
 
                         if len(self.raw_data[key][channel]) >= self.nb_waveforms and not online_manager.is_ready:
                             # Log debug message.
@@ -387,10 +395,10 @@ class DensityClustering(Block):
                             # First clustering.
                             templates = online_manager.initialize(self.counter, self.raw_data[key][channel])
                             self._prepare_templates(templates, key, channel)
-                        elif self.managers[key][channel].time_to_cluster(nb_updates=self.nb_waveforms):
+                        elif self.managers[key][channel].time_to_cluster(nb_updates=self.nb_waveforms_tracking):
                             # Log debug message.
-                            string = "{} Electrode {} has obtained {} {} waveforms: re-clustering"
-                            message = string.format(self.name_and_counter, channel, self.nb_waveforms, key)
+                            string = "{n} Electrode {k} has obtained {m} {t} waveforms: re-clustering"
+                            message = string.format(n=self.name_and_counter, k=channel, m=self.nb_waveforms_tracking, t=key)
                             self.log.debug(message)
                             # Re-clustering.
                             templates = online_manager.cluster(tracking=self.tracking)

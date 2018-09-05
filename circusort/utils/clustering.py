@@ -1,5 +1,9 @@
 import scipy.optimize
-import matplotlib.pyplot as plt
+import warnings
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore", category=FutureWarning)
+    import matplotlib.pyplot as plt
+
 import numpy as np
 # import hdbscan
 import os
@@ -9,7 +13,7 @@ import statsmodels.api as sm
 import logging
 
 from sklearn.decomposition import PCA
-
+import statsmodels.api as sm
 from circusort.io.template import load_template
 from circusort.obj.template import Template, TemplateComponent
 
@@ -27,6 +31,24 @@ class MacroCluster(object):
         self.last_update = creation_time
         self.label = 'sparse'
         self.cluster_id = -1
+
+    def __add__(self, other):
+        """Add two clusters together.
+
+        Argument:
+            other: MacroCluster
+                cluster to add to the current one.
+        Return:
+            result: MacroCluster
+
+        """
+
+        if not isinstance(other, MacroCluster):
+            string = "unsupported operand type(s) for +: '{}' and '{}'"
+            message = string.format(type(self), type(other))
+            raise TypeError(message)
+
+        pass
 
     def set_label(self, label):
 
@@ -99,7 +121,7 @@ class MacroCluster(object):
 
 class OnlineManager(object):
 
-    def __init__(self, probe, channel, decay=0.05, mu=2, epsilon='auto', theta=-np.log(0.001), dispersion=(5, 5),
+    def __init__(self, probe, channel, sampling_rate, decay=0.05, mu=2, epsilon='auto', theta=-np.log(0.001), dispersion=(5, 5),
                  n_min=0.01, noise_thr=0.8, pca=None, logger=None, two_components=False, name=None, debug_plots=None,
                  debug_ground_truth_templates=None, debug_file_format='pdf', local_merges=3):
 
@@ -123,6 +145,7 @@ class OnlineManager(object):
         self.debug_ground_truth_templates = debug_ground_truth_templates
         self.debug_file_format = debug_file_format
         self.local_merges = local_merges
+        self.sampling_rate = sampling_rate
 
         if self.debug_plots is not None:
             self.fig_name = os.path.join(self.debug_plots, '{n}_{t}.{f}')
@@ -208,7 +231,7 @@ class OnlineManager(object):
 
         labels = self.density_clustering(sub_data, n_min=n_min, output=output, local_merges=self.local_merges)
 
-        self._W = len(sub_data) / float(self.time / 20000.)
+        self._W = len(sub_data) / float(self.time / self.sampling_rate)
         self.mu = self._W / 1000.
         self.beta = 1.5 / self.mu
 
@@ -702,14 +725,14 @@ class OnlineManager(object):
 
         distances = scipy.spatial.distance.pdist(data, metric='euclidean')
         distances = distances.astype(np.float32)
-        nb_neighbors = max(5, int(neighbors_ratio * float(nb_samples)))
+        nb_neighbors = max(2, int(neighbors_ratio * float(nb_samples)))
 
         # Estimate mean distance with nearest neighbors for each sample.
         mean_distances = np.zeros(nb_samples, dtype=np.float32)
         for k in range(nb_samples):
             # Find the distances with the nb_select nearest neighbors.
             indices_1 = get_condensed_indices(k, np.arange(k + 1, nb_samples))
-            indices_2 = get_condensed_indices(np.arange(0, k - 1), k)
+            indices_2 = get_condensed_indices(np.arange(0, k), k)
             indices = np.concatenate((indices_1, indices_2))
             tmp = np.argsort(np.take(distances, indices))
             tmp = tmp[0:nb_neighbors]
@@ -738,9 +761,7 @@ class OnlineManager(object):
             smart_select_mode: string (optional)
                 Either 'curve_fit' or 'ransac'.
         """
-
         if smart_select:
-
             if smart_select_mode == 'curve_fit':
 
                 z_score_threshold = 3.0
@@ -830,9 +851,7 @@ class OnlineManager(object):
                 string = "unexpected smart select mode: {}"
                 message = string.format(smart_select_mode)
                 raise ValueError(message)
-
         else:
-
             sub_indices = np.argsort(rho * np.log(1 + delta))[::-1][:max_clusters]
 
         return sub_indices, len(sub_indices)
