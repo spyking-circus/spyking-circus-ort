@@ -1,6 +1,4 @@
 import numpy as np
-
-
 from circusort.obj.snippet import Snippet
 from circusort.utils import compute_snippet_width, compute_maximum_snippet_jitter
 

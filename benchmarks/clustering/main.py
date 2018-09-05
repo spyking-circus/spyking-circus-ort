@@ -20,7 +20,7 @@ nb_cells_range = [27]
 duration = 5.0 * 60.0  # s
 preload_templates = False
 nb_waveforms_clustering = 400
-
+nb_replay = 3
 
 def main():
 
@@ -108,7 +108,7 @@ def main():
         if args.pending_sorting:
 
             network.sorting(name, with_precomputed_templates=preload_templates,
-                            nb_waveforms_clustering=nb_waveforms_clustering)
+                            nb_waveforms_clustering=nb_waveforms_clustering, nb_replay=nb_replay)
 
     # Introspect sorting (if necessary).
     if args.pending_introspection:
