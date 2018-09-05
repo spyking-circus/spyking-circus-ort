@@ -1,11 +1,6 @@
 import scipy.optimize
-import warnings
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=FutureWarning)
-    import matplotlib.pyplot as plt
-
+import matplotlib.pyplot as plt
 import numpy as np
-# import hdbscan
 import os
 import scipy.spatial.distance
 import scipy.stats
@@ -13,7 +8,7 @@ import statsmodels.api as sm
 import logging
 
 from sklearn.decomposition import PCA
-import statsmodels.api as sm
+
 from circusort.io.template import load_template
 from circusort.obj.template import Template, TemplateComponent
 
@@ -121,9 +116,9 @@ class MacroCluster(object):
 
 class OnlineManager(object):
 
-    def __init__(self, probe, channel, sampling_rate, decay=0.05, mu=2, epsilon='auto', theta=-np.log(0.001), dispersion=(5, 5),
-                 n_min=0.01, noise_thr=0.8, pca=None, logger=None, two_components=False, name=None, debug_plots=None,
-                 debug_ground_truth_templates=None, debug_file_format='pdf', local_merges=3):
+    def __init__(self, probe, channel, sampling_rate=20e+3, decay=0.05, mu=2, epsilon='auto', theta=-np.log(0.001),
+                 dispersion=(5, 5), n_min=0.01, noise_thr=0.8, pca=None, logger=None, two_components=False, name=None,
+                 debug_plots=None, debug_ground_truth_templates=None, debug_file_format='pdf', local_merges=3):
 
         if name is None:
             self.name = "OnlineManager"
@@ -232,7 +227,7 @@ class OnlineManager(object):
         labels = self.density_clustering(sub_data, n_min=n_min, output=output, local_merges=self.local_merges)
 
         self._W = len(sub_data) / float(self.time / self.sampling_rate)
-        self.mu = self._W / 1000.
+        self.mu = self._W / 1e+3
         self.beta = 1.5 / self.mu
 
         mask = labels > -1
@@ -725,6 +720,8 @@ class OnlineManager(object):
 
         distances = scipy.spatial.distance.pdist(data, metric='euclidean')
         distances = distances.astype(np.float32)
+        # TODO swap and clean?
+        # nb_neighbors = max(5, int(neighbors_ratio * float(nb_samples)))
         nb_neighbors = max(2, int(neighbors_ratio * float(nb_samples)))
 
         # Estimate mean distance with nearest neighbors for each sample.
@@ -761,7 +758,9 @@ class OnlineManager(object):
             smart_select_mode: string (optional)
                 Either 'curve_fit' or 'ransac'.
         """
+
         if smart_select:
+
             if smart_select_mode == 'curve_fit':
 
                 z_score_threshold = 3.0
@@ -775,7 +774,7 @@ class OnlineManager(object):
                     return a * np.log(1.0 + c * ((rho_max - t) ** b)) + d  # TODO fix runtime warning...
 
                 try:
-                    result, pcov = scipy.optimize.curve_fit(my_func, rho, delta, p0=[a_0, 1., 1., off])
+                    result, p_cov = scipy.optimize.curve_fit(my_func, rho, delta, p0=[a_0, 1., 1., off])
                     prediction = my_func(rho, result[0], result[1], result[2], result[3])
                     difference = rho * (delta - prediction)
                     # TODO swap and clean the following lines.
@@ -851,7 +850,9 @@ class OnlineManager(object):
                 string = "unexpected smart select mode: {}"
                 message = string.format(smart_select_mode)
                 raise ValueError(message)
+
         else:
+
             sub_indices = np.argsort(rho * np.log(1 + delta))[::-1][:max_clusters]
 
         return sub_indices, len(sub_indices)

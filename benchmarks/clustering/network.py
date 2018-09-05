@@ -85,7 +85,7 @@ def sorting(configuration_name, with_precomputed_templates=True, nb_waveforms_cl
         'speed_factor': 2.0,
         'introspection_path': introspection_directory,
         'log_level': INFO,
-        'nb_replay' : nb_replay
+        'nb_replay': nb_replay
     }
     filter_kwargs = {
         'name': "filter",
@@ -123,15 +123,14 @@ def sorting(configuration_name, with_precomputed_templates=True, nb_waveforms_cl
         'threshold_factor': threshold_factor,
         'sampling_rate': sampling_rate,
         'nb_waveforms': nb_waveforms_clustering,
-        'nb_waveforms_tracking' : 2*nb_waveforms_clustering,
+        'nb_waveforms_tracking': 2*nb_waveforms_clustering,
         'probe_path': probe_path,
         'two_components': False,
         'local_merges': 3,
         'debug_plots': debug_directory,
+        # 'debug_ground_truth_templates': precomputed_template_paths
         'introspection_path': introspection_directory,
-        'log_level': INFO,
-        'debug_plots': debug_directory,
-        #'debug_ground_truth_templates': precomputed_template_paths
+        'log_level': DEBUG,
     }
     cluster_writer_kwargs = {
         'name': "cluster_writer",

@@ -324,7 +324,8 @@ class DensityClustering(Block):
                 self.receive_pcs = False
                 self._init_data_structures()
                 if self.debug_data is not None:
-                    np.save(os.path.join(self.debug_data, 'pca', self.pcs))
+                    path = os.path.join(self.debug_data, 'pca.npy')
+                    np.save(path, self.pcs)
 
             if (peaks is not None) and (self.thresholds is not None):  # (i.e. if we receive some peaks and MADs)
 
@@ -381,11 +382,11 @@ class DensityClustering(Block):
                         online_manager.set_physical_threshold(threshold)
 
                         # Log debug message (if necessary).
-                        #if self.counter % 50 == 0:
-                        #    nb_peaks = len(self.raw_data[key][channel])
-                        #    string = "{} We have collected {} {} peaks on channel {}"
-                        #    message = string.format(self.name_and_counter, nb_peaks, key, channel)
-                        #    self.log.debug(message)
+                        if self.counter % 50 == 0:
+                            nb_peaks = len(self.raw_data[key][channel])
+                            string = "{} We have collected {} {} peaks on channel {}"
+                            message = string.format(self.name_and_counter, nb_peaks, key, channel)
+                            self.log.debug(message)
 
                         if len(self.raw_data[key][channel]) >= self.nb_waveforms and not online_manager.is_ready:
                             # Log debug message.
