@@ -518,7 +518,8 @@ class Template(object):
             x = np.arange(0, nb_samples)
             for k in range(0, nb_channels):
                 y = self.first_component.waveforms[k, :]
-                ax.plot(x, y, **kwargs)
+                label = "waveform {}".format(k)
+                ax.plot(x, y, label=label, **kwargs)
         else:
             ax.set_aspect('equal')
             x_min, x_max = probe.x_limits
@@ -529,7 +530,8 @@ class Template(object):
                 x_0, y_0 = probe.get_channel_position(channel)
                 x = 20.0 * np.linspace(-0.5, +0.5, num=nb_samples) + x_0
                 y = 0.3 * self.first_component.waveforms[k, :] + y_0
-                ax.plot(x, y, **kwargs)
+                label = "waveform {}".format(channel)
+                ax.plot(x, y, label=label, **kwargs)
             if with_scale_bars:
                 # Add scale bars.
                 x_anchor = x_max - 0.1 * (x_max - x_min)
@@ -538,14 +540,14 @@ class Template(object):
                 width = 1  # TODO improve.
                 x = [x_anchor, x_anchor - 20.0 * float(width)]
                 y = [y_anchor, y_anchor]
-                ax.plot(x, y, color='black')
+                ax.plot(x, y, color='black', label="time scale bar")
                 ax.text(np.mean(x), np.mean(y), u"{} arb. unit".format(width), fontsize=8,
                         horizontalalignment='center', verticalalignment='bottom')
                 # # Add voltage scale bar.
                 height = 50  # TODO improve.
                 x = [x_anchor, x_anchor]
                 y = [y_anchor, y_anchor - 0.3 * float(height)]
-                ax.plot(x, y, color='black')
+                ax.plot(x, y, color='black', label="voltage scale bar")
                 ax.text(np.mean(x), np.mean(y), r"{} $\mu$V".format(height), fontsize=8,
                         horizontalalignment='left', verticalalignment='center')
 

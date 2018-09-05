@@ -252,7 +252,6 @@ class OnlineManager(object):
             filename = "{}_{}_templates.{}".format(self.name, self.time, self.debug_file_format)
             path = os.path.join(self.debug_plots, filename)
             self.plot_templates(templates, path)
-            # TODO complete.
             # Plot tracking.
             path = self.fig_name_2.format(n=self.name, t=self.time, f=self.debug_file_format)
             self.plot_tracking(self.dense_clusters, path)
@@ -1026,19 +1025,22 @@ class OnlineManager(object):
         fig, ax = plt.subplots()
         if labels is not None:
             for k, label in enumerate(np.unique(labels)):
-                marker_color = "C{}".format(k % 10)
                 indices = np.where(labels == label)[0]
-                ax.scatter(rho[indices], delta[indices], s=marker_size, c=marker_color)
+                marker_color = "C{}".format(k % 10)
+                ax.scatter(rho[indices], delta[indices], s=marker_size, c=marker_color,
+                           label="data samples {}".format(label))
         else:
-            ax.scatter(rho, delta, s=marker_size, c=marker_color)
+            ax.scatter(rho, delta, s=marker_size, c=marker_color, label="data samples")
         indices = np.argsort(rho)
         if mean is not None:
-            ax.plot(rho[indices], mean[indices], color='red', linestyle='--', linewidth=1)
+            ax.plot(rho[indices], mean[indices], color='red', linestyle='--', linewidth=1, label="mean")
         if std is not None:
-            ax.plot(rho[indices], mean[indices] + std[indices], color='red', linestyle=':', linewidth=1)
-            ax.plot(rho[indices], mean[indices] - std[indices], color='red', linestyle=':', linewidth=1)
+            ax.plot(rho[indices], mean[indices] + std[indices], color='red', linestyle=':', linewidth=1,
+                    label="mean+std")
+            ax.plot(rho[indices], mean[indices] - std[indices], color='red', linestyle=':', linewidth=1,
+                    label="mean-std")
         if threshold is not None:
-            ax.plot(rho[indices], threshold[indices], color='red', linestyle='-', linewidth=1)
+            ax.plot(rho[indices], threshold[indices], color='red', linestyle='-', linewidth=1, label="threshold")
         ax.set_xlabel("rho")
         ax.set_ylabel("delta")
 
@@ -1137,13 +1139,16 @@ class OnlineManager(object):
 
     def plot_tracking(self, dense_clusters, output, marker='+', marker_size=5):
 
+        indices = []
         centers = []
         sigmas = []
         colors = []
-        for item in dense_clusters:
+        for k, item in enumerate(dense_clusters):
+            indices += [k]
             colors += [item.cluster_id]
             centers += [item.description[0]]
             sigmas += [item.description[1]]
+        indices = np.array(indices)
         centers = np.array(centers)
         sigmas = np.array(sigmas)
         colors = np.array(colors, dtype=np.int32)
@@ -1151,12 +1156,14 @@ class OnlineManager(object):
         if len(centers) > 0:
 
             k_1, k_2 = 0, 1  # pair of principal components
-            for center, sigma, color in zip(centers, sigmas, colors):
-                ax = plt.subplot(2, 2, 1)
+            ax = plt.subplot(2, 2, 1)
+            for index, center, sigma, color in zip(indices, centers, sigmas, colors):
                 c = 'C{}'.format(color % 10)
-                circle = plt.Circle((center[k_1], center[k_2]), sigma, color=c, fill=True, alpha=0.5)
+                circle = plt.Circle((center[k_1], center[k_2]), sigma, color=c, fill=True, alpha=0.5,
+                                    label="std {}".format(index))
                 ax.add_artist(circle)
-                plt.scatter(centers[:, k_1], centers[:, k_2], s=marker_size, c='k', marker=marker)
+                ax.scatter(centers[:, k_1], centers[:, k_2], s=marker_size, c='k', marker=marker,
+                           label="mean {}".format(index))
                 if self._pc_lim is not None:
                     ax.set_xlim(*self._pc_lim[k_1])
                     ax.set_ylim(*self._pc_lim[k_2])
@@ -1166,12 +1173,14 @@ class OnlineManager(object):
                 ax.set_ylabel("PC{}".format(k_2))
 
             k_1, k_2 = 2, 1  # pair of principal components
-            for center, sigma, color in zip(centers, sigmas, colors):
-                ax = plt.subplot(2, 2, 2)
+            ax = plt.subplot(2, 2, 2)
+            for index, center, sigma, color in zip(indices, centers, sigmas, colors):
                 c = 'C{}'.format(color % 10)
-                circle = plt.Circle((center[k_1], center[k_2]), sigma, color=c, fill=True, alpha=0.5)
+                circle = plt.Circle((center[k_1], center[k_2]), sigma, color=c, fill=True, alpha=0.5,
+                                    label="std {}".format(index))
                 ax.add_artist(circle)
-                plt.scatter(centers[:, k_1], centers[:, k_2], s=marker_size, c='k', marker=marker)
+                ax.scatter(centers[:, k_1], centers[:, k_2], s=marker_size, c='k', marker=marker,
+                           label="mean {}".format(index))
                 if self._pc_lim is not None:
                     ax.set_xlim(*self._pc_lim[k_1])
                     ax.set_ylim(*self._pc_lim[k_2])
@@ -1181,12 +1190,14 @@ class OnlineManager(object):
                 ax.set_ylabel("PC{}".format(k_2))
 
             k_1, k_2 = 0, 2  # pair of principal components
-            for center, sigma, color in zip(centers, sigmas, colors):
-                ax = plt.subplot(2, 2, 3)
+            ax = plt.subplot(2, 2, 3)
+            for index, center, sigma, color in zip(indices, centers, sigmas, colors):
                 c = 'C{}'.format(color % 10)
-                circle = plt.Circle((center[k_1], center[k_2]), sigma, color=c, fill=True, alpha=0.5)
+                circle = plt.Circle((center[k_1], center[k_2]), sigma, color=c, fill=True, alpha=0.5,
+                                    label="std {}".format(index))
                 ax.add_artist(circle)
-                plt.scatter(centers[:, k_1], centers[:, k_2], s=marker_size, c='k', marker=marker)
+                ax.scatter(centers[:, k_1], centers[:, k_2], s=marker_size, c='k', marker=marker,
+                           label="mean {}".format(index))
                 if self._pc_lim is not None:
                     ax.set_xlim(*self._pc_lim[k_1])
                     ax.set_ylim(*self._pc_lim[k_2])
