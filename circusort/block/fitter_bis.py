@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import numpy as np
 import os
 
@@ -215,7 +216,7 @@ class FitterBis(Block):
     def _extract_waveforms(self, peak_time_steps):
         """Extract waveforms from buffer
 
-        Attributes:
+        Argument:
             peak_time_steps: np.array
                 Peak time steps. Array of shape (number of peaks,).
 
@@ -269,6 +270,40 @@ class FitterBis(Block):
 
             # Extract waveforms from buffer.
             waveforms = self._extract_waveforms(peaks)
+
+            # TODO remove the following lines.
+            base_directory = "/tmp/clustering_real_data"
+            if not os.path.isdir(base_directory):
+                os.makedirs(base_directory)
+            directory = os.path.join(base_directory, "buffer_{}".format(self._number))
+            if not os.path.isdir(directory):
+                os.makedirs(directory)
+            # Plot the snippets.
+            plt.figure()
+            for k in range(0, waveforms.shape[1]):
+                waveform = waveforms[:, k]
+                waveform = np.reshape(waveform, (self._nb_channels, -1))
+                v_max = np.max(np.abs(waveform))
+                if v_max > 0.0:
+                    waveform = 0.5 * waveform / v_max
+                plt.clf()
+                for l in range(0, waveform.shape[0]):
+                    y = waveform[l, :] + float(l)
+                    plt.plot(y, color='C0', label="waveform_{}".format(l))
+                plt.axvline(x=50, color='C1', linestyle='--')
+                filename = "snippet_{}.pdf".format(k)
+                path = os.path.join(directory, filename)
+                plt.savefig(path)
+            plt.close()
+            # Plot the templates.
+            for k in range(0, self._overlaps_store.nb_templates):
+                _, ax = plt.subplots()
+                template = self._overlaps_store.template_store.get(k)
+                template.plot(ax=ax)
+                filename = "template_{}.pdf".format(k)
+                path = os.path.join(directory, filename)
+                plt.savefig(path)
+                plt.close()
 
             if timing:
                 self._measure_time('scalar_products_start', frequency=10)
@@ -612,7 +647,7 @@ class FitterBis(Block):
 
                 # Log debug message.
                 string = "{} modifies template and overlap stores"
-                message = string.format(self.name)
+                message = string.format(self.name_and_counter)
                 self.log.debug(message)
 
                 # Modify template and overlap stores.
@@ -626,21 +661,58 @@ class FitterBis(Block):
                     self._init_temp_window()
                     # Log debug message.
                     string = "{} initializes template and overlap stores ({}, {})"
-                    message = string.format(self.name, updater['template_store'], updater['overlaps']['path'])
+                    message = string.format(self.name_and_counter, updater['template_store'],
+                                            updater['overlaps']['path'])
                     self.log.debug(message)
+
+                    # # TODO remove the following debug message.
+                    # string = "{} (init) len(self._overlaps_store): {}"
+                    # message = string.format(self.name_and_counter, len(self._overlaps_store))
+                    # self.log.debug(message)
+                    #
+                    # string = "{} (init) self._overlaps_store.template_store.nb_templates: {}"
+                    # message = string.format(self.name_and_counter, self._overlaps_store.template_store.nb_templates)
+                    # self.log.debug(message)
+                    #
+                    # string = "{} (init) self._overlaps_store.norms: {}"
+                    # message = string.format(self.name_and_counter, self._overlaps_store.norms)
+                    # self.log.debug(message)
+                    #
+                    # string = "{} (init) self._overlaps_store._is_initialized: {}"
+                    # message = string.format(self.name_and_counter, self._overlaps_store._is_initialized)
+                    # self.log.debug(message)
+
                 else:
+
+                    # # TODO remove the following debug messages.
+                    # string = "{} (updt) len(self._overlaps_store): {}"
+                    # message = string.format(self.name_and_counter, len(self._overlaps_store))
+                    # self.log.debug(message)
+                    #
+                    # string = "{} (updt) self._overlaps_store.template_store.nb_templates: {}"
+                    # message = string.format(self.name_and_counter, self._overlaps_store.template_store.nb_templates)
+                    # self.log.debug(message)
+                    #
+                    # string = "{} (updt) self._overlaps_store.norms: {}"
+                    # message = string.format(self.name_and_counter, self._overlaps_store.norms)
+                    # self.log.debug(message)
+                    #
+                    # string = "{} (updt) self._overlaps_store._is_initialized: {}"
+                    # message = string.format(self.name_and_counter, self._overlaps_store._is_initialized)
+                    # self.log.debug(message)
+
                     # TODO avoid duplicates in template store and uncomment the 3 following lines.
-                    # # Update template and overlap stores.
-                    # laziness = updater['overlaps']['path'] is None
-                    # self._overlaps_store.update(indices, laziness=laziness)
+                    # Update template and overlap stores.
+                    laziness = updater['overlaps']['path'] is None
+                    self._overlaps_store.update(indices, laziness=laziness)
                     # Log debug message.
                     string = "{} updates template and overlap stores"
-                    message = string.format(self.name)
+                    message = string.format(self.name_and_counter)
                     self.log.debug(message)
 
                 # Log debug message.
                 string = "{} modified template and overlap stores"
-                message = string.format(self.name)
+                message = string.format(self.name_and_counter)
                 self.log.debug(message)
 
                 updater_packet = self.get_input('updater').receive(blocking=False,
@@ -657,7 +729,9 @@ class FitterBis(Block):
 
                 if timing:
                     self._measure_time('fit_start', frequency=10)
-                self._fit_chunk(verbose=verbose, timing=timing)
+                # TODO swap and clean the 2 following lines.
+                # self._fit_chunk(verbose=verbose, timing=timing)
+                self._fit_chunk(verbose=True, timing=timing)
                 if timing:
                     self._measure_time('fit_end', frequency=10)
                 if timing:

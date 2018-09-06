@@ -512,12 +512,27 @@ class Template(object):
             fig = ax.get_figure()
 
         if probe is None:
+            # TODO swap and clean the 2 following code blocks.
+            # x_min = 0
+            # x_max = nb_samples
+            # ax.set_xlim(x_min, x_max)
+            # x = np.arange(0, nb_samples)
+            # for k in range(0, nb_channels):
+            #     y = self.first_component.waveforms[k, :]
+            #     label = "waveform {}".format(k)
+            #     ax.plot(x, y, label=label, **kwargs)
             x_min = 0
             x_max = nb_samples
             ax.set_xlim(x_min, x_max)
             x = np.arange(0, nb_samples)
+            v_max = np.max(np.abs(self.first_component.waveforms))
+            if v_max > 0.0:
+                waveforms = 0.5 * self.first_component.waveforms / v_max
+            else:
+                waveforms = self.first_component.waveforms
+            indices = self.first_component.indices
             for k in range(0, nb_channels):
-                y = self.first_component.waveforms[k, :]
+                y = waveforms[k, :] + float(indices[k])
                 label = "waveform {}".format(k)
                 ax.plot(x, y, label=label, **kwargs)
         else:
