@@ -54,9 +54,6 @@ class OverlapsStore(object):
         self._is_initialized = False
         self.fitting_mode = fitting_mode
 
-        if not self.template_store.is_empty:
-            self.update(self.template_store.indices, laziness=False)
-
         self._all_components = None
 
         self.overlaps = {
@@ -67,6 +64,9 @@ class OverlapsStore(object):
         self.amplitudes = None
         self.electrodes = None
         self.second_component = None
+
+        if not self.template_store.is_empty:
+            self.update(self.template_store.indices, laziness=False)
 
         return
 
@@ -159,7 +159,7 @@ class OverlapsStore(object):
                 res = np.concatenate((res, [self._masks[i, index]]))
             for i in range(index + 1, self.nb_templates):
                 res = np.concatenate((res, [self._masks[index, i]]))
-            return np.where(res == True)[0]
+            return np.where(res)[0]
         else:
             return None
 
