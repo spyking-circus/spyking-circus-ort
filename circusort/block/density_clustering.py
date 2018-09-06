@@ -398,8 +398,8 @@ class DensityClustering(Block):
                             self._prepare_templates(templates, key, channel)
                         elif self.managers[key][channel].time_to_cluster(nb_updates=self.nb_waveforms_tracking):
                             # Log debug message.
-                            string = "{n} Electrode {k} has obtained {m} {t} waveforms: re-clustering"
-                            message = string.format(n=self.name_and_counter, k=channel, m=self.nb_waveforms_tracking, t=key)
+                            string = "{} Electrode {} has obtained {} {} waveforms: re-clustering"
+                            message = string.format(self.name_and_counter, channel, self.nb_waveforms_tracking, key)
                             self.log.debug(message)
                             # Re-clustering.
                             templates = online_manager.cluster(tracking=self.tracking)
