@@ -114,6 +114,12 @@ class Reader(Block):
             i_max = i_min + self.nb_samples
 
             chunk = data[i_min:i_max, :]
+            # Repeat last sampling time (if necessary, data buffer incomplete).
+            if chunk.shape[0] < self.nb_samples:
+                nb_samples = chunk.shape[0]
+                nb_missing_samples = self.nb_samples - nb_samples
+                indices = np.concatenate((np.arange(0, nb_samples), -1 * np.ones(nb_missing_samples, dtype='int')))
+                chunk = chunk[indices, :]
             # Dequantize chunk.
             if self.dtype == 'float32':
                 pass
