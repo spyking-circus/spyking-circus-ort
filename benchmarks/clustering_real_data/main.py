@@ -88,9 +88,7 @@ def main():
 
         network.sorting()
 
-        # TODO sort spikes from data.
-
-        raise NotImplementedError()
+    # TODO complete?
 
     raise NotImplementedError()
 

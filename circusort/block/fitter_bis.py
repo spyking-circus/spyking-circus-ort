@@ -1,4 +1,4 @@
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import numpy as np
 import os
 
@@ -271,40 +271,6 @@ class FitterBis(Block):
             # Extract waveforms from buffer.
             waveforms = self._extract_waveforms(peaks)
 
-            # TODO remove the following lines.
-            base_directory = "/tmp/clustering_real_data"
-            if not os.path.isdir(base_directory):
-                os.makedirs(base_directory)
-            directory = os.path.join(base_directory, "buffer_{}".format(self._number))
-            if not os.path.isdir(directory):
-                os.makedirs(directory)
-            # Plot the snippets.
-            plt.figure()
-            for k in range(0, waveforms.shape[1]):
-                waveform = waveforms[:, k]
-                waveform = np.reshape(waveform, (self._nb_channels, -1))
-                v_max = np.max(np.abs(waveform))
-                if v_max > 0.0:
-                    waveform = 0.5 * waveform / v_max
-                plt.clf()
-                for l in range(0, waveform.shape[0]):
-                    y = waveform[l, :] + float(l)
-                    plt.plot(y, color='C0', label="waveform_{}".format(l))
-                plt.axvline(x=50, color='C1', linestyle='--')
-                filename = "snippet_{}.pdf".format(k)
-                path = os.path.join(directory, filename)
-                plt.savefig(path)
-            plt.close()
-            # Plot the templates.
-            for k in range(0, self._overlaps_store.nb_templates):
-                _, ax = plt.subplots()
-                template = self._overlaps_store.template_store.get(k)
-                template.plot(ax=ax)
-                filename = "template_{}.pdf".format(k)
-                path = os.path.join(directory, filename)
-                plt.savefig(path)
-                plt.close()
-
             if timing:
                 self._measure_time('scalar_products_start', frequency=10)
             # Compute the scalar products between waveforms and templates.
@@ -349,10 +315,14 @@ class FitterBis(Block):
                     best_template_index = np.argmax(peak_scalar_products, axis=0)
 
                     # Compute the best amplitude.
-                    best_amplitude = sub_b[best_template_index, peak_index] / self._overlaps_store.nb_elements
+                    # TODO check definition of template norm and swap/clean the 2 following lines.
+                    # best_amplitude = sub_b[best_template_index, peak_index] / self._overlaps_store.nb_elements
+                    best_amplitude = sub_b[best_template_index, peak_index]
                     if self._overlaps_store.two_components:
                         best_scalar_product = scalar_products[best_template_index + self.nb_templates, peak_index]
-                        best_amplitude_2 = best_scalar_product / self._overlaps_store.nb_elements
+                        # TODO check definition of template norm and swap/clean the 2 following lines.
+                        # best_amplitude_2 = best_scalar_product / self._overlaps_store.nb_elements
+                        best_amplitude_2 = best_scalar_product
                     else:
                         best_amplitude_2 = None
 
@@ -665,41 +635,7 @@ class FitterBis(Block):
                                             updater['overlaps']['path'])
                     self.log.debug(message)
 
-                    # # TODO remove the following debug message.
-                    # string = "{} (init) len(self._overlaps_store): {}"
-                    # message = string.format(self.name_and_counter, len(self._overlaps_store))
-                    # self.log.debug(message)
-                    #
-                    # string = "{} (init) self._overlaps_store.template_store.nb_templates: {}"
-                    # message = string.format(self.name_and_counter, self._overlaps_store.template_store.nb_templates)
-                    # self.log.debug(message)
-                    #
-                    # string = "{} (init) self._overlaps_store.norms: {}"
-                    # message = string.format(self.name_and_counter, self._overlaps_store.norms)
-                    # self.log.debug(message)
-                    #
-                    # string = "{} (init) self._overlaps_store._is_initialized: {}"
-                    # message = string.format(self.name_and_counter, self._overlaps_store._is_initialized)
-                    # self.log.debug(message)
-
                 else:
-
-                    # # TODO remove the following debug messages.
-                    # string = "{} (updt) len(self._overlaps_store): {}"
-                    # message = string.format(self.name_and_counter, len(self._overlaps_store))
-                    # self.log.debug(message)
-                    #
-                    # string = "{} (updt) self._overlaps_store.template_store.nb_templates: {}"
-                    # message = string.format(self.name_and_counter, self._overlaps_store.template_store.nb_templates)
-                    # self.log.debug(message)
-                    #
-                    # string = "{} (updt) self._overlaps_store.norms: {}"
-                    # message = string.format(self.name_and_counter, self._overlaps_store.norms)
-                    # self.log.debug(message)
-                    #
-                    # string = "{} (updt) self._overlaps_store._is_initialized: {}"
-                    # message = string.format(self.name_and_counter, self._overlaps_store._is_initialized)
-                    # self.log.debug(message)
 
                     # TODO avoid duplicates in template store and uncomment the 3 following lines.
                     # Update template and overlap stores.
@@ -729,9 +665,7 @@ class FitterBis(Block):
 
                 if timing:
                     self._measure_time('fit_start', frequency=10)
-                # TODO swap and clean the 2 following lines.
-                # self._fit_chunk(verbose=verbose, timing=timing)
-                self._fit_chunk(verbose=True, timing=timing)
+                self._fit_chunk(verbose=verbose, timing=timing)
                 if timing:
                     self._measure_time('fit_end', frequency=10)
                 if timing:
