@@ -1142,18 +1142,66 @@ class OnlineManager(object):
 
         return
 
-    def plot_templates(self, templates, output):
+    # TODO swap and clean the 2 following methods.
+
+    # def plot_templates(self, templates, output):
+    #     # Version: one figure for all the templates.
+    #
+    #     nb_templates = len(templates)
+    #
+    #     _, ax = plt.subplots(nrows=1, ncols=nb_templates)
+    #     for k in range(0, nb_templates):
+    #         template = templates[k]
+    #         color = 'C{}'.format(k % 10)
+    #         template.plot(ax=ax[k], probe=self.probe, color=color)
+    #
+    #     plt.savefig(output)
+    #     plt.close()
+    #
+    #     return
+
+    def plot_templates(self, templates, output, mode='multiple_files'):
+        """Plot templates.
+
+        Arguments:
+            templates
+            output
+            mode: string (optional)
+                Either 'single_file' or 'multiple_files'.
+                The default value is 'multiple_files'.
+        """
 
         nb_templates = len(templates)
 
-        _, ax = plt.subplots(nrows=1, ncols=nb_templates)
-        for k in range(0, nb_templates):
-            template = templates[k]
-            color = 'C{}'.format(k % 10)
-            template.plot(ax=ax[k], probe=self.probe, color=color)
+        if mode == 'single_file':  # i.e. one figure with all the templates
 
-        plt.savefig(output)
-        plt.close()
+            _, ax = plt.subplots(nrows=1, ncols=nb_templates)
+            for k in range(0, nb_templates):
+                template = templates[k]
+                color = 'C{}'.format(k % 10)
+                template.plot(ax=ax[k], probe=self.probe, color=color)
+
+            plt.savefig(output)
+            plt.close()
+
+        elif mode == 'multiple_files':  # i.e. one figure per template
+
+            base_path, extension = os.path.splitext(output)
+
+            for k in range(0, nb_templates):
+                _, ax = plt.subplots()
+                template = templates[k]
+                color = 'C{}'.format(k % 10)
+                template.plot(ax=ax, probe=self.probe, color=color)
+                path = base_path + "_{}".format(k) + extension
+                plt.savefig(path)
+                plt.close()
+
+        else:  # raise error message
+
+            string = "unexpected mode value: {}"
+            message = string.format(mode)
+            raise ValueError(message)
 
         return
 

@@ -385,3 +385,93 @@ class Train(object):
         difference = np.mean([r_fn, r_fd])
 
         return difference
+
+    def cross_correlogram(self, other, bin_width=1.0, width=201.0):
+        """Compute the cross-correlogram.
+
+        Arguments:
+            other: circusort.obj.Train
+                The train with which to compute the cross-correlations.
+            bin_width: float (optional)
+                The bin width of the cross-correlogram (ms).
+                The default value is 1.0.
+            width: float (optional)
+                The width of the cross-correlogram (ms).
+                The default value is 201.0.
+        Return:
+            cross_correlogram: numpy.ndarray
+        """
+
+        nb_bins = int(np.ceil(width / bin_width))
+
+        bin_counts = np.zeros(nb_bins)
+
+        half_width = 0.5 * width * 1e-3
+
+        self_times = np.sort(self.times)
+        other_times = np.sort(other.times)
+
+        nb_self_times = self_times.size
+        nb_other_times = other_times.size
+
+        if nb_self_times > 0 and nb_other_times > 0:
+            # 1.
+            self_index = 0
+            # Find the index of the earliest time which lie in the specified range of lags.
+            start_other_index = 0
+            while start_other_index < nb_other_times and \
+                    other_times[start_other_index] < self_times[self_index] - half_width:
+                start_other_index += 1
+            # Find the index of the latest time which lie in the specified range of lags.
+            end_other_index = start_other_index
+            while end_other_index < nb_other_times and \
+                    other_times[end_other_index] < self_times[self_index] + half_width:
+                end_other_index += 1
+            # For each index of a time which lie in the specified range of lags...
+            for other_index in range(start_other_index, end_other_index):
+                diff = other_times[other_index] - self_times[self_index]
+                bin_index = int(np.floor((diff + half_width) * 1e+3 / bin_width))
+                bin_counts[bin_index] += 1
+            # 2.
+            for self_index in range(1, nb_self_times):
+                # Update the index of the earliest time which lie in the specified range of lags.
+                while start_other_index < nb_other_times and \
+                        other_times[start_other_index] < self_times[self_index] - half_width:
+                    start_other_index += 1
+                # Update the index of the latest time which lie in the specified range of lags.
+                while end_other_index < nb_other_times and \
+                        other_times[end_other_index] < self_times[self_index] + half_width:
+                    end_other_index += 1
+                # For each index of a time which lie in the specified range of lags...
+                for other_index in range(start_other_index, end_other_index):
+                    diff = other_times[other_index] - self_times[self_index]
+                    bin_index = int(np.floor((diff + half_width) * 1e+3 / bin_width))
+                    bin_counts[bin_index] += 1
+
+        # TODO normalize the cross-correlogram (i.e. normalize values instead of bin counts)?
+
+        bin_edges = np.linspace(-half_width * 1e+3, +half_width * 1e+3, num=nb_bins+1)
+
+        return bin_counts, bin_edges
+
+    def auto_correlogram(self, bin_width=1.0, width=201.0):
+        """Compute the auto-correlogram.
+
+        Arguments:
+            bin_width: float (optional)
+                The bin width of the auto-correlogram (ms).
+                The default value is 1.0.
+            width: float (optional)
+                The width of the auto-correlogram (ms).
+                The default value is 201.0.
+        Returns:
+            bin_counts: numpy.ndarray
+            bin_edges: numpy.ndarray
+        """
+
+        bin_counts, bin_edges = self.cross_correlogram(self, bin_width=bin_width, width=width)
+
+        bin_index = int(np.floor(0.5 * width / bin_width))
+        bin_counts[bin_index] -= self.nb_times
+
+        return bin_counts, bin_edges

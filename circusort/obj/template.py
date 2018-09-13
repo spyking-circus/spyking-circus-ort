@@ -474,7 +474,7 @@ class Template(object):
         return
 
     def plot(self, ax=None, output=None, probe=None, title=u"Template", with_xaxis=True, with_yaxis=True,
-             with_scale_bars=True, **kwargs):
+             with_scale_bars=True, mode='superimposed', time_factor=50.0, voltage_factor=0.5, **kwargs):
         """Plot template.
 
         Arguments:
@@ -492,6 +492,12 @@ class Template(object):
                 The default value is True.
             with_scale_bars: boolean (optional)
                 The default value is True.
+            mode: string (optional)
+                The default value is 'superimposed'.
+            time_factor: float (optional)
+                The default value is 50.0.
+            voltage_factor: float (optional)
+                The default value is 0.5.
             kwargs: dictionary (optional)
                 Additional keyword arguments.
         """
@@ -512,29 +518,33 @@ class Template(object):
             fig = ax.get_figure()
 
         if probe is None:
-            # TODO swap and clean the 2 following code blocks.
-            # x_min = 0
-            # x_max = nb_samples
-            # ax.set_xlim(x_min, x_max)
-            # x = np.arange(0, nb_samples)
-            # for k in range(0, nb_channels):
-            #     y = self.first_component.waveforms[k, :]
-            #     label = "waveform {}".format(k)
-            #     ax.plot(x, y, label=label, **kwargs)
-            x_min = 0
-            x_max = nb_samples
-            ax.set_xlim(x_min, x_max)
-            x = np.arange(0, nb_samples)
-            v_max = np.max(np.abs(self.first_component.waveforms))
-            if v_max > 0.0:
-                waveforms = 0.5 * self.first_component.waveforms / v_max
+            if mode == 'superimposed':
+                x_min = 0
+                x_max = nb_samples
+                ax.set_xlim(x_min, x_max)
+                x = np.arange(0, nb_samples)
+                for k in range(0, nb_channels):
+                    y = self.first_component.waveforms[k, :]
+                    label = "waveform {}".format(k)
+                    ax.plot(x, y, label=label, **kwargs)
             else:
-                waveforms = self.first_component.waveforms
-            indices = self.first_component.indices
-            for k in range(0, nb_channels):
-                y = waveforms[k, :] + float(indices[k])
-                label = "waveform {}".format(k)
-                ax.plot(x, y, label=label, **kwargs)
+                x_min = 0
+                x_max = nb_samples
+                ax.set_xlim(x_min, x_max)
+                x = np.arange(0, nb_samples)
+                if mode is not None:
+                    v_max = mode
+                else:
+                    v_max = np.max(np.abs(self.first_component.waveforms))
+                if v_max > 0.0:
+                    waveforms = 0.5 * self.first_component.waveforms / v_max
+                else:
+                    waveforms = self.first_component.waveforms
+                indices = self.first_component.indices
+                for k in range(0, nb_channels):
+                    y = waveforms[k, :] + float(indices[k])
+                    label = "waveform {}".format(k)
+                    ax.plot(x, y, label=label, **kwargs)
         else:
             ax.set_aspect('equal')
             x_min, x_max = probe.x_limits
@@ -543,8 +553,8 @@ class Template(object):
             ax.set_ylim(y_min, y_max)
             for k, channel in enumerate(self.first_component.indices):
                 x_0, y_0 = probe.get_channel_position(channel)
-                x = 20.0 * np.linspace(-0.5, +0.5, num=nb_samples) + x_0
-                y = 0.3 * self.first_component.waveforms[k, :] + y_0
+                x = time_factor * np.linspace(-0.5, +0.5, num=nb_samples) + x_0
+                y = voltage_factor * self.first_component.waveforms[k, :] + y_0
                 label = "waveform {}".format(channel)
                 ax.plot(x, y, label=label, **kwargs)
             if with_scale_bars:
@@ -553,7 +563,7 @@ class Template(object):
                 y_anchor = y_max - 0.1 * (y_max - y_min)
                 # # Add time scale bar.
                 width = 1  # TODO improve.
-                x = [x_anchor, x_anchor - 20.0 * float(width)]
+                x = [x_anchor, x_anchor - time_factor * float(width)]
                 y = [y_anchor, y_anchor]
                 ax.plot(x, y, color='black', label="time scale bar")
                 ax.text(np.mean(x), np.mean(y), u"{} arb. unit".format(width), fontsize=8,
@@ -561,7 +571,7 @@ class Template(object):
                 # # Add voltage scale bar.
                 height = 50  # TODO improve.
                 x = [x_anchor, x_anchor]
-                y = [y_anchor, y_anchor - 0.3 * float(height)]
+                y = [y_anchor, y_anchor - voltage_factor * float(height)]
                 ax.plot(x, y, color='black', label="voltage scale bar")
                 ax.text(np.mean(x), np.mean(y), r"{} $\mu$V".format(height), fontsize=8,
                         horizontalalignment='left', verticalalignment='center')
