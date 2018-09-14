@@ -10,6 +10,11 @@ user_directory = os.path.expanduser("~")
 circus_directory = os.path.join(user_directory, ".spyking-circus-ort")
 directory = os.path.join(circus_directory, "benchmarks", "clustering_real_data")
 
+# 1. Parameters for the 9 electrodes & 5 minutes version.
+nb_channels = 9
+# 2-3. Parameters for the 252 electrodes & 5 or 30 minutes version.
+# nb_channels = 252
+
 
 def sorting(nb_waveforms_clustering=1000):
     """Create the sorting network."""
@@ -30,7 +35,6 @@ def sorting(nb_waveforms_clustering=1000):
         'master',
     ]
     dtype = 'uint16'
-    nb_channels = 9
     nb_samples = 1024
     sampling_rate = 20e+3
     threshold_factor = 7.0

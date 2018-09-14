@@ -2,6 +2,7 @@ import matplotlib.gridspec as gds
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import warnings
 
 from circusort.utils.path import normalize_path
 
@@ -154,14 +155,24 @@ class DataFile(object):
 
         snippet = self.get_snippet(t_min_, t_max_)
 
+        # Define the number of channels to be plotted.
+        max_nb_channels = 10
+        if self.nb_channels > max_nb_channels:
+            string = "Too many channels ({}), sub-selection used ({}) to plot the data."
+            message = string.format(self.nb_channels, max_nb_channels)
+            warnings.warn(message)
+        nb_plotted_channels = min(self.nb_channels, max_nb_channels)
+
+        # Compute the scaling factor for the voltage.
         factor = 0.0
-        for channel in range(0, self.nb_channels):
+        for channel in range(0, nb_plotted_channels):
             y = snippet[:, channel]
             y = y - np.mean(y)
             factor = max(factor, np.abs(y).max())
         factor = factor if factor > 0.0 else 1.0
 
-        for count, channel in enumerate(range(0, self.nb_channels)):
+        # Plot data.
+        for count, channel in enumerate(range(0, nb_plotted_channels)):
             x = np.linspace(t_min_, t_max_, num=nb_samples)
             y = snippet[0:nb_samples, channel]
             y = y - np.mean(y)
@@ -170,8 +181,7 @@ class DataFile(object):
                 ax.plot(x, y, **kwargs)
             else:
                 kwargs.update(color=colors[channel])
-                ax.plot(x, y, )
-
+                ax.plot(x, y, **kwargs)
         ax.set_yticks([])
         ax.set_xlabel(u"time (s)")
         ax.set_ylabel(u"channel")
