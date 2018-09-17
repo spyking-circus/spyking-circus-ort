@@ -77,14 +77,14 @@ def main():
         # 2. Create copied data.
         copied_data_path = os.path.join(recording_directory, "data.raw")
         copied_probe_path = os.path.join(recording_directory, "probe.prb")
-        # 1. Parameters for the 9 electrodes & 5 minutes version.
-        channels = np.array([133, 134, 161, 166, 201, 202, 229, 231, 232]) - 1
-        t_min, t_max = 2.0 * 60.0, 7.0 * 60.0
-        t_plot_min, t_plot_max = 2.0 * 60.0, 3.0 * 60.0
-        # # 2. Parameters for the 252 electrodes & 5 minutes version.
-        # channels = np.array(list(range(1, 127)) + list(range(129, 255))) - 1  # i.e. discard 127, 128, 255 and 256
+        # # 1. Parameters for the 9 electrodes & 5 minutes version.
+        # channels = np.array([133, 134, 161, 166, 201, 202, 229, 231, 232]) - 1
         # t_min, t_max = 2.0 * 60.0, 7.0 * 60.0
-        # t_plot_min, t_plot_max = 2.0 * 60.0, 2.2 * 60.0
+        # t_plot_min, t_plot_max = 2.0 * 60.0, 3.0 * 60.0
+        # 2. Parameters for the 252 electrodes & 5 minutes version.
+        channels = np.array(list(range(1, 127)) + list(range(129, 255))) - 1  # i.e. discard 127, 128, 255 and 256
+        t_min, t_max = 2.0 * 60.0, 7.0 * 60.0
+        t_plot_min, t_plot_max = 2.0 * 60.0, 2.2 * 60.0
         # # 3. Parameters for the 252 electrodes & 30 minutes version.
         # channels = np.array(list(range(1, 127)) + list(range(129, 255))) - 1  # i.e. discard 127, 128, 255 and 256
         # t_min, t_max = 2.0 * 60.0, 32.0 * 60.0

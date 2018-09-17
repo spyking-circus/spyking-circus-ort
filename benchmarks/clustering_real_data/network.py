@@ -10,10 +10,58 @@ user_directory = os.path.expanduser("~")
 circus_directory = os.path.join(user_directory, ".spyking-circus-ort")
 directory = os.path.join(circus_directory, "benchmarks", "clustering_real_data")
 
-# 1. Parameters for the 9 electrodes & 5 minutes version.
-nb_channels = 9
+# # 1. Parameters for the 9 electrodes & 5 minutes version.
+# nb_channels = 9
+# hosts = {
+#     'master': '127.0.0.1',
+# }
+# hosts_keys = [  # ordered
+#     'master',
+# ]
+# managers_keys = {
+#     'reader': 'master',
+#     'filter': 'master',
+#     #'writer': 'master',
+#     'mad': 'master',
+#     'detector': 'master',
+#     'peak_writer': 'master',
+#     'pca': 'master',
+#     'cluster': 'master',
+#     'cluster_writer': 'master',
+#     'updater': 'master',
+#     'updater_writer': 'master',
+#     'fitter': 'master',
+#     'spike_writer': 'master',
+# }
 # 2-3. Parameters for the 252 electrodes & 5 or 30 minutes version.
-# nb_channels = 252
+nb_channels = 252
+hosts = {
+    'master': '192.168.0.254',
+    'slave_1': '192.168.0.1',
+    'slave_2': '192.168.0.2',
+    'slave_3': '192.168.0.3',
+}
+hosts_keys = [  # ordered
+    'master',
+    'slave_1',
+    'slave_2',
+    'slave_3',
+]
+managers_keys = {
+    'reader': 'master',
+    'filter': 'slave_1',
+    #'writer': 'slave_1',
+    'mad': 'slave_1',
+    'detector': 'slave_1',
+    'peak_writer': 'slave_1',
+    'pca': 'slave_1',
+    'cluster': 'slave_2',
+    'cluster_writer': 'slave_2',
+    'updater': 'slave_2',
+    'updater_writer': 'slave_2',
+    'fitter': 'slave_3',
+    'spike_writer': 'master',
+}
 
 
 def sorting(nb_waveforms_clustering=1000):
@@ -28,12 +76,6 @@ def sorting(nb_waveforms_clustering=1000):
     debug_directory = os.path.join(directory, "debug")
 
     # Define parameters.
-    hosts = {
-        'master': '127.0.0.1',
-    }
-    hosts_keys = [  # ordered
-        'master',
-    ]
     dtype = 'uint16'
     nb_samples = 1024
     sampling_rate = 20e+3
@@ -179,19 +221,19 @@ def sorting(nb_waveforms_clustering=1000):
         key: director.create_manager(host=hosts[key])
         for key in hosts_keys
     }
-    reader = managers['master'].create_block('reader', **reader_kwargs)
-    filter_ = managers['master'].create_block('filter', **filter_kwargs)
-    # writer = managers['master'].create_block('writer', **writer_kwargs)
-    mad = managers['master'].create_block('mad_estimator', **mad_kwargs)
-    detector = managers['master'].create_block('peak_detector', **detector_kwargs)
-    peak_writer = managers['master'].create_block('peak_writer', **peak_writer_kwargs)
-    pca = managers['master'].create_block('pca', **pca_kwargs)
-    cluster = managers['master'].create_block('density_clustering', **cluster_kwargs)
-    cluster_writer = managers['master'].create_block('cluster_writer', **cluster_writer_kwargs)
-    updater = managers['master'].create_block('template_updater_bis', **updater_bis_kwargs)
-    updater_writer = managers['master'].create_block('updater_writer', **updater_writer_kwargs)
-    fitter = managers['master'].create_network('fitter_bis', **fitter_bis_kwargs)
-    spike_writer = managers['master'].create_block('spike_writer', **spike_writer_kwargs)
+    reader = managers[managers_keys['reader']].create_block('reader', **reader_kwargs)
+    filter_ = managers[managers_keys['filter']].create_block('filter', **filter_kwargs)
+    # writer = managers[managers_keys['writer']].create_block('writer', **writer_kwargs)
+    mad = managers[managers_keys['mad']].create_block('mad_estimator', **mad_kwargs)
+    detector = managers[managers_keys['detector']].create_block('peak_detector', **detector_kwargs)
+    peak_writer = managers[managers_keys['peak_writer']].create_block('peak_writer', **peak_writer_kwargs)
+    pca = managers[managers_keys['pca']].create_block('pca', **pca_kwargs)
+    cluster = managers[managers_keys['cluster']].create_block('density_clustering', **cluster_kwargs)
+    cluster_writer = managers[managers_keys['cluster_writer']].create_block('cluster_writer', **cluster_writer_kwargs)
+    updater = managers[managers_keys['updater']].create_block('template_updater_bis', **updater_bis_kwargs)
+    updater_writer = managers[managers_keys['updater_writer']].create_block('updater_writer', **updater_writer_kwargs)
+    fitter = managers[managers_keys['fitter']].create_network('fitter_bis', **fitter_bis_kwargs)
+    spike_writer = managers[managers_keys['spike_writer']].create_block('spike_writer', **spike_writer_kwargs)
     # Initialize the elements of the network.
     director.initialize()
     # Connect the elements of the network.
