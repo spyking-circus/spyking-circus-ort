@@ -146,7 +146,7 @@ def main():
             cell = spikes.get_cell(cell_id)
             train = cell.train
             nb_spikes = len(train)
-            bin_counts, bin_edges= train.auto_correlogram()
+            bin_counts, bin_edges = train.auto_correlogram()
             bar_centers = (bin_edges[:-1] + bin_edges[1:]) / 2.0
             bar_heights = bin_counts
             bar_widths = bin_edges[1:] - bin_edges[:-1]
