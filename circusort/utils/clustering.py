@@ -934,23 +934,24 @@ class OnlineManager(object):
 
         for ic1 in range(len(clusters)):
             idx1 = np.where(labels == clusters[ic1])[0]
-            sd1 = np.take(data, idx1, axis=0)
-            m1 = np.median(sd1, 0)
-            for ic2 in range(ic1 + 1, len(clusters)):
-                idx2 = np.where(labels == clusters[ic2])[0]
-                sd2 = np.take(data, idx2, axis=0)
-                m2 = np.median(sd2, 0)
-                v_n = m1 - m2
-                pr_1 = np.dot(sd1, v_n)
-                pr_2 = np.dot(sd2, v_n)
-
-                norm = np.median(np.abs(pr_1 - np.median(pr_1))) ** 2 + np.median(
-                    np.abs(pr_2 - np.median(pr_2))) ** 2
-                dist = np.sum(v_n ** 2) / np.sqrt(norm)
-
-                if dist < d_min:
-                    d_min = dist
-                    to_merge = [ic1, ic2]
+            if len(idx1) > 0:
+                sd1 = np.take(data, idx1, axis=0)
+                m1 = np.median(sd1, 0)
+                for ic2 in range(ic1 + 1, len(clusters)):
+                    idx2 = np.where(labels == clusters[ic2])[0]
+                    if len(idx2) > 0:
+                        sd2 = np.take(data, idx2, axis=0)
+                        m2 = np.median(sd2, 0)
+                        v_n = m1 - m2
+                        pr_1 = np.dot(sd1, v_n)
+                        pr_2 = np.dot(sd2, v_n)
+                        norm = np.median(np.abs(pr_1 - np.median(pr_1))) ** 2 + \
+                               np.median(np.abs(pr_2 - np.median(pr_2))) ** 2
+                        if norm > 0.0:
+                            dist = np.sum(v_n ** 2) / np.sqrt(norm)
+                            if dist < d_min:
+                                d_min = dist
+                                to_merge = [ic1, ic2]
 
         if d_min < local_merges:
             labels[np.where(labels == clusters[to_merge[1]])[0]] = clusters[to_merge[0]]
