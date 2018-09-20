@@ -1,7 +1,8 @@
 from .block import Block
-import matplotlib.pyplot as plt
+
+# import matplotlib.pyplot as plt
 import numpy as np
-import os
+# import os
 
 from sklearn.decomposition import PCA as PCA_
 
@@ -164,34 +165,38 @@ class PCA(Block):
                         pca.fit(self.waveforms[key])
 
                         # TODO remove the following lines.
-                        # 1st plot.
-                        if not os.path.isdir("/tmp/waveforms"):
-                            os.makedirs("/tmp/waveforms")
-                        for k in range(0, min(10, self.waveforms[key].shape[0])):
-                            waveform = self.waveforms[key][k]
-                            fig, ax = plt.subplots()
-                            ax.plot(waveform, color='C0')
-                            ax.axvline(x=(len(waveform) - 1) // 2, color='grey')
-                            fig.savefig("/tmp/waveforms/{}_waveform_{}.pdf".format(key, k))
-                            plt.close(fig)
-                        # 2nd plot.
-                        fig, ax = plt.subplots()
-                        for k in range(0, min(1000, self.waveforms[key].shape[0])):
-                            waveform = self.waveforms[key][k]
-                            ax.plot(waveform, color='C0', linewidth=1, alpha=0.25)
-                        ax.axvline(x=(len(waveform) - 1) // 2, color='grey')
-                        fig.savefig("/tmp/waveforms/{}_waveforms.pdf".format(key))
-                        plt.close(fig)
-                        # 3rd plot.
-                        fig, ax = plt.subplots()
-                        for k in range(0, min(1000, self.waveforms[key].shape[0])):
-                            waveform = self.waveforms[key][k]
-                            central_time_step = (len(waveform) - 1) // 2
-                            if np.argmin(waveform) != central_time_step:
-                                ax.plot(waveform, color='C0', linewidth=1, alpha=0.25)
-                        ax.axvline(x=(len(waveform) - 1) // 2, color='grey')
-                        fig.savefig("/tmp/waveforms/misaligned_{}_waveforms.pdf".format(key))
-                        plt.close(fig)
+                        # # 1st plot.
+                        # if not os.path.isdir("/tmp/waveforms"):
+                        #     os.makedirs("/tmp/waveforms")
+                        # for k in range(0, min(10, self.waveforms[key].shape[0])):
+                        #     waveform = self.waveforms[key][k]
+                        #     fig, ax = plt.subplots()
+                        #     ax.plot(waveform, color='C0')
+                        #     ax.axvline(x=(len(waveform) - 1) // 2, color='grey')
+                        #     fig.savefig("/tmp/waveforms/{}_waveform_{}.pdf".format(key, k))
+                        #     plt.close(fig)
+                        # # 2nd plot.
+                        # fig, ax = plt.subplots()
+                        # waveform = None
+                        # for k in range(0, min(1000, self.waveforms[key].shape[0])):
+                        #     waveform = self.waveforms[key][k]
+                        #     ax.plot(waveform, color='C0', linewidth=1, alpha=0.25)
+                        # if waveform is not None:
+                        #     ax.axvline(x=(len(waveform) - 1) // 2, color='grey')
+                        # fig.savefig("/tmp/waveforms/{}_waveforms.pdf".format(key))
+                        # plt.close(fig)
+                        # # 3rd plot.
+                        # fig, ax = plt.subplots()
+                        # waveform = None
+                        # for k in range(0, min(1000, self.waveforms[key].shape[0])):
+                        #     waveform = self.waveforms[key][k]
+                        #     central_time_step = (len(waveform) - 1) // 2
+                        #     if np.argmin(waveform) != central_time_step:
+                        #         ax.plot(waveform, color='C0', linewidth=1, alpha=0.25)
+                        # if waveform is not None:
+                        #     ax.axvline(x=(len(waveform) - 1) // 2, color='grey')
+                        # fig.savefig("/tmp/waveforms/misaligned_{}_waveforms.pdf".format(key))
+                        # plt.close(fig)
 
                         if key == 'negative':
                             self.pcs[0] = pca.components_.T

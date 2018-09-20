@@ -97,9 +97,7 @@ class Process(object):
             address = address.decode('utf-8')
             self.logger.debug("tmp socket binded at {a}".format(a=address))
             # 2. Spawn remote process on local host
-            # TODO clean the 2 following lines.
             command = [sys.executable]
-            # command = ['/usr/bin/python2']
             command += ['-m', 'circusort.cli.spawn_process']
             command += ['--host', self.host]
             command += ['--address', address]
@@ -130,9 +128,12 @@ class Process(object):
             socket.setsockopt(zmq.RCVTIMEO, 60 * 1000)
             socket.bind(address)
             address = socket.getsockopt(zmq.LAST_ENDPOINT)
+            address = address.decode('utf-8')
             self.logger.debug("tmp socket binded at {a}".format(a=address))
             # 2. Spawn remote process on remote host
-            command = ['/usr/bin/python2']
+            # TODO swap and clean the 2 following lines.
+            # command = ['/usr/bin/python2.7']
+            command = ['/usr/bin/python3.6']
             command += ['-m', 'circusort.cli.spawn_process']
             command += ['--host', self.host]
             command += ['--address', address]

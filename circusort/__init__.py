@@ -1,3 +1,14 @@
+import os
+
+if 'DISPLAY' not in os.environ:
+    os.environ['DISPLAY'] = ':0'
+
+if os.environ['DISPLAY'] == ':0':
+    import matplotlib
+    matplotlib.use('pdf')  # i.e. non-interactive backend
+    import matplotlib.pyplot as plt
+    assert plt.get_backend() == 'pdf'
+
 from . import block
 from . import cli
 from . import io
