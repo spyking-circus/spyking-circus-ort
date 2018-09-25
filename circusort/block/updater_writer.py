@@ -80,3 +80,7 @@ class UpdaterWriter(Block):
         self._measure_time(label='end', frequency=10)
 
         return
+
+    # def _introspect(self):
+    #
+    #     # TODO collect nb_samples during the initialization to enable  the introspection.
