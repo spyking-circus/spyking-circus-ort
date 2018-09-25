@@ -27,9 +27,9 @@ directory = os.path.join(circus_directory, "benchmarks", "clustering_real_data")
 #     'peak_writer': 'master',
 #     'pca': 'master',
 #     'cluster': 'master',
-#     'cluster_writer': 'master',
+#     # 'cluster_writer': 'master',
 #     'updater': 'master',
-#     'updater_writer': 'master',
+#     # 'updater_writer': 'master',
 #     'fitter': 'master',
 #     'spike_writer': 'master',
 # }
@@ -50,15 +50,15 @@ hosts_keys = [  # ordered
 managers_keys = {
     'reader': 'master',
     'filter': 'slave_1',
-    #'writer': 'slave_1',
+    # 'writer': 'slave_1',
     'mad': 'slave_1',
     'detector': 'slave_1',
     'peak_writer': 'slave_1',
     'pca': 'slave_1',
     'cluster': 'slave_2',
-    'cluster_writer': 'slave_2',
+    # 'cluster_writer': 'slave_2',
     'updater': 'slave_2',
-    'updater_writer': 'slave_2',
+    # 'updater_writer': 'slave_2',
     'fitter': 'slave_3',
     'spike_writer': 'master',
 }
@@ -100,6 +100,7 @@ def sorting(nb_waveforms_clustering=1000):
     # Define keyword arguments.
     director_kwargs = {
         'log_path': os.path.join(log_directory, "log.txt"),
+        'log_level': INFO,
     }
     reader_kwargs = {
         'name': "reader",
@@ -109,7 +110,7 @@ def sorting(nb_waveforms_clustering=1000):
         'nb_samples': nb_samples,
         'sampling_rate': sampling_rate,
         'is_realistic': True,
-        'speed_factor': 2.0,
+        'speed_factor': 1.0,
         # 'introspection_path': introspection_directory,
         'log_level': DEBUG,
     }
@@ -173,12 +174,12 @@ def sorting(nb_waveforms_clustering=1000):
         # 'introspection_path': introspection_directory,
         'log_level': INFO,
     }
-    cluster_writer_kwargs = {
-        'name': "cluster_writer",
-        'output_directory': sorting_directory,
-        # 'introspection_path': introspection_directory,
-        'log_level': DEBUG,
-    }
+    # cluster_writer_kwargs = {
+    #     'name': "cluster_writer",
+    #     'output_directory': sorting_directory,
+    #     # 'introspection_path': introspection_directory,
+    #     'log_level': DEBUG,
+    # }
     updater_bis_kwargs = {
         'name': "updater_bis",
         'probe_path': probe_path,
@@ -190,12 +191,12 @@ def sorting(nb_waveforms_clustering=1000):
         # 'introspection_path': introspection_directory,
         'log_level': DEBUG,
     }
-    updater_writer_kwargs = {
-        'name': "updater_writer",
-        'output_directory': sorting_directory,
-        # 'introspection_path': introspection_directory,
-        'log_level': DEBUG,
-    }
+    # updater_writer_kwargs = {
+    #     'name': "updater_writer",
+    #     'output_directory': sorting_directory,
+    #     # 'introspection_path': introspection_directory,
+    #     'log_level': DEBUG,
+    # }
     fitter_bis_kwargs = {
         'name': "fitter_bis",
         'degree': nb_fitters,
@@ -229,9 +230,9 @@ def sorting(nb_waveforms_clustering=1000):
     peak_writer = managers[managers_keys['peak_writer']].create_block('peak_writer', **peak_writer_kwargs)
     pca = managers[managers_keys['pca']].create_block('pca', **pca_kwargs)
     cluster = managers[managers_keys['cluster']].create_block('density_clustering', **cluster_kwargs)
-    cluster_writer = managers[managers_keys['cluster_writer']].create_block('cluster_writer', **cluster_writer_kwargs)
+    # cluster_writer = managers[managers_keys['cluster_writer']].create_block('cluster_writer', **cluster_writer_kwargs)
     updater = managers[managers_keys['updater']].create_block('template_updater_bis', **updater_bis_kwargs)
-    updater_writer = managers[managers_keys['updater_writer']].create_block('updater_writer', **updater_writer_kwargs)
+    # updater_writer = managers[managers_keys['updater_writer']].create_block('updater_writer', **updater_writer_kwargs)
     fitter = managers[managers_keys['fitter']].create_network('fitter_bis', **fitter_bis_kwargs)
     spike_writer = managers[managers_keys['spike_writer']].create_block('spike_writer', **spike_writer_kwargs)
     # Initialize the elements of the network.
@@ -262,11 +263,11 @@ def sorting(nb_waveforms_clustering=1000):
         cluster.get_input('pcs'),
     ])
     director.connect(cluster.get_output('templates'), [
-        cluster_writer.get_input('templates'),
+        # cluster_writer.get_input('templates'),
         updater.get_input('templates'),
     ])
     director.connect(updater.get_output('updater'), [
-        updater_writer.get_input('updater'),
+        # updater_writer.get_input('updater'),
         fitter.get_input('updater'),
     ])
     director.connect_network(fitter)
