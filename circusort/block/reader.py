@@ -2,6 +2,7 @@
 
 import numpy as np
 import time
+import warnings
 
 from circusort.block.block import Block
 
@@ -74,6 +75,9 @@ class Reader(Block):
         self._quantum_offset = float(np.iinfo('int16').min)
         self._buffer_rate = float(self.nb_samples) / self.sampling_rate
 
+        self._absolute_start_time = None
+        self._absolute_end_time = None
+
     def _initialize(self):
         """Initialization of the processing block."""
 
@@ -102,6 +106,10 @@ class Reader(Block):
         # TODO check if we need a background thread.
 
         self._measure_time(label='start', frequency=100)
+
+        # Initialize start time (if necessary).
+        if self._absolute_start_time is None:
+            self._absolute_start_time = time.time()
 
         # Read data from the file on disk.
         data = np.memmap(self.data_path, dtype=self.dtype, mode='r', shape=self.real_shape)
@@ -140,11 +148,25 @@ class Reader(Block):
             # Send output data packet.
             if self.is_realistic:
                 # Simulate duration between two data acquisitions.
-                duration = float(self.nb_samples) / self.sampling_rate
-                duration = duration / self.speed_factor
-                time.sleep(duration)
+                expected_relative_output_time = float(self.counter + 1) * float(self.nb_samples) / self.sampling_rate
+                expected_relative_output_time /= self.speed_factor
+                expected_absolute_output_time = self._absolute_start_time + expected_relative_output_time
+                absolute_current_time = time.time()
+                try:
+                    time.sleep(expected_absolute_output_time - absolute_current_time)
+                except ValueError:
+                    lag_duration = expected_absolute_output_time - absolute_current_time
+                    string = "{} breaks realistic mode (lag: +{} s)"
+                    message = string.format(self.name_and_counter, lag_duration)
+                    warnings.warn(message)
             self.output.send(packet)
         else:
+            # Log debug message.
+            self._absolute_end_time = time.time()
+            execution_duration = self._absolute_end_time - self._absolute_start_time
+            string = "{} executes during {} s"
+            message = string.format(self.name_and_counter, execution_duration)
+            self.log.debug(message)
             # Stop processing block.
             self.stop_pending = True
 
