@@ -32,6 +32,11 @@ class Record(object):
 
         return self._probe.total_nb_channels
 
+    @property
+    def length(self):
+
+        return float(self._nb_samples) / self._sampling_rate
+
     def copy(self, data_path, probe_path, channels=None, t_min=None, t_max=None, nb_time_steps_per_chunk=1024):
         """Copy data record.
 
