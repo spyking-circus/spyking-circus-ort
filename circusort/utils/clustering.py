@@ -46,7 +46,6 @@ class MacroCluster(object):
         pass
 
     def set_label(self, label):
-
         assert label in ['sparse', 'dense']
         self.label = label
 
@@ -54,16 +53,13 @@ class MacroCluster(object):
 
     @property
     def is_sparse(self):
-
         return self.label == 'sparse'
 
     @property
     def is_dense(self):
-
         return self.label == 'dense'
 
     def add_and_update(self, pca_data, data, time, decay_factor):
-
         factor = 2 ** (-decay_factor * (time - self.last_update))
         self.density = factor * self.density + 1.
         self.sum_pca = factor * self.sum_pca + pca_data
@@ -74,7 +70,6 @@ class MacroCluster(object):
         return
 
     def update(self, time, decay_factor):
-
         factor = 2 ** (-decay_factor * (time - self.last_update))
         self.density = factor * self.density
         self.sum_pca = factor * self.sum_pca
@@ -85,7 +80,6 @@ class MacroCluster(object):
         return
 
     def remove(self, pca_data, data):
-
         self.density -= 1
         self.sum_pca -= pca_data
         self.sum_pca_sq -= pca_data ** 2
@@ -95,22 +89,18 @@ class MacroCluster(object):
 
     @property
     def center(self):
-
         return self.sum_pca / self.density
 
     @property
     def center_full(self):
-
         return self.sum_full / self.density
 
     @property
     def radius(self):
-
         return np.sqrt((self.sum_pca_sq / self.density - self.center ** 2).max())
 
     @property
     def description(self):
-
         return [self.center, self.radius]
 
 
@@ -946,7 +936,7 @@ class OnlineManager(object):
                         pr_1 = np.dot(sd1, v_n)
                         pr_2 = np.dot(sd2, v_n)
                         norm = np.median(np.abs(pr_1 - np.median(pr_1))) ** 2 + \
-                               np.median(np.abs(pr_2 - np.median(pr_2))) ** 2
+                            np.median(np.abs(pr_2 - np.median(pr_2))) ** 2
                         if norm > 0.0:
                             dist = np.sum(v_n ** 2) / np.sqrt(norm)
                             if dist < d_min:
@@ -1076,7 +1066,7 @@ class OnlineManager(object):
 
         return
 
-    def plot_cluster(self, data, labels, output, marker_size=5):
+    def plot_cluster(self, data, labels, output, marker_size=5, with_ticks=True):
 
         if self._pc_lim is None:
             self._compute_pc_limits(data)
@@ -1087,9 +1077,11 @@ class OnlineManager(object):
             'horizontalalignment': 'center',
         }
 
+        fig, ax_array = plt.subplots(nrows=2, ncols=2)
+
         # 1st subplot.
         k_1, k_2 = 0, 1  # pair of principal components
-        ax = plt.subplot(2, 2, 1)
+        ax = ax_array[0, 0]
         unique_labels = np.unique(labels)
         unique_labels = unique_labels[np.where(unique_labels >= 0)[0]]  # i.e. remove -1 label
         for k, label in enumerate(unique_labels):
@@ -1101,13 +1093,14 @@ class OnlineManager(object):
             ax.text(np.median(x), np.median(y), "{}".format(label), **text_kwargs)
         ax.set_xlim(*self._pc_lim[k_1])
         ax.set_ylim(*self._pc_lim[k_2])
-        ax.set_xticks([])
-        ax.set_yticks([])
+        if not with_ticks:
+            ax.set_xticks([])
+            ax.set_yticks([])
         ax.set_xlabel("PC{}".format(k_1))
         ax.set_ylabel("PC{}".format(k_2))
         # 2nd subplot.
         k_1, k_2 = 2, 1
-        ax = plt.subplot(2, 2, 2)
+        ax = ax_array[0, 1]
         for k, label in enumerate(unique_labels):
             c = 'C{}'.format(k % 10)
             indices = np.where(labels == label)[0]
@@ -1117,13 +1110,14 @@ class OnlineManager(object):
             ax.text(np.median(x), np.median(y), "{}".format(label), **text_kwargs)
         ax.set_xlim(*self._pc_lim[k_1])
         ax.set_ylim(*self._pc_lim[k_2])
-        ax.set_xticks([])
-        ax.set_yticks([])
+        if not with_ticks:
+            ax.set_xticks([])
+            ax.set_yticks([])
         ax.set_xlabel("PC{}".format(k_1))
         ax.set_ylabel("PC{}".format(k_2))
         # 3rd subplot.
         k_1, k_2 = 0, 2
-        ax = plt.subplot(2, 2, 3)
+        ax = ax_array[1, 0]
         for k, label in enumerate(unique_labels):
             c = 'C{}'.format(k % 10)
             indices = np.where(labels == label)[0]
@@ -1133,10 +1127,14 @@ class OnlineManager(object):
             ax.text(np.median(x), np.median(y), "{}".format(label), **text_kwargs)
         ax.set_xlim(*self._pc_lim[k_1])
         ax.set_ylim(*self._pc_lim[k_2])
-        ax.set_xticks([])
-        ax.set_yticks([])
+        if not with_ticks:
+            ax.set_xticks([])
+            ax.set_yticks([])
         ax.set_xlabel("PC{}".format(k_1))
         ax.set_ylabel("PC{}".format(k_2))
+        # 4th subplot.
+        ax = ax_array[1, 1]
+        ax.axis('off')
 
         plt.savefig(output)
         plt.close()
@@ -1224,8 +1222,11 @@ class OnlineManager(object):
 
         if len(centers) > 0:
 
+            fig, ax_array = plt.subplots(nrows=2, ncols=2)
+
+            # 1st subplot.
             k_1, k_2 = 0, 1  # pair of principal components
-            ax = plt.subplot(2, 2, 1)
+            ax = ax_array[0, 0]
             for index, center, sigma, color in zip(indices, centers, sigmas, colors):
                 c = 'C{}'.format(color % 10)
                 circle = plt.Circle((center[k_1], center[k_2]), sigma, color=c, fill=True, alpha=0.5,
@@ -1240,9 +1241,9 @@ class OnlineManager(object):
                 ax.set_yticks([])
                 ax.set_xlabel("PC{}".format(k_1))
                 ax.set_ylabel("PC{}".format(k_2))
-
+            # 2nd subplot.
             k_1, k_2 = 2, 1  # pair of principal components
-            ax = plt.subplot(2, 2, 2)
+            ax = ax_array[0, 1]
             for index, center, sigma, color in zip(indices, centers, sigmas, colors):
                 c = 'C{}'.format(color % 10)
                 circle = plt.Circle((center[k_1], center[k_2]), sigma, color=c, fill=True, alpha=0.5,
@@ -1257,9 +1258,9 @@ class OnlineManager(object):
                 ax.set_yticks([])
                 ax.set_xlabel("PC{}".format(k_1))
                 ax.set_ylabel("PC{}".format(k_2))
-
+            # 3rd subplot.
             k_1, k_2 = 0, 2  # pair of principal components
-            ax = plt.subplot(2, 2, 3)
+            ax = ax_array[1, 0]
             for index, center, sigma, color in zip(indices, centers, sigmas, colors):
                 c = 'C{}'.format(color % 10)
                 circle = plt.Circle((center[k_1], center[k_2]), sigma, color=c, fill=True, alpha=0.5,
@@ -1274,13 +1275,16 @@ class OnlineManager(object):
                 ax.set_yticks([])
                 ax.set_xlabel("PC{}".format(k_1))
                 ax.set_ylabel("PC{}".format(k_2))
+            # 4th subplot.
+            ax = ax_array[1, 1]
+            ax.axis('off')
 
         plt.savefig(output)
         plt.close()
 
         return
 
-    def plot_ground_truth_clusters(self, mode='max_channel', marker_size=5):
+    def plot_ground_truth_clusters(self, mode='max_channel', marker_size=5, with_ticks=True):
         """Plot ground truth clusters.
 
         Argument:
@@ -1293,6 +1297,8 @@ class OnlineManager(object):
                 The default value is 'max_channel'.
             marker_size: integer (optional)
                 The default value is 10.
+            with_ticks: boolean (optional)
+                The default value is True.
         """
 
         templates = [
@@ -1354,9 +1360,11 @@ class OnlineManager(object):
             'horizontalalignment': 'center',
         }
 
+        fig, ax_array = plt.subplots(2, 2)
+
         # 1st subplot.
         k_1, k_2 = 0, 1  # pair of principal components
-        ax = plt.subplot(2, 2, 1)
+        ax = ax_array[0, 0]
         ax.scatter(main_reduced_data[:, k_1], main_reduced_data[:, k_2], s=marker_size, c=main_marker_colors)
         ax.scatter(other_reduced_data[:, k_1], other_reduced_data[:, k_2], s=marker_size / 2, c='gray')
         for k, index in enumerate(main_indices):
@@ -1366,13 +1374,14 @@ class OnlineManager(object):
             ax.text(x, y, s, **text_kwargs)
         ax.set_xlim(*self._pc_lim[k_1])
         ax.set_ylim(*self._pc_lim[k_2])
-        ax.set_xticks([])
-        ax.set_yticks([])
+        if not with_ticks:
+            ax.set_xticks([])
+            ax.set_yticks([])
         ax.set_xlabel("PC{}".format(k_1))
         ax.set_ylabel("PC{}".format(k_2))
         # 2nd subplot.
         k_1, k_2 = 2, 1
-        ax = plt.subplot(2, 2, 2)
+        ax = ax_array[0, 1]
         ax.scatter(main_reduced_data[:, k_1], main_reduced_data[:, k_2], s=marker_size, c=main_marker_colors)
         ax.scatter(other_reduced_data[:, k_1], other_reduced_data[:, k_2], s=marker_size / 2, c='gray')
         for k, index in enumerate(main_indices):
@@ -1382,13 +1391,14 @@ class OnlineManager(object):
             ax.text(x, y, s, **text_kwargs)
         ax.set_xlim(*self._pc_lim[k_1])
         ax.set_ylim(*self._pc_lim[k_2])
-        ax.set_xticks([])
-        ax.set_yticks([])
+        if not with_ticks:
+            ax.set_xticks([])
+            ax.set_yticks([])
         ax.set_xlabel("PC{}".format(k_1))
         ax.set_ylabel("PC{}".format(k_2))
         # 3rd subplot.
         k_1, k_2 = 0, 2
-        ax = plt.subplot(2, 2, 3)
+        ax = ax_array[1, 0]
         ax.scatter(main_reduced_data[:, k_1], main_reduced_data[:, k_2], s=marker_size, c=main_marker_colors)
         ax.scatter(other_reduced_data[:, k_1], other_reduced_data[:, k_2], s=marker_size / 2, c='gray')
         for k, index in enumerate(main_indices):
@@ -1398,10 +1408,14 @@ class OnlineManager(object):
             ax.text(x, y, s, **text_kwargs)
         ax.set_xlim(*self._pc_lim[k_1])
         ax.set_ylim(*self._pc_lim[k_2])
-        ax.set_xticks([])
-        ax.set_yticks([])
+        if not with_ticks:
+            ax.set_xticks([])
+            ax.set_yticks([])
         ax.set_xlabel("PC{}".format(k_1))
         ax.set_ylabel("PC{}".format(k_2))
+        # 4th subplot.
+        ax = ax_array[1, 1]
+        ax.axis('off')
 
         filename = "{}_{}_ground_truth_clusters_{}.{}".format(self.name, self.time, mode, self.debug_file_format)
         path = os.path.join(self.debug_plots, filename)
