@@ -475,3 +475,88 @@ class Train(object):
         bin_counts[bin_index] -= self.nb_times
 
         return bin_counts, bin_edges
+
+    def interspike_interval_histogram(self, bin_width=0.25, width=25.0):
+        """Compute the interspike interval histogram.
+
+        Arguments:
+            bin_width: float (optional)
+                The bin width of the interspike interval histogram (ms).
+                The default value is 0.25.
+            width: float (optional)
+                The width of the interspike interval histogram (ms).
+                The default value is 25.0.
+        Returns:
+            bin_counts: numpy.ndarray
+            bin_edges: numpy.ndarray
+        """
+
+        nb_bins = int(np.ceil(width / bin_width))
+        bin_counts = np.zeros(nb_bins, dtype=np.int)
+
+        times = np.sort(self.times)
+        nb_times = times.size
+
+        for index in range(0, nb_times - 1):
+            interspike_interval_in_s = times[index + 1] - times[index + 0]
+            interspike_interval_in_ms = interspike_interval_in_s * 1e+3
+            if interspike_interval_in_ms < width:
+                bin_index = int(np.floor(interspike_interval_in_ms / bin_width))
+                bin_counts[bin_index] += 1
+
+        bin_edges = np.linspace(0.0, width, num=nb_bins+1)
+
+        return bin_counts, bin_edges
+
+    def nb_refractory_period_violations(self, refractory_period=2.0):
+        """Count the number of refractory period violations.
+
+        Argument:
+            refractory_period: float (optional)
+                The refractory period used to distinguish violations (ms).
+                The default value is 2.0.
+        Return:
+            nb_rpv: integer
+                The number of refractory period violations.
+        """
+
+        nb_rpv = 0
+
+        times = np.sort(self.times)
+        nb_times = times.size
+
+        for index in range(0, nb_times - 1):
+            interspike_interval_in_s = times[index + 1] - times[index + 0]
+            interspike_interval_in_ms = interspike_interval_in_s * 1e+3
+            if interspike_interval_in_ms < refractory_period:
+                nb_rpv += 1
+
+        return nb_rpv
+
+    def nb_rpv(self, refractory_period=2.0):
+        """Alias for nb_refractory_period_violations."""
+
+        return self.nb_refractory_period_violations(refractory_period=refractory_period)
+
+    def refractory_period_violation_coefficient(self, refractory_period=2.0):
+        """Compute the refractory period violations coefficient.
+
+        Argument:
+            refractory_period: float (optional)
+                The refractory period used to distinguish violations (ms).
+                The default value is 2.0.
+        Return:
+            rpv_coefficient: float
+                The refractory period violation coefficient (i.e. number of violation divided by number of intervals).
+        """
+
+        nb_rpv = self.nb_refractory_period_violations(refractory_period=refractory_period)
+        nb_intervals = self.nb_times - 1
+        rpv_coefficient = float(nb_rpv) / float(nb_intervals)
+
+        return rpv_coefficient
+
+    def rpv_coefficient(self, refractory_period=2.0):
+        """Alias for refractory_period_violation_coefficient."""
+
+        return self.refractory_period_violation_coefficient(refractory_period=refractory_period)
