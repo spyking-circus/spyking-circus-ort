@@ -2,7 +2,7 @@ import os
 
 import circusort
 
-from logging import DEBUG
+from logging import DEBUG, INFO
 
 
 name = "network_0"
@@ -27,6 +27,7 @@ def sorting(configuration_name):
     # Create directories.
     generation_directory = os.path.join(directory, "generation", configuration_name)
     sorting_directory = os.path.join(directory, "sorting", configuration_name)
+    log_directory = os.path.join(directory, "log")
     introspection_directory = os.path.join(directory, "introspection", configuration_name)
 
     # Load generation parameters.
@@ -42,10 +43,16 @@ def sorting(configuration_name):
     # Create directories (if necessary).
     if not os.path.isdir(sorting_directory):
         os.makedirs(sorting_directory)
+    if not os.path.isdir(log_directory):
+        os.makedirs(log_directory)
     if not os.path.isdir(introspection_directory):
         os.makedirs(introspection_directory)
 
     # Define keyword arguments.
+    director_kwargs = {
+        'log_path': os.path.join(log_directory, "log.txt"),
+        'log_level': INFO,
+    }
     reader_kwargs = {
         'name': "reader",
         'data_path': os.path.join(generation_directory, "data.raw"),
@@ -54,7 +61,9 @@ def sorting(configuration_name):
         'nb_samples': nb_samples,
         'sampling_rate': sampling_rate,
         'is_realistic': True,
+        'speed_factor': 1.0,
         'introspection_path': introspection_directory,
+        'log_level': DEBUG,
     }
     signal_writer_kwargs = {
         'name': "writer",
@@ -64,7 +73,7 @@ def sorting(configuration_name):
     }
 
     # Define the elements of the Circus network.
-    director = circusort.create_director(host=host)
+    director = circusort.create_director(host=host, **director_kwargs)
     manager = director.create_manager(host=host)
     reader = manager.create_block('reader', **reader_kwargs)
     writer = manager.create_block('writer', **signal_writer_kwargs)

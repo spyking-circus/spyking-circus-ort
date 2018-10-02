@@ -3,7 +3,7 @@ import os
 import circusort
 
 from collections import OrderedDict
-from logging import DEBUG
+from logging import DEBUG, INFO
 
 
 name = "network_4"
@@ -18,7 +18,7 @@ block_names = [
     "filter",
     "mad",
     "detector",
-    # "pca",
+    "pca",
     # "cluster",
     # "updater",
 ] + [
@@ -40,24 +40,34 @@ def sorting(configuration_name):
     # Define directories.
     generation_directory = os.path.join(directory, "generation", configuration_name)
     sorting_directory = os.path.join(directory, "sorting", configuration_name)
-    introspection_directory = os.path.join(directory, "introspection", configuration_name)
     log_directory = os.path.join(directory, "log", configuration_name)
+    introspection_directory = os.path.join(directory, "introspection", configuration_name)
 
     # Load generation parameters.
     parameters = circusort.io.get_data_parameters(generation_directory)
 
     # Define parameters.
+    # hosts = OrderedDict([
+    #     ('master', '192.168.0.254'),
+    #     ('slave_1', '192.168.0.1'),
+    #     ('slave_2', '192.168.0.4'),
+    #     ('slave_3', '192.168.0.7'),
+    # ])
     hosts = OrderedDict([
         ('master', '192.168.0.254'),
         ('slave_1', '192.168.0.1'),
-        ('slave_2', '192.168.0.4'),
-        ('slave_3', '192.168.0.7'),
+        ('slave_2', '192.168.0.2'),
+        ('slave_3', '192.168.0.3'),
     ])
     dtype = parameters['general']['dtype']
     nb_channels = parameters['probe']['nb_channels']
     nb_samples = parameters['general']['buffer_width']
     sampling_rate = parameters['general']['sampling_rate']
     threshold_factor = 7.0
+    alignment = True
+    spike_width = 5.0  # ms
+    spike_jitter = 1.0  # ms
+    spike_sigma = 2.75  # µV
     probe_path = os.path.join(generation_directory, "probe.prb")
     precomputed_template_paths = [
         cell.template.path
@@ -67,14 +77,15 @@ def sorting(configuration_name):
     # Create directories (if necessary).
     if not os.path.isdir(sorting_directory):
         os.makedirs(sorting_directory)
-    if not os.path.isdir(introspection_directory):
-        os.makedirs(introspection_directory)
     if not os.path.isdir(log_directory):
         os.makedirs(log_directory)
+    if not os.path.isdir(introspection_directory):
+        os.makedirs(introspection_directory)
 
     # Define keyword arguments.
     director_kwarg = {
         'log_path': os.path.join(log_directory, "log.txt"),
+        'log_level': INFO,
     }
     reader_kwargs = {
         'name': "reader",
@@ -84,11 +95,14 @@ def sorting(configuration_name):
         'nb_samples': nb_samples,
         'sampling_rate': sampling_rate,
         'is_realistic': True,
+        'speed_factor': 1.0,
         'introspection_path': introspection_directory,
+        'log_level': DEBUG,
     }
     filter_kwargs = {
         'name': "filter",
         'cut_off': 1.0,  # Hz
+        'order': 1,
         'introspection_path': introspection_directory,
         'log_level': DEBUG,
     }
@@ -107,32 +121,40 @@ def sorting(configuration_name):
     }
     pca_kwargs = {
         'name': "pca",
-        'nb_waveforms': 100000,
+        'spike_width': spike_width,
+        'spike_jitter': spike_jitter,
+        'spike_sigma': spike_sigma,
+        'nb_waveforms': 2000,
         'introspection_path': introspection_directory,
         'log_level': DEBUG,
     }
     cluster_kwargs = {
         'name': "cluster",
         'threshold_factor': threshold_factor,
+        'alignment': alignment,
         'sampling_rate': sampling_rate,
+        'spike_width': spike_width,
+        'spike_jitter': spike_jitter,
+        'spike_sigma': spike_sigma,
         'nb_waveforms': 100000,
         'probe_path': probe_path,
         'two_components': False,
+        'local_merges': 3,
         'introspection_path': introspection_directory,
-        'log_level': DEBUG,
+        'log_level': INFO,
     }
-    updater_kwargs = {
+    updater_bis_kwargs = {
         'name': "updater",
         'probe_path': probe_path,
         'templates_path': os.path.join(sorting_directory, "templates.h5"),
-        'overlaps_path': os.path.join(sorting_directory, "overlaps.pkl"),
+        'overlaps_path': os.path.join(sorting_directory, "overlaps.p"),
         'precomputed_template_paths': precomputed_template_paths,
         'sampling_rate': sampling_rate,
         'nb_samples': nb_samples,
         'introspection_path': introspection_directory,
         'log_level': DEBUG,
     }
-    fitter_kwargs = {
+    fitter_bis_kwargs = {
         'name': "fitter",
         'degree': nb_fitters,
         'templates_init_path': os.path.join(sorting_directory, "templates.h5"),
@@ -154,8 +176,8 @@ def sorting(configuration_name):
     # Define the elements of the network.
     director = circusort.create_director(host=hosts['master'], **director_kwarg)
     managers = OrderedDict([
-        (key, director.create_manager(host=hosts[key]))
-        for key in hosts.iterkeys()
+        (key, director.create_manager(host=host))
+        for key, host in iter(hosts.items())
     ])
     reader = managers['master'].create_block('reader', **reader_kwargs)
     filter_ = managers['slave_1'].create_block('filter', **filter_kwargs)
@@ -163,8 +185,8 @@ def sorting(configuration_name):
     detector = managers['slave_1'].create_block('peak_detector', **detector_kwargs)
     pca = managers['slave_1'].create_block('pca', **pca_kwargs)
     cluster = managers['slave_2'].create_block('density_clustering', **cluster_kwargs)
-    updater = managers['slave_2'].create_block('template_updater', **updater_kwargs)
-    fitter = managers['slave_3'].create_network('fitter', **fitter_kwargs)
+    updater = managers['slave_2'].create_block('template_updater_bis', **updater_bis_kwargs)
+    fitter = managers['slave_3'].create_network('fitter_bis', **fitter_bis_kwargs)
     writer = managers['master'].create_block('spike_writer', **writer_kwargs)
     # Initialize the elements of the network.
     director.initialize()
