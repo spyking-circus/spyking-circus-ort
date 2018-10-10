@@ -127,7 +127,7 @@ class MADEstimator(Block):
         data_packet = self.get_input('data').receive()
         batch = data_packet['payload']
 
-        self._measure_time('start', frequency=100)
+        self._measure_time('start')
 
         # Update the weights.
         alpha = self._alpha(self._gamma, self._n)
@@ -155,7 +155,7 @@ class MADEstimator(Block):
         # Update last seen MADs.
         self._last_mads = self._mads
 
-        self._measure_time('end', frequency=100)
+        self._measure_time('end')
 
         return
 

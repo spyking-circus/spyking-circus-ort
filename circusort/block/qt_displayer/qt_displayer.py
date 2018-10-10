@@ -63,12 +63,12 @@ class QtDisplayer(Block):
         number = data_packet['number']
         batch = data_packet['payload']
 
-        self._measure_time(label='start', frequency=10)
+        self._measure_time(label='start', period=10)
 
         self._number_pipe[1].send(number)
         self._data_pipe[1].send(batch)
 
-        self._measure_time(label='end', frequency=10)
+        self._measure_time(label='end', period=10)
 
         return
 

@@ -97,7 +97,7 @@ class PeakWriter(Block):
         peaks_packet = self.get_input('peaks').receive()
         batch = peaks_packet['payload']
 
-        self._measure_time('start', frequency=100)
+        self._measure_time('start')
 
         if self.input.structure == 'dict':
 
@@ -154,7 +154,7 @@ class PeakWriter(Block):
             message = string.format(self.name)
             self.log.error(message)
 
-        self._measure_time('end', frequency=100)
+        self._measure_time('end')
 
         return
 

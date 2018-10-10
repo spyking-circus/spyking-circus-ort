@@ -105,7 +105,7 @@ class Reader(Block):
 
         # TODO check if we need a background thread.
 
-        self._measure_time(label='start', frequency=100)
+        self._measure_time(label='start')
 
         # Initialize start time (if necessary).
         if self._absolute_start_time is None:
@@ -170,7 +170,7 @@ class Reader(Block):
             # Stop processing block.
             self.stop_pending = True
 
-        self._measure_time(label='end', frequency=100)
+        self._measure_time(label='end')
 
         return
 

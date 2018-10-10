@@ -329,7 +329,7 @@ class DensityClustering(Block):
 
             if (peaks is not None) and (self.thresholds is not None):  # (i.e. if we receive some peaks and MADs)
 
-                self._measure_time('start', frequency=100)
+                self._measure_time('start')
 
                 self.to_reset = []
 
@@ -422,7 +422,7 @@ class DensityClustering(Block):
                     for key, channel in self.to_reset:
                         self._reset_data_structures(key, channel)
 
-                self._measure_time('end', frequency=100)
+                self._measure_time('end')
 
         return
 

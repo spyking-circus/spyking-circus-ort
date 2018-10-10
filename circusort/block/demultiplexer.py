@@ -147,7 +147,7 @@ class Demultiplexer(Block):
 
     def _process(self):
 
-        self._measure_time('start', frequency=100)
+        self._measure_time('start')
 
         # Get tokens (i.e. which outputs should we use?).
         tokens = [
@@ -203,7 +203,7 @@ class Demultiplexer(Block):
 
                 raise NotImplementedError()  # TODO complete.
 
-        self._measure_time('end', frequency=100)
+        self._measure_time('end')
 
         return
 

@@ -374,7 +374,7 @@ class TemplateFitter(Block):
 
         if updater is not None:
 
-            self._measure_time('update_start', frequency=1)
+            self._measure_time('update_start', period=1)
 
             indices = updater.get('indices', None)
             # Create the template dictionary if necessary.
@@ -387,12 +387,12 @@ class TemplateFitter(Block):
                 laziness = updater['overlaps']['path'] is None
                 self._overlaps_store.update(indices, laziness=laziness)
 
-            self._measure_time('update_end', frequency=1)
+            self._measure_time('update_end', period=1)
 
         if peaks is not None:
 
             if self.nb_templates > 0:
-                self._measure_time('start', frequency=100)
+                self._measure_time('start')
 
             self.offset = (self.counter - 1) * self._nb_samples
 
@@ -431,12 +431,11 @@ class TemplateFitter(Block):
                     }
                     self.get_output('spikes').send(output_packet)
 
-                self._measure_time('end', frequency=100)
+                self._measure_time('end')
 
         return
 
     def _introspect(self):
-        # TODO add docstring.
 
         nb_buffers = self.counter - self.start_step
         start_times = np.array(self._measured_times.get('start', []))

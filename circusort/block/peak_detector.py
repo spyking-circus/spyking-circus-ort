@@ -212,7 +212,7 @@ class PeakDetector(Block):
         mph_packet = self.get_input('mads').receive(blocking=False)
         self.mph = mph_packet['payload'] if mph_packet is not None else self.mph
 
-        self._measure_time('start', frequency=100)
+        self._measure_time('start')
 
         # If median absolute deviations are defined...
         if self.mph is not None:
@@ -247,7 +247,7 @@ class PeakDetector(Block):
             # Send detected peaks.
             self.get_output('peaks').send(packet)
 
-        self._measure_time('end', frequency=100)
+        self._measure_time('end')
 
         return
 

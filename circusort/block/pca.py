@@ -125,7 +125,7 @@ class PCA(Block):
 
         if peaks is not None:
 
-            self._measure_time('start', frequency=100)
+            self._measure_time('start')
 
             _ = peaks.pop('offset')
 
@@ -215,7 +215,7 @@ class PCA(Block):
                     # Update internal variable.
                     self.send_pcs = False
 
-            self._measure_time('end', frequency=100)
+            self._measure_time('end')
 
         return
 

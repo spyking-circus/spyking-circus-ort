@@ -142,7 +142,7 @@ class Filter(Block):
         data_packet = self.get_input('data').receive()
         batch = data_packet['payload']
 
-        self._measure_time('start', frequency=100)
+        self._measure_time('start')
 
         # Preallocate filtered data.
         filtered_batch = np.empty(batch.shape, dtype=batch.dtype)
@@ -173,7 +173,7 @@ class Filter(Block):
         # Send output data packet.
         self.get_output('data').send(packet)
 
-        self._measure_time('end', frequency=100)
+        self._measure_time('end')
 
         return
 
