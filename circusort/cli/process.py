@@ -1,10 +1,14 @@
 import json
+import sys
 import traceback
 import zmq
 
 from circusort.base.utils import get_log
 from circusort.base.proxy import Proxy
 from circusort.block.block import Block
+
+if sys.version_info.major == 3:
+    unicode = str  # Python 3 compatibility.
 
 
 class Process(object):
@@ -21,7 +25,6 @@ class Process(object):
         poller
         running: boolean
     """
-    # TODO complete docstring.
 
     def __init__(self, host, address, log_address):
         """Initialize process.
@@ -31,7 +34,6 @@ class Process(object):
             address: string
             log_address: string
         """
-        # TODO complete docstring.
 
         object.__init__(self)
 
@@ -79,6 +81,7 @@ class Process(object):
         self.socket.bind(address)
         # Get RPC address.
         self.address = self.socket.getsockopt(zmq.LAST_ENDPOINT)
+        self.address = self.address.decode('utf-8')
         # Log debug message.
         string = "RPC socket binded at {}"
         message = string.format(self.address)
@@ -97,12 +100,10 @@ class Process(object):
         self.running = False
 
     def get_attr(self, obj, name):
-        # TODO add docstring.
 
         raise NotImplementedError("name: {n}".format(n=name))
 
     def run(self):
-        # TODO add docstring.
 
         # Log debug message.
         message = "run process"
@@ -116,7 +117,7 @@ class Process(object):
                 message = self.receive()
                 self.process(message)
             else:
-                for obj in self.objs.itervalues():
+                for obj in self.objs.values():
                     if isinstance(obj, Block) and obj.mpl_display is True:
                         obj._plot()
                         import matplotlib.pyplot as plt
@@ -125,7 +126,6 @@ class Process(object):
         return
 
     def unwrap_proxy(self, proxy):
-        # TODO add docstring.
 
         # Log debug message.
         message = "unwrap proxy"
@@ -157,7 +157,6 @@ class Process(object):
         return obj
 
     def unwrap_object(self, obj):
-        # TODO add docstring.
 
         # Log debug message.
         message = "unwrap object"
@@ -176,7 +175,6 @@ class Process(object):
         return obj
 
     def decode(self, dct):
-        # TODO add docstring.
 
         # Log debug message.
         message = "decode"
@@ -210,7 +208,6 @@ class Process(object):
             raise NotImplementedError()
 
     def loads(self, options):
-        # TODO add docstring.
 
         # Log debug message.
         message = "loads"
@@ -221,7 +218,6 @@ class Process(object):
         return options
 
     def receive(self):
-        # TODO add docstring.
 
         # Log debug message.
         message = "receive message"
@@ -239,15 +235,14 @@ class Process(object):
 
         data = {
             'request_id': request_id,
-            'request': request.decode(),
-            'serialization_type': serialization_type.decode(),
+            'request': request,
+            'serialization_type': serialization_type,
             'options': options,
         }
 
         return data
 
     def new_object_identifier(self):
-        # TODO add docstring.
 
         obj_id = self.last_obj_id + 1
         self.last_obj_id += 1
@@ -255,7 +250,6 @@ class Process(object):
         return obj_id
 
     def wrap_proxy(self, obj):
-        # TODO add docstring.
 
         # Log debug message.
         message = "wrap proxy"
@@ -275,7 +269,6 @@ class Process(object):
         return proxy
 
     def process(self, data):
-        # TODO add docstring.
 
         # Log debug message.
         message = "process message"
@@ -348,7 +341,6 @@ class Process(object):
         return
 
     def get_module(self, name, **kwargs):
-        # TODO add docstring.
 
         # Log debug message.
         string = "get module {}"
@@ -365,7 +357,6 @@ class Process(object):
         return result
 
     def dumps(self, obj):
-        # TODO add docstring.
 
         # Log debug message.
         message = "dumps"

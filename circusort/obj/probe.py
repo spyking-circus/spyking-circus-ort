@@ -2,7 +2,7 @@
 
 import matplotlib.patches as ptc
 import matplotlib.pyplot as plt
-import matplotlib.textpath as ttp
+# import matplotlib.textpath as ttp
 import numpy as np
 import os
 
@@ -18,18 +18,23 @@ class Probe(object):
         radius: float
     """
 
-    def __init__(self, channel_groups, total_nb_channels, radius):
+    def __init__(self, channel_groups, total_nb_channels, radius, electrode_diameter=8.0):
         """Initialization.
 
         Parameters:
             channel_groups: dictionary
             total_nb_channels: integer
             radius: float
+            electrode_diameter: float
+                The diameter of the electrodes.
+                The default value is 8.0.
         """
 
         self.channel_groups = channel_groups
         self.total_nb_channels = total_nb_channels
         self.radius = radius
+
+        self._electrode_diameter = electrode_diameter  # µm
 
         self._edges = None
         self._nodes = None
@@ -77,7 +82,7 @@ class Probe(object):
     def x(self):
 
         x = []
-        for channel_group in self.channel_groups.itervalues():
+        for channel_group in self.channel_groups.values():
             for channel in channel_group['channels']:
                 x_, _ = channel_group['geometry'][channel]
                 x.append(x_)
@@ -89,7 +94,7 @@ class Probe(object):
     def y(self):
 
         y = []
-        for channel_group in self.channel_groups.itervalues():
+        for channel_group in self.channel_groups.values():
             for channel in channel_group['channels']:
                 _, y_ = channel_group['geometry'][channel]
                 y.append(y_)
@@ -103,13 +108,13 @@ class Probe(object):
         if len(self.channel_groups) == 1:
             labels = [
                 str(channel)
-                for group in self.channel_groups.itervalues()
+                for group in self.channel_groups.values()
                 for channel in group['channels']
             ]
         elif len(self.channel_groups) > 1:
             labels = [
                 str(group) + "/" + str(channel)
-                for group in self.channel_groups.itervalues()
+                for group in self.channel_groups.values()
                 for channel in group['channels']
             ]
         else:
@@ -275,7 +280,7 @@ class Probe(object):
 
         if group is None:
             _groups = self.channel_groups.keys()
-            _group = _groups[0]
+            _group = next(iter(_groups))
         else:
             _group = str(group)
         _group = self.channel_groups[_group]
@@ -358,16 +363,16 @@ class Probe(object):
         # Save `channel_groups` to probe file.
         line = "channel_groups = {\n"
         lines.append(line)
-        for channel_group_id, channel_group in self.channel_groups.iteritems():
+        for channel_group_id, channel_group in self.channel_groups.items():
             line = " {}: {{\n".format(channel_group_id)
             lines.append(line)
-            line = "  'channels': {},\n".format(channel_group['channels'])
+            line = "  'channels': [{}],\n".format(", ".join([str(k) for k in channel_group['channels']]))
             lines.append(line)
             line = "  'graph': {},\n".format(channel_group['graph'])
             lines.append(line)
             line = "  'geometry': {\n"
             lines.append(line)
-            for key, value in channel_group['geometry'].iteritems():
+            for key, value in channel_group['geometry'].items():
                 line = "   {}: {},\n".format(key, value)
                 lines.append(line)
             line = "  },\n"
@@ -393,15 +398,29 @@ class Probe(object):
 
         return
 
-    def plot(self, path=None, fig=None, ax=None, **kwargs):
+    def plot(self, path=None, fig=None, ax=None, annotation_size=None, colors=None, **kwargs):
+        """Plot probe.
+
+        Arguments:
+            path: none | string (optional)
+            fig: none | matplotlib.figure.Figure (optional)
+            ax: none | matplotlib.axes.Axes (optional)
+            annotation_size: none | float | string (optional)
+                Font size of the annotations. Maybe either None (default font size), a size string (relative to the
+                default font size), or an absolute font size in points.
+                The default value is None.
+            colors: none | iterable (optional)
+                The colors of the tips of the electrodes.
+                The default value is None.
+            kwargs: dictionary (optional)
+        """
 
         _ = kwargs  # Discard additional keyword arguments.
 
         x = self.x
         y = self.y
-        r = 4.0  # µm
+        r = self._electrode_diameter / 2.0  # µm
         s = self.labels
-        size = 3
 
         if path is not None and ax is None:
             plt.ioff()
@@ -412,34 +431,31 @@ class Probe(object):
         ax.set_xlim(*self.x_limits)
         ax.set_ylim(*self.y_limits)
         # Draw the tips of the electrodes.
-        circles = [
-            ptc.Circle((_x, _y), radius=r, color='C0')
-            for _x, _y in zip(x, y)
-        ]
+        if colors is None:
+            circles = [
+                ptc.Circle((_x, _y), radius=r, color='C0')
+                for _x, _y in zip(x, y)
+            ]
+        else:
+            circles = [
+                ptc.Circle((x[k], y[k]), radius=r, color=colors[k])
+                for k in range(0, self.nb_channels)
+            ]
         collection = PatchCollection(circles, match_original=True)
         ax.add_collection(collection)
         # Draw the labels of the electrodes.
-        x_ = [
-            _x - 0.3 * float(len(_s) * size)
-            for _x, _s in zip(x, s)
-        ]
-        y_ = [
-            _y - 0.4 * float(size)
-            for _y, _s in zip(y, s)
-        ]
-        text_paths = [
-            ttp.TextPath((_x, _y), _s, size=size, horizontalalignment='center')
-            for _x, _y, _s in zip(x_, y_, s)
-        ]
-        paths = [
-            ptc.PathPatch(text_path, facecolor="black")
-            for text_path in text_paths
-        ]
-        collection = PatchCollection(paths, match_original=True)
+        for _x, _y, _s in zip(x, y, s):
+            ax.annotate(_s, xy=(_x, _y), xytext=(_x, _y), size=annotation_size,
+                        horizontalalignment='center', verticalalignment='center')
+        # Draw the default spatial extent of the templates.
+        circle = ptc.Circle((np.mean(self.x_limits), np.mean(self.y_limits)), radius=self.radius,
+                            fill=False, color='grey', linestyle='--')
+        collection = PatchCollection([circle], match_original=True, zorder=-1)
         ax.add_collection(collection)
-        ax.set_xlabel(u"x (µm)")
-        ax.set_ylabel(u"y (µm)")
-        ax.set_title(u"Spatial layout of the electrodes")
+        # Add labels and title.
+        ax.set_xlabel("x (µm)")
+        ax.set_ylabel("y (µm)")
+        ax.set_title("Spatial layout of the electrodes")
 
         if fig is not None and path is None:
             plt.tight_layout()
@@ -518,3 +534,77 @@ class Probe(object):
         # TODO add other parameters (i.e. mode, nb_rows, nb_columns, interelectrode_distance).
 
         return parameters
+
+    def copy(self):
+        """Copy probe.
+
+        Return:
+            copied_probe: circusort.obj.Probe
+                The copied probe.
+        """
+
+        copied_probe = Probe(self.channel_groups, self.total_nb_channels, self.radius)
+
+        return copied_probe
+
+    def keep(self, selection):
+        """Keep the specified channels only.
+
+        Argument:
+            selection: none | iterable | dictionary
+                A data structure which describe the channels to keep.
+        """
+
+        if selection is None:
+
+            pass
+
+        else:
+
+            if not isinstance(selection, dict):
+                nb_channel_groups = len(self.channel_groups)
+                assert nb_channel_groups == 1, "nb_channel_groups: {}".format(nb_channel_groups)
+                selection = {
+                    group_key: selection
+                    for group_key in self.channel_groups
+                }
+
+            selected_channel_groups = {}
+            total_nb_selected_channels = 0
+
+            for group_key in selection:
+                assert group_key in self.channel_groups, "group_key: {}".format(group_key)
+                selected_channels = selection[group_key]
+                kept_channels = []
+                kept_graph = []
+                kept_geometry = {}
+                channels = self.channel_groups[group_key]['channels']
+                graph = self.channel_groups[group_key]['graph']
+                geometry = self.channel_groups[group_key]['geometry']
+                assert graph == [], "graph: {}".format(graph)
+                for k, channel_key in enumerate(selected_channels):
+                    assert channel_key in channels, "channel_key: {}".format(channel_key)
+                    total_nb_selected_channels += 1
+                    kept_channels.append(k)
+                    kept_geometry[k] = geometry[channel_key]
+                selected_channel_groups[group_key] = {
+                    'channels': kept_channels,
+                    'graph': kept_graph,
+                    'geometry': kept_geometry,
+                }
+
+            self.channel_groups = selected_channel_groups
+            self.total_nb_channels = total_nb_selected_channels
+
+        return
+
+    def get_channel_colors(self, selection=None):
+
+        if selection is None:
+            selection = range(0, self.nb_channels)
+
+        channel_colors = self.nb_channels * ['grey']
+        for channel in selection:
+            channel_colors[channel] = 'C{}'.format(channel % 10)
+
+        return channel_colors

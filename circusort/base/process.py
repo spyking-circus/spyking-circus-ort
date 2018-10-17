@@ -1,4 +1,3 @@
-import exceptions
 import json
 import paramiko
 import subprocess
@@ -9,6 +8,11 @@ import sys
 from circusort.base.utils import get_log, find_interface_address_towards
 from circusort.base.proxy import Proxy
 from circusort.base.serializer import Serializer
+
+if sys.version_info.major == 2:
+    import exceptions  # Python 2 compatibility.
+elif sys.version_info.major == 3:
+    import builtins as exceptions  # Python 3 compatibility.
 
 
 def create_process(host=None, log_address=None, name=None, log_level=logging.INFO):
@@ -24,7 +28,6 @@ def create_process(host=None, log_address=None, name=None, log_level=logging.INF
         log_level: integer (optional)
             The default value is logging.INFO.
     """
-    # TODO complete docstring.
 
     process = Process(host=host, log_address=log_address, name=name, log_level=log_level)
     proxy = process.get_proxy()
@@ -45,7 +48,6 @@ class Process(object):
         context
         socket
     """
-    # TODO complete docstring.
 
     def __init__(self, host=None, log_address=None, name=None, log_level=logging.INFO):
         """Initialize Process.
@@ -60,7 +62,6 @@ class Process(object):
             log_level: integer
                 The default value is logging.INFO.
         """
-        # TODO complete docstring.
 
         object.__init__(self)
 
@@ -93,11 +94,10 @@ class Process(object):
             socket.setsockopt(zmq.RCVTIMEO, 60 * 1000)
             socket.bind(address)
             address = socket.getsockopt(zmq.LAST_ENDPOINT)
+            address = address.decode('utf-8')
             self.logger.debug("tmp socket binded at {a}".format(a=address))
             # 2. Spawn remote process on local host
-            # TODO clean the 2 following lines.
             command = [sys.executable]
-            # command = ['/usr/bin/python2']
             command += ['-m', 'circusort.cli.spawn_process']
             command += ['--host', self.host]
             command += ['--address', address]
@@ -128,9 +128,12 @@ class Process(object):
             socket.setsockopt(zmq.RCVTIMEO, 60 * 1000)
             socket.bind(address)
             address = socket.getsockopt(zmq.LAST_ENDPOINT)
+            address = address.decode('utf-8')
             self.logger.debug("tmp socket binded at {a}".format(a=address))
             # 2. Spawn remote process on remote host
-            command = ['/usr/bin/python2']
+            # TODO swap and clean the 2 following lines.
+            # command = ['/usr/bin/python2.7']
+            command = ['/usr/bin/python3.6']
             command += ['-m', 'circusort.cli.spawn_process']
             command += ['--host', self.host]
             command += ['--address', address]
@@ -179,7 +182,6 @@ class Process(object):
             socket.close()
 
     def __del__(self):
-        # TODO add docstring.
 
         # Log debug message.
         if self.name is None:
@@ -196,7 +198,6 @@ class Process(object):
         self.socket.close()
 
     def get_proxy(self):
-        # TODO add docstring.
 
         # Log debug message.
         message = "get proxy"
@@ -209,7 +210,6 @@ class Process(object):
         return response
 
     def get_module(self, name, **kwargs):
-        # TODO add docstring.
 
         # Log debug message.
         string = "get module {}"
@@ -226,7 +226,6 @@ class Process(object):
         return response
 
     def call_obj(self, obj, args, kwargs):
-        # TODO add docstring.
 
         # Log debug message.
         string = "call object {}"
@@ -245,7 +244,6 @@ class Process(object):
         return response
 
     def get_attr(self, obj, name):
-        # TODO add docstring.
 
         # Log debug message.
         string = "get attribute {} of object {}"
@@ -263,7 +261,6 @@ class Process(object):
         return response
 
     def set_attr(self, obj, name, value):
-        # TODO add docstring.
 
         # Log debug message.
         string = "set attribute {} of object {}"
@@ -282,7 +279,6 @@ class Process(object):
         return response
 
     def new_request_id(self):
-        # TODO add docstring.
 
         # Log debug message.
         message = "generate new request identifier"
@@ -295,7 +291,6 @@ class Process(object):
         return request_id
 
     def serialize_options(self, options):
-        # TODO add docstring.
 
         # Log debug message.
         message = "serialize options"
@@ -317,7 +312,6 @@ class Process(object):
             options: dictionary
                 The options to be sent with the request.
         """
-        # TODO complete docstring.
 
         _ = kwargs  # i.e. discard additional keyword arguments
 
@@ -341,7 +335,6 @@ class Process(object):
         return result
 
     def decode(self, dct):
-        # TODO add docstring.
 
         # Log debug message.
         message = "decode"
@@ -374,7 +367,6 @@ class Process(object):
             raise NotImplementedError()
 
     def loads(self, data):
-        # TODO add docstring.
 
         # Log debug message.
         message = "loads"
@@ -386,7 +378,6 @@ class Process(object):
         return obj
 
     def receive(self):
-        # TODO add docstring.
 
         # Log debug message.
         message = "receive"
@@ -399,7 +390,6 @@ class Process(object):
         return data
 
     def process_until_result(self):
-        # TODO add docstring.
 
         # Log debug message.
         message = "process until result"

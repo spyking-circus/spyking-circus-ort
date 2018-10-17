@@ -1,4 +1,5 @@
 # coding: utf-8
+
 import numpy as np
 import os
 import pickle  # TODO check if we should use cPickle instead.
@@ -53,22 +54,29 @@ class OverlapsStore(object):
         self._is_initialized = False
         self.fitting_mode = fitting_mode
 
-        if not self.template_store.is_empty:
-            self.update(self.template_store.indices, laziness=False)
-
         self._all_components = None
 
         self.overlaps = {
             '1': {}
         }
+        self.first_component = None
+        self.norms = None
+        self.amplitudes = None
+        self.electrodes = None
+        self.second_component = None
+
+        if not self.template_store.is_empty:
+            self.update(self.template_store.indices, laziness=False)
 
         return
 
     def __len__(self):
-        if self._first_component is None:
+
+        if self.first_component is None:
             self._first_component = 0
         else:
             self._first_component = self.first_component.shape[0]
+
         return self._first_component
 
     def _init_from_template(self, template):
@@ -135,20 +143,23 @@ class OverlapsStore(object):
 
     @property
     def nb_templates(self):
+
         return len(self)
 
     @property
     def to_json(self):
+
         return {'path': self.path}
 
     def non_zeros(self, index):
+
         if self.optimize:
             res = np.zeros(0, dtype=np.bool)
             for i in range(index + 1):
                 res = np.concatenate((res, [self._masks[i, index]]))
             for i in range(index + 1, self.nb_templates):
                 res = np.concatenate((res, [self._masks[index, i]]))
-            return np.where(res == True)[0]
+            return np.where(res)[0]
         else:
             return None
 
@@ -158,6 +169,8 @@ class OverlapsStore(object):
             self._masks[index, self.nb_templates] = True
         else:
             self._masks[index, self.nb_templates] = False
+
+        return
 
     def get_overlaps(self, index, component='1'):
 
@@ -223,6 +236,8 @@ class OverlapsStore(object):
             for index in value.keys():
                 self.overlaps[key][index].indices_ += [len(self) - 1]
 
+        return
+
     def update(self, indices, laziness=True):
 
         templates = self.template_store.get(indices)
@@ -235,7 +250,7 @@ class OverlapsStore(object):
                 # Load precomputed overlaps.
                 self.load_overlaps(self.path)
             else:
-                # Precompute overlaps.
+                # Pre-compute overlaps.
                 self.compute_overlaps()
 
         return
@@ -299,22 +314,34 @@ class OverlapsStore(object):
         return
 
     def is_present(self, csr_template, cc_merge, non_zeros=None):
+        """Check if sparse template exists in the dictionary.
+
+        Arguments:
+            csr_template: ?
+            cc_merge: float
+            non_zeros: none | ? (optional)
+        Return:
+            ans: boolean
+        """
 
         if non_zeros is not None:
             sub_target = self.first_component[non_zeros]
         else:
             sub_target = self.first_component
 
-        for idelay in self._scols['delays']:
-            tmp_1 = csr_template[:, self._scols['left'][idelay]]
-            tmp_2 = sub_target[:, self._scols['right'][idelay]]
+        nb_delays = self._scols['delays'].size
+        for k in range(nb_delays, 0, -1):  # i.e. consider overlaps by increasing time jitter
+            i_delay = self._scols['delays'][k - 1]
+            # Positive time jitter.
+            tmp_1 = csr_template[:, self._scols['left'][i_delay]]
+            tmp_2 = sub_target[:, self._scols['right'][i_delay]]
             data = tmp_1.dot(tmp_2.T)
             if np.any(data.data >= cc_merge):
                 return True
-
-            if idelay < self.temporal_width:
-                tmp_1 = csr_template[:, self._scols['right'][idelay]]
-                tmp_2 = sub_target[:, self._scols['left'][idelay]]
+            # Negative time jitter.
+            if i_delay < self.temporal_width:  # to avoid re-computing similarity without time jitter
+                tmp_1 = csr_template[:, self._scols['right'][i_delay]]
+                tmp_2 = sub_target[:, self._scols['left'][i_delay]]
                 data = tmp_1.dot(tmp_2.T)
                 if np.any(data.data >= cc_merge):
                     return True

@@ -18,15 +18,20 @@ class Spikes(object):
         amplitudes: numpy.ndarray
             The amplitudes of each spike. An array of shape: (nb_spikes,).
         nb_cells: none | integer (optional)
-            The number of cells. The default value is None.
+            The number of cells.
+            The default value is None.
         t_min: none | float (optional)
-            The minimum value of the time window of interest. The default value is None.
+            The minimum value of the time window of interest.
+            The default value is None.
+        t_max: none | float (optional)
+            The maximum value of the time window of interest.
+            The default value is None.
     """
 
     def __init__(self, times, templates, amplitudes, nb_cells=None, t_min=None, t_max=None):
         """Initialization.
 
-        Parameters:
+        Arguments:
             times: numpy.ndarray
                 The spike times. An array of shape: (nb_spikes,).
             templates: numpy.ndarray
@@ -34,33 +39,40 @@ class Spikes(object):
             amplitudes: numpy.ndarray
                 The amplitudes of each spike. An array of shape: (nb_spikes,).
             nb_cells: none | integer (optional)
-                The number of cells. The default value is None.
+                The number of cells.
+                The default value is None.
             t_min: none | float (optional)
-                The minimum value of the time window of interest. The default value is None.
+                The minimum value of the time window of interest.
+                The default value is None.
+            t_max: none | float (optional)
+                The maximum value of the time window of interest.
+                The default value is None.
         """
 
-        assert times.size > 0
+        # assert times.size > 0
 
         self.times = times
         self.templates = templates
         self.amplitudes = amplitudes
         self.nb_cells = nb_cells
-        self.t_min = np.min(self.times) if t_min is None else t_min
-        self.t_max = np.max(self.times) if t_max is None else t_max
+        self.t_min = (np.min(self.times) if self.times.size > 0 else None) if t_min is None else t_min
+        self.t_max = (np.max(self.times) if self.times.size > 0 else None) if t_max is None else t_max
 
     def __iter__(self):
+
         for i in self.ids:
             yield self.get_cell(i)
 
     def __getitem__(self, index):
+
         return self.get_cell(index)
 
     def __len__(self):
+
         return len(self.ids)
 
     @property
     def ids(self):
-        # TODO add docstring.
 
         if self.nb_cells is None:
             ids = np.unique(self.templates)
@@ -114,6 +126,5 @@ class Spikes(object):
         return cells
 
     def save(self, path):
-        # TODO add docstring.
 
         raise NotImplementedError()  # TODO complete.

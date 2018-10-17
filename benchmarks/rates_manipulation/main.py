@@ -11,7 +11,7 @@ from circusort.io.cells import list_cells
 nb_rows = 5
 nb_columns = 5
 nb_cells = 25
-duration = 10 * 60
+duration = 2 * 60
 radius = 100
 preload_templates = True
 nb_waveforms_clustering = 100

@@ -12,10 +12,10 @@ from collections import OrderedDict
 from networks import network_4 as network
 
 
-nb_rows_range = [4, 8, 16, 32]
-nb_columns_range = [4, 8, 16, 32]
+nb_rows_range = [2, 4, 8, 16, 32]
+nb_columns_range = [2, 4, 8, 16, 32]
 radius = 100.0  # µm
-nb_cells = 3
+cell_density = 0.25  # cells / electrode
 duration = 5.0 * 60.0  # s
 
 
@@ -56,7 +56,8 @@ def main():
 
         # Generate configurations.
         for nb_rows, nb_columns in zip(nb_rows_range, nb_columns_range):
-            name = str(nb_rows * nb_columns)
+            nb_electrodes = nb_rows * nb_columns
+            name = str(nb_electrodes)
             kwargs = {
                 'general': {
                     'duration': duration,
@@ -69,7 +70,7 @@ def main():
                     'radius': radius,
                 },
                 'cells': {
-                    'nb_cells': nb_cells,
+                    'nb_cells': int(cell_density * float(nb_electrodes)),
                 }
             }
             configuration = circusort.io.generate_configuration(**kwargs)

@@ -42,7 +42,6 @@ class Director(object):
         host: string
         managers: collections.OrderedDict
     """
-    # TODO complete docstring.
 
     def __init__(self, host='127.0.0.1', name=None, log_level=logging.INFO, log_path=None):
         """Initialize a director.
@@ -57,7 +56,6 @@ class Director(object):
             log_path: none | string (optional)
                 The default value is None.
         """
-        # TODO complete docstring.
 
         # Start logging server
         self.name = name or "Director"
@@ -76,7 +74,6 @@ class Director(object):
         self.managers = collections.OrderedDict()
 
     def __del__(self):
-        # TODO add docstring.
 
         # Log info message.
         string = "{} is destroyed"
@@ -84,22 +81,19 @@ class Director(object):
         self.log.info(message)
 
         # Delete each manager.
-        for manager in self.managers.itervalues():
+        for manager in self.managers.values():
             manager.__del__()
 
     @property
     def nb_managers(self):
-        # TODO add docstring.
 
         return len(self.managers)
 
     def get_logger(self):
-        # TODO add docstring.
 
         return self.logger
 
     def create_block(self, block_type, name=None, log_level=None, **kwargs):
-        # TODO add docstring.
 
         if self.nb_managers == 0:
             self.create_manager(log_level=self.log_level)
@@ -113,7 +107,6 @@ class Director(object):
 
         A manager is a process that manages workers.
         """
-        # TODO complete docstring.
 
         if name is None:
             manager_id = 1 + self.nb_managers
@@ -135,7 +128,6 @@ class Director(object):
         return manager
 
     def register_manager(self, manager):
-        # TODO add docstring.
 
         # Update manager.
         self.managers.update({manager.name: manager})
@@ -148,7 +140,6 @@ class Director(object):
         return
 
     def connect(self, output_endpoints, input_endpoints, protocol=None):
-        # TODO add docstring.
 
         if not type(input_endpoints) == list:
             input_endpoints = [input_endpoints]
@@ -211,7 +202,6 @@ class Director(object):
         return
 
     def connect_network(self, network):
-        # TODO add docstring.
 
         # Log info message.
         string = "{} connects {} network"
@@ -224,7 +214,6 @@ class Director(object):
         return
 
     def initialize(self):
-        # TODO add docstring.
 
         # Log info message.
         string = "{} initializes {}"
@@ -232,13 +221,12 @@ class Director(object):
         self.log.info(message)
 
         # Initialize each manager.
-        for manager in self.managers.itervalues():
+        for manager in self.managers.values():
             manager.initialize()
 
         return
 
     def start(self, nb_steps=None):
-        # TODO add docstring.
 
         # Log info message.
         if nb_steps is None:
@@ -251,13 +239,12 @@ class Director(object):
             self.log.info(message)
 
         # Start each manager.
-        for manager in self.managers.itervalues():
+        for manager in self.managers.values():
             manager.start(nb_steps)
 
         return
 
     def sleep(self, duration=None):
-        # TODO add docstring.
 
         # Log info message.
         string = "{} sleeps for {} sec"
@@ -270,7 +257,6 @@ class Director(object):
         return
 
     def stop(self):
-        # TODO add docstring.
 
         # Log debug message.
         string = "{} stops {}"
@@ -278,7 +264,7 @@ class Director(object):
         self.log.debug(message)
 
         # Stop each manager.
-        for manager in self.managers.itervalues():
+        for manager in self.managers.values():
             manager.stop()
 
         # Log info message.
@@ -289,7 +275,6 @@ class Director(object):
         return
 
     def join(self):
-        # TODO add docstring.
 
         # Log debug message.
         string = "{} joins {}"
@@ -297,7 +282,7 @@ class Director(object):
         self.log.debug(message)
 
         # Join each manager.
-        for manager in self.managers.itervalues():
+        for manager in self.managers.values():
             manager.join()
 
         # Log info message.
@@ -308,26 +293,22 @@ class Director(object):
         return
 
     def destroy(self):
-        # TODO add docstring.
 
         self.__del__()
 
         return
 
     def __str__(self):
-        # TODO add docstring.
 
         string = "{}[{}]".format(self.name, self.host)
 
         return string
 
     def list_managers(self):
-        # TODO add docstring.
 
-        return self.managers.keys()
+        return list(self.managers.keys())
 
     def get_manager(self, key):
-        # TODO add docstring.
 
         assert key in self.list_managers(), self.log.warning("{} is not a valid manager".format(key))
 

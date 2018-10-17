@@ -13,7 +13,6 @@ class FitterBis(Network):
         templates_init_path: none | string
         overlaps_init_path: none | string
     """
-    # TODO complete docstring.
 
     name = "Fitter (bis) network"
 
@@ -37,7 +36,6 @@ class FitterBis(Network):
             overlaps_init_pat: none | string (optional)
                 The default value is None.
         """
-        # TODO complete docstring.
 
         Network.__init__(self, *args, **kwargs)
 
@@ -49,7 +47,6 @@ class FitterBis(Network):
 
     def _create_blocks(self):
         """Create the blocks of the network."""
-        # TODO complete docstring.
 
         demultiplexer_kwargs = {
             'name': 'demultiplexer',
@@ -77,7 +74,7 @@ class FitterBis(Network):
         }
         demultiplexer_kwargs.update({
             key: value
-            for key, value in self.params.iteritems()
+            for key, value in self.params.items()
             if key in ['introspection_path']
         })
         fitters_bis_kwargs = {
@@ -94,7 +91,7 @@ class FitterBis(Network):
         for k in range(0, self.degree):
             fitters_bis_kwargs[k].update({
                 key: value
-                for key, value in self.params.iteritems()
+                for key, value in self.params.items()
                 if key not in ['degree', 'nb_samples']
             })
         multiplexer_kwargs = {
@@ -110,7 +107,7 @@ class FitterBis(Network):
         }
         multiplexer_kwargs.update({
             key: value
-            for key, value in self.params.iteritems()
+            for key, value in self.params.items()
             if key in ['introspection_path']
         })
 
@@ -136,14 +133,12 @@ class FitterBis(Network):
 
     @staticmethod
     def _get_name(name, k):
-        # TODO add docstring.
 
         name = "{}_{}".format(name, k)
 
         return name
 
     def _connect(self):
-        # TODO add docstring.
 
         demultiplexer = self.get_block('demultiplexer')
         fitters_bis = self.get_block('fitters_bis')

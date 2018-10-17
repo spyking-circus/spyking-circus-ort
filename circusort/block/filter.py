@@ -9,12 +9,18 @@ class Filter(Block):
     """Filtering of the voltage traces of the recording channels
 
     Attributes:
-        sampling_rate: float
-            The sampling rate used to record the signal [Hz]. The default value is 20e+3.
-        cut_off: float
-            The cutoff frequency used to define the high-pass filter [Hz]. The default value is 500.0.
-        remove_median: boolean
-            The option to remove the median over all the channels for each time step. The default value is False.
+        sampling_rate: float (optional)
+            The sampling rate used to record the signal [Hz].
+            The default value is 20e+3.
+        cut_off: float (optional)
+            The cutoff frequency used to define the high-pass filter [Hz].
+            The default value is 500.0.
+        order: integer (optional)
+            The order used to define the high-pass filter.
+            The default value is 1.
+        remove_median: boolean (optional)
+            The option to remove the median over all the channels for each time step.
+            The default value is False.
     See also:
         circusort.block.Block
     """
@@ -23,6 +29,7 @@ class Filter(Block):
 
     params = {
         'cut_off': 500.0,  # Hz
+        'order': 1,
         'sampling_rate': 20000.0,  # Hz
         'remove_median': False,
         'use_gpu': False,
@@ -35,13 +42,16 @@ class Filter(Block):
             sampling_rate: float (optional)
                 The sampling rate used to record the signal [Hz].
                 The default value is 20e+3.
-            cut_off: float
+            cut_off: float (optional)
                 The cutoff frequency used to define the high-pass filter [Hz].
                 The default value is 500.0.
-            remove_median: boolean
+            order: integer (optional)
+                The order used to define the high-pass filter.
+                The default value is 1.
+            remove_median: boolean (optional)
                 The option to remove the median over all the channels for each time step.
                 The default value is False.
-            use_gpu: boolean
+            use_gpu: boolean (optional)
                 The default value is False.
         """
 
@@ -51,6 +61,7 @@ class Filter(Block):
 
         # Lines useful to solve PyCharm warnings.
         self.cut_off = self.cut_off
+        self.order = self.order
         self.sampling_rate = self.sampling_rate
         self.remove_median = self.remove_median
         self.use_gpu = self.use_gpu
@@ -74,9 +85,8 @@ class Filter(Block):
             pass
         else:
             cut_offs = np.array([self.cut_off, 0.95 * (self.sampling_rate / 2.0)])
-            order = 3
             critical_frequencies = cut_offs / (self.sampling_rate / 2.0)  # half-cycles / samples
-            filter_ = signal.butter(order, critical_frequencies, btype='bandpass', analog=False, output='ba')
+            filter_ = signal.butter(self.order, critical_frequencies, btype='bandpass', analog=False, output='ba')
             self._b = filter_[0]
             self._a = filter_[1]
             self._z = {}

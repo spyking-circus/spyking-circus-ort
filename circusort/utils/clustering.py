@@ -1,24 +1,23 @@
 import scipy.optimize
+import matplotlib.pyplot as plt
 import numpy as np
-import hdbscan
 import os
 import scipy.spatial.distance
 import scipy.stats
-import warnings
+import statsmodels.api as sm
 import logging
-from circusort.obj.template import Template, TemplateComponent
+
 from sklearn.decomposition import PCA
 
-warnings.filterwarnings("ignore")
+from circusort.io.template import load_template
+from circusort.obj.template import Template, TemplateComponent
 
 
 class MacroCluster(object):
     """Macro cluster"""
 
-    # TODO complete docstring.
-
-    def __init__(self, id, pca_data, data, creation_time=0):
-        self.id = id
+    def __init__(self, id_, pca_data, data, creation_time=0):
+        self.id = id_
         self.density = len(pca_data)
         self.sum_pca = np.sum(pca_data, 0)
         self.sum_pca_sq = np.sum(pca_data ** 2, 0)
@@ -28,9 +27,29 @@ class MacroCluster(object):
         self.label = 'sparse'
         self.cluster_id = -1
 
+    def __add__(self, other):
+        """Add two clusters together.
+
+        Argument:
+            other: MacroCluster
+                cluster to add to the current one.
+        Return:
+            result: MacroCluster
+
+        """
+
+        if not isinstance(other, MacroCluster):
+            string = "unsupported operand type(s) for +: '{}' and '{}'"
+            message = string.format(type(self), type(other))
+            raise TypeError(message)
+
+        pass
+
     def set_label(self, label):
         assert label in ['sparse', 'dense']
         self.label = label
+
+        return
 
     @property
     def is_sparse(self):
@@ -48,6 +67,8 @@ class MacroCluster(object):
         self.sum_full = factor * self.sum_full + data
         self.last_update = time
 
+        return
+
     def update(self, time, decay_factor):
         factor = 2 ** (-decay_factor * (time - self.last_update))
         self.density = factor * self.density
@@ -56,11 +77,15 @@ class MacroCluster(object):
         self.sum_full = factor * self.sum_full
         self.last_update = time
 
+        return
+
     def remove(self, pca_data, data):
         self.density -= 1
         self.sum_pca -= pca_data
         self.sum_pca_sq -= pca_data ** 2
         self.sum_full -= data
+
+        return
 
     @property
     def center(self):
@@ -81,9 +106,9 @@ class MacroCluster(object):
 
 class OnlineManager(object):
 
-    def __init__(self, probe, channel, decay=0.05, mu=2, epsilon='auto', theta=-np.log(0.001), dispersion=(5, 5),
-                 n_min=0.01, noise_thr=0.8, pca=None, logger=None, two_components=False, name=None, debug_plots=None,
-                 local_merges=3):
+    def __init__(self, probe, channel, sampling_rate=20e+3, decay=0.05, mu=2, epsilon='auto', theta=-np.log(0.001),
+                 dispersion=(5, 5), n_min=0.01, noise_thr=0.8, pca=None, logger=None, two_components=False, name=None,
+                 debug_plots=None, debug_ground_truth_templates=None, debug_file_format='pdf', local_merges=3):
 
         if name is None:
             self.name = "OnlineManager"
@@ -102,15 +127,18 @@ class OnlineManager(object):
         self.channel = channel
         self.two_components = two_components
         self.debug_plots = debug_plots
+        self.debug_ground_truth_templates = debug_ground_truth_templates
+        self.debug_file_format = debug_file_format
         self.local_merges = local_merges
+        self.sampling_rate = sampling_rate
 
         if self.debug_plots is not None:
-            self.fig_name = os.path.join(self.debug_plots, '{n}_{t}.png')
-            self.fig_name_2 = os.path.join(self.debug_plots, '{n}_{t}_tracking.png')
+            self.fig_name = os.path.join(self.debug_plots, '{n}_{t}.{f}')
+            self.fig_name_2 = os.path.join(self.debug_plots, '{n}_{t}_tracking.{f}')
 
         self.time = 0
         self.is_ready = False
-        self.abs_n_min = 20
+        self.abs_n_min = 10
         self.nb_updates = 0
         self.sub_dim = 5
         self.loc_pca = None
@@ -120,17 +148,39 @@ class OnlineManager(object):
             self.log = logging.getLogger(__name__)
         else:
             self.log = logger
-        self.log.debug('{n} is created'.format(n=self.name))
+
+        # Define internal variables.
+        self._width = None
+        self._W = None
+        self._physical_threshold = None
+        self._pc_lim = None
+
+        # Log debug message
+        string = "{} is created"
+        message = string.format(self.name)
+        self.log.debug(message)
 
     @property
-    def D_threshold(self):
+    def d_threshold(self):
+
         return self.mu * self.beta
 
     @property
     def time_gap(self):
-        return np.ceil((1 / self.decay_factor) * np.log(self.D_threshold / (self.D_threshold - 1)))
 
-    def initialize(self, time, data):
+        return np.ceil((1 / self.decay_factor) * np.log(self.d_threshold / (self.d_threshold - 1)))
+
+    def initialize(self, time, snippets):
+        """Initialize the clustering.
+
+        Arguments:
+            time: integer
+                Creation time.
+            snippets: circusort.obj.Snippets
+                Data snippets which correspond to multiple peaks.
+        """
+
+        data = snippets.to_array()
 
         self.time = time
 
@@ -146,9 +196,12 @@ class OnlineManager(object):
         self._width = b * c
         data = data.reshape(a, self._width)
 
-        # TODO uncomment the following line.
-        self.log.debug("{n} computes local PCA".format(n=self.name))
-        pca = PCA(self.sub_dim)
+        # Log debug message.
+        string = "{} computes local PCA"
+        message = string.format(self.name)
+        self.log.debug(message)
+        # Computes local PCA.
+        pca = PCA(n_components=self.sub_dim)
         pca.fit(sub_data)
         self.loc_pca = pca.components_.T
 
@@ -157,23 +210,25 @@ class OnlineManager(object):
         n_min = np.maximum(self.abs_n_min, int(self.n_min * len(sub_data)))
 
         if self.debug_plots is not None:
-            output = self.fig_name.format(n=self.name, t=self.time)
+            output = self.fig_name.format(n=self.name, t=self.time, f=self.debug_file_format)
         else:
             output = None
 
-        labels = density_clustering(sub_data, n_min=n_min, output=output, local_merges=self.local_merges)
+        labels = self.density_clustering(sub_data, n_min=n_min, output=output, local_merges=self.local_merges)
 
-        self.W = len(sub_data) / float(self.time / 20000.)
-        self.mu = self.W / 1000.
+        self._W = len(sub_data) / float(self.time / self.sampling_rate)
+        self.mu = self._W / 1e+3
         self.beta = 1.5 / self.mu
 
         mask = labels > -1
 
         templates = {}
 
-        self.log.debug("{n} founds {k} initial clusters from {m} datapoints".format(n=self.name,
-                                                                                    k=len(np.unique(labels[mask])),
-                                                                                    m=len(sub_data)))
+        # Log debug message.
+        string = "{} founds {} initial clusters from {} data points"
+        message = string.format(self.name, len(np.unique(labels[mask])), len(sub_data))
+        self.log.debug(message)
+
         epsilon = np.inf
 
         for count, cluster_id in enumerate(np.unique(labels[mask])):
@@ -195,83 +250,123 @@ class OnlineManager(object):
             self.epsilon = epsilon / 5.
 
         for cluster in self.clusters.values():
-            if cluster.density >= self.D_threshold:
+            if cluster.density >= self.d_threshold:
                 cluster.set_label('dense')
             else:
                 cluster.set_label('sparse')
 
         if self.debug_plots is not None:
-            plot_tracking(self.dense_clusters, self.fig_name_2.format(n=self.name, t=self.time))
+            # Plot templates.
+            filename = "{}_{}_templates.{}".format(self.name, self.time, self.debug_file_format)
+            path = os.path.join(self.debug_plots, filename)
+            self.plot_templates(templates, path)
+            # Plot tracking.
+            path = self.fig_name_2.format(n=self.name, t=self.time, f=self.debug_file_format)
+            self.plot_tracking(self.dense_clusters, path)
+            # Log info message.
+            string = "{} creates output {}"
+            message = string.format(self.name, path)
+            self.log.info(message)
+            if self.debug_ground_truth_templates is not None:
+                # Plot ground truth clusters.
+                self.plot_ground_truth_clusters(mode='max_channel')
+                self.plot_ground_truth_clusters(mode='nonzero_channel')
+                # Plot ground truth templates.
+                self.plot_ground_truth_templates(mode='max_channel')
+                self.plot_ground_truth_templates(mode='nonzero_channel')
 
         self.is_ready = True
-        self.log.debug('{n} is initialized with {k} templates'.format(n=self.name, k=len(self.clusters)))
+
+        # Log debug message.
+        string = "{} is initialized with {} templates"
+        message = string.format(self.name, len(self.clusters))
+        self.log.debug(message)
 
         return templates
 
     @property
     def nb_sparse(self):
+
         return len(self.sparse_clusters)
 
     @property
     def nb_dense(self):
+
         return len(self.dense_clusters)
 
     @property
     def nb_clusters(self):
+
         return len(self.clusters)
 
     @property
     def dense_clusters(self):
+
         return [i for i in self.clusters.values() if i.is_dense]
 
     @property
     def sparse_clusters(self):
+
         return [i for i in self.clusters.values() if i.is_sparse]
 
     def _update_clusters(self):
+
         for cluster in self.clusters.values():
             cluster.update(self.time, self.decay_factor)
 
+        return
+
     def _get_id(self):
+
         if len(self.clusters) > 0:
-            return np.max(self.clusters.keys()) + 1
+            return np.max(list(self.clusters.keys())) + 1
         else:
             return 0
 
     def _get_tracking_id(self):
+
         if len(self.tracking) > 0:
-            return np.max(self.tracking.keys()) + 1
+            return np.max(list(self.tracking.keys())) + 1
         else:
             return 0
 
     def _get_clusters(self, cluster_type):
+
         if cluster_type == 'sparse':
             return self.sparse_clusters
         elif cluster_type == 'dense':
             return self.dense_clusters
 
     def _get_centers(self, cluster_type='dense'):
+
         centers = np.zeros((0, self.sub_dim), dtype=np.float32)
         for cluster in self._get_clusters(cluster_type):
             centers = np.vstack((centers, [cluster.center]))
+
         return centers
 
     def _get_centers_full(self, cluster_type='dense'):
+
         centers = np.zeros((0, self._width), dtype=np.float32)
         for cluster in self._get_clusters(cluster_type):
             centers = np.vstack((centers, [cluster.center_full]))
+
         return centers
 
     def _get_nearest_cluster(self, data, cluster_type='dense'):
+
         centers = self._get_centers(cluster_type)
         if len(centers) == 0:
-            return None
+            cluster = None
         else:
             new_dist = scipy.spatial.distance.cdist(data, centers, 'euclidean')[0]
-            cluster = self._get_clusters(cluster_type)[np.argmin(new_dist)]
-            return cluster
+            index = int(np.argmin(new_dist))
+            cluster = self._get_clusters(cluster_type)[index]
+
+        return cluster
 
     def _get_template(self, data):
+
         waveforms = np.median(data, 0)
         amplitudes, full_ = self._compute_amplitudes(data, waveforms)
 
@@ -297,7 +392,7 @@ class OnlineManager(object):
             merged = cluster.radius <= self.epsilon
 
             if merged:
-                if cluster.density >= self.D_threshold:
+                if cluster.density >= self.d_threshold:
                     cluster.set_label('dense')
             else:
                 cluster.remove(pca_data[0], data[0])
@@ -310,13 +405,15 @@ class OnlineManager(object):
 
         count = 0
         for cluster in self.dense_clusters:
-            if cluster.density < self.D_threshold:
+            if cluster.density < self.d_threshold:
                 cluster.set_label('sparse')
                 count += 1
 
-        # TODO uncomment the following line.
         if count > 0:
-            self.log.debug("{n} turns {m} dense clusters into sparse...".format(n=self.name, m=count))
+            # Log debug message.
+            string = "{} turns {} dense clusters into sparse..."
+            message = string.format(self.name, count)
+            self.log.debug(message)
 
         count = 0
         for cluster in self.sparse_clusters:
@@ -331,27 +428,62 @@ class OnlineManager(object):
                 delta_t = self.theta * (cluster.last_update - t_0) / cluster.density
 
                 if cluster.density < zeta or ((self.time - cluster.last_update) > delta_t):
-                    self.log.debug("{n} removes sparse cluster {l}".format(n=self.name, l=cluster.id))
+                    # Log debug message.
+                    string = "{} removes sparse cluster {}"
+                    message = string.format(self.name, cluster.id)
+                    self.log.debug(message)
+                    # ...
                     self.clusters.pop(cluster.id)
                     count += 1
 
-        # TODO uncomment the following line.
         if count > 0:
-            self.log.debug("{n} prunes {m} sparse clusters...".format(n=self.name, m=count))
+            # Log debug message.
+            string = "{} prunes {} sparse clusters..."
+            message = string.format(self.name, count)
+            self.log.debug(message)
+
+        return
 
     def time_to_cluster(self, nb_updates):
+
         return self.is_ready and self.nb_updates >= nb_updates
 
-    def update(self, time, data=None):
+    def reduce_data(self, data):
+
+        assert self.glob_pca is not None
+        assert self.loc_pca is not None
+
+        # Apply global PCA (i.e. channel by channel)
+        reduced_data = np.dot(data, self.glob_pca)
+        # Inline channel data.
+        nb_samples, nb_channels, nb_global_components = reduced_data.shape
+        assert nb_channels * nb_global_components == self.loc_pca.shape[0]
+        reduced_data = reduced_data.reshape(nb_samples, self.loc_pca.shape[0])
+        # Apply local PCA (i.e. over all channels)
+        reduced_data = np.dot(reduced_data, self.loc_pca)
+
+        return reduced_data
+
+    def update(self, time, snippets=None):
+        """Update clustering.
+
+        Arguments:
+            time: integer
+                Creation time.
+            snippets: none | circusort.obj.Snippets (optional)
+                Data snippet which corresponds to one peak.
+        """
 
         self.time = time
-        #if self.nb_sparse > 1000:
-        #    self.log.warning('{n} has too many ({s}) sparse clusters'.format(n=self.name, s=self.nb_sparse))
 
-        self.log.debug("{n} processes time {t} with {s} sparse and {d} dense clusters. Time gap is {g}".format(
-            n=self.name, t=time, s=self.nb_sparse, d=self.nb_dense, g=self.time_gap))
+        # Log debug message.
+        string = "{} processes time {} with {} sparse and {} dense clusters. Time gap is {}"
+        message = string.format(self.name, time, self.nb_sparse, self.nb_dense, self.time_gap)
+        self.log.debug(message)
 
-        if data is not None:
+        if snippets is not None:
+
+            data = snippets.to_array()
 
             if self.glob_pca is not None:
                 red_data = np.dot(data, self.glob_pca)
@@ -366,15 +498,26 @@ class OnlineManager(object):
                 data = data.reshape(1, self._width)
                 if self.loc_pca is not None:
                     pca_data = np.dot(data, self.loc_pca)
+                else:
+                    raise NotImplementedError()
 
             if self._merged_into(pca_data, data, 'dense'):
-                self.log.debug("{n} merges the data at time {t} into a dense cluster".format(n=self.name, t=self.time))
+                # Log debug message.
+                string = "{} merges the data at time {} into a dense cluster"
+                message = string.format(self.name, self.time)
+                self.log.debug(message)
             else:
                 if self._merged_into(pca_data, data, 'sparse'):
-                    self.log.debug("{n} merges data at time {t} into a sparse cluster".format(n=self.name, t=self.time))
+                    # Log debug message.
+                    string = "{} merges data at time {} into a sparse cluster"
+                    message = string.format(self.name, self.time)
+                    self.log.debug(message)
                 else:
-                    self.log.debug("{n} can not merge data at time {t} and creates a new sparse cluster".format(
-                        n=self.name, t=self.time))
+                    # Log debug message.
+                    string = "{} can not merge data at time {} and creates a new sparse cluster"
+                    message = string.format(self.name, self.time)
+                    self.log.debug(message)
+                    # Create new sparse cluster.
                     new_id = self._get_id()
                     new_cluster = MacroCluster(new_id, pca_data, data, creation_time=self.time)
                     new_cluster.set_label('sparse')
@@ -385,6 +528,8 @@ class OnlineManager(object):
         if np.mod(self.time, self.time_gap) < 1:
             self._prune()
 
+        return
+
     def _perform_tracking(self, new_clusters):
 
         new_templates = {}
@@ -393,32 +538,32 @@ class OnlineManager(object):
         if len(self.tracking) > 0:
             all_centers = np.array([i[0] for i in self.tracking.values()], dtype=np.float32)
             all_sigmas = np.array([i[1] for i in self.tracking.values()], dtype=np.float32)
-            all_indices = self.tracking.keys()
+            all_indices = list(self.tracking.keys())
 
             for cluster in new_clusters:
                 cluster_id = cluster.cluster_id
                 center, sigma = cluster.description
                 new_dist = scipy.spatial.distance.cdist(np.array([center]), all_centers, 'euclidean')
                 dist_min = np.min(new_dist)
-                dist_idx = np.argmin(new_dist)
+                dist_idx = int(np.argmin(new_dist))
 
                 if dist_min <= (sigma + all_sigmas[dist_idx]):
                     self.tracking[all_indices[dist_idx]] = center, sigma
                     modified_templates[cluster_id] = all_indices[dist_idx]
                     cluster.cluster_id = all_indices[dist_idx]
-                    self.log.debug("{n} establishes a match between target {t} and source {s}".format(n=self.name,
-                                                                                                      t=cluster_id,
-                                                                                                      s=all_indices[
-                                                                                                          dist_idx]))
+                    # Log debug message.
+                    string = "{} establishes a match between target {} and source {}"
+                    message = string.format(self.name, cluster_id, all_indices[dist_idx])
+                    self.log.debug(message)
                 else:
                     idx = self._get_tracking_id()
                     self.tracking[idx] = center, sigma
                     new_templates[cluster_id] = idx
                     cluster.cluster_id = idx
-                    self.log.debug(
-                        "{n} can not found a match for target {t}, so creating new template {s}".format(n=self.name,
-                                                                                                        t=cluster_id,
-                                                                                                        s=idx))
+                    # Log debug message.
+                    string = "{} can not found a match for target {}, so creating new template {}"
+                    message = string.format(self.name, cluster_id, idx)
+                    self.log.debug(message)
         else:
             for cluster in new_clusters:
                 cluster_id = cluster.cluster_id
@@ -427,26 +572,36 @@ class OnlineManager(object):
                 new_templates[cluster_id] = idx
                 cluster.cluster_id = idx
 
-            self.log.debug("nothing to track: {n} found {k} new templates".format(n=self.name, k=len(new_clusters)))
+            # Log debug message.
+            string = "nothing to track: {} found {} new templates"
+            message = string.format(self.name, len(new_clusters))
+            self.log.debug(message)
 
         return new_templates, modified_templates
 
     def set_physical_threshold(self, threshold):
-        self.physical_threshold = self.noise_thr * threshold
+
+        # TODO check if threshold is normalized.
+
+        self._physical_threshold = self.noise_thr * threshold
+
+        return
 
     def _compute_amplitudes(self, data, template):
+
         # # We could to this in the PCA space, to speed up the computation
         temp_flat = template.reshape(template.size, 1)
         amplitudes = np.dot(data, temp_flat)
         amplitudes /= np.sum(temp_flat ** 2)
         variation = np.median(np.abs(amplitudes - np.median(amplitudes)))
 
-        amp_min = min(0.8, max(self.physical_threshold, np.median(amplitudes) - self.dispersion[0] * variation))
+        amp_min = min(0.8, max(self._physical_threshold, np.median(amplitudes) - self.dispersion[0] * variation))
         amp_max = max(1.2, np.median(amplitudes) + self.dispersion[1] * variation)
 
         return np.array([amp_min, amp_max], dtype=np.float32), amplitudes
 
-    def _compute_second_component(self, data, waveforms, amplitudes=None):
+    @staticmethod
+    def _compute_second_component(data, waveforms, amplitudes=None):
 
         temp_flat = waveforms.reshape(waveforms.size, 1)
         if amplitudes is None:
@@ -467,18 +622,20 @@ class OnlineManager(object):
 
     def cluster(self, tracking=True):
 
-        self.log.info('{n} launches clustering with {s} sparse and {t} dense clusters'.format(n=self.name,
-                                                                                              s=self.nb_sparse,
-                                                                                              t=self.nb_dense))
+        # Log info message.
+        string = "{} launches clustering with {} sparse and {} dense clusters"
+        message = string.format(self.name, self.nb_sparse, self.nb_dense)
+        self.log.info(message)
+
         centers = self._get_centers('dense')
         centers_full = self._get_centers_full('dense')
 
         if self.debug_plots is not None:
-            output = self.fig_name.format(n=self.name, t=self.time)
+            output = self.fig_name.format(n=self.name, t=self.time, f=self.debug_file_format)
         else:
             output = None
 
-        labels = density_clustering(centers, n_min=None, output=output, local_merges=self.local_merges)
+        labels = self.density_clustering(centers, n_min=None, output=output, local_merges=self.local_merges)
 
         self.nb_updates = 0
 
@@ -497,309 +654,838 @@ class OnlineManager(object):
         for key, value in new_templates.items():
             data = centers_full[labels == key]
             templates[value] = self._get_template(data)
-
-        self.log.info(
-            '{n} found {a} new templates: {s}'.format(n=self.name, a=len(new_templates), s=new_templates.keys()))
+        # Log info message.
+        string = "{} found {} new templates: {}"
+        message = string.format(self.name, len(new_templates), new_templates.keys())
+        self.log.info(message)
 
         if tracking:
             for key, value in modified_templates.items():
                 data = centers_full[labels == value]
                 templates[value] = self._get_template(data)
-
-            self.log.info('{n} tracked {a} modified templates with: {s}'.format(n=self.name, a=len(modified_templates),
-                                                                                s=modified_templates.values()))
+            # Log info message.
+            string = "{} tracked {} modified templates with: {}"
+            message = string.format(self.name, len(modified_templates), modified_templates.values())
+            self.log.info(message)
 
         if self.debug_plots is not None:
-            plot_tracking(clusters, self.fig_name_2.format(n=self.name, t=self.time))
+            path = self.fig_name_2.format(n=self.name, t=self.time, f=self.debug_file_format)
+            self.plot_tracking(clusters, path)
+            # Log info message.
+            string = "{} creates output {}"
+            message = string.format(self.name, path)
+            self.log.info(message)
 
         return templates
 
+    @staticmethod
+    def rho_estimation(data, neighbors_ratio=0.01):
+        """Estimation of the rho values for the density clustering.
 
-def fit_rho_delta(xdata, ydata, smart_select=False, max_clusters=10):
-    if smart_select:
+        The rho value of a sample corresponds to the mean distances between this samples and its nearest neighbors.
 
-        xmax = xdata.max()
-        off = ydata.min()
-        idx = np.argmin(xdata)
-        a_0 = (ydata[idx] - off) / np.log(1 + (xmax - xdata[idx]))
+        Arguments:
+            data: numpy.ndarray
+                An array which contains the data sample. The size of the first dimension must be equal to the number of
+                samples.
+            neighbors_ratio: float (optional)
+                Determine the number of neighbors to use during the estimation of rho values. The number of neighbors is
+                equal to the number of samples multiplied by this ratio and is at least equal to 5.
+                The default value is 0.01.
+        Returns:
+            rho: numpy.ndarray
+                The rho values.
+            distances: numpy.ndarray
+                The condensed matrix of distances between pair of samples.
+            nb_neighbors: integer
+                The number of neighbors.
+        """
 
-        def myfunc(x, a, b, c, d):
-            return a * np.log(1. + c * ((xmax - x) ** b)) + d
+        nb_samples = len(data)
 
-        try:
-            result, pcov = scipy.optimize.curve_fit(myfunc, xdata, ydata, p0=[a_0, 1., 1., off])
-            prediction = myfunc(xdata, result[0], result[1], result[2], result[3])
-            difference = xdata * (ydata - prediction)
-            z_score = (difference - difference.mean()) / difference.std()
-            subidx = np.where(z_score >= 3.)[0]
-        except Exception:
-            subidx = np.argsort(xdata * np.log(1 + ydata))[::-1][:max_clusters]
+        def get_condensed_indices(i, j):
+            # See also scipy.spatial.distance.pdist.
+            index = i * nb_samples + j - i * (i + 1) // 2 - i - 1
+            return index
 
-    else:
-        subidx = np.argsort(xdata * np.log(1 + ydata))[::-1][:max_clusters]
+        distances = scipy.spatial.distance.pdist(data, metric='euclidean')
+        distances = distances.astype(np.float32)
+        # TODO swap and clean?
+        # nb_neighbors = max(5, int(neighbors_ratio * float(nb_samples)))
+        nb_neighbors = max(2, int(neighbors_ratio * float(nb_samples)))
 
-    return subidx, len(subidx)
+        # Estimate mean distance with nearest neighbors for each sample.
+        mean_distances = np.zeros(nb_samples, dtype=np.float32)
+        for k in range(nb_samples):
+            # Find the distances with the nb_select nearest neighbors.
+            indices_1 = get_condensed_indices(k, np.arange(k + 1, nb_samples))
+            indices_2 = get_condensed_indices(np.arange(0, k), k)
+            indices = np.concatenate((indices_1, indices_2))
+            tmp = np.argsort(np.take(distances, indices))
+            tmp = tmp[0:nb_neighbors]
+            sdist = np.take(distances, np.take(indices, tmp))
+            # Compute mean distance.
+            mean_distances[k] = np.mean(sdist)
 
+        # Compute rho values.
+        max_mean_distance = np.amax(mean_distances)
+        rho = max_mean_distance - mean_distances
 
-def rho_estimation(data, mratio=0.01):
-    N = len(data)
-    rho = np.zeros(N, dtype=np.float32)
-    didx = lambda i, j: i * N + j - i * (i + 1) // 2 - i - 1
-    dist = scipy.spatial.distance.pdist(data, 'euclidean').astype(np.float32)
-    nb_selec = max(5, int(mratio * N))
+        return rho, distances, nb_neighbors
 
-    for i in range(N):
-        indices = np.concatenate((didx(i, np.arange(i + 1, N)), didx(np.arange(0, i - 1), i)))
-        tmp = np.argsort(np.take(dist, indices))[:nb_selec]
-        sdist = np.take(dist, np.take(indices, tmp))
-        rho[i] = np.mean(sdist)
+    def fit_rho_delta(self, rho, delta, smart_select=False, max_clusters=10, smart_select_mode='ransac_bis'):
+        """Fit relation between rho and delta values.
 
-    return rho, dist, nb_selec
+        Arguments:
+            rho: numpy.ndarray
+            delta: numpy.ndarray
+            smart_select: boolean (optional)
+                If true then we will try to detect automatically the clusters based on the rho and delta values.
+                The default value is False.
+            max_clusters: integer (optional)
+                The maximal number of detected clusters (except if smart select is activated).
+                The default value is 10.
+            smart_select_mode: string (optional)
+                Either 'curve_fit' or 'ransac'.
+        """
 
+        if smart_select:
 
-def density_based_clustering(rho, dist, smart_select=True, n_min=None, max_clusters=10):
-    N = len(rho)
-    maxd = np.max(dist)
-    didx = lambda i, j: i * N + j - i * (i + 1) // 2 - i - 1
-    ordrho = np.argsort(rho)[::-1]
-    delta, nneigh = np.zeros(N, dtype=np.float32), np.zeros(N, dtype=np.int32)
-    delta[ordrho[0]] = -1
-    for ii in range(1, N):
-        delta[ordrho[ii]] = maxd
-        for jj in range(ii):
-            if ordrho[jj] > ordrho[ii]:
-                xdist = dist[didx(ordrho[ii], ordrho[jj])]
+            if smart_select_mode == 'curve_fit':
+
+                z_score_threshold = 3.0
+
+                rho_max = rho.max()
+                off = delta.min()
+                idx = np.argmin(rho)
+                a_0 = (delta[idx] - off) / np.log(1 + (rho_max - rho[idx]))
+
+                def my_func(t, a, b, c, d):
+                    return a * np.log(1.0 + c * ((rho_max - t) ** b)) + d  # TODO fix runtime warning...
+
+                try:
+                    result, p_cov = scipy.optimize.curve_fit(my_func, rho, delta, p0=[a_0, 1., 1., off])
+                    prediction = my_func(rho, result[0], result[1], result[2], result[3])
+                    difference = rho * (delta - prediction)
+                    # TODO swap and clean the following lines.
+                    # z_score = (difference - difference.mean()) / difference.std()
+                    difference_median = np.median(difference)
+                    difference_mad = 1.4826 * np.median(np.absolute(difference - difference_median))
+                    z_score = (difference - difference_median) / difference_mad
+                    sub_indices = np.where(z_score >= z_score_threshold)[0]
+                    # Plot rho and delta values (if necessary).
+                    if self.debug_plots is not None:
+                        labels = z_score >= z_score_threshold
+                        self.plot_rho_delta(rho, delta - prediction, labels=labels, filename_suffix="modified")
+                except Exception as exception:
+                    # Log debug message.
+                    string = "{} raises an error in 'fit_rho_delta': {}"
+                    message = string.format(self.name, exception)
+                    self.log.debug(message)
+                    sub_indices = np.argsort(rho * np.log(1 + delta))[::-1][:max_clusters]
+
+            elif smart_select_mode == 'ransac':
+
+                z_score_threshold = 4.0
+
+                x = sm.add_constant(rho)
+                model = sm.RLM(delta, x)
+                results = model.fit()
+                prediction = results.fittedvalues
+                difference = delta - prediction
+                # TODO swap and clean the following lines.
+                # z_score = (difference - difference.mean()) / difference.std()
+                difference_median = np.median(difference)
+                difference_mad = 1.4826 * np.median(np.absolute(difference - difference_median))
+                z_score = (difference - difference_median) / difference_mad
+                sub_indices = np.where(z_score >= z_score_threshold)[0]
+                # Plot rho and delta values (if necessary).
+                if self.debug_plots is not None:
+                    labels = z_score >= z_score_threshold
+                    self.plot_rho_delta(rho, delta - prediction, labels=labels, filename_suffix="modified")
+
+            elif smart_select_mode == 'ransac_bis':
+
+                x = sm.add_constant(rho)
+                model = sm.RLM(delta, x)
+                results = model.fit()
+                delta_mean = results.fittedvalues
+                difference = delta - delta_mean
+                # 1st solution.
+                # sigma = difference.std()  # TODO this estimation is sensible to outliers
+                # 2nd solution.
+                # difference_median = np.median(difference)
+                # difference_mad = 1.4826 * np.median(np.absolute(difference - difference_median))
+                # sigma = difference_mad
+                # upper = + 3.0 * sigma  # + sigma * prediction  # TODO check/optimize this last term?
+                # 3rd solution (fit variance also).
+                sigma = 1.4826 * np.median(np.absolute(difference - np.median(difference)))
+                variance_model = sm.RLM(np.square(difference), x)
+                variance_result = variance_model.fit()
+                variance_delta = variance_result.fittedvalues
+                variance_delta = np.maximum(sigma ** 2.0, variance_delta)  # i.e. rectify negative values
+                delta_std = np.sqrt(variance_delta)
+                upper = 5.0 * delta_std
+                # lower = - 3.0 * sigma  # - sigma * prediction  # TODO idem?
+                z_score = difference - upper  # TODO define correctly the z-score.
+                sub_indices = np.where(z_score >= 0)[0]  # TODO reintroduce the z-score threshold.
+                # Plot rho and delta values (if necessary).
+                if self.debug_plots is not None:
+                    labels = z_score >= 0
+                    self.plot_rho_delta(rho, delta, labels=labels, mean=delta_mean, std=delta_std,
+                                        threshold=delta_mean + upper, filename_suffix="ransac_bis")
+
             else:
-                xdist = dist[didx(ordrho[jj], ordrho[ii])]
 
-            if xdist < delta[ordrho[ii]]:
-                delta[ordrho[ii]] = xdist
-                nneigh[ordrho[ii]] = ordrho[jj]
+                string = "unexpected smart select mode: {}"
+                message = string.format(smart_select_mode)
+                raise ValueError(message)
 
-    delta[ordrho[0]] = delta.max()
-    clust_idx, max_clusters = fit_rho_delta(rho, delta, smart_select=smart_select, max_clusters=max_clusters)
+        else:
 
-    def assign_halo(idx):
-        cl = np.empty(N, dtype=np.int32)
-        cl[:] = -1
-        NCLUST = len(idx)
-        cl[idx] = np.arange(NCLUST)
+            sub_indices = np.argsort(rho * np.log(1 + delta))[::-1][:max_clusters]
 
-        # assignation
-        for i in range(N):
-            if cl[ordrho[i]] == -1:
-                cl[ordrho[i]] = cl[nneigh[ordrho[i]]]
+        return sub_indices, len(sub_indices)
 
-        # halo (ignoring outliers ?)
-        halo = cl.copy()
+    def density_based_clustering(self, rho, distances, smart_select=True, max_clusters=10):
+        """Run a density based clustering.
 
-        if n_min is not None:
+        Arguments:
+            rho: numpy.ndarray
+                An array which contains the local density of each sample.
+            distances: numpy.ndarray
+                A condensed matrix which contains the distances between pairs of samples.
+            smart_select: boolean (optional)
+                If true then we will try to detect automatically the clusters based on the rho and delta values.
+                The default value is True.
+            max_clusters: integer (optional)
+                The maximal number of detected clusters (except if the smart selection is activated).
+                The default value is 10.
+        Returns:
+            labels: numpy.ndarray
+                The array which contains the cluster labels of the data samples.
+            nb_clusters: integer
+                The number of detected clusters.
+        """
 
-            for cluster in range(NCLUST):
-                idx = np.where(halo == cluster)[0]
-                if len(idx) < n_min:
-                    halo[idx] = -1
-                    NCLUST -= 1
-        return halo, NCLUST
+        nb_samples = len(rho)
+        max_distance = np.max(distances)
 
-    halo, NCLUST = assign_halo(clust_idx[:max_clusters + 1])
+        def get_condensed_indices(i, j):
+            # See also scipy.spatial.distance.pdist.
+            return i * nb_samples + j - i * (i + 1) // 2 - i - 1
 
-    return halo, clust_idx[:max_clusters]
+        ordered_rho = np.argsort(rho)[::-1]  # rho values in decreasing order
 
+        # Compute delta values and nearest neighbors.
+        delta = np.zeros(nb_samples, dtype=np.float32)
+        nearest_neighbors = np.zeros(nb_samples, dtype=np.int32)
+        delta[ordered_rho[0]] = -1
+        for ii in range(1, nb_samples):
+            delta[ordered_rho[ii]] = max_distance
+            for jj in range(0, ii):
+                # Get distance between samples.
+                if ordered_rho[jj] > ordered_rho[ii]:
+                    indices = get_condensed_indices(ordered_rho[ii], ordered_rho[jj])
+                    distance = distances[indices]
+                else:
+                    indices = get_condensed_indices(ordered_rho[jj], ordered_rho[ii])
+                    distance = distances[indices]
+                # Update lowest distance (if necessary).
+                if distance < delta[ordered_rho[ii]]:
+                    delta[ordered_rho[ii]] = distance
+                    nearest_neighbors[ordered_rho[ii]] = ordered_rho[jj]
+        delta[ordered_rho[0]] = delta.max()
 
-def greedy_merges(data, labels, local_merges):
-    def do_merging(data, labels, clusters, local_merges):
+        # Plot rho and delta values (if necessary).
+        if self.debug_plots is not None:
+            self.plot_rho_delta(rho, delta)
 
-        dmin = np.inf
+        # Fit rho and delta values.
+        center_indices, max_clusters = self.fit_rho_delta(rho, delta, smart_select=smart_select,
+                                                          max_clusters=max_clusters)
+
+        # Assign halos.
+        halos = np.empty(nb_samples, dtype=np.int32)
+        halos[:] = -1
+        halos[center_indices] = range(0, max_clusters)
+        for k in range(0, nb_samples):
+            index = ordered_rho[k]
+            if halos[index] == -1:
+                halos[index] = halos[nearest_neighbors[index]]
+
+        return halos, center_indices[:max_clusters]
+
+    @staticmethod
+    def _do_merging(data, labels, clusters, local_merges):
+
+        d_min = np.inf
         to_merge = [None, None]
 
-        for ic1 in xrange(len(clusters)):
+        for ic1 in range(len(clusters)):
             idx1 = np.where(labels == clusters[ic1])[0]
-            sd1 = np.take(data, idx1, axis=0)
-            m1 = np.median(sd1, 0)
-            for ic2 in xrange(ic1 + 1, len(clusters)):
-                idx2 = np.where(labels == clusters[ic2])[0]
-                sd2 = np.take(data, idx2, axis=0)
-                m2 = np.median(sd2, 0)
-                v_n = m1 - m2
-                pr_1 = np.dot(sd1, v_n)
-                pr_2 = np.dot(sd2, v_n)
+            if len(idx1) > 0:
+                sd1 = np.take(data, idx1, axis=0)
+                m1 = np.median(sd1, 0)
+                for ic2 in range(ic1 + 1, len(clusters)):
+                    idx2 = np.where(labels == clusters[ic2])[0]
+                    if len(idx2) > 0:
+                        sd2 = np.take(data, idx2, axis=0)
+                        m2 = np.median(sd2, 0)
+                        v_n = m1 - m2
+                        pr_1 = np.dot(sd1, v_n)
+                        pr_2 = np.dot(sd2, v_n)
+                        norm = np.median(np.abs(pr_1 - np.median(pr_1))) ** 2 + \
+                            np.median(np.abs(pr_2 - np.median(pr_2))) ** 2
+                        if norm > 0.0:
+                            dist = np.sum(v_n ** 2) / np.sqrt(norm)
+                            if dist < d_min:
+                                d_min = dist
+                                to_merge = [ic1, ic2]
 
-                norm = np.median(np.abs(pr_1 - np.median(pr_1))) ** 2 + np.median(
-                    np.abs(pr_2 - np.median(pr_2))) ** 2
-                dist = np.sum(v_n ** 2) / np.sqrt(norm)
-
-                if dist < dmin:
-                    dmin = dist
-                    to_merge = [ic1, ic2]
-
-        if dmin < local_merges:
+        if d_min < local_merges:
             labels[np.where(labels == clusters[to_merge[1]])[0]] = clusters[to_merge[0]]
             return True, labels
 
         return False, labels
 
-    has_been_merged = True
-    mask = np.where(labels > -1)[0]
-    clusters = np.unique(labels[mask])
-    merged = [len(clusters), 0]
+    def _greedy_merges(self, data, labels, local_merges):
 
-    while has_been_merged:
-        has_been_merged, labels = do_merging(data, labels, clusters, local_merges)
-        if has_been_merged:
-            merged[1] += 1
-    return labels, merged
+        has_been_merged = True
+        mask = np.where(labels > -1)[0]
+        clusters = np.unique(labels[mask])
+        merged = [len(clusters), 0]
 
+        while has_been_merged:
+            has_been_merged, labels = self._do_merging(data, labels, clusters, local_merges)
+            if has_been_merged:
+                merged[1] += 1
 
-def density_clustering(data, n_min=None, output=None, local_merges=None):
-    rhos, dist, _ = rho_estimation(data)
-    if len(rhos) == 1:
-        labels, c = np.array([0]), np.array([0])
-    elif len(rhos) > 1:
-        rhos = -rhos + rhos.max()
-        labels, c = density_based_clustering(rhos, dist, n_min)
-    else:
-        labels, c = np.array([]), np.array([])
+        return labels, merged
 
-    if local_merges is not None:
-        labels, merged = greedy_merges(data, labels, local_merges)
+    @staticmethod
+    def _discard_small_clusters(labels, n_min):
 
-    if output is not None:
-        plot_cluster(data, labels, output)
+        for cluster_index in np.unique(labels):
+            if cluster_index < 0:
+                continue
+            samples_indices = np.where(labels == cluster_index)[0]
+            if len(samples_indices) < n_min:
+                labels[samples_indices] = -1
 
-    return labels
+        return labels
 
+    def density_clustering(self, data, n_min=None, output=None, local_merges=None):
+        """Run a density clustering on the given data.
 
-def plot_cluster(data, labels, output):
-    import pylab
+        Arguments:
+            data: numpy.ndarray
+            n_min: none | float (optional)
+                Minimal number in any cluster.
+                The default value is None.
+            output: none | string (optional)
+                The path used to create the debug plots.
+                The default value is None.
+            local_merges: none | float (optional)
+                Threshold for merging clusters on this electrode (i.e. similar clusters).
+                The default value is None.
+        Return:
+            labels: numpy.ndarray
+                An array which contains the cluster labels of the data samples.
+        """
 
-    pylab.style.use('seaborn-paper')
+        nb_samples = len(data)
 
-    ax = pylab.subplot(221)
-    for color in np.unique(labels):
-        c = 'C{}'.format(color % 10)
-        idx = np.where(labels == color)[0]
-        ax.scatter(data[idx, 0], data[idx, 1], c=c)
-    ax.set_xticks([])
-    ax.set_yticks([])
+        if nb_samples > 1:
+            rhos, distances, _ = self.rho_estimation(data)
+            labels, nb_clusters = self.density_based_clustering(rhos, distances)
+        elif nb_samples == 1:
+            labels = np.array([0])
+        else:
+            labels = np.array([])
 
-    ax = pylab.subplot(222)
-    for color in np.unique(labels):
-        c = 'C{}'.format(color % 10)
-        idx = np.where(labels == color)[0]
-        ax.scatter(data[idx, 1], data[idx, 2], c=c)
-    ax.set_xticks([])
-    ax.set_yticks([])
+        # Merge similar clusters (if necessary).
+        if local_merges is not None:
+            labels, _ = self._greedy_merges(data, labels, local_merges)
 
-    ax = pylab.subplot(223)
-    for color in np.unique(labels):
-        c = 'C{}'.format(color % 10)
-        idx = np.where(labels == color)[0]
-        ax.scatter(data[idx, 0], data[idx, 2], c=c)
-    ax.set_xticks([])
-    ax.set_yticks([])
-    pylab.savefig(output)
-    pylab.close()
+        # Discard small clusters (if necessary).
+        if n_min is not None:
+            labels = self._discard_small_clusters(labels, n_min)
 
+        if output is not None:
+            self.plot_cluster(data, labels, output)
 
-def plot_tracking(dense_clusters, output):
-    import pylab
+        return labels
 
-    centers = []
-    sigmas = []
-    colors = []
-    for item in dense_clusters:
-        colors += [item.cluster_id]
-        centers += [item.description[0]]
-        sigmas += [item.description[1]]
+    def _compute_pc_limits(self, data):
 
-    centers = np.array(centers)
-    sigmas = np.array(sigmas)
-    colors = np.array(colors, dtype=np.int32)
+        self._pc_lim = []
+        for k in range(0, data.shape[1]):
+            pc_min = np.min(data[:, k])
+            pc_max = np.max(data[:, k])
+            pc_range = pc_max - pc_min
+            pc_min = pc_min - 0.1 * pc_range
+            pc_max = pc_max + 0.1 * pc_range
+            self._pc_lim.append((pc_min, pc_max))
 
-    pylab.style.use('seaborn-paper')
+        return
 
-    if len(centers) > 0:
+    def plot_rho_delta(self, rho, delta, labels=None, mean=None, std=None, threshold=None, marker_size=5,
+                       marker_color='C0', filename_suffix=None):
 
-        s_max = sigmas.max()
+        fig, ax = plt.subplots()
+        if labels is not None:
+            for k, label in enumerate(np.unique(labels)):
+                indices = np.where(labels == label)[0]
+                marker_color = "C{}".format(k % 10)
+                ax.scatter(rho[indices], delta[indices], s=marker_size, c=marker_color,
+                           label="data samples {}".format(label))
+        else:
+            ax.scatter(rho, delta, s=marker_size, c=marker_color, label="data samples")
+        indices = np.argsort(rho)
+        if mean is not None:
+            ax.plot(rho[indices], mean[indices], color='red', linestyle='--', linewidth=1, label="mean")
+        if std is not None:
+            ax.plot(rho[indices], mean[indices] + std[indices], color='red', linestyle=':', linewidth=1,
+                    label="mean+std")
+            ax.plot(rho[indices], mean[indices] - std[indices], color='red', linestyle=':', linewidth=1,
+                    label="mean-std")
+        if threshold is not None:
+            ax.plot(rho[indices], threshold[indices], color='red', linestyle='-', linewidth=1, label="threshold")
+        ax.set_xlabel("rho")
+        ax.set_ylabel("delta")
 
-        for center, sigma, color in zip(centers, sigmas, colors):
-            ax = pylab.subplot(2, 2, 1)
-            c = 'C{}'.format(color % 10)
-            circle = pylab.Circle((center[0], center[1]), sigma, color=c, fill=True, alpha=0.5)
-            ax.add_artist(circle)
-            pylab.scatter(centers[:, 0], centers[:, 1], c='k')
+        if filename_suffix is None:
+            filename = "{}_{}_rho_delta.{}".format(self.name, self.time, self.debug_file_format)
+        else:
+            filename = "{}_{}_rho_delta_{}.{}".format(self.name, self.time, filename_suffix, self.debug_file_format)
+        path = os.path.join(self.debug_plots, filename)
+        plt.tight_layout()
+        plt.savefig(path)
+        plt.close()
 
-            x_min = centers[:, 0].min()
-            x_max = centers[:, 0].max()
+        return
 
-            y_min = centers[:, 1].min()
-            y_max = centers[:, 1].max()
+    def plot_cluster(self, data, labels, output, marker_size=5, with_ticks=True):
 
-            ax.set_xlim(x_min - s_max, x_max + s_max)
-            ax.set_ylim(y_min - s_max, y_max + s_max)
+        if self._pc_lim is None:
+            self._compute_pc_limits(data)
+
+        text_kwargs = {
+            'fontsize': 'xx-small',
+            'verticalalignment': 'center',
+            'horizontalalignment': 'center',
+        }
+
+        fig, ax_array = plt.subplots(nrows=2, ncols=2)
+
+        # 1st subplot.
+        k_1, k_2 = 0, 1  # pair of principal components
+        ax = ax_array[0, 0]
+        unique_labels = np.unique(labels)
+        unique_labels = unique_labels[np.where(unique_labels >= 0)[0]]  # i.e. remove -1 label
+        for k, label in enumerate(unique_labels):
+            c = 'C{}'.format(k % 10)
+            indices = np.where(labels == label)[0]
+            x = data[indices, k_1]
+            y = data[indices, k_2]
+            ax.scatter(x, y, s=marker_size, c=c)
+            ax.text(np.median(x), np.median(y), "{}".format(label), **text_kwargs)
+        ax.set_xlim(*self._pc_lim[k_1])
+        ax.set_ylim(*self._pc_lim[k_2])
+        if not with_ticks:
             ax.set_xticks([])
             ax.set_yticks([])
-
-        for center, sigma, color in zip(centers, sigmas, colors):
-            ax = pylab.subplot(2, 2, 2)
-            c = 'C{}'.format(color % 10)
-            circle = pylab.Circle((center[1], center[2]), sigma, color=c, fill=False)
-            ax.add_artist(circle)
-            pylab.scatter(centers[:, 1], centers[:, 2], c='k')
-
-            x_min = centers[:, 1].min()
-            x_max = centers[:, 1].max()
-
-            y_min = centers[:, 2].min()
-            y_max = centers[:, 2].max()
-
-            ax.set_xlim(x_min - s_max, x_max + s_max)
-            ax.set_ylim(y_min - s_max, y_max + s_max)
+        ax.set_xlabel("PC{}".format(k_1))
+        ax.set_ylabel("PC{}".format(k_2))
+        # 2nd subplot.
+        k_1, k_2 = 2, 1
+        ax = ax_array[0, 1]
+        for k, label in enumerate(unique_labels):
+            c = 'C{}'.format(k % 10)
+            indices = np.where(labels == label)[0]
+            x = data[indices, k_1]
+            y = data[indices, k_2]
+            ax.scatter(x, y, s=marker_size, c=c)
+            ax.text(np.median(x), np.median(y), "{}".format(label), **text_kwargs)
+        ax.set_xlim(*self._pc_lim[k_1])
+        ax.set_ylim(*self._pc_lim[k_2])
+        if not with_ticks:
             ax.set_xticks([])
             ax.set_yticks([])
-
-        for center, sigma, color in zip(centers, sigmas, colors):
-            ax = pylab.subplot(2, 2, 3)
-            c = 'C{}'.format(color % 10)
-            circle = pylab.Circle((center[0], center[2]), sigma, color=c, fill=False)
-            ax.add_artist(circle)
-            pylab.scatter(centers[:, 0], centers[:, 2], c='k')
-
-            x_min = centers[:, 0].min()
-            x_max = centers[:, 0].max()
-
-            y_min = centers[:, 2].min()
-            y_max = centers[:, 2].max()
-
-            ax.set_xlim(x_min - s_max, x_max + s_max)
-            ax.set_ylim(y_min - s_max, y_max + s_max)
+        ax.set_xlabel("PC{}".format(k_1))
+        ax.set_ylabel("PC{}".format(k_2))
+        # 3rd subplot.
+        k_1, k_2 = 0, 2
+        ax = ax_array[1, 0]
+        for k, label in enumerate(unique_labels):
+            c = 'C{}'.format(k % 10)
+            indices = np.where(labels == label)[0]
+            x = data[indices, k_1]
+            y = data[indices, k_2]
+            ax.scatter(x, y, s=marker_size, c=c)
+            ax.text(np.median(x), np.median(y), "{}".format(label), **text_kwargs)
+        ax.set_xlim(*self._pc_lim[k_1])
+        ax.set_ylim(*self._pc_lim[k_2])
+        if not with_ticks:
             ax.set_xticks([])
             ax.set_yticks([])
+        ax.set_xlabel("PC{}".format(k_1))
+        ax.set_ylabel("PC{}".format(k_2))
+        # 4th subplot.
+        ax = ax_array[1, 1]
+        ax.axis('off')
 
-    pylab.savefig(output)
-    pylab.close()
+        plt.savefig(output)
+        plt.close()
 
+        return
 
-def hdbscan_clustering(data, n_min=None, output=None):
-    if n_min is not None:
-        cluster_engine = hdbscan.HDBSCAN(min_cluster_size=int(n_min), core_dist_n_jobs=1, allow_single_cluster=True)
-    else:
-        cluster_engine = hdbscan.HDBSCAN(min_cluster_size=1, core_dist_n_jobs=1, allow_single_cluster=True)
+    # TODO swap and clean the 2 following methods.
 
-    labels = cluster_engine.fit_predict(data)
+    # def plot_templates(self, templates, output):
+    #     # Version: one figure for all the templates.
+    #
+    #     nb_templates = len(templates)
+    #
+    #     _, ax = plt.subplots(nrows=1, ncols=nb_templates)
+    #     for k in range(0, nb_templates):
+    #         template = templates[k]
+    #         color = 'C{}'.format(k % 10)
+    #         template.plot(ax=ax[k], probe=self.probe, color=color)
+    #
+    #     plt.savefig(output)
+    #     plt.close()
+    #
+    #     return
 
-    if output is not None:
-        import pylab
-        pylab.subplot(221)
-        pylab.scatter(data[:, 0], data[:, 1], c=labels)
-        pylab.subplot(222)
-        pylab.scatter(data[:, 1], data[:, 2], c=labels)
-        pylab.subplot(223)
-        pylab.scatter(data[:, 0], data[:, 2], c=labels)
-        pylab.savefig(output)
-        pylab.close()
+    def plot_templates(self, templates, output, mode='multiple_files'):
+        """Plot templates.
 
-    return labels
+        Arguments:
+            templates
+            output
+            mode: string (optional)
+                Either 'single_file' or 'multiple_files'.
+                The default value is 'multiple_files'.
+        """
 
-# def view_mini_clusters(dense, sparse, output=None):
+        nb_templates = len(templates)
+
+        if mode == 'single_file':  # i.e. one figure with all the templates
+
+            _, ax = plt.subplots(nrows=1, ncols=nb_templates)
+            for k in range(0, nb_templates):
+                template = templates[k]
+                color = 'C{}'.format(k % 10)
+                template.plot(ax=ax[k], probe=self.probe, color=color)
+
+            plt.savefig(output)
+            plt.close()
+
+        elif mode == 'multiple_files':  # i.e. one figure per template
+
+            base_path, extension = os.path.splitext(output)
+
+            for k in range(0, nb_templates):
+                _, ax = plt.subplots()
+                template = templates[k]
+                color = 'C{}'.format(k % 10)
+                template.plot(ax=ax, probe=self.probe, color=color)
+                path = base_path + "_{}".format(k) + extension
+                plt.savefig(path)
+                plt.close()
+
+        else:  # raise error message
+
+            string = "unexpected mode value: {}"
+            message = string.format(mode)
+            raise ValueError(message)
+
+        return
+
+    def plot_tracking(self, dense_clusters, output, marker='+', marker_size=5):
+
+        indices = []
+        centers = []
+        sigmas = []
+        colors = []
+        for k, item in enumerate(dense_clusters):
+            indices += [k]
+            colors += [item.cluster_id]
+            centers += [item.description[0]]
+            sigmas += [item.description[1]]
+        indices = np.array(indices)
+        centers = np.array(centers)
+        sigmas = np.array(sigmas)
+        colors = np.array(colors, dtype=np.int32)
+
+        if len(centers) > 0:
+
+            fig, ax_array = plt.subplots(nrows=2, ncols=2)
+
+            # 1st subplot.
+            k_1, k_2 = 0, 1  # pair of principal components
+            ax = ax_array[0, 0]
+            for index, center, sigma, color in zip(indices, centers, sigmas, colors):
+                c = 'C{}'.format(color % 10)
+                circle = plt.Circle((center[k_1], center[k_2]), sigma, color=c, fill=True, alpha=0.5,
+                                    label="std {}".format(index))
+                ax.add_artist(circle)
+                ax.scatter(centers[:, k_1], centers[:, k_2], s=marker_size, c='k', marker=marker,
+                           label="mean {}".format(index))
+                if self._pc_lim is not None:
+                    ax.set_xlim(*self._pc_lim[k_1])
+                    ax.set_ylim(*self._pc_lim[k_2])
+                ax.set_xticks([])
+                ax.set_yticks([])
+                ax.set_xlabel("PC{}".format(k_1))
+                ax.set_ylabel("PC{}".format(k_2))
+            # 2nd subplot.
+            k_1, k_2 = 2, 1  # pair of principal components
+            ax = ax_array[0, 1]
+            for index, center, sigma, color in zip(indices, centers, sigmas, colors):
+                c = 'C{}'.format(color % 10)
+                circle = plt.Circle((center[k_1], center[k_2]), sigma, color=c, fill=True, alpha=0.5,
+                                    label="std {}".format(index))
+                ax.add_artist(circle)
+                ax.scatter(centers[:, k_1], centers[:, k_2], s=marker_size, c='k', marker=marker,
+                           label="mean {}".format(index))
+                if self._pc_lim is not None:
+                    ax.set_xlim(*self._pc_lim[k_1])
+                    ax.set_ylim(*self._pc_lim[k_2])
+                ax.set_xticks([])
+                ax.set_yticks([])
+                ax.set_xlabel("PC{}".format(k_1))
+                ax.set_ylabel("PC{}".format(k_2))
+            # 3rd subplot.
+            k_1, k_2 = 0, 2  # pair of principal components
+            ax = ax_array[1, 0]
+            for index, center, sigma, color in zip(indices, centers, sigmas, colors):
+                c = 'C{}'.format(color % 10)
+                circle = plt.Circle((center[k_1], center[k_2]), sigma, color=c, fill=True, alpha=0.5,
+                                    label="std {}".format(index))
+                ax.add_artist(circle)
+                ax.scatter(centers[:, k_1], centers[:, k_2], s=marker_size, c='k', marker=marker,
+                           label="mean {}".format(index))
+                if self._pc_lim is not None:
+                    ax.set_xlim(*self._pc_lim[k_1])
+                    ax.set_ylim(*self._pc_lim[k_2])
+                ax.set_xticks([])
+                ax.set_yticks([])
+                ax.set_xlabel("PC{}".format(k_1))
+                ax.set_ylabel("PC{}".format(k_2))
+            # 4th subplot.
+            ax = ax_array[1, 1]
+            ax.axis('off')
+
+        plt.savefig(output)
+        plt.close()
+
+        return
+
+    def plot_ground_truth_clusters(self, mode='max_channel', marker_size=5, with_ticks=True):
+        """Plot ground truth clusters.
+
+        Argument:
+            mode: string (optional)
+                The mode can be:
+                    'max_channel': consider templates having their maximal deflection on the channel handle by this
+                        online manager
+                    'nonzero_channel': consider templates showing a deflection on the channel handle by this online
+                        manager
+                The default value is 'max_channel'.
+            marker_size: integer (optional)
+                The default value is 10.
+            with_ticks: boolean (optional)
+                The default value is True.
+        """
+
+        templates = [
+            load_template(path)
+            for path in self.debug_ground_truth_templates
+        ]
+
+        if mode == 'max_channel':
+            main_indices = [
+                k
+                for k, template in enumerate(templates)
+                if template.channel == self.channel
+            ]
+            main_data = np.array([
+                template.first_component.to_dense()
+                for template in templates
+                if template.channel == self.channel
+            ])
+            other_data = np.array([
+                template.first_component.to_dense()
+                for template in templates
+                if template.channel != self.channel
+            ])
+        elif mode == 'nonzero_channel':
+            main_indices = [
+                k
+                for k, template in enumerate(templates)
+                if self.channel in template.indices
+            ]
+            main_data = np.array([
+                template.first_component.to_dense()
+                for template in templates
+                if self.channel in template.indices
+            ])
+            other_data = np.array([
+                template.first_component.to_dense()
+                for template in templates
+                if self.channel not in template.indices
+            ])
+        else:
+            string = "unexpected mode value: {}"
+            message = string.format(mode)
+            raise ValueError(message)
+
+        main_reduced_data = self.reduce_data(main_data)
+        other_reduced_data = self.reduce_data(other_data)
+
+        main_marker_colors = [
+            'C{}'.format(k % 10)
+            for k in range(0, main_reduced_data.shape[0])
+        ]
+
+        if self._pc_lim is None:
+            self._compute_pc_limits(main_reduced_data)
+
+        text_kwargs = {
+            'fontsize': 'xx-small',
+            'verticalalignment': 'center',
+            'horizontalalignment': 'center',
+        }
+
+        fig, ax_array = plt.subplots(2, 2)
+
+        # 1st subplot.
+        k_1, k_2 = 0, 1  # pair of principal components
+        ax = ax_array[0, 0]
+        ax.scatter(main_reduced_data[:, k_1], main_reduced_data[:, k_2], s=marker_size, c=main_marker_colors)
+        ax.scatter(other_reduced_data[:, k_1], other_reduced_data[:, k_2], s=marker_size / 2, c='gray')
+        for k, index in enumerate(main_indices):
+            x = main_reduced_data[k, k_1]
+            y = main_reduced_data[k, k_2]
+            s = "{}".format(index)
+            ax.text(x, y, s, **text_kwargs)
+        ax.set_xlim(*self._pc_lim[k_1])
+        ax.set_ylim(*self._pc_lim[k_2])
+        if not with_ticks:
+            ax.set_xticks([])
+            ax.set_yticks([])
+        ax.set_xlabel("PC{}".format(k_1))
+        ax.set_ylabel("PC{}".format(k_2))
+        # 2nd subplot.
+        k_1, k_2 = 2, 1
+        ax = ax_array[0, 1]
+        ax.scatter(main_reduced_data[:, k_1], main_reduced_data[:, k_2], s=marker_size, c=main_marker_colors)
+        ax.scatter(other_reduced_data[:, k_1], other_reduced_data[:, k_2], s=marker_size / 2, c='gray')
+        for k, index in enumerate(main_indices):
+            x = main_reduced_data[k, k_1]
+            y = main_reduced_data[k, k_2]
+            s = "{}".format(index)
+            ax.text(x, y, s, **text_kwargs)
+        ax.set_xlim(*self._pc_lim[k_1])
+        ax.set_ylim(*self._pc_lim[k_2])
+        if not with_ticks:
+            ax.set_xticks([])
+            ax.set_yticks([])
+        ax.set_xlabel("PC{}".format(k_1))
+        ax.set_ylabel("PC{}".format(k_2))
+        # 3rd subplot.
+        k_1, k_2 = 0, 2
+        ax = ax_array[1, 0]
+        ax.scatter(main_reduced_data[:, k_1], main_reduced_data[:, k_2], s=marker_size, c=main_marker_colors)
+        ax.scatter(other_reduced_data[:, k_1], other_reduced_data[:, k_2], s=marker_size / 2, c='gray')
+        for k, index in enumerate(main_indices):
+            x = main_reduced_data[k, k_1]
+            y = main_reduced_data[k, k_2]
+            s = "{}".format(index)
+            ax.text(x, y, s, **text_kwargs)
+        ax.set_xlim(*self._pc_lim[k_1])
+        ax.set_ylim(*self._pc_lim[k_2])
+        if not with_ticks:
+            ax.set_xticks([])
+            ax.set_yticks([])
+        ax.set_xlabel("PC{}".format(k_1))
+        ax.set_ylabel("PC{}".format(k_2))
+        # 4th subplot.
+        ax = ax_array[1, 1]
+        ax.axis('off')
+
+        filename = "{}_{}_ground_truth_clusters_{}.{}".format(self.name, self.time, mode, self.debug_file_format)
+        path = os.path.join(self.debug_plots, filename)
+        plt.savefig(path)
+        plt.close()
+
+        return
+
+    def plot_ground_truth_templates(self, mode='max_channel'):
+
+        templates = [
+            load_template(path)
+            for path in self.debug_ground_truth_templates
+        ]
+
+        if mode == 'max_channel':
+            main_indices = [
+                k
+                for k, template in enumerate(templates)
+                if template.channel == self.channel
+            ]
+        elif mode == 'nonzero_channel':
+            main_indices = [
+                k
+                for k, template in enumerate(templates)
+                if self.channel in template.indices
+            ]
+        else:
+            string = "unexpected mode value: {}"
+            message = string.format(mode)
+            raise ValueError(message)
+
+        nb_templates = len(main_indices)
+        a = np.sqrt(float(nb_templates) / 6.0)
+        nb_columns = int(np.ceil(3.0 * a))
+        nb_rows = int(np.ceil(float(nb_templates) / float(nb_columns)))
+        nb_subplots = nb_rows * nb_columns
+
+        fig, ax = plt.subplots(nrows=nb_rows, ncols=nb_columns, figsize=(3.0 * 6.4, 2.0 * 4.8))
+        for k, index in enumerate(main_indices):
+            i, j = k // nb_columns, k % nb_columns
+            try:
+                ax_ = ax[i, j]
+            except IndexError:
+                try:
+                    ax_ = ax[k]
+                except IndexError:
+                    ax_ = ax
+            template = templates[index]
+            title = "Template {}".format(index)
+            with_xaxis = (i >= nb_rows - 1)
+            with_yaxis = (j == 0)
+            with_scale_bars = (with_xaxis and with_yaxis)
+            color = "C{}".format(k % 10)
+            template.plot(ax=ax_, probe=self.probe, title=title, with_xaxis=with_xaxis,
+                          with_yaxis=with_yaxis, with_scale_bars=with_scale_bars, color=color)
+        for k in range(nb_templates, nb_subplots):
+            i, j = k // nb_columns, k % nb_columns
+            try:
+                ax_ = ax[i, j]
+            except IndexError:
+                try:
+                    ax_ = ax[k]
+                except IndexError:
+                    ax_ = ax
+            ax_.set_axis_off()
+
+        filename = "{}_{}_ground_truth_templates_{}.{}".format(self.name, self.time, mode, self.debug_file_format)
+        path = os.path.join(self.debug_plots, filename)
+        plt.savefig(path)
+        plt.close()
+
+        return

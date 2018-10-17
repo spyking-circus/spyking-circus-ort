@@ -4,7 +4,6 @@ from ..obj import Peaks
 
 
 def load_peaks(path):
-    # TODO add docstring.
 
     path = os.path.expanduser(path)
     path = os.path.abspath(path)

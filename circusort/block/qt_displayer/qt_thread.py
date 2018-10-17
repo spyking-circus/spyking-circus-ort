@@ -1,4 +1,7 @@
-from PyQt4.QtCore import QThread, pyqtSignal
+try:
+    from PyQt4.QtCore import QThread, pyqtSignal  # Python 2 compatibility.
+except ImportError:  # i.e. ModuleNotFoundError
+    from PyQt5.QtCore import QThread, pyqtSignal  # Python 3 compatibility.
 
 
 class QtThread(QThread):

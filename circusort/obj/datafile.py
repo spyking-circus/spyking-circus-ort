@@ -2,6 +2,7 @@ import matplotlib.gridspec as gds
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import warnings
 
 from circusort.utils.path import normalize_path
 
@@ -26,7 +27,7 @@ class DataFile(object):
             nb_channels: integer
             dtype: string (optional)
                 The default value is 'float32'.
-            gain: float
+            gain: float (optional)
                 The default value is 1.0.
         """
 
@@ -38,7 +39,12 @@ class DataFile(object):
         self.data = np.memmap(self.path, dtype=self.dtype)
 
         if self.nb_channels > 1:
-            self.data = self.data.reshape(self.data.shape[0] // self.nb_channels, self.nb_channels)
+            self.nb_samples = self.data.shape[0] // self.nb_channels
+            self.data = self.data.reshape(self.nb_samples, self.nb_channels)
+        elif self.nb_channels == 1:
+            self.nb_samples = self.data.shape[0]
+        else:
+            raise NotImplementedError()
 
     def __len__(self):
 
@@ -50,6 +56,8 @@ class DataFile(object):
         Arguments:
             t_min: float
             t_max: float
+        Return:
+            data: numpy.ndarray
         """
 
         b_min = int(np.ceil(t_min * self.sampling_rate))
@@ -61,7 +69,68 @@ class DataFile(object):
 
         return data
 
-    def _plot(self, ax, t_min=0.0, t_max=0.5, **kwargs):
+    def take(self, channels=None, ts_min=None, ts_max=None):
+        """Take samples from data file.
+
+        Arguments:
+            channels: none | iterable (optional)
+                The indices of the channels to extract.
+                The default value is None.
+            ts_min: none | integer (optional)
+                The minimum time step to extract.
+                The default value is None.
+            ts_max: none | integer (optional)
+                The maximum time step to extract.
+                The default value is None.
+        Return:
+            data: numpy.ndarray
+                The extracted samples.
+        """
+
+        if ts_min is None:
+            ts_min = 0
+        if ts_max is None:
+            ts_max = self.data.shape[0] - 1
+
+        if channels is None:
+            data = self.data[ts_min:ts_max + 1, :]
+        else:
+            time_steps = np.arange(ts_min, ts_max + 1)
+            data = self.data[np.ix_(time_steps, channels)]
+
+        return data
+
+    def put(self, data, channels=None, ts_min=None, ts_max=None):
+        """"Put samples in data file.
+
+        Arguments:
+            data: numpy.ndarray
+                The data to inject.
+            channels: none | iterable (optional)
+                The indices of the channels for the injection.
+                The default value is None.
+            ts_min: none | integer (optional)
+                The minimum time step for the injection.
+                The default value is None.
+            ts_max: none | integer (optional)
+                The maximum time step for the injection.
+                The default value is None.
+        """
+
+        if ts_min is None:
+            ts_min = 0
+        if ts_max is None:
+            ts_max = self.data.shape[0] - 1
+
+        if channels is None:
+            self.data[ts_min:ts_max+1, :] = data
+        else:
+            time_steps = np.arange(ts_min, ts_max + 1)
+            self.data[np.ix_(time_steps, channels)] = data
+
+        return
+
+    def _plot(self, ax, t_min=0.0, t_max=0.5, colors=None, **kwargs):
         """Plot data from file.
 
         Arguments:
@@ -70,6 +139,8 @@ class DataFile(object):
                 The default value is 0.0.
             t_max: float (optional)
                 The default value is 0.5.
+            colors: none | iterable (optional)
+                The default value is None.
             kwargs: dict (optional)
                 Additional keyword arguments. See matplotlib.axes.Axes.plot for details.
         Return:
@@ -84,20 +155,33 @@ class DataFile(object):
 
         snippet = self.get_snippet(t_min_, t_max_)
 
+        # Define the number of channels to be plotted.
+        max_nb_channels = 10
+        if self.nb_channels > max_nb_channels:
+            string = "Too many channels ({}), sub-selection used ({}) to plot the data."
+            message = string.format(self.nb_channels, max_nb_channels)
+            warnings.warn(message)
+        nb_plotted_channels = min(self.nb_channels, max_nb_channels)
+
+        # Compute the scaling factor for the voltage.
         factor = 0.0
-        for channel in range(0, self.nb_channels):
+        for channel in range(0, nb_plotted_channels):
             y = snippet[:, channel]
             y = y - np.mean(y)
             factor = max(factor, np.abs(y).max())
         factor = factor if factor > 0.0 else 1.0
 
-        for count, channel in enumerate(range(0, self.nb_channels)):
+        # Plot data.
+        for count, channel in enumerate(range(0, nb_plotted_channels)):
             x = np.linspace(t_min_, t_max_, num=nb_samples)
             y = snippet[0:nb_samples, channel]
             y = y - np.mean(y)
             y = count + 0.5 * y / factor
-            ax.plot(x, y, **kwargs)
-
+            if colors is None:
+                ax.plot(x, y, **kwargs)
+            else:
+                kwargs.update(color=colors[channel])
+                ax.plot(x, y, **kwargs)
         ax.set_yticks([])
         ax.set_xlabel(u"time (s)")
         ax.set_ylabel(u"channel")

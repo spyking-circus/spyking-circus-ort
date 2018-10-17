@@ -1,6 +1,13 @@
 import numpy as np
+import sys
 
 from circusort.block.block import Block
+
+if sys.version_info.major == 3:
+    unicode = str  # Python 3 compatibility.
+
+
+__classname__ = 'Multiplexer'
 
 
 class Multiplexer(Block):
@@ -12,7 +19,6 @@ class Multiplexer(Block):
         nb_samples: integer
         sampling_rate: float
     """
-    # TODO complete docstring.
 
     name = "Multiplexer"
 
@@ -42,7 +48,6 @@ class Multiplexer(Block):
             sampling_rate: float (optional)
                 The default value is 20e+3.
         """
-        # TODO complete docstring.
 
         Block.__init__(self, **kwargs)
 
@@ -81,21 +86,18 @@ class Multiplexer(Block):
 
     @staticmethod
     def _get_input_name(name, k):
-        # TODO add docstring.
 
         input_name = "{}_{}".format(name, k)
 
         return input_name
 
     def _initialize(self):
-        # TODO add docstring.
 
         pass
 
         return
 
     def _guess_output_endpoints(self):
-        # TODO add docstring.
 
         for output_name, structure in zip(self._output_names, self._output_structures):
             if structure == 'array':
@@ -128,7 +130,6 @@ class Multiplexer(Block):
         return
 
     def _process(self):
-        # TODO add docstring.
 
         try:
 
@@ -145,7 +146,7 @@ class Multiplexer(Block):
             self._measure_time('start', frequency=100)
 
             # Send data.
-            for output_name, packet in input_packets.iteritems():
+            for output_name, packet in input_packets.items():
 
                 self.outputs[output_name].send(packet)
 
@@ -157,14 +158,13 @@ class Multiplexer(Block):
             string = "{} raises {} in _process"
             message = string.format(self.name, exception)
             self.log.error(message)
-            # Reraise the exception.
+            # Re-raise the exception.
             raise exception
 
         return
 
     def _introspect(self):
-        """Introspection of the multiplexing."""
-        # TODO complete docstring.
+        """Introspection of the multiplexer."""
 
         try:
 
@@ -190,7 +190,7 @@ class Multiplexer(Block):
             string = "{} raises {} in _introspect"
             message = string.format(exception)
             self.log.error(message)
-            # Reraise the exception.
+            # Re-raise the exception.
             raise exception
 
         return

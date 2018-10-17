@@ -1,3 +1,4 @@
+# import matplotlib.pyplot as plt
 import numpy as np
 import os
 
@@ -215,7 +216,7 @@ class FitterBis(Block):
     def _extract_waveforms(self, peak_time_steps):
         """Extract waveforms from buffer
 
-        Attributes:
+        Argument:
             peak_time_steps: np.array
                 Peak time steps. Array of shape (number of peaks,).
 
@@ -296,7 +297,7 @@ class FitterBis(Block):
             # while not np.all(nb_failures == self.max_nb_trials):
             while np.mean(nb_failures) < self.nb_chances:
 
-                # Set scalar products of tested matchings to zero.
+                # Set scalar products of tested matches to zero.
                 data = sub_b * mask
                 # Sort peaks by decreasing highest scalar product with all the templates.
                 peak_indices = np.argsort(np.max(data, axis=0))[::-1]
@@ -314,10 +315,14 @@ class FitterBis(Block):
                     best_template_index = np.argmax(peak_scalar_products, axis=0)
 
                     # Compute the best amplitude.
-                    best_amplitude = sub_b[best_template_index, peak_index] / self._overlaps_store.nb_elements
+                    # TODO check definition of template norm and swap/clean the 2 following lines.
+                    # best_amplitude = sub_b[best_template_index, peak_index] / self._overlaps_store.nb_elements
+                    best_amplitude = sub_b[best_template_index, peak_index]
                     if self._overlaps_store.two_components:
                         best_scalar_product = scalar_products[best_template_index + self.nb_templates, peak_index]
-                        best_amplitude_2 = best_scalar_product / self._overlaps_store.nb_elements
+                        # TODO check definition of template norm and swap/clean the 2 following lines.
+                        # best_amplitude_2 = best_scalar_product / self._overlaps_store.nb_elements
+                        best_amplitude_2 = best_scalar_product
                     else:
                         best_amplitude_2 = None
 
@@ -482,17 +487,17 @@ class FitterBis(Block):
     @property
     def nb_buffers(self):
 
-        return self.x.shape[0] / self._nb_samples
+        return self.x.shape[0] // self._nb_samples
 
     @property
     def result_area_start(self):
 
-        return (self.nb_buffers - 1) * self._nb_samples - self._nb_samples / 2
+        return (self.nb_buffers - 1) * self._nb_samples - self._nb_samples // 2
 
     @property
     def result_area_end(self):
 
-        return (self.nb_buffers - 1) * self._nb_samples + self._nb_samples / 2
+        return (self.nb_buffers - 1) * self._nb_samples + self._nb_samples // 2
 
     @property
     def work_area_start(self):
@@ -612,7 +617,7 @@ class FitterBis(Block):
 
                 # Log debug message.
                 string = "{} modifies template and overlap stores"
-                message = string.format(self.name)
+                message = string.format(self.name_and_counter)
                 self.log.debug(message)
 
                 # Modify template and overlap stores.
@@ -626,21 +631,24 @@ class FitterBis(Block):
                     self._init_temp_window()
                     # Log debug message.
                     string = "{} initializes template and overlap stores ({}, {})"
-                    message = string.format(self.name, updater['template_store'], updater['overlaps']['path'])
+                    message = string.format(self.name_and_counter, updater['template_store'],
+                                            updater['overlaps']['path'])
                     self.log.debug(message)
+
                 else:
+
                     # TODO avoid duplicates in template store and uncomment the 3 following lines.
-                    # # Update template and overlap stores.
-                    # laziness = updater['overlaps']['path'] is None
-                    # self._overlaps_store.update(indices, laziness=laziness)
+                    # Update template and overlap stores.
+                    laziness = updater['overlaps']['path'] is None
+                    self._overlaps_store.update(indices, laziness=laziness)
                     # Log debug message.
                     string = "{} updates template and overlap stores"
-                    message = string.format(self.name)
+                    message = string.format(self.name_and_counter)
                     self.log.debug(message)
 
                 # Log debug message.
                 string = "{} modified template and overlap stores"
-                message = string.format(self.name)
+                message = string.format(self.name_and_counter)
                 self.log.debug(message)
 
                 updater_packet = self.get_input('updater').receive(blocking=False,

@@ -1,18 +1,28 @@
 from .block import Block
+
+# import matplotlib.pyplot as plt
 import numpy as np
-import scipy.interpolate
-from sklearn.decomposition import PCA
+# import os
+
+from sklearn.decomposition import PCA as PCA_
+
+from circusort.obj.buffer import Buffer
 
 
-class Pca(Block):
+__classname__ = 'PCA'
+
+
+class PCA(Block):
     """PCA
 
     Attributes:
-        spike_width
-        output_dim
-        alignment
-        nb_waveforms
-        sampling_rate
+        spike_width: float
+        spike_jitter: float
+        spike_sigma: float
+        output_dim: integer
+        alignment: boolean
+        nb_waveforms: integer
+        sampling_rate: float
 
     Inputs:
         data
@@ -22,16 +32,17 @@ class Pca(Block):
         pcs
 
     """
-    # TODO complete docstring.
 
     name = "PCA"
 
     params = {
-        'spike_width': 5,
+        'spike_width': 5.0,  # ms
+        'spike_jitter': 1.0,  # ms
+        'spike_sigma': 0.0,  # µV
         'output_dim': 5,
         'alignment': True,
         'nb_waveforms': 10000,
-        'sampling_rate': 20000,
+        'sampling_rate': 20e+3,  # Hz
     }
 
     def __init__(self, **kwargs):
@@ -40,6 +51,8 @@ class Pca(Block):
 
         # The following lines are useful to avoid some PyCharm's warnings.
         self.spike_width = self.spike_width
+        self.spike_jitter = self.spike_jitter
+        self.spike_sigma = self.spike_sigma
         self.output_dim = self.output_dim
         self.alignment = self.alignment
         self.nb_waveforms = self.nb_waveforms
@@ -57,21 +70,10 @@ class Pca(Block):
 
     def _initialize(self):
 
-        self._spike_width_ = int(self.sampling_rate * self.spike_width * 1e-3)
         self.sign_peaks = None
         self.send_pcs = True
-        if np.mod(self._spike_width_, 2) == 0:
-            self._spike_width_ += 1
-        self._width = (self._spike_width_ - 1) // 2
-        self._2_width = 2 * self._width
-
-        if self.alignment:
-            self.cdata = np.linspace(-self._width, self._width, 5 * self._spike_width_)
-            self.xdata = np.arange(-self._2_width, self._2_width + 1)
-            self.xoff = len(self.cdata) / 2.0
-
-        self._output_shape = (2, self._spike_width_, self.output_dim)
-
+        self.batch = Buffer(self.sampling_rate, self.spike_width, self.spike_jitter, alignment=self.alignment)
+        self._output_shape = (2, self.batch.temporal_width, self.output_dim)
         self.pcs = np.zeros(self._output_shape, dtype=self._output_dtype)
 
         return
@@ -85,36 +87,12 @@ class Pca(Block):
 
         return
 
-    def _is_valid(self, peak):
-
-        if self.alignment:
-            return (peak >= self._2_width) and (peak + self._2_width < self._nb_samples)
-        else:
-            return (peak >= self._width) and (peak + self._width < self._nb_samples)
-
     def is_ready(self, key=None):
 
         if key is not None:
             return (self.nb_spikes[key] >= self.nb_waveforms) and not self.has_pcs[key]
         else:
             return bool(np.prod([i for i in self.has_pcs.values()]))  # TODO correct (use np.all instead)?
-
-    def _get_waveform(self, batch, channel, peak, key):
-
-        if self.alignment:
-            ydata = batch[peak - self._2_width:peak + self._2_width + 1, channel]
-            f = scipy.interpolate.UnivariateSpline(self.xdata, ydata, s=0)
-            if key == 'negative':
-                rmin = float(np.argmin(f(self.cdata)) - self.xoff) / 5.0
-            else:
-                rmin = float(np.argmax(f(self.cdata)) - self.xoff) / 5.0
-            ddata = np.linspace(rmin - self._width, rmin + self._width, self._spike_width_)
-
-            result = f(ddata).astype(np.float32)
-        else:
-            result = batch[peak - self._width:peak + self._width + 1, channel]
-
-        return result
 
     def _infer_sign_peaks(self, peaks):
 
@@ -126,7 +104,7 @@ class Pca(Block):
         for key in peaks.keys():
             self.nb_spikes[key] = 0
             self.has_pcs[key] = False
-            self.waveforms[key] = np.zeros((self.nb_waveforms, self._spike_width_), dtype=np.float32)
+            self.waveforms[key] = np.zeros((self.nb_waveforms, self.batch.temporal_width), dtype=np.float32)
 
         return
 
@@ -134,8 +112,10 @@ class Pca(Block):
 
         # Receive input data.
         data_packet = self.get_input('data').receive()
+        data = data_packet['payload']
         number = data_packet['number']
-        batch = data_packet['payload']
+        offset = number * self._nb_samples
+        self.batch.update(data, offset=offset)
         # Receive peaks (if necessary).
         if self.is_active:
             peaks_packet = self.get_input('peaks').receive(blocking=True, number=number)
@@ -161,11 +141,19 @@ class Pca(Block):
 
                     for channel, signed_peaks in peaks[key].items():
                         if self.nb_spikes[key] < self.nb_waveforms:
+                            # Collect more waveforms.
                             for peak in signed_peaks:
-                                if self.nb_spikes[key] < self.nb_waveforms and self._is_valid(peak):
-                                    waveform = self._get_waveform(batch, int(channel), peak, key)
+                                if self.nb_spikes[key] < self.nb_waveforms and self.batch.valid_peaks(peak):
+                                    waveform = self.batch.get_waveform(int(channel), peak, peak_type=key,
+                                                                       sigma=self.spike_sigma)
                                     self.waveforms[key][self.nb_spikes[key]] = waveform
                                     self.nb_spikes[key] += 1
+                            # Log debug message (if necessary).
+                            if self.counter % 50 == 0:
+                                string = "{} gathers {} {} peaks ({} wanted)"
+                                message = string.format(self.name_and_counter, self.nb_spikes[key], key,
+                                                        self.nb_waveforms)
+                                self.log.debug(message)
 
                     if self.is_ready(key):
                         # Log info message.
@@ -173,8 +161,42 @@ class Pca(Block):
                         message = string.format(self.name_and_counter, len(self.waveforms[key]), key)
                         self.log.info(message)
                         # Initialize and fit PCA.
-                        pca = PCA(self.output_dim)
+                        pca = PCA_(self.output_dim)
                         pca.fit(self.waveforms[key])
+
+                        # TODO remove the following lines.
+                        # # 1st plot.
+                        # if not os.path.isdir("/tmp/waveforms"):
+                        #     os.makedirs("/tmp/waveforms")
+                        # for k in range(0, min(10, self.waveforms[key].shape[0])):
+                        #     waveform = self.waveforms[key][k]
+                        #     fig, ax = plt.subplots()
+                        #     ax.plot(waveform, color='C0')
+                        #     ax.axvline(x=(len(waveform) - 1) // 2, color='grey')
+                        #     fig.savefig("/tmp/waveforms/{}_waveform_{}.pdf".format(key, k))
+                        #     plt.close(fig)
+                        # # 2nd plot.
+                        # fig, ax = plt.subplots()
+                        # waveform = None
+                        # for k in range(0, min(1000, self.waveforms[key].shape[0])):
+                        #     waveform = self.waveforms[key][k]
+                        #     ax.plot(waveform, color='C0', linewidth=1, alpha=0.25)
+                        # if waveform is not None:
+                        #     ax.axvline(x=(len(waveform) - 1) // 2, color='grey')
+                        # fig.savefig("/tmp/waveforms/{}_waveforms.pdf".format(key))
+                        # plt.close(fig)
+                        # # 3rd plot.
+                        # fig, ax = plt.subplots()
+                        # waveform = None
+                        # for k in range(0, min(1000, self.waveforms[key].shape[0])):
+                        #     waveform = self.waveforms[key][k]
+                        #     central_time_step = (len(waveform) - 1) // 2
+                        #     if np.argmin(waveform) != central_time_step:
+                        #         ax.plot(waveform, color='C0', linewidth=1, alpha=0.25)
+                        # if waveform is not None:
+                        #     ax.axvline(x=(len(waveform) - 1) // 2, color='grey')
+                        # fig.savefig("/tmp/waveforms/misaligned_{}_waveforms.pdf".format(key))
+                        # plt.close(fig)
 
                         if key == 'negative':
                             self.pcs[0] = pca.components_.T
@@ -198,7 +220,6 @@ class Pca(Block):
         return
 
     def _introspect(self):
-        # TODO add docstring.
 
         nb_buffers = self.counter - self.start_step
         start_times = np.array(self._measured_times.get('start', []))

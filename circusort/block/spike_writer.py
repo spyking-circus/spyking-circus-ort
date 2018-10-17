@@ -67,6 +67,7 @@ class SpikeWriter(Block):
             self._mode = 'raw'
         else:
             self._mode = 'hdf5'
+        self._h5_file = None
 
     def _get_temp_file(self, basename=None):
 
@@ -227,4 +228,5 @@ class SpikeWriter(Block):
             for file_ in self.data_file.values():
                 file_.close()
         elif self._mode == 'hdf5':
-            self._h5_file.close()
+            if self._h5_file is not None:
+                self._h5_file.close()

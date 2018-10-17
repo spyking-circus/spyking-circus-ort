@@ -15,6 +15,18 @@ class Peaks(object):
         self._path = path
         self._file = h5py.File(self._path, mode='r')
 
+    def __len__(self):
+
+        return self._times.size
+
+    def __getitem__(self, key):
+
+        time = self._times[key]
+        channel = self._channels[key]
+        polarity = self._polarities[key]
+
+        return time, channel, polarity
+
     @property
     def _times(self):
 

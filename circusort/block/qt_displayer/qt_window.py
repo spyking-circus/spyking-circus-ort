@@ -1,8 +1,15 @@
 # coding=utf-8
-import numpy as np
 
-from PyQt4.QtCore import Qt
-from PyQt4.QtGui import *
+try:
+    # Python 2 compatibility.
+    from PyQt4.QtCore import Qt
+    from PyQt4.QtGui import QMainWindow, QLabel, QDoubleSpinBox, QSizePolicy, \
+        QSpacerItem, QGridLayout, QGroupBox, QDockWidget, QLineEdit
+except ImportError:  # i.e. ModuleNotFoundError
+    # Python 3 compatibility.
+    from PyQt5.QtCore import Qt
+    from PyQt5.QtWidgets import QMainWindow, QLabel, QDoubleSpinBox, QSizePolicy,\
+        QSpacerItem, QGridLayout, QGroupBox, QDockWidget, QLineEdit
 
 from circusort.block.qt_displayer.qt_canvas import VispyCanvas
 from circusort.block.qt_displayer.qt_thread import QtThread

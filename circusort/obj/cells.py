@@ -42,7 +42,7 @@ class Cells(object):
     @property
     def ids(self):
 
-        return self.cells.keys()
+        return list(self.cells.keys())
 
     def __getitem__(self, identifier):
 
@@ -52,25 +52,25 @@ class Cells(object):
 
     def __iter__(self):
 
-        iterator = self.values()
+        iterator = iter(self.values())
 
         return iterator
 
     def keys(self):
 
-        iterator = self.cells.iterkeys()
+        iterator = self.cells.keys()
 
         return iterator
 
     def values(self):
 
-        iterator = self.cells.itervalues()
+        iterator = self.cells.values()
 
         return iterator
 
     def items(self):
 
-        iterator = self.cells.iteritems()
+        iterator = self.cells.items()
 
         return iterator
 

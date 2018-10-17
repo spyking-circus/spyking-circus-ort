@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
+
 import numpy as np
+
 from circusort.obj.overlaps_store import OverlapsStore
 
 
@@ -19,21 +21,25 @@ class TemplateDictionary(object):
 
     @property
     def is_empty(self):
+
         return len(self.template_store) == 0
 
     @property
     def first_component(self):
+
         return self.overlaps_store.first_component
 
     def _init_from_template(self, template):
+        """Initialize template dictionary based on a sampled template.
+
+        Argument:
+            template: circusort.obj.Template
+                The sampled template used to initialize the dictionary. This template won't be added to the dictionary.
+        """
 
         self.nb_elements = self.nb_channels * template.temporal_width
 
-        if self.cc_merge is not None:
-            self.cc_merge *= self.nb_elements
-
-        if self.cc_mixture is not None:
-            self.cc_mixture *= self.nb_elements
+        return
 
     def __str__(self):
 
@@ -50,6 +56,8 @@ class TemplateDictionary(object):
         for i in self.first_component:
             yield self[i]
 
+        return
+
     def __getitem__(self, index):
 
         return self.first_component[index]
@@ -60,10 +68,12 @@ class TemplateDictionary(object):
 
     @property
     def to_json(self):
+
         result = {
             'template_store': self.template_store.file_name,
             'overlaps': self.overlaps_store.to_json
         }
+
         return result
 
     @property
@@ -119,16 +129,15 @@ class TemplateDictionary(object):
         """Add a template to the template dictionary.
 
         Arguments:
-            template
-
+            template: circusort.obj.Template
         Return:
             indices: list
                 A list which contains the indices of templates successfully added to the underlying template store.
         """
-        # TODO complete docstring.
 
         indices = self.template_store.add(template)
         self.overlaps_store.add_template(template)
+
         return indices
 
     def compute_overlaps(self):
@@ -139,14 +148,24 @@ class TemplateDictionary(object):
 
         self.overlaps_store.save_overlaps()
 
-    def non_zeros(self, indices):
+    def non_zeros(self, channel_indices):
+        """Get indices of templates whose spatial supports include at least one of the given channel indices.
 
-        res = np.zeros(0, dtype=np.int32)
-        for count, i in enumerate(self._indices):
-            if np.any(np.in1d(i, indices)):
-                res = np.concatenate((res, [count]))
+        Argument:
+            channel_indices: iterable
+                The channel indices.
+        Return:
+            template_indices: numpy.ndarray
+                The template indices.
+        """
 
-        return res
+        template_indices = np.array([
+            k
+            for k, channel_indices_bis in enumerate(self._indices)
+            if np.any(np.in1d(channel_indices_bis, channel_indices))
+        ], dtype=np.int32)
+
+        return template_indices
 
     def initialize(self, templates):
         """Initialize the template dictionary with templates.
@@ -157,7 +176,6 @@ class TemplateDictionary(object):
             accepted: list
                 A list which contains the indices of templates successfully added to the underlying template store.
         """
-        # TODO complete docstring.
 
         accepted, _, _ = self.add(templates, force=True)
 
@@ -178,25 +196,29 @@ class TemplateDictionary(object):
             nb_mixtures: integer
                 The number of mixtures.
         """
-        # TODO complete docstring.
 
         nb_duplicates = 0
         nb_mixtures = 0
         accepted = []
 
-        if force:
-            for t in templates:
+        # Initialize the dictionary (if necessary).
+        if self.is_empty:
+            template = next(iter(templates))
+            self._init_from_template(template)
 
-                if self.is_empty:
-                    self._init_from_template(t)
+        if force:
+            # Add all the given templates without checking duplicates and mixtures.
+
+            for t in templates:
 
                 accepted += self._add_template(t)
 
-        else:
-            for t in templates:
+                if self.optimize:
+                    self._indices += [t.indices]
 
-                if self.is_empty:
-                    self._init_from_template(t)
+        else:
+
+            for t in templates:
 
                 csr_template = t.first_component.to_sparse('csr', flatten=True)
                 norm = t.first_component.norm
@@ -207,16 +229,23 @@ class TemplateDictionary(object):
                 else:
                     non_zeros = None
 
+                # Check if the template is already in this dictionary.
                 is_present = self._is_present(csr_template, non_zeros)
-                is_mixture = self._is_mixture(csr_template, non_zeros)
-
                 if is_present:
                     nb_duplicates += 1
                     self._add_duplicates(t)
 
-                if is_mixture:
-                    nb_mixtures += 1
-                    self._add_mixtures(t)
+                # TODO Removing mixture online is difficult.
+                # TODO Some mixture might have been added before the templates which compose this mixture.
+                # TODO For now, let's say that there is no mixture in the signal.
+
+                # # Check if the template is a mixture of templates already present in the dictionary.
+                # is_mixture = self._is_mixture(csr_template, non_zeros)
+                # if is_mixture:
+                #     nb_mixtures += 1
+                #     self._add_mixtures(t)
+
+                is_mixture = False
 
                 if not is_present and not is_mixture:
                     accepted += self._add_template(t)
@@ -239,5 +268,7 @@ class TemplateDictionary(object):
             return False
 
         # TODO complete/clean.
+        _ = csr_template  # discard this argument
+        _ = non_zeros  # discard this argument
         # return self.overlaps_store.is_mixture(csr_template, self.cc_mixture, non_zeros)
         return False

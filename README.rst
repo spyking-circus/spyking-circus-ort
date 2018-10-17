@@ -42,6 +42,12 @@ Additionally, if you will use `pyopencl` on Intel CPUs and GPUs.
 
     sudo apt-get install beignet-dev
 
+Then you will have to install TkInter.
+
+.. code:: bash
+
+    sudo apt-get install python-tk
+
 Once you have all the necessary header files, to install `spyking-circus-ort` run:
 
 .. code:: bash

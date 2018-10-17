@@ -1,6 +1,9 @@
 import numpy as np
 import os.path
-import ConfigParser
+try:
+    from ConfigParser import ConfigParser  # Python 2 compatibility.
+except ImportError:  # i.e. ModuleNotFoundError
+    from configparser import ConfigParser
 
 from circusort.io.utils import *
 
@@ -12,9 +15,9 @@ def load(path):
 
 class RawBinary(object):
     """Raw binary"""
-    # TODO complete docstring.
 
     def __init__(self, path, dtype, length, nb_channels, sampling_rate):
+
         self.path = path
         self.dtype = dtype
         self.length = length
@@ -22,16 +25,19 @@ class RawBinary(object):
         self.sampling_rate = sampling_rate
 
     def load(self):
+
         shape = (self.length, self.nb_channels)
         f = np.memmap(self.path, dtype=self.dtype, mode='r', shape=shape)
         data = f[:, :]
+
         return data
 
 
 def raw_binary(path):
+
     path = os.path.expanduser(path)
     header_path = get_header_path(path)
-    header = ConfigParser.ConfigParser()
+    header = ConfigParser()
     header.read(header_path)
     dtype = header.get('header', 'dtype')
     length = header.getint('header', 'length')
@@ -39,6 +45,7 @@ def raw_binary(path):
     sampling_rate = header.getfloat('header', 'sampling_rate')
     raw = RawBinary(path, dtype, length, nb_channels, sampling_rate)
     data = raw.load()
+
     return data
 
 
@@ -49,14 +56,12 @@ def load_peaks(path):
         path: string
 
     """
-    # TODO complete docstring.
 
     return Peaks(path)
 
 
 class Peaks(object):
     """Peaks"""
-    # TODO complete docstring.
 
     def __init__(self, path):
 
@@ -97,7 +102,6 @@ def load_times(times_path, amplitudes_path):
         amplitudes_path: string
 
     """
-    # TODO complete docstring.
 
     return Times(times_path, amplitudes_path)
 

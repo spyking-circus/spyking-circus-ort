@@ -71,7 +71,7 @@ class Fitter(Network):
         }
         demultiplexer_kwargs.update({
             key: value
-            for key, value in self.params.iteritems()
+            for key, value in iter(self.params.items())
             if key in ['introspection_path']
         })
         fitters_kwargs = {
@@ -88,7 +88,7 @@ class Fitter(Network):
         for k in range(0, self.degree):
             fitters_kwargs[k].update({
                 key: value
-                for key, value in self.params.iteritems()
+                for key, value in iter(self.params.items())
                 if key not in ['degree', 'nb_samples']
             })
         multiplexer_kwargs = {
@@ -104,7 +104,7 @@ class Fitter(Network):
         }
         multiplexer_kwargs.update({
             key: value
-            for key, value in self.params.iteritems()
+            for key, value in iter(self.params.items())
             if key in ['introspection_path']
         })
 

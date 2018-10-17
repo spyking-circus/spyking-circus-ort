@@ -1,8 +1,4 @@
-import warnings
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=FutureWarning)
-    import h5py
-
+import h5py
 import numpy as np
 import os
 import time
@@ -81,7 +77,7 @@ class TemplateStore(object):
 
         return string
 
-    def __iter__(self, ):
+    def __iter__(self):
 
         for index in self.indices:
             yield self.get(index)
@@ -169,11 +165,15 @@ class TemplateStore(object):
         return self._index
 
     def _add_similarity(self, i, j, value):
+
         if i not in self._similarities:
             self._similarities[i] = {}
         self._similarities[i][j] = value
 
+        return
+
     def similarity(self, i, j):
+
         if i in self._similarities:
             if j in self._similarities[i]:
                 return self._similarities[i][j]
@@ -181,16 +181,19 @@ class TemplateStore(object):
         value = self.get(i).first_component.similarity(self.get(j).first_component)
         self._add_similarity(i, j, value)
         self._add_similarity(j, i, value)
+
         return value
 
     @property
     def similarities(self):
+
         res = np.zeros((len(self), len(self)), dtype=np.float32)
         indices = self.indices
         for c1, i in enumerate(indices):
             for c2, j in enumerate(indices):
                 res[i, j] = self.similarity(i, j)
                 res[j, i] = res[i, j]
+
         return res
 
     @property
@@ -222,6 +225,7 @@ class TemplateStore(object):
         return self._temporal_width
 
     def get_putative_merges(self, n_best=None, min_cc=0):
+
         if n_best is not None:
             n_best = min(n_best + 1, len(self))
         else:
@@ -236,6 +240,7 @@ class TemplateStore(object):
             else:
                 ids += [self.indices[idx[1:n_best]]]
             ccs += [similarity[ids[-1]]]
+
         return ids, ccs
 
     def slice_templates_by_channel(self, channels):
@@ -257,10 +262,27 @@ class TemplateStore(object):
         return self.get(result)
 
     def is_in_store(self, index):
+        """Check if a template exists in the store (by index).
+
+        Argument:
+            index: integer
+                The index for which the existence of a template will be checked.
+        Return:
+            _: boolean
+        """
 
         return index in self.indices
 
     def add(self, templates):
+        """Add templates to the store.
+
+        Argument:
+            templates: list
+                A list of templates to add to the store.
+        Return:
+            indices: list
+                A list which contains the indices of the added templates.
+        """
 
         assert self.mode in ['w', 'r+']
         self._open('r+')
@@ -279,7 +301,7 @@ class TemplateStore(object):
             self.h5_file.create_dataset('amplitudes/%d' % gidx, data=t.amplitudes,
                                         compression=self.compression)
 
-            if t.compressed:
+            if t.is_compressed:
                 self.h5_file.create_dataset('compressed/%d' % gidx, data=t.indices,
                                             compression=self.compression)
 
@@ -303,6 +325,16 @@ class TemplateStore(object):
         return indices
 
     def get(self, elements=None):
+        """Get templates by indices from the store.
+
+        Argument:
+            elements: none | integer | iterable (optional)
+                The indices of the templates to get from the store. If None then all the templates are selected.
+                The default value is None.
+        Return:
+            result: list
+                A list which contains the selected templates.
+        """
 
         self._open('r')
 
@@ -346,8 +378,8 @@ class TemplateStore(object):
             else:
                 second_component = None
 
-            template = Template(first_component, channel, second_component, creation_time=int(times[idx_pos]))
-            template.compressed = compressed
+            template = Template(first_component, channel=channel, second_component=second_component,
+                                creation_time=int(times[idx_pos]), compressed=compressed)
             result += [template]
 
         self._close()
@@ -358,6 +390,7 @@ class TemplateStore(object):
         return result
 
     def remove(self, indices):
+        """Delete templates by indices in the store."""
 
         if not np.iterable(indices):
             indices = [indices]
@@ -383,6 +416,16 @@ class TemplateStore(object):
         return
 
     def _open(self, mode='r+'):
+        """Open the file which contains the store.
+
+        Argument:
+            mode: string
+                The opening mode to use to open the file.
+                The default value is 'r+'.
+
+        See also:
+            h5py.File for a detailed documentation of the mode argument.
+        """
 
         while self.h5_file is None:
             try:
@@ -394,6 +437,7 @@ class TemplateStore(object):
         return
 
     def _close(self):
+        """Close the file which contains the store."""
 
         if self.h5_file is not None:
             self.h5_file.flush()

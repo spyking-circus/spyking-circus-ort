@@ -23,7 +23,6 @@ class MADEstimator(Block):
     Output:
         mads
     """
-    # TODO complete docstring.
 
     name = "MAD Estimator"
 
@@ -65,7 +64,6 @@ class MADEstimator(Block):
         return
 
     def _update_initialization(self):
-        # TODO add docstring.
 
         # Define shape.
         shape = (1, self._nb_channels)
@@ -92,13 +90,17 @@ class MADEstimator(Block):
         # Compute test value.
 
         # TODO check the statistics behind this test value.
-        test = self._mads / self._last_mads
-        test[np.isnan(test)] = 0.0
+        test = np.zeros_like(self._mads)
+        i, j = np.nonzero(self._last_mads)
+        test[i, j] = self._mads[i, j] / self._last_mads[i, j]
         test = np.mean(np.abs(test - 1.0))
         if test < self.epsilon:
             # Log info message.
-            string = "{} has converged."
-            message = string.format(self.name_and_counter)
+            min_mad = np.amin(self._mads)
+            median_mad = np.median(self._mads)
+            max_mad = np.amax(self._mads)
+            string = "{} has converged (min={}, median={}, max={})."
+            message = string.format(self.name_and_counter, min_mad, median_mad, max_mad)
             self.log.info(message)
             # Set block as active.
             self._set_active_mode()
@@ -158,7 +160,6 @@ class MADEstimator(Block):
         return
 
     def _introspect(self):
-        # TODO add docstring.
 
         nb_buffers = self.counter - self.start_step
         start_times = np.array(self._measured_times.get('start', []))

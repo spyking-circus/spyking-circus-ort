@@ -1,10 +1,17 @@
-import ConfigParser
+try:
+    from ConfigParser import ConfigParser  # Python 2 compatibility.
+except ImportError:  # i.e. ModuleNotFoundError
+    from configparser import ConfigParser  # Python 3 compatibility.
 import os
+import sys
 
 from collections import OrderedDict
 
 from circusort.obj.parameter import Parameters
 from circusort.utils.path import normalize_path
+
+if sys.version_info.major == 3:
+    unicode = str  # Python 3 compatibility.
 
 
 default_parameters = OrderedDict([
@@ -19,22 +26,21 @@ default_parameters = OrderedDict([
 
 def generate_parameters(defaults=None, types=None):
     """Generate the parameters to use during the generation."""
-    # TODO complete docstring.
 
     if defaults is not None:
         # TODO remove the following lines.
         parameters = [
             (section, [
                 (option, defaults[section][option])
-                for option in defaults[section].iterkeys()
+                for option in iter(defaults[section].keys())
             ])
-            for section in defaults.iterkeys()
+            for section in iter(defaults.keys())
         ]
     else:
         # TODO remove the following lines.
         parameters = [
             (section, OrderedDict())
-            for section in types.iterkeys()
+            for section in types.keys()
         ]
     parameters = Parameters(parameters)
 
@@ -128,7 +134,7 @@ def load_parameters(path, defaults=None, types=None, default_type='string'):
     current_directory = os.path.dirname(path)
 
     # Read parameters file from disk.
-    parser = ConfigParser.ConfigParser()
+    parser = ConfigParser()
     parser.read(path)
 
     # Remove comments at the end of each line.

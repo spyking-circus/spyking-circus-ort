@@ -87,14 +87,18 @@ def load_spikes(*args, **kwargs):
 
         # Read data from HDF5 file.
         with h5py.File(path, mode='r', swmr=True) as file_:
+            keys = ['times', 'templates', 'amplitudes']
+            dtypes = ['int32', 'int32', 'float32']
             data = {
-                key: file_[key].value
-                for key in ['times', 'templates', 'amplitudes']
+                key: file_[key].value if key in file_ else np.empty(0, dtype=dtype)
+                for key, dtype in zip(keys, dtypes)
             }
 
     else:
 
-        message = "Unknown mode value: {}".format(mode)
+        # Raise error.
+        string = "Unknown mode value: {}"
+        message = string.format(mode)
         raise ValueError(message)
 
     # Instantiate object.

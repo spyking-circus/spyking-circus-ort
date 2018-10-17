@@ -1,14 +1,47 @@
 import array
 import fcntl
-import json
-import logging
-# import random
+import numpy as np
 import re
 import socket
 import struct
-import subprocess
-import time
-import zmq
+
+
+def compute_snippet_width(duration, sampling_rate):
+    """Compute snippet width.
+
+    Arguments:
+        duration: float
+            The duration of the snippet [ms].
+        sampling_rate: float
+            The sampling rate [Hz].
+    Return:
+        width: integer
+            The width of the snippet [time step].
+    """
+
+    width = int(np.floor(duration * 1e-3 * sampling_rate))
+    if np.mod(width, 2) == 0:
+        width += 1
+
+    return width
+
+
+def compute_maximum_snippet_jitter(time_jitter,  sampling_rate):
+    """Compute maximum snippet jitter.
+
+    Arguments:
+        time_jitter: float
+            The maximum time jitter of the snippet [ms].
+        sampling_rate: float
+            The sampling_rate [Hz].
+    Return:
+        jitter: integer
+            The maximum jitter of the snippet [time step].
+    """
+
+    jitter = int(np.ceil(time_jitter * 1e-3 * sampling_rate))
+
+    return jitter
 
 
 def append_hdf5(dataset, data):
