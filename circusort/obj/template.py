@@ -49,7 +49,7 @@ class TemplateComponent(object):
         for k, index in enumerate(self.indices):
             waveforms[index, :] += self.waveforms[k, :]
         for k, index in enumerate(other.indices):
-            waveforms[index, :] += self.waveforms[k, :]
+            waveforms[index, :] += other.waveforms[k, :]
         waveforms = waveforms[indices, :]
         nb_channels = self.nb_channels
         amplitudes = None
