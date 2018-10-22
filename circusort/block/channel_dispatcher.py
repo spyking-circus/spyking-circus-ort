@@ -1,3 +1,5 @@
+import numpy as np
+
 from circusort.block.block import Block
 
 
@@ -86,6 +88,9 @@ class ChannelDispatcher(Block):
     def _process(self):
 
         input_packet = self.get_input('data').receive()
+
+        self._measure_time('start')
+
         number = input_packet['number']
         batch = input_packet['payload']
 
@@ -96,5 +101,27 @@ class ChannelDispatcher(Block):
                 'payload': batch[:, k::self.nb_groups]
             }
             self.get_output(output_name).send(output_packet)
+
+        self._measure_time('end')
+
+        return
+
+    def _introspect(self):
+
+        nb_buffers = self.counter - self.start_step
+        start_times = np.array(self._measured_times.get('start', []))
+        end_times = np.array(self._measured_times.get('end', []))
+        durations = end_times - start_times
+        data_duration = float(self.nb_samples) / self.sampling_rate
+        ratios = data_duration / durations
+
+        min_ratio = np.min(ratios) if ratios.size > 0 else np.nan
+        mean_ratio = np.mean(ratios) if ratios.size > 0 else np.nan
+        max_ratio = np.max(ratios) if ratios.size > 0 else np.nan
+
+        # Log info message.
+        string = "{} processed {} buffers [speed:x{:.2f} (min:x{:.2f}, max:x{:.2f})]"
+        message = string.format(self.name, nb_buffers, mean_ratio, min_ratio, max_ratio)
+        self.log.info(message)
 
         return

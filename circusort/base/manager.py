@@ -170,7 +170,7 @@ class Manager(object):
                     input_endpoint.block.update_initialization()
 
                 # Log debug message.
-                string = "{} connection established from {a}[{s}] to {b}[{t}]"
+                string = "{} connection established from {}[{}] to {}[{}]"
                 message = string.format(
                     protocol,
                     output_endpoint.block.name,
@@ -179,6 +179,18 @@ class Manager(object):
                     (input_endpoint.name, input_endpoint.structure)
                 )
                 self.log.debug(message)
+
+        return
+
+    def connect_network(self, network):
+
+        # Log info message.
+        string = "{} connects {} network"
+        message = string.format(str(self), network.name)
+        self.log.info(message)
+
+        # Connect network.
+        network.connect()
 
         return
 

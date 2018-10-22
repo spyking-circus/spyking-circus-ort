@@ -81,13 +81,18 @@ class ChannelGrouper(Block):
 
     def _process(self):
 
+        packets = {}
+        for k in range(0, self.nb_groups):
+            input_name = 'data_{}'.format(k)
+            packets[k] = self.get_input(input_name).receive()
+
+        self._measure_time('start')
+
         number = None
 
         for k in range(0, self.nb_groups):
-            input_name = 'data_{}'.format(k)
-            packet = self.get_input(input_name).receive()
-            number = packet['number']  # TODO check that all the number are the same.
-            batch = packet['payload']
+            number = packets[k]['number']  # TODO check that all the number are the same.
+            batch = packets[k]['payload']
             self._result[:, k::self.nb_groups] = batch
 
         packet = {
@@ -95,5 +100,27 @@ class ChannelGrouper(Block):
             'payload': self._result,
         }
         self.output.send(packet)
+
+        self._measure_time('end')
+
+        return
+
+    def _introspect(self):
+
+        nb_buffers = self.counter - self.start_step
+        start_times = np.array(self._measured_times.get('start', []))
+        end_times = np.array(self._measured_times.get('end', []))
+        durations = end_times - start_times
+        data_duration = float(self.nb_samples) / self.sampling_rate
+        ratios = data_duration / durations
+
+        min_ratio = np.min(ratios) if ratios.size > 0 else np.nan
+        mean_ratio = np.mean(ratios) if ratios.size > 0 else np.nan
+        max_ratio = np.max(ratios) if ratios.size > 0 else np.nan
+
+        # Log info message.
+        string = "{} processed {} buffers [speed:x{:.2f} (min:x{:.2f}, max:x{:.2f})]"
+        message = string.format(self.name, nb_buffers, mean_ratio, min_ratio, max_ratio)
+        self.log.info(message)
 
         return

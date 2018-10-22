@@ -1,4 +1,5 @@
 __all__ = [
+    'filter',
     'fitter',
     'fitter_bis',
     'network',

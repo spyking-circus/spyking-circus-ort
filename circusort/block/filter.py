@@ -9,18 +9,16 @@ class Filter(Block):
     """Filtering of the voltage traces of the recording channels
 
     Attributes:
-        sampling_rate: float (optional)
+        sampling_rate: float
             The sampling rate used to record the signal [Hz].
-            The default value is 20e+3.
-        cut_off: float (optional)
+        cut_off: float
             The cutoff frequency used to define the high-pass filter [Hz].
-            The default value is 500.0.
-        order: integer (optional)
+        order: integer
             The order used to define the high-pass filter.
-            The default value is 1.
-        remove_median: boolean (optional)
+        remove_median: boolean
             The option to remove the median over all the channels for each time step.
-            The default value is False.
+        use_gpu: boolean
+            The option to use the GPU.
     See also:
         circusort.block.Block
     """
@@ -52,6 +50,7 @@ class Filter(Block):
                 The option to remove the median over all the channels for each time step.
                 The default value is False.
             use_gpu: boolean (optional)
+                The option to use the GPU.
                 The default value is False.
         """
 
@@ -109,7 +108,8 @@ class Filter(Block):
 
     def _update_initialization(self):
 
-        # TODO integrate the 2 following line properly (should be a default pattern to update the initialization of blocks?).
+        # TODO integrate the 2 following line properly.
+        # TODO Should it be a default pattern to update the initialization of blocks?
         input_parameters = self.get_input('data').get_input_parameters()
         self.configure_input_parameters(**input_parameters)
 

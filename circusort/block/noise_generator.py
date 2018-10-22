@@ -53,6 +53,8 @@ class NoiseGenerator(Block):
 
     def _process(self):
 
+        self._measure_time('start')
+
         if self._absolute_start_time is None:
             self._absolute_start_time = time.time()
 
@@ -77,5 +79,27 @@ class NoiseGenerator(Block):
             warnings.warn(message)
 
         self.get_output('data').send(packet)
+
+        self._measure_time('end')
+
+        return
+
+    def _introspect(self):
+
+        nb_buffers = self.counter - self.start_step
+        start_times = np.array(self._measured_times.get('start', []))
+        end_times = np.array(self._measured_times.get('end', []))
+        durations = end_times - start_times
+        data_duration = float(self.nb_samples) / self.sampling_rate
+        ratios = data_duration / durations
+
+        min_ratio = np.min(ratios) if ratios.size > 0 else np.nan
+        mean_ratio = np.mean(ratios) if ratios.size > 0 else np.nan
+        max_ratio = np.max(ratios) if ratios.size > 0 else np.nan
+
+        # Log info message.
+        string = "{} processed {} buffers [speed:x{:.2f} (min:x{:.2f}, max:x{:.2f})]"
+        message = string.format(self.name, nb_buffers, mean_ratio, min_ratio, max_ratio)
+        self.log.info(message)
 
         return
