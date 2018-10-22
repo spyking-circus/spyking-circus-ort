@@ -13,7 +13,7 @@ class ChannelGrouper(Block):
         nb_groups: integer
     """
 
-    name = "Channel Grouper"
+    name = "Channel grouper"
 
     params = {
         'nb_groups': 1
@@ -34,28 +34,15 @@ class ChannelGrouper(Block):
         self.nb_groups = self.nb_groups
 
         for k in range(0, self.nb_groups):
-            self.add_input('data_{}'.format(k))
-        self.add_output('data')
+            self.add_input('data_{}'.format(k), structure='dict')
+        self.add_output('data', structure='dict')
 
-    @property
-    def nb_channels(self):
+        self.dtype = None
+        self.nb_samples = None
+        self.nb_channels = None
+        self.sampling_rate = None
 
-        shape = 0
-        for k in range(0, self.nb_groups):
-            input_name = 'data_{}'.format(k)
-            shape += self.get_input(input_name).shape[1]
-
-        return shape
-
-    @property
-    def nb_samples(self):
-
-        return self.get_input('data_0').shape[0]
-
-    @property
-    def dtype(self):
-
-        return self.get_input('data_0').dtype
+        self._result = None
 
     def _initialize(self):
 
@@ -63,24 +50,50 @@ class ChannelGrouper(Block):
 
         return
 
-    def _guess_output_endpoints(self):
+    def _configure_input_parameters(self, dtype=None, nb_samples=None, nb_channels=None, sampling_rate=None, **kwargs):
 
-        try:
-            self.output.configure(dtype=self.dtype, shape=(self.nb_samples, self.nb_channels))
-            self.result = np.zeros((self.nb_samples, self.nb_channels), dtype=self.dtype)
-        except Exception:  # TODO narrow the exception catch.
-            message = "Not all input connections have been established!"
-            self.log.debug(message)
+        if dtype is not None:
+            self.dtype = dtype
+        if nb_samples is not None:
+            self.nb_samples = nb_samples
+        if nb_channels is not None:
+            self.nb_channels = nb_channels
+        if sampling_rate is not None:
+            self.sampling_rate = sampling_rate
+
+        return
+
+    def _update_initialization(self):
+
+        # Compute the number of channels grouped from the input endpoints.
+        nb_channels = 0
+        for k in range(0, self.nb_groups):
+            input_name = 'data_{}'.format(k)
+            input_endpoint = self.get_input(input_name)
+            input_parameters = input_endpoint.get_input_parameters()
+            nb_channels += input_parameters['nb_channels']
+        self.configure_input_parameters(nb_channels=nb_channels)
+
+        shape = (self.nb_samples, self.nb_channels)
+        self._result = np.zeros(shape, dtype=self.dtype)
 
         return
 
     def _process(self):
 
-        for k in range(self.nb_groups):
-            input_name = 'data_{}'.format(k)
-            batch = self.get_input(input_name).receive()
-            self.result[:, k::self.nb_groups] = batch
+        number = None
 
-        self.output.send(self.result)
+        for k in range(0, self.nb_groups):
+            input_name = 'data_{}'.format(k)
+            packet = self.get_input(input_name).receive()
+            number = packet['number']  # TODO check that all the number are the same.
+            batch = packet['payload']
+            self._result[:, k::self.nb_groups] = batch
+
+        packet = {
+            'number': number,
+            'payload': self._result,
+        }
+        self.output.send(packet)
 
         return

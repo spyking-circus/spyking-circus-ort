@@ -21,18 +21,18 @@ class Connection(object):
         'boolean': {},
     }
 
-    params = {}
-
     def __init__(self, block, name, structure, **kwargs):
 
         self.block = block
         self.structure = structure
         self.name = name
         self.initialized = False
-        params = self._defaults_structure[self.structure]
-        self.params.update(params)
+        self.params = self._defaults_structure[self.structure]
         self.params.update(kwargs)
         self.configure(**self.params)
+
+        self._parameters = {}
+        self.parameters_are_configured = False
 
     def configure(self, **kwargs):
         """Configure connection"""
@@ -103,6 +103,42 @@ class Connection(object):
         description = self._get_description()
 
         return description
+
+    def _get_parameters(self):
+
+        return self._parameters
+
+    def _set_parameters(self, **kwargs):
+
+        self._parameters.update(kwargs)
+        self.parameters_are_configured = True
+
+        return
+
+    def get_output_parameters(self):
+
+        params = self.block.get_output_parameters()
+        params.update(self._get_parameters())
+
+        return params
+
+    def configure_output_parameters(self, **kwargs):
+
+        self._set_parameters(**kwargs)
+
+        return
+
+    def get_input_parameters(self):
+
+        params = self._get_parameters()
+
+        return params
+
+    def configure_input_parameters(self, **kwargs):
+
+        self._set_parameters(**kwargs)
+
+        return
 
     def _send_data(self, batch):
         """Abstract method to send data through this connection."""

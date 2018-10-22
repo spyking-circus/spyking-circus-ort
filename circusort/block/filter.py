@@ -30,7 +30,7 @@ class Filter(Block):
     params = {
         'cut_off': 500.0,  # Hz
         'order': 1,
-        'sampling_rate': 20000.0,  # Hz
+        'sampling_rate': 20e+3,  # Hz  # TODO allow None value, i.e. receive sampling rate from input block.
         'remove_median': False,
         'use_gpu': False,
     }
@@ -70,10 +70,11 @@ class Filter(Block):
         if self.cut_off < 0.1:
             self.cut_off = 0.1  # Hz
 
-        self._dtype = None
-        self._nb_samples = None
-        self._nb_channels = None
-        self._sampling_rate = None  # TODO merge self._sampling_rate (to keep) and self.sampling_rate.
+        self.dtype = None
+        self.nb_samples = None
+        self.nb_channels = None
+        # self.sampling_rate = None  # already defined above
+
         self._b = None
         self._a = None
         self._z = None
@@ -95,14 +96,22 @@ class Filter(Block):
 
     def _configure_input_parameters(self, dtype=None, nb_samples=None, nb_channels=None, sampling_rate=None, **kwargs):
 
-        self._dtype = dtype
-        self._nb_samples = nb_samples
-        self._nb_channels = nb_channels
-        self._sampling_rate = sampling_rate
+        if dtype is not None:
+            self.dtype = dtype
+        if nb_samples is not None:
+            self.nb_samples = nb_samples
+        if nb_channels is not None:
+            self.nb_channels = nb_channels
+        if sampling_rate is not None:
+            self.sampling_rate = sampling_rate
 
         return
 
     def _update_initialization(self):
+
+        # TODO integrate the 2 following line properly (should be a default pattern to update the initialization of blocks?).
+        input_parameters = self.get_input('data').get_input_parameters()
+        self.configure_input_parameters(**input_parameters)
 
         if self.use_gpu:
             from scipy.signal import iirfilter
@@ -116,11 +125,11 @@ class Filter(Block):
             context = pyopencl.Context([device])
             coefficients = iirfilter(3, [self.cut_off / (self.sampling_rate / 2.0), 0.95],
                                      btype='bandpass', ftype='butter', output='sos')
-            self._filter_engine = GpuFilter(context, coefficients, self._nb_channels, 'float32', self._nb_samples)
+            self._filter_engine = GpuFilter(context, coefficients, self.nb_channels, 'float32', self.nb_samples)
         else:
             self._z = {}
             m = max(len(self._a), len(self._b)) - 1
-            for i in range(0, self._nb_channels):
+            for i in range(0, self.nb_channels):
                 self._z[i] = np.zeros(m, dtype=np.float32)
 
         return
@@ -128,10 +137,10 @@ class Filter(Block):
     def _get_output_parameters(self):
 
         params = {
-            'dtype': self._dtype,
-            'nb_samples': self._nb_samples,
-            'nb_channels': self._nb_channels,
-            'sampling_rate': self._sampling_rate,
+            'dtype': self.dtype,
+            'nb_samples': self.nb_samples,
+            'nb_channels': self.nb_channels,
+            'sampling_rate': self.sampling_rate,
         }
 
         return params
@@ -151,17 +160,17 @@ class Filter(Block):
         if self.use_gpu:
             filtered_batch = self._filter_engine.compute_one_chunk(batch)
         else:
-            for j in range(0, self._nb_channels):
+            for j in range(0, self.nb_channels):
                 # Filter data.
                 filtered_batch[:, j], self._z[j] = signal.lfilter(self._b, self._a, batch[:, j], zi=self._z[j])
             # Center data channel by channel.
             channel_medians = np.median(filtered_batch, axis=0)
-            for j in range(0, self._nb_channels):
+            for j in range(0, self.nb_channels):
                 filtered_batch[:, j] -= channel_medians[j]
             # Center data sample by sample (if necessary).
             if self.remove_median:
                 sample_medians = np.median(filtered_batch, axis=1)
-                for i in range(0, self._nb_samples):
+                for i in range(0, self.nb_samples):
                     filtered_batch[i, :] -= sample_medians[i]
 
         # Prepare output data packet.
@@ -183,7 +192,7 @@ class Filter(Block):
         start_times = np.array(self._measured_times.get('start', []))
         end_times = np.array(self._measured_times.get('end', []))
         durations = end_times - start_times
-        data_duration = float(self._nb_samples) / self.sampling_rate
+        data_duration = float(self.nb_samples) / self.sampling_rate
         ratios = data_duration / durations
 
         min_ratio = np.min(ratios) if ratios.size > 0 else np.nan
