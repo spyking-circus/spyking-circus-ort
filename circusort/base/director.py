@@ -302,7 +302,7 @@ class Director(object):
 
     def destroy(self):
 
-        self.__del__()
+        del self  # not self.__del__() which is different.
 
         return
 
