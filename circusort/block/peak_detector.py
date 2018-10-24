@@ -95,6 +95,11 @@ class PeakDetector(Block):
 
     def _update_initialization(self):
 
+        # TODO integrate the 2 following line properly.
+        # TODO Should it be a default pattern to update the initialization of blocks?
+        input_parameters = self.get_input('data').get_input_parameters()
+        self.configure_input_parameters(**input_parameters)
+
         shape = (2 * self._nb_samples, self._nb_channels)
 
         self.X = np.zeros(shape, dtype=np.float)
@@ -103,6 +108,16 @@ class PeakDetector(Block):
         self.mph = None
 
         return
+
+    def _get_output_parameters(self):
+
+        params = {
+            # 'nb_channels': self._nb_channels,  # TODO uncomment?
+            'nb_samples': self._nb_samples,
+            'sampling_rate': self.sampling_rate,
+        }
+
+        return params
 
     def _detect_peaks(self, i, mpd=1, threshold=0.0, edge='rising', kpsh=False, valley=False):
         """Detect peaks
@@ -243,6 +258,12 @@ class PeakDetector(Block):
                 'number': number - 1,
                 'payload': self.peaks,
             }
+
+            # TODO remove the following lines.
+            if self.peaks is None:
+                string = "{} payload:{}"
+                message = string.format(self.name_and_counter, self.peaks)
+                self.log.debug(message)
 
             # Send detected peaks.
             self.get_output('peaks').send(packet)

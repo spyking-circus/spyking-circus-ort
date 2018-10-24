@@ -20,8 +20,8 @@ manager = director.create_manager(host=host, log_level=logging.INFO)
 noise = manager.create_block('noise_generator')  # TODO replace by a synthetic generator?
 filter_ = manager.create_block('filter')
 mad = manager.create_block('mad_estimator')
-data_dispatcher = manager.create_block('channel_dispatcher')
-mad_dispatcher = manager.create_block('channel_dispatcher', nb_groups)
+data_dispatcher = manager.create_block('channel_dispatcher', name='Data dispatcher', nb_groups=nb_groups)
+mad_dispatcher = manager.create_block('channel_dispatcher', name='MAD dispatcher', nb_groups=nb_groups)
 detectors = [
     manager.create_block('peak_detector', name='Peak detector {}'.format(k))
     for k in range(0, nb_groups)

@@ -420,6 +420,11 @@ class Process(object):
                 exception_trace = data['result']  # i.e. exception trace
                 # Raise exception.
                 try:
+                    if exception_name == 'KeyError':
+                        # KeyError wraps its argument with single quotes, which prevents the pretty printing of the
+                        # exception trace. We need t avoid KeyError to broadcast the exception.
+                        exception_name = 'Exception'
+                        exception_trace = 'KeyError: ' + exception_trace
                     exception_class = getattr(exceptions, exception_name)
                 except AttributeError:
                     exception_class = getattr(exceptions, 'Exception')

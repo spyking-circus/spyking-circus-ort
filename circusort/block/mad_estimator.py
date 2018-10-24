@@ -86,6 +86,17 @@ class MADEstimator(Block):
 
         return
 
+    def get_output_parameters(self):
+
+        params = {
+            'dtype': self._dtype,
+            'nb_samples': self._nb_samples,
+            'nb_channels': self._nb_channels,
+            'sampling_rate': self.sampling_rate,
+        }
+
+        return params
+
     def _check_if_active(self):
         # Compute test value.
 
