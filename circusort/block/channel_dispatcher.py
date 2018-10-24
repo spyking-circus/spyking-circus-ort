@@ -73,6 +73,11 @@ class ChannelDispatcher(Block):
                 nb_channels += 1
             output_endpoint.configure_output_parameters(nb_channels=nb_channels)
 
+        # Log debug message.
+        string = "{} updated initialization"
+        message = string.format(self.name_and_counter)
+        self.log.debug(message)
+
         return
 
     def _get_output_parameters(self):
@@ -91,16 +96,22 @@ class ChannelDispatcher(Block):
 
         self._measure_time('start')
 
+        # Unpack input packet.
         number = input_packet['number']
         batch = input_packet['payload']
 
+        # Prepare output packets.
+        output_packets = {}
         for k in range(0, self.nb_groups):
-            output_name = 'data_{}'.format(k)
-            output_packet = {
+            output_packets[k] = {
                 'number': number,
                 'payload': batch[:, k::self.nb_groups]
             }
-            self.get_output(output_name).send(output_packet)
+
+        # Send output packets.
+        for k in range(0, self.nb_groups):
+            output_name = 'data_{}'.format(k)
+            self.get_output(output_name).send(output_packets[k])
 
         self._measure_time('end')
 

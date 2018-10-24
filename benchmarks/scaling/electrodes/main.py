@@ -11,7 +11,6 @@ from collections import OrderedDict
 
 from networks import network_4 as network
 
-
 nb_rows_range = [2, 4, 8, 16, 32]
 nb_columns_range = [2, 4, 8, 16, 32]
 radius = 100.0  # µm
@@ -107,7 +106,9 @@ def main():
     if args.pending_introspection:
 
         block_names = network.block_names
+        block_nb_buffers = network.block_nb_buffers
         showfliers = False
+        durations = OrderedDict()
         duration_factors = OrderedDict()
         output_directory = os.path.join(directory, "output")
         if not os.path.isdir(output_directory):
@@ -133,15 +134,17 @@ def main():
             sampling_rate = parameters['general']['sampling_rate']
 
             # Load time measurements from disk.
+            durations[configuration_name] = OrderedDict()
             duration_factors[configuration_name] = OrderedDict()
             for block_name in block_names:
                 measurements = circusort.io.load_time_measurements(introspection_directory, name=block_name)
                 end_times = measurements.get('end', np.empty(shape=0))
                 start_times = measurements.get('start', np.empty(shape=0))
-                durations = end_times - start_times
-                nb_buffers = 1
+                durations_ = end_times - start_times
+                nb_buffers = block_nb_buffers[block_name]
                 duration_buffer = float(nb_buffers * nb_samples) / sampling_rate
-                duration_factors_ = np.log10(durations / duration_buffer)
+                duration_factors_ = np.log10(durations_ / duration_buffer)
+                durations[configuration_name][block_name] = durations_
                 duration_factors[configuration_name][block_name] = duration_factors_
 
         # Plot real-time performances of blocks for each condition.
@@ -233,6 +236,62 @@ def main():
         ax.set_xlabel("number of channels")
         ax.set_ylabel("median duration factor")
         ax.set_title("Median real-time performances")
+        ax_.legend()
+        fig.tight_layout()
+        fig.savefig(output_path)
+
+        # Plot real-time performances.
+        output_filename = "real_time_performances.{}".format(image_format)
+        output_path = os.path.join(output_directory, output_filename)
+
+        fig, ax = plt.subplots(1, 1, num=0, clear=True)
+        ax.set(yscale='log')
+        ax_ = ax.twinx()
+        x = [
+            k
+            for k, _ in enumerate(configuration_names)
+        ]
+        # Compute y_min.
+        y_min = float('inf')
+        for k, block_name in enumerate(block_names):
+            y = np.array([
+                np.mean(durations[configuration_name][block_name])
+                for configuration_name in configuration_names
+            ])
+            y_error = np.array([
+                np.std(durations[configuration_name][block_name])
+                for configuration_name in configuration_names
+            ])
+            y1 = y - y_error
+            if np.any(y1 > 0.0):
+                y_min = min(y_min, np.min(y1[y1 > 0.0]))
+        # Plot everything.
+        for k, block_name in enumerate(block_names):
+            y = np.array([
+                np.mean(durations[configuration_name][block_name])
+                for configuration_name in configuration_names
+            ])
+            y_error = np.array([
+                np.std(durations[configuration_name][block_name])
+                for configuration_name in configuration_names
+            ])
+            color = 'C{}'.format(k % 10)
+            y1 = y - y_error
+            y1[y1 <= 0.0] = y_min  # i.e. replace negative values
+            y1 = np.log10(y1)
+            y2 = np.log10(y + y_error)
+            ax_.fill_between(x, y1, y2, alpha=0.5, facecolor=color, edgecolor=None)
+            ax_.plot(x, np.log10(y), color=color, marker='o', label=block_name)
+        ax_.set_yticks([])
+        ax_.set_yticklabels([])
+        ax_.set_ylabel("")
+        ax_.set_ylim(bottom=np.log10(y_min))
+        ax.set_ylim(10.0 ** np.array(ax_.get_ylim()))
+        ax.set_xticks(x)
+        ax.set_xticklabels(configuration_names)
+        ax.set_xlabel("number of channels")
+        ax.set_ylabel("duration factor")
+        ax.set_title("Real-time performances")
         ax_.legend()
         fig.tight_layout()
         fig.savefig(output_path)

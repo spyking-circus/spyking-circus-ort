@@ -77,10 +77,27 @@ class ChannelGrouper(Block):
         shape = (self.nb_samples, self.nb_channels)
         self._result = np.zeros(shape, dtype=self.dtype)
 
+        # Log debug message.
+        string = "{} updated initialization (nb_channels={})"
+        message = string.format(self.name_and_counter, self.nb_channels)
+        self.log.debug(message)
+
         return
+
+    def _get_output_parameters(self):
+
+        params = {
+            'dtype': self.dtype,
+            'nb_samples': self.nb_samples,
+            'nb_channels': self.nb_channels,
+            'sampling_rate': self.sampling_rate,
+        }
+
+        return params
 
     def _process(self):
 
+        # Receive input packets.
         packets = {}
         for k in range(0, self.nb_groups):
             input_name = 'data_{}'.format(k)
@@ -88,13 +105,14 @@ class ChannelGrouper(Block):
 
         self._measure_time('start')
 
+        # Unpack input packets.
         number = None
-
         for k in range(0, self.nb_groups):
             number = packets[k]['number']  # TODO check that all the number are the same.
             batch = packets[k]['payload']
             self._result[:, k::self.nb_groups] = batch
 
+        # Send output packet.
         packet = {
             'number': number,
             'payload': self._result,

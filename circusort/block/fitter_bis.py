@@ -475,7 +475,11 @@ class FitterBis(Block):
         """Merge positive and negative peaks from all the channels."""
 
         time_steps = set([])
-        keys = [key for key in peaks.keys() if key not in ['offset']]
+        keys = [
+            key
+            for key in peaks.keys()
+            if key not in ['offset']
+        ]
         for key in keys:
             for channel in peaks[key].keys():
                 time_steps = time_steps.union(peaks[key][channel])
@@ -549,7 +553,14 @@ class FitterBis(Block):
 
         if self.is_active:
             peaks_packet = self.get_input('peaks').receive(blocking=True, number=self._number)
-            peaks = peaks_packet['payload']
+            if peaks_packet is None:
+                # This is the last packet (last data packet don't have a corresponding peak packet since the peak
+                # detector needs two consecutive data packets to produce one peak packet).
+                peaks = {
+                    'offset': None,  # TODO correct offset value?
+                }
+            else:
+                peaks = peaks_packet['payload']
             self._handle_peaks(peaks)
             if verbose:
                 # Log debug message.

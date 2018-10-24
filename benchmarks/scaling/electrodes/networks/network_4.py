@@ -11,22 +11,33 @@ name = "network_4"
 directory = os.path.join("~", ".spyking-circus-ort", "benchmarks", "scaling", "electrodes", name)
 directory = os.path.expanduser(directory)
 
+nb_filters = 4
 nb_fitters = 4
 
 block_names = [
     "reader",
-    "filter",
+] + [
+    "filter_{}".format(k)
+    for k in range(0, nb_filters)
+] + [
     "mad",
     "detector",
     "pca",
     # "cluster",
     # "updater",
 ] + [
-    "fitter_fitter_{}".format(k)
+    "fitter_fitter_bis_{}".format(k)
     for k in range(0, nb_fitters)
 ] + [
     "writer",
 ]
+
+block_nb_buffers = {
+    key: 1
+    for key in block_names
+}
+for k in range(0, nb_fitters):
+    block_nb_buffers["fitter_fitter_bis_{}".format(k)] = nb_fitters
 
 
 def sorting(configuration_name):
@@ -101,6 +112,7 @@ def sorting(configuration_name):
     }
     filter_kwargs = {
         'name': "filter",
+        'degree': nb_filters,
         'cut_off': 1.0,  # Hz
         'order': 1,
         'introspection_path': introspection_directory,
@@ -158,10 +170,11 @@ def sorting(configuration_name):
         'name': "fitter",
         'degree': nb_fitters,
         'templates_init_path': os.path.join(sorting_directory, "templates.h5"),
-        'overlaps_init_path': os.path.join(sorting_directory, "overlaps.pkl"),
+        'overlaps_init_path': os.path.join(sorting_directory, "overlaps.p"),
         'sampling_rate': sampling_rate,
         'discarding_eoc_from_updater': True,
         'introspection_path': introspection_directory,
+        'introspection_factor': 1.0 / float(nb_fitters),
         'log_level': DEBUG,
     }
     writer_kwargs = {
@@ -180,10 +193,10 @@ def sorting(configuration_name):
         for key, host in iter(hosts.items())
     ])
     reader = managers['master'].create_block('reader', **reader_kwargs)
-    filter_ = managers['slave_1'].create_block('filter', **filter_kwargs)
+    filter_ = managers['slave_1'].create_network('filter', **filter_kwargs)
     mad = managers['slave_1'].create_block('mad_estimator', **mad_kwargs)
-    detector = managers['slave_1'].create_block('peak_detector', **detector_kwargs)
-    pca = managers['slave_1'].create_block('pca', **pca_kwargs)
+    detector = managers['slave_2'].create_block('peak_detector', **detector_kwargs)
+    pca = managers['slave_2'].create_block('pca', **pca_kwargs)
     cluster = managers['slave_2'].create_block('density_clustering', **cluster_kwargs)
     updater = managers['slave_2'].create_block('template_updater_bis', **updater_bis_kwargs)
     fitter = managers['slave_3'].create_network('fitter_bis', **fitter_bis_kwargs)
@@ -194,6 +207,7 @@ def sorting(configuration_name):
     director.connect(reader.get_output('data'), [
         filter_.get_input('data'),
     ])
+    director.connect_network(filter_)
     director.connect(filter_.get_output('data'), [
         mad.get_input('data'),
         detector.get_input('data'),
