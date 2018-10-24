@@ -9,10 +9,9 @@ import logging
 
 host = '127.0.0.1'  # to run the test locally
 nb_groups = 4
-duration = 10.0  # s
-
 with tempfile.NamedTemporaryFile(suffix='.h5') as data_file:
     data_path = data_file.name
+duration = 10.0  # s
 
 director = circusort.create_director(host=host)
 manager = director.create_manager(host=host, log_level=logging.INFO)
