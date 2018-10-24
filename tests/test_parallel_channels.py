@@ -29,10 +29,10 @@ writer = manager.create_block('writer', data_path=data_path)
 manager.initialize()
 
 manager.connect(noise.get_output('data'), dispatcher.get_input('data'))
-for i in range(nb_groups):
-    manager.connect(dispatcher.get_output('data_{}'.format(i)), filters[i].get_input('data'))
-for i in range(nb_groups):
-    manager.connect(filters[i].get_output('data'), regrouper.get_input('data_{}'.format(i)))
+for k in range(0, nb_groups):
+    manager.connect(dispatcher.get_output('data_{}'.format(k)), filters[k].get_input('data'))
+for k in range(0, nb_groups):
+    manager.connect(filters[k].get_output('data'), regrouper.get_input('data_{}'.format(k)))
 manager.connect(regrouper.get_output('data'), writer.get_input('data'))
 
 manager.start()
