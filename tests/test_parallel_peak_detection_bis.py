@@ -33,7 +33,7 @@ manager.connect(filter_.get_output('data'), [
     detector.get_input('data'),
 ])
 manager.connect(mad.get_output('mads'), [
-    detector.get_input('data'),
+    detector.get_input('mads'),
 ])
 manager.connect_network(detector)
 manager.connect(detector.get_output('peaks'), [

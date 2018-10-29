@@ -43,7 +43,7 @@ class Filter(Network):
 
         Network.__init__(self, *args, **kwargs)
 
-        # The following lines are useful to avoid some PyCharm's warning.
+        # The following lines are useful to avoid some PyCharm's warnings.
         self.degree = self.degree
         self.cut_off = self.cut_off
         self.order = self.order

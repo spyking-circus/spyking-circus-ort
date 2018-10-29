@@ -3,6 +3,7 @@ __all__ = [
     'fitter',
     'fitter_bis',
     'network',
+    'peak_detector',
     'pregenerator',
 ]
 
