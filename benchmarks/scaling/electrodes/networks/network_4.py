@@ -12,6 +12,7 @@ directory = os.path.join("~", ".spyking-circus-ort", "benchmarks", "scaling", "e
 directory = os.path.expanduser(directory)
 
 nb_filters = 4
+nb_detectors = 4
 nb_fitters = 4
 
 block_names = [
@@ -21,7 +22,10 @@ block_names = [
     for k in range(0, nb_filters)
 ] + [
     "mad",
-    "detector",
+] + [
+    "detector_{}".format(k)
+    for k in range(0, nb_detectors)
+] + [
     "pca",
     # "cluster",
     # "updater",
@@ -126,6 +130,7 @@ def sorting(configuration_name):
     }
     detector_kwargs = {
         'name': "detector",
+        'degree': nb_detectors,
         'threshold_factor': threshold_factor,
         'sampling_rate': sampling_rate,
         'introspection_path': introspection_directory,
@@ -195,7 +200,7 @@ def sorting(configuration_name):
     reader = managers['master'].create_block('reader', **reader_kwargs)
     filter_ = managers['slave_1'].create_network('filter', **filter_kwargs)
     mad = managers['slave_1'].create_block('mad_estimator', **mad_kwargs)
-    detector = managers['slave_2'].create_block('peak_detector', **detector_kwargs)
+    detector = managers['slave_2'].create_network('peak_detector', **detector_kwargs)
     pca = managers['slave_2'].create_block('pca', **pca_kwargs)
     cluster = managers['slave_2'].create_block('density_clustering', **cluster_kwargs)
     updater = managers['slave_2'].create_block('template_updater_bis', **updater_bis_kwargs)
@@ -219,6 +224,7 @@ def sorting(configuration_name):
         detector.get_input('mads'),
         cluster.get_input('mads'),
     ])
+    director.connect_network(detector)
     director.connect(detector.get_output('peaks'), [
         pca.get_input('peaks'),
         cluster.get_input('peaks'),

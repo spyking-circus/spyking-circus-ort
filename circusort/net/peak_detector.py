@@ -95,7 +95,7 @@ class PeakDetector(Network):
         })
         peak_detector_kwargs = {
             k: {
-                'name': 'peak_detector_{}'.format(k),
+                'name': '{}_{}'.format(self.name, k),
                 'threshold_factor': self.threshold_factor,
                 'sign_peaks': self.sign_peaks,
                 'spike_width': self.spike_width,

@@ -66,7 +66,7 @@ class Filter(Network):
         # # Keyword arguments of filter blocks.
         filter_kwargs = {
             k: {
-                'name': 'filter_{}'.format(k),
+                'name': '{}_{}'.format(self.name, k),
                 'cut_off': self.cut_off,
                 'order': self.order,
                 'remove_median': False,
