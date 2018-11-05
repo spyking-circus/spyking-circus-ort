@@ -35,7 +35,26 @@ block_names = [
 ] + [
     "writer",
 ]
-
+block_groups = {
+    "reader": ["reader"],
+    "filter (x{})".format(nb_filters): [
+        "filter_{}".format(k)
+        for k in range(0, nb_filters)
+    ],
+    "mad": ["mad"],
+    "detector (x{})".format(nb_detectors): [
+        "detector_{}".format(k)
+        for k in range(0, nb_detectors)
+    ],
+    "pca": ["pca"],
+    # "cluster": ["cluster"],
+    # "updater": ["updater"],
+    "fitter (x{})".format(nb_fitters): [
+        "fitter_fitter_bis_{}".format(k)
+        for k in range(0, nb_fitters)
+    ],
+    "writer": ["writer"],
+}
 block_nb_buffers = {
     key: 1
     for key in block_names
