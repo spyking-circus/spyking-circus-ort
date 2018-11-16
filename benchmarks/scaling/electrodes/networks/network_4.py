@@ -26,7 +26,7 @@ block_names = [
     "detector_{}".format(k)
     for k in range(0, nb_detectors)
 ] + [
-    "pca",
+    # "pca",
     # "cluster",
     # "updater",
 ] + [
@@ -46,7 +46,7 @@ block_groups = {
         "detector_{}".format(k)
         for k in range(0, nb_detectors)
     ],
-    "pca": ["pca"],
+    # "pca": ["pca"],
     # "cluster": ["cluster"],
     # "updater": ["updater"],
     "fitter (x{})".format(nb_fitters): [

@@ -26,18 +26,21 @@ def main():
     parser.add_argument('--generation', dest='pending_generation', action='store_true', default=None)
     parser.add_argument('--sorting', dest='pending_sorting', action='store_true', default=None)
     parser.add_argument('--introspection', dest='pending_introspection', action='store_true', default=None)
+    parser.add_argument('--validation', dest='pending_validation', action='store_true', default=None)
     args = parser.parse_args()
     if args.pending_configuration is None and args.pending_generation is None \
-            and args.pending_sorting is None and args.pending_introspection is None:
+            and args.pending_sorting is None and args.pending_introspection is None and args.pending_validation is None:
         args.pending_configuration = True
         args.pending_generation = True
         args.pending_sorting = True
         args.pending_introspection = True
+        args.pending_validation = True
     else:
         args.pending_configuration = args.pending_configuration is True
         args.pending_generation = args.pending_generation is True
         args.pending_sorting = args.pending_sorting is True
         args.pending_introspection = args.pending_introspection is True
+        args.pending_validation = args.pending_validation is True
 
     # Define the working directory.
     directory = network.directory
@@ -249,6 +252,7 @@ def main():
         # mode = 'median_and_median_absolute_deviation'
 
         fig, ax = plt.subplots(1, 1, num=0, clear=True)
+        # fig, ax = plt.subplots(1, 1, figsize=(3.6, 2.4), num=1, clear=True)
         ax.set(yscale='log')
         ax_ = ax.twinx()
         x = [
@@ -333,15 +337,127 @@ def main():
         ax_.set_yticklabels([])
         ax_.set_ylabel("")
         ax_.set_ylim(bottom=np.log10(y_min))
+        # ax_.set_ylim(bottom=np.log10(y_min), top=0.0)
         ax.set_ylim(10.0 ** np.array(ax_.get_ylim()))
         ax.set_xticks(x)
         ax.set_xticklabels(configuration_names)
+        # ax.set_xticklabels(["$2^{" + "{}".format(2 * i) + "}$" for i in [1, 2, 3, 4, 5]])
         ax.set_xlabel("number of channels")
         ax.set_ylabel("duration (s)")
         ax.set_title("Real-time performances")
-        ax_.legend()
+        ax_.legend(loc='center left', bbox_to_anchor=(1.0, 0.5))
         fig.tight_layout()
         fig.savefig(output_path)
+
+    # Validate sorting (if necessary).
+    if args.pending_validation:
+
+        configuration_names = [
+            configuration['general']['name']
+            for configuration in configurations
+        ]
+
+        # Load data from each configuration.
+        for configuration_name in configuration_names:
+
+            figure_format = 'png'
+
+            generation_directory = os.path.join(directory, "generation", configuration_name)
+            sorting_directory = os.path.join(directory, "sorting", configuration_name)
+            output_directory = os.path.join(directory, "output", configuration_name)
+
+            if not os.path.isdir(output_directory):
+                os.makedirs(output_directory)
+
+            # TODO compute the interspike interval histograms of the generated spike trains (i.e. ISIHs).
+            cells = circusort.io.load_cells(generation_directory)
+            for cell_id in cells.ids:
+                cell = cells[cell_id]
+                train = cell.train
+                # nb_spikes = len(train)
+                bin_counts, bin_edges = train.interspike_interval_histogram(bin_width=0.5, width=25.0)
+                bar_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+                bar_heights = bin_counts
+                bar_widths = bin_edges[1:] - bin_edges[:-1]
+                plt.bar(bar_centers, bar_heights, width=bar_widths)
+                plt.axvline(x=2.0, color='black', linestyle='--')
+                plt.xlim(bin_edges[0], bin_edges[-1])
+                plt.xlabel("interspike interval (ms)")
+                plt.ylabel("number of intervals")
+                # if 100.0 * rpv[cell_id] > 1e-3:
+                #     title_string = "ISIH of template {} (2 ms RPV: {:.3f}%, {}/{})"
+                #     title = title_string.format(cell_id, 100.0 * rpv[cell_id], nb_rpv[cell_id], nb_spikes)
+                # else:
+                #     title_string = "ISIH of template {} (2 ms RPV: <1e-3%, {}/{})"
+                #     title = title_string.format(cell_id, nb_rpv[cell_id], nb_spikes)
+                title = "ISIH"
+                plt.title(title)
+                filename = "generated_interspike_interval_histogram_{}.{}".format(cell_id, figure_format)
+                path = os.path.join(output_directory, filename)
+                plt.savefig(path)
+                plt.close()
+
+            # TODO compute the refractory period violation coefficients.
+            spikes_path = os.path.join(sorting_directory, "spikes.h5")
+            spikes = circusort.io.load_spikes(spikes_path)
+            nb_rpv = {}
+            rpv = {}
+            for cell_id in range(0, len(spikes)):
+                cell = spikes.get_cell(cell_id)
+                train = cell.train
+                nb_rpv[cell_id] = train.nb_refractory_period_violations()
+                rpv[cell_id] = train.refractory_period_violation_coefficient()
+
+            # TODO compute the auto-correlograms.
+            spikes_path = os.path.join(sorting_directory, "spikes.h5")
+            spikes = circusort.io.load_spikes(spikes_path)
+            for cell_id in range(0, len(spikes)):
+                cell = spikes.get_cell(cell_id)
+                train = cell.train
+                nb_spikes = len(train)
+                bin_counts, bin_edges = train.auto_correlogram()
+                bar_centers = (bin_edges[:-1] + bin_edges[1:]) / 2.0
+                bar_heights = bin_counts
+                bar_widths = bin_edges[1:] - bin_edges[:-1]
+                plt.bar(bar_centers, bar_heights, width=bar_widths)
+                plt.xlabel("lag (ms)")
+                plt.ylabel("number of spikes")
+                plt.title("Auto-correlogram of template {} ({} spikes)".format(cell_id, nb_spikes))
+                filename = "autocorrelogram_{}.{}".format(cell_id, figure_format)
+                path = os.path.join(output_directory, filename)
+                plt.savefig(path)
+                plt.close()
+
+            # TODO compute the interspike interval histograms of the sorted spike trains (i.e. ISIHs).
+            spikes_path = os.path.join(sorting_directory, "spikes.h5")
+            spikes = circusort.io.load_spikes(spikes_path)
+            for cell_id in range(0, len(spikes)):
+                cell = spikes.get_cell(cell_id)
+                train = cell.train
+                nb_spikes = len(train)
+                bin_counts, bin_edges = train.interspike_interval_histogram(bin_width=0.5, width=25.0)
+                bar_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+                bar_heights = bin_counts
+                bar_widths = bin_edges[1:] - bin_edges[:-1]
+                plt.bar(bar_centers, bar_heights, width=bar_widths)
+                plt.axvline(x=2.0, color='black', linestyle='--')
+                plt.xlim(bin_edges[0], bin_edges[-1])
+                plt.xlabel("interspike interval (ms)")
+                plt.ylabel("number of intervals")
+                if 100.0 * rpv[cell_id] > 1e-3:
+                    title_string = "ISIH of template {} (2 ms RPV: {:.3f}%, {}/{})"
+                    title = title_string.format(cell_id, 100.0 * rpv[cell_id], nb_rpv[cell_id], nb_spikes)
+                else:
+                    title_string = "ISIH of template {} (2 ms RPV: <1e-3%, {}/{})"
+                    title = title_string.format(cell_id, nb_rpv[cell_id], nb_spikes)
+                plt.title(title)
+                filename = "interspike_interval_histogram_{}.{}".format(cell_id, figure_format)
+                path = os.path.join(output_directory, filename)
+                plt.savefig(path)
+                plt.close()
+
+            # TODO load generated spike trains.
+            # TODO load sorted spike trains.
 
 
 if __name__ == '__main__':

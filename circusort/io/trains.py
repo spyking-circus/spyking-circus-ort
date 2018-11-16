@@ -9,14 +9,19 @@ if sys.version_info.major == 3:
     unicode = str
 
 
-def generate_train(duration=60.0, rate=1.0, **kwargs):
+def generate_train(duration=60.0, rate=1.0, refractory_period=4.0e-3, **kwargs):
     """Generate train.
 
     Parameters:
         duration: float (optional)
-            Train duration [s]. The default value is 60.0.
+            Train duration [s].
+            The default value is 60.0.
         rate: float (optional)
-            Spike rate [Hz]. The default value is 1.0.
+            Spike rate [Hz].
+            The default value is 1.0.
+        refractory_period: float (optional)
+            Duration of the refractory period [s].
+            The default value is 4.0e-3.
 
     Return:
         train: numpy.ndarray
@@ -34,12 +39,13 @@ def generate_train(duration=60.0, rate=1.0, **kwargs):
     ref_time = 0.0
     times = []
     while ref_time < duration:
-        # TODO check the following line.
-        scale = 1.0 / rate(ref_time)
-        # TODO remove the following line.
-        # size = int((duration - ref_time) * rate(ref_time)) + 1
+        assert rate(ref_time) * refractory_period < 1.0
+        modified_rate = rate(ref_time) / (1.0 - rate(ref_time) * refractory_period)
+        scale = 1.0 / modified_rate
         size = 1
         intervals = np.random.exponential(scale=scale, size=size)
+        while intervals[0] < refractory_period:
+            intervals = np.random.exponential(scale=scale, size=size)
         times_ = ref_time + np.cumsum(intervals)
         times.append(times_[times_ < duration])
         ref_time = times_[-1]
@@ -47,10 +53,6 @@ def generate_train(duration=60.0, rate=1.0, **kwargs):
     train = Train(times)
 
     return train
-
-# TODO implement generate_poisson_train.
-# TODO implement generate_refractory_poisson_train.
-# TODO adapt generate_train.
 
 
 def generate_trains(nb_trains=3, **kwargs):
@@ -67,8 +69,6 @@ def generate_trains(nb_trains=3, **kwargs):
     See also:
         circusort.io.generate_train
     """
-
-    # TODO integrate a refractory period.
 
     trains = {
         k: generate_train(**kwargs)
@@ -110,7 +110,6 @@ def save_trains(directory, trains, mode='default'):
 
     if mode == 'default':
 
-        # TODO complete.
         raise NotImplementedError()
 
     elif mode == 'by trains':

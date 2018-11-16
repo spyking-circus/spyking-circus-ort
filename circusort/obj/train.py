@@ -454,13 +454,13 @@ class Train(object):
 
         return bin_counts, bin_edges
 
-    def auto_correlogram(self, bin_width=1.0, width=201.0):
+    def auto_correlogram(self, bin_width=2.0, width=202.0):
         """Compute the auto-correlogram.
 
         Arguments:
             bin_width: float (optional)
                 The bin width of the auto-correlogram (ms).
-                The default value is 1.0.
+                The default value is 2.0.
             width: float (optional)
                 The width of the auto-correlogram (ms).
                 The default value is 201.0.
@@ -476,13 +476,13 @@ class Train(object):
 
         return bin_counts, bin_edges
 
-    def interspike_interval_histogram(self, bin_width=0.25, width=25.0):
+    def interspike_interval_histogram(self, bin_width=0.5, width=25.0):
         """Compute the interspike interval histogram.
 
         Arguments:
             bin_width: float (optional)
                 The bin width of the interspike interval histogram (ms).
-                The default value is 0.25.
+                The default value is 0.5.
             width: float (optional)
                 The width of the interspike interval histogram (ms).
                 The default value is 25.0.
