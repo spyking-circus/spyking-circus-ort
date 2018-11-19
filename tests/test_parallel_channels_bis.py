@@ -8,14 +8,15 @@ import logging
 
 
 host = '127.0.0.1'  # to run the test locally
+nb_channels = 512
 nb_groups = 4
 with tempfile.NamedTemporaryFile(suffix='.h5') as data_file:
     data_path = data_file.name
-duration = 10.0  # s
+duration = 1.0 * 60.0  # s
 
 director = circusort.create_director(host=host)
 manager = director.create_manager(host=host, log_level=logging.INFO)
-noise = manager.create_block('noise_generator')
+noise = manager.create_block('noise_generator', nb_channels=nb_channels)
 filter_ = manager.create_network('filter', degree=nb_groups)
 writer = manager.create_block('writer', data_path=data_path)
 

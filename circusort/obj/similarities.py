@@ -49,18 +49,23 @@ class Similarities(object):
 
         # WARNING: this function is useful only when the detected templates are strictly equal to the generated
         # templates, otherwise it does not make any sense to run a hierarchical clustering on the similarity matrix.
+        assert self._cells_true.nb_cells == self._cells_pred.nb_cells
+        nb_cells = self._cells_true.nb_cells
 
         if self._ordered_indices is None:
 
-            metric = 'correlation'
-            # Define the distance matrix.
-            distances = pdist(self._similarities, metric=metric)
-            # Perform hierachical/agglomerative clustering.
-            linkages = linkage(distances, method='single', metric=metric)
-            # Reorder templates.
-            linkages_ordered = optimal_leaf_ordering(linkages, distances, metric=metric)
-            # Extract ordered list.
-            self._ordered_indices = leaves_list(linkages_ordered)
+            if nb_cells > 1:
+                metric = 'correlation'
+                # Define the distance matrix.
+                distances = pdist(self._similarities, metric=metric)
+                # Perform hierarchical/agglomerative clustering.
+                linkages = linkage(distances, method='single', metric=metric)
+                # Reorder templates.
+                linkages_ordered = optimal_leaf_ordering(linkages, distances, metric=metric)
+                # Extract ordered list.
+                self._ordered_indices = leaves_list(linkages_ordered)
+            else:
+                self._ordered_indices = np.arange(0, nb_cells)
 
         return self._ordered_indices
 

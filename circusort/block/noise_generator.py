@@ -33,6 +33,8 @@ class NoiseGenerator(Block):
 
         self._number = -1
         self._absolute_start_time = None
+        self._cached_batch = np.random.randn(self.nb_samples, self.nb_channels)
+        self._use_cached_batch = False
 
     def _initialize(self):
 
@@ -59,7 +61,10 @@ class NoiseGenerator(Block):
             self._absolute_start_time = time.time()
 
         self._number += 1
-        batch = np.random.randn(self.nb_samples, self.nb_channels)
+        if self._use_cached_batch:
+            batch = self._cached_batch  # avoid lag due to data generation
+        else:
+            batch = np.random.randn(self.nb_samples, self.nb_channels)
         batch = batch.astype(self.dtype)
         packet = {
             'number': self._number,
@@ -72,11 +77,14 @@ class NoiseGenerator(Block):
         absolute_current_time = time.time()
         try:
             time.sleep(expected_absolute_output_time - absolute_current_time)
+            self._use_cached_batch = False
         except ValueError:
             lag_duration = expected_absolute_output_time - absolute_current_time
-            string = "{} breaks realistic mode (lag: +{} s)"
-            message = string.format(self.name_and_counter, lag_duration)
-            warnings.warn(message)
+            if lag_duration > 0.1:
+                string = "{} breaks realistic mode (lag: +{} s)"
+                message = string.format(self.name_and_counter, lag_duration)
+                warnings.warn(message)
+            self._use_cached_batch = True
 
         self.get_output('data').send(packet)
 

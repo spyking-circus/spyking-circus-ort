@@ -11,11 +11,11 @@ from collections import OrderedDict
 
 from networks import network_4 as network
 
-nb_rows_range = [2, 4, 8, 16, 32]
-nb_columns_range = [2, 4, 8, 16, 32]
+nb_rows_range = [4, 4, 8, 8, 16, 16]
+nb_columns_range = [4, 8, 8, 16, 16, 32]
 radius = 100.0  # µm
 cell_density = 0.25  # cells / electrode
-duration = 5.0 * 60.0  # s
+duration = 10.0 * 60.0  # s
 
 
 def main():
@@ -369,95 +369,165 @@ def main():
             if not os.path.isdir(output_directory):
                 os.makedirs(output_directory)
 
-            # TODO compute the interspike interval histograms of the generated spike trains (i.e. ISIHs).
-            cells = circusort.io.load_cells(generation_directory)
-            for cell_id in cells.ids:
-                cell = cells[cell_id]
-                train = cell.train
-                # nb_spikes = len(train)
-                bin_counts, bin_edges = train.interspike_interval_histogram(bin_width=0.5, width=25.0)
-                bar_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
-                bar_heights = bin_counts
-                bar_widths = bin_edges[1:] - bin_edges[:-1]
-                plt.bar(bar_centers, bar_heights, width=bar_widths)
-                plt.axvline(x=2.0, color='black', linestyle='--')
-                plt.xlim(bin_edges[0], bin_edges[-1])
-                plt.xlabel("interspike interval (ms)")
-                plt.ylabel("number of intervals")
-                # if 100.0 * rpv[cell_id] > 1e-3:
-                #     title_string = "ISIH of template {} (2 ms RPV: {:.3f}%, {}/{})"
-                #     title = title_string.format(cell_id, 100.0 * rpv[cell_id], nb_rpv[cell_id], nb_spikes)
-                # else:
-                #     title_string = "ISIH of template {} (2 ms RPV: <1e-3%, {}/{})"
-                #     title = title_string.format(cell_id, nb_rpv[cell_id], nb_spikes)
-                title = "ISIH"
-                plt.title(title)
-                filename = "generated_interspike_interval_histogram_{}.{}".format(cell_id, figure_format)
-                path = os.path.join(output_directory, filename)
-                plt.savefig(path)
-                plt.close()
+            # Compute the interspike interval histograms of the generated spike trains (if necessary).
+            output_directory_ = os.path.join(output_directory, "generated_interspike_interval_histograms")
+            if not os.path.isdir(output_directory_):
+                os.makedirs(output_directory_)
+                cells = circusort.io.load_cells(generation_directory)
+                # Compute the refractory period violation coefficients.
+                nb_rpv = {}
+                rpv = {}
+                for cell_id in cells.ids:
+                    cell = cells[cell_id]
+                    train = cell.train
+                    nb_rpv[cell_id] = train.nb_refractory_period_violations()
+                    rpv[cell_id] = train.refractory_period_violation_coefficient()
+                # Compute the interspike interval histograms.
+                for cell_id in cells.ids:
+                    cell = cells[cell_id]
+                    train = cell.train
+                    nb_spikes = len(train)
+                    bin_counts, bin_edges = train.interspike_interval_histogram(bin_width=0.5, width=25.0)
+                    bar_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+                    bar_heights = bin_counts
+                    bar_widths = bin_edges[1:] - bin_edges[:-1]
+                    fig, ax = plt.subplots()
+                    ax.bar(bar_centers, bar_heights, width=bar_widths)
+                    ax.axvline(x=2.0, color='black', linestyle='--')
+                    ax.set_xlim(bin_edges[0], bin_edges[-1])
+                    ax.set_xlabel("interspike interval (ms)")
+                    ax.set_ylabel("number of intervals")
+                    if 100.0 * rpv[cell_id] > 1e-3:
+                        title_string = "ISIH of template {} (2 ms RPV: {:.3f}%, {}/{})"
+                        title = title_string.format(cell_id, 100.0 * rpv[cell_id], nb_rpv[cell_id], nb_spikes)
+                    else:
+                        title_string = "ISIH of template {} (2 ms RPV: <1e-3%, {}/{})"
+                        title = title_string.format(cell_id, nb_rpv[cell_id], nb_spikes)
+                    ax.set_title(title)
+                    fig.tight_layout()
+                    filename = "generated_interspike_interval_histogram_{}.{}".format(cell_id, figure_format)
+                    path = os.path.join(output_directory, filename)
+                    fig.savefig(path)
+                    plt.close(fig)
 
-            # TODO compute the refractory period violation coefficients.
-            spikes_path = os.path.join(sorting_directory, "spikes.h5")
-            spikes = circusort.io.load_spikes(spikes_path)
-            nb_rpv = {}
-            rpv = {}
-            for cell_id in range(0, len(spikes)):
-                cell = spikes.get_cell(cell_id)
-                train = cell.train
-                nb_rpv[cell_id] = train.nb_refractory_period_violations()
-                rpv[cell_id] = train.refractory_period_violation_coefficient()
+            # Compute the auto-correlograms.
+            output_directory_ = os.path.join(output_directory, "autocorrelograms")
+            if not os.path.isdir(output_directory_):
+                os.makedirs(output_directory_)
+                spikes_path = os.path.join(sorting_directory, "spikes.h5")
+                spikes = circusort.io.load_spikes(spikes_path)
+                for cell_id in range(0, len(spikes)):
+                    cell = spikes.get_cell(cell_id)
+                    train = cell.train
+                    nb_spikes = len(train)
+                    bin_counts, bin_edges = train.auto_correlogram()
+                    bar_centers = (bin_edges[:-1] + bin_edges[1:]) / 2.0
+                    bar_heights = bin_counts
+                    bar_widths = bin_edges[1:] - bin_edges[:-1]
+                    fig, ax = plt.subplots()
+                    ax.bar(bar_centers, bar_heights, width=bar_widths)
+                    ax.set_xlabel("lag (ms)")
+                    ax.set_ylabel("number of spikes")
+                    ax.set_title("Auto-correlogram of template {} ({} spikes)".format(cell_id, nb_spikes))
+                    fig.tight_layout()
+                    filename = "autocorrelogram_{}.{}".format(cell_id, figure_format)
+                    path = os.path.join(output_directory, filename)
+                    fig.savefig(path)
+                    plt.close(fig)
 
-            # TODO compute the auto-correlograms.
-            spikes_path = os.path.join(sorting_directory, "spikes.h5")
-            spikes = circusort.io.load_spikes(spikes_path)
-            for cell_id in range(0, len(spikes)):
-                cell = spikes.get_cell(cell_id)
-                train = cell.train
-                nb_spikes = len(train)
-                bin_counts, bin_edges = train.auto_correlogram()
-                bar_centers = (bin_edges[:-1] + bin_edges[1:]) / 2.0
-                bar_heights = bin_counts
-                bar_widths = bin_edges[1:] - bin_edges[:-1]
-                plt.bar(bar_centers, bar_heights, width=bar_widths)
-                plt.xlabel("lag (ms)")
-                plt.ylabel("number of spikes")
-                plt.title("Auto-correlogram of template {} ({} spikes)".format(cell_id, nb_spikes))
-                filename = "autocorrelogram_{}.{}".format(cell_id, figure_format)
-                path = os.path.join(output_directory, filename)
-                plt.savefig(path)
-                plt.close()
+            # Compute the interspike interval histograms of the sorted spike trains (if necessary).
+            output_directory_ = os.path.join(output_directory, "interspike_interval_histograms")
+            if not os.path.isdir(output_directory_):
+                os.makedirs(output_directory_)
+                spikes_path = os.path.join(sorting_directory, "spikes.h5")
+                spikes = circusort.io.load_spikes(spikes_path)
+                # Compute the refractory period violation coefficients.
+                nb_rpv = {}
+                rpv = {}
+                for cell_id in range(0, len(spikes)):
+                    cell = spikes.get_cell(cell_id)
+                    train = cell.train
+                    nb_rpv[cell_id] = train.nb_refractory_period_violations()
+                    rpv[cell_id] = train.refractory_period_violation_coefficient()
+                # Compute the interspike interval histograms.
+                for cell_id in range(0, len(spikes)):
+                    cell = spikes.get_cell(cell_id)
+                    train = cell.train
+                    nb_spikes = len(train)
+                    bin_counts, bin_edges = train.interspike_interval_histogram(bin_width=0.5, width=25.0)
+                    bar_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+                    bar_heights = bin_counts
+                    bar_widths = bin_edges[1:] - bin_edges[:-1]
+                    fig, ax = plt.subplots()
+                    ax.bar(bar_centers, bar_heights, width=bar_widths)
+                    ax.axvline(x=2.0, color='black', linestyle='--')
+                    ax.set_xlim(bin_edges[0], bin_edges[-1])
+                    ax.set_xlabel("interspike interval (ms)")
+                    ax.set_ylabel("number of intervals")
+                    if 100.0 * rpv[cell_id] > 1e-3:
+                        title_string = "ISIH of template {} (2 ms RPV: {:.3f}%, {}/{})"
+                        title = title_string.format(cell_id, 100.0 * rpv[cell_id], nb_rpv[cell_id], nb_spikes)
+                    else:
+                        title_string = "ISIH of template {} (2 ms RPV: <1e-3%, {}/{})"
+                        title = title_string.format(cell_id, nb_rpv[cell_id], nb_spikes)
+                    ax.set_title(title)
+                    fig.tight_layout()
+                    filename = "interspike_interval_histogram_{}.{}".format(cell_id, figure_format)
+                    path = os.path.join(output_directory, filename)
+                    fig.savefig(path)
+                    plt.close(fig)
 
-            # TODO compute the interspike interval histograms of the sorted spike trains (i.e. ISIHs).
-            spikes_path = os.path.join(sorting_directory, "spikes.h5")
-            spikes = circusort.io.load_spikes(spikes_path)
-            for cell_id in range(0, len(spikes)):
-                cell = spikes.get_cell(cell_id)
-                train = cell.train
-                nb_spikes = len(train)
-                bin_counts, bin_edges = train.interspike_interval_histogram(bin_width=0.5, width=25.0)
-                bar_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
-                bar_heights = bin_counts
-                bar_widths = bin_edges[1:] - bin_edges[:-1]
-                plt.bar(bar_centers, bar_heights, width=bar_widths)
-                plt.axvline(x=2.0, color='black', linestyle='--')
-                plt.xlim(bin_edges[0], bin_edges[-1])
-                plt.xlabel("interspike interval (ms)")
-                plt.ylabel("number of intervals")
-                if 100.0 * rpv[cell_id] > 1e-3:
-                    title_string = "ISIH of template {} (2 ms RPV: {:.3f}%, {}/{})"
-                    title = title_string.format(cell_id, 100.0 * rpv[cell_id], nb_rpv[cell_id], nb_spikes)
-                else:
-                    title_string = "ISIH of template {} (2 ms RPV: <1e-3%, {}/{})"
-                    title = title_string.format(cell_id, nb_rpv[cell_id], nb_spikes)
-                plt.title(title)
-                filename = "interspike_interval_histogram_{}.{}".format(cell_id, figure_format)
-                path = os.path.join(output_directory, filename)
-                plt.savefig(path)
-                plt.close()
+            # TODO compare the sorted spike trains with the generated spike trains.
 
-            # TODO load generated spike trains.
-            # TODO load sorted spike trains.
+            # TODO find the matching between sorted templates and detected templates based on:
+            # TODO - template waveforms only?
+            # TODO - spike trains only?
+            # TODO - template waveforms and spike trains?
+
+            injected_cells = circusort.io.load_cells(generation_directory)
+
+            from circusort.io import load_spikes
+            detected_spikes_path = os.path.join(sorting_directory, "spikes.h5")
+            t_max = 10.0 * 60.0  # s
+            detected_spikes = load_spikes(detected_spikes_path, t_max=t_max)
+
+            from circusort.io.template_store import load_template_store
+            detected_templates_path = os.path.join(sorting_directory, "templates.h5")
+            detected_templates = load_template_store(detected_templates_path)
+
+            from circusort.io.spikes import spikes2cells
+            detected_cells = spikes2cells(detected_spikes, detected_templates)
+
+            # Compute the similarities between detected and injected cells.
+            print("# Computing similarities...")
+            similarities = detected_cells.compute_similarities(injected_cells)
+            ordering = True
+            similarities_filename = "similarities.pdf"
+            similarities_path = os.path.join(output_directory, similarities_filename)
+            similarities.plot(ordering=ordering, path=similarities_path)
+
+            # Compute the matches between detected and injected cells.
+            print("# Computing matches...")
+            t_min = 5.0 * 60.0  # s  # discard the 5 first minutes
+            t_max = 10.0 * 60.0  # s
+            for cell in detected_cells:
+                print("{}, {}, {}".format(cell.train.t_min, cell.train.t_max, cell.train.nb_times))
+            matches = detected_cells.compute_matches(injected_cells, t_min=t_min, t_max=t_max)
+            ordering = True
+            matches_filename = "matches.pdf"
+            matches_path = os.path.join(output_directory, matches_filename)
+            matches.plot(ordering=ordering, path=matches_path)
+
+            # cells = circusort.io.load_cells(generation_directory)
+            # for cell_id in cells.ids:
+            #     cell = cells[cell_id]
+            #     train = cell.train
+
+            # spikes_path = os.path.join(sorting_directory, "spikes.h5")
+            # spikes = circusort.io.load_spikes(spikes_path)
+            # for cell_id in range(0, len(spikes)):
+            #     cell = spikes.get_cell(cell_id)
+            #     train = cell.train
 
 
 if __name__ == '__main__':
