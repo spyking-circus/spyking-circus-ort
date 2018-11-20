@@ -11,8 +11,8 @@ from collections import OrderedDict
 
 from networks import network_4 as network
 
-nb_rows_range = [4, 4, 8, 8, 16, 16]
-nb_columns_range = [4, 8, 8, 16, 16, 32]
+nb_rows_range = [4, 4, 8, 8, 16]
+nb_columns_range = [4, 8, 8, 16, 16]
 radius = 100.0  # µm
 cell_density = 0.25  # cells / electrode
 duration = 10.0 * 60.0  # s
@@ -406,7 +406,7 @@ def main():
                     ax.set_title(title)
                     fig.tight_layout()
                     filename = "generated_interspike_interval_histogram_{}.{}".format(cell_id, figure_format)
-                    path = os.path.join(output_directory, filename)
+                    path = os.path.join(output_directory_, filename)
                     fig.savefig(path)
                     plt.close(fig)
 
@@ -431,7 +431,7 @@ def main():
                     ax.set_title("Auto-correlogram of template {} ({} spikes)".format(cell_id, nb_spikes))
                     fig.tight_layout()
                     filename = "autocorrelogram_{}.{}".format(cell_id, figure_format)
-                    path = os.path.join(output_directory, filename)
+                    path = os.path.join(output_directory_, filename)
                     fig.savefig(path)
                     plt.close(fig)
 
@@ -473,7 +473,7 @@ def main():
                     ax.set_title(title)
                     fig.tight_layout()
                     filename = "interspike_interval_histogram_{}.{}".format(cell_id, figure_format)
-                    path = os.path.join(output_directory, filename)
+                    path = os.path.join(output_directory_, filename)
                     fig.savefig(path)
                     plt.close(fig)
 
