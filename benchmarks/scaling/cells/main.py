@@ -15,8 +15,9 @@ from networks import network_4 as network
 nb_rows = 16
 nb_columns = 16
 radius = 100.0  # µm
-nb_cells_range = [3, 12, 48, 192]
-duration = 5.0 * 60.0  # s
+# nb_cells_range = [3, 12, 48, 192]
+cell_densities = [0.25, 1.0, 4.0]
+duration = 10.0 * 60.0  # s
 
 
 def main():
@@ -59,7 +60,9 @@ def main():
         os.makedirs(configuration_directory)
 
         # Generate configurations.
-        for nb_cells in nb_cells_range:
+        for cell_density in cell_densities:
+            nb_electrodes = nb_rows * nb_columns
+            nb_cells = max(1, int(cell_density * float(nb_electrodes)))
             name = str(nb_cells)
             kwargs = {
                 'general': {
@@ -110,17 +113,10 @@ def main():
     if args.pending_introspection:
 
         block_names = network.block_names
-        block_labels = {
-            network.block_labels.get(block_name, block_name)
-            for block_name in block_names
-        }
-        _ = block_labels
-        # TODO use the block_labels.
-        try:
-            block_nb_buffers = network.block_nb_buffers
-        except AttributeError:
-            block_nb_buffers = {}
+        block_groups = network.block_groups
+        block_nb_buffers = network.block_nb_buffers
         showfliers = False
+        durations = OrderedDict()
         duration_factors = OrderedDict()
         output_directory = os.path.join(directory, "output")
         if not os.path.isdir(output_directory):
@@ -146,15 +142,17 @@ def main():
             sampling_rate = parameters['general']['sampling_rate']
 
             # Load time measurements from disk.
+            durations[configuration_name] = OrderedDict()
             duration_factors[configuration_name] = OrderedDict()
             for block_name in block_names:
                 measurements = circusort.io.load_time_measurements(introspection_directory, name=block_name)
                 end_times = measurements.get('end', np.empty(shape=0))
                 start_times = measurements.get('start', np.empty(shape=0))
-                durations = end_times - start_times
-                nb_buffers = block_nb_buffers.get(block_name, 1)
+                durations_ = end_times - start_times
+                nb_buffers = block_nb_buffers[block_name]
                 duration_buffer = float(nb_buffers * nb_samples) / sampling_rate
-                duration_factors_ = np.log10(durations / duration_buffer)
+                duration_factors_ = np.log10(durations_ / duration_buffer)
+                durations[configuration_name][block_name] = durations_
                 duration_factors[configuration_name][block_name] = duration_factors_
 
         # Plot real-time performances of blocks for each condition (i.e. number of cells).
@@ -316,6 +314,111 @@ def main():
         ax.set_ylabel("median duration factor")
         ax.set_title("Median real-time performances")
         ax_.legend()
+        fig.tight_layout()
+        fig.savefig(output_path)
+
+        # Plot real-time performances.
+        output_filename = "real_time_performances.{}".format(image_format)
+        output_path = os.path.join(output_directory, output_filename)
+
+        mode = 'mean_and_standard_deviation'
+        # mode = 'median_and_median_absolute_deviation'
+
+        fig, ax = plt.subplots(1, 1, num=0, clear=True)
+        # fig, ax = plt.subplots(1, 1, figsize=(3.6, 2.4), num=1, clear=True)
+        ax.set(yscale='log')
+        ax_ = ax.twinx()
+        x = [
+            k
+            for k, _ in enumerate(configuration_names)
+        ]
+        # Compute y_min.
+        y_min = float('inf')
+        for block_group, block_names in block_groups.items():
+            d = {
+                configuration_name: np.concatenate([
+                    durations[configuration_name][block_name] / float(block_nb_buffers[block_name])
+                    for block_name in block_names
+                ])
+                for configuration_name in configuration_names
+            }
+            if mode == 'mean_and_standard_deviation':
+                y = np.array([
+                    np.mean(d[configuration_name])
+                    for configuration_name in configuration_names
+                ])
+                y_error = np.array([
+                    np.std(d[configuration_name])
+                    for configuration_name in configuration_names
+                ])
+            elif mode == 'median_and_median_absolute_deviation':
+                y = np.array([
+                    np.median(d[configuration_name])
+                    for configuration_name in configuration_names
+                ])
+                y_error = np.array([
+                    1.4826 * np.median(np.abs(d[configuration_name] - y[k]))
+                    for k, configuration_name in enumerate(configuration_names)
+                ])
+            else:
+                raise ValueError("unexpected mode value: {}".format(mode))
+            y1 = y - y_error
+            if np.any(y1 > 0.0):
+                y_min = min(y_min, np.min(y1[y1 > 0.0]))
+        # Plot everything.
+        colors = {
+            block_group: "C{}".format(k % 10)
+            for k, block_group in enumerate(block_groups.keys())
+        }
+        for block_group, block_names in block_groups.items():
+            d = {
+                configuration_name: np.concatenate([
+                    durations[configuration_name][block_name] / float(block_nb_buffers[block_name])
+                    for block_name in block_names
+                ])
+                for configuration_name in configuration_names
+            }
+            if mode == 'mean_and_standard_deviation':
+                y = np.array([
+                    np.mean(d[configuration_name])
+                    for configuration_name in configuration_names
+                ])
+                y_error = np.array([
+                    np.std(d[configuration_name])
+                    for configuration_name in configuration_names
+                ])
+            elif mode == 'median_and_median_absolute_deviation':
+                # Median and median absolute deviation.
+                y = np.array([
+                    np.median(d[configuration_name])
+                    for configuration_name in configuration_names
+                ])
+                y_error = np.array([
+                    1.4826 * np.median(np.abs(d[configuration_name] - y[k]))
+                    for k, configuration_name in enumerate(configuration_names)
+                ])
+            else:
+                raise ValueError("unexpected mode value: {}".format(mode))
+            color = colors[block_group]
+            y1 = y - y_error
+            y1[y1 <= 0.0] = y_min  # i.e. replace negative values
+            y1 = np.log10(y1)
+            y2 = np.log10(y + y_error)
+            ax_.fill_between(x, y1, y2, alpha=0.5, facecolor=color, edgecolor=None)
+            ax_.plot(x, np.log10(y), color=color, marker='o', label=block_group)
+        ax_.set_yticks([])
+        ax_.set_yticklabels([])
+        ax_.set_ylabel("")
+        ax_.set_ylim(bottom=np.log10(y_min))
+        # ax_.set_ylim(bottom=np.log10(y_min), top=0.0)
+        ax.set_ylim(10.0 ** np.array(ax_.get_ylim()))
+        ax.set_xticks(x)
+        ax.set_xticklabels(configuration_names)
+        # ax.set_xticklabels(["$2^{" + "{}".format(2 * i) + "}$" for i in [1, 2, 3, 4, 5]])
+        ax.set_xlabel("number of cells")
+        ax.set_ylabel("duration (s)")
+        ax.set_title("Real-time performances")
+        ax_.legend(loc='center left', bbox_to_anchor=(1.0, 0.5))
         fig.tight_layout()
         fig.savefig(output_path)
 
