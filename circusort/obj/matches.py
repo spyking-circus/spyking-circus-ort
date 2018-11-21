@@ -1,22 +1,24 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 
 from circusort.obj.match import Match
 
 
 class Matches(object):
 
-    def __init__(self, cells_pred, cells_true, threshold=0.9, t_min=None, t_max=None):
+    def __init__(self, cells_pred, cells_true, threshold=0.9, t_min=None, t_max=None, path=None):
 
         self._cells_pred = cells_pred
         self._cells_true = cells_true
         self._threshold = threshold
         self._t_min = t_min
         self._t_max = t_max
+        self._path = path
 
-        self._similarities = None
         self._indices = None
         self._errors = None
+        self._ordered_indices = None
 
         self._update()
 
@@ -110,35 +112,45 @@ class Matches(object):
 
     def _update(self):
 
-        self._similarities = self._cells_pred.compute_similarities(self._cells_true)
+        if self._path is not None and os.path.isfile(self._path):
 
-        self._indices = np.zeros(self._nb_matches, dtype=np.int)
-        self._errors = np.zeros(self._nb_matches, dtype=np.float)
+            self._load()
 
-        for i, cell in enumerate(self._cells_pred):
-            potential_indices = np.where(self._similarities[i, :] > self._threshold)[0]
-            potential_cells = self._cells_true.slice_by_ids(potential_indices)
-            nb_potential_cells = len(potential_cells)
-            if nb_potential_cells > 0:
-                potential_errors = np.zeros(nb_potential_cells, dtype=np.float)
-                for k, potential_cell in enumerate(potential_cells):
-                    if self._t_min is None:
-                        t_min = max(cell.t_min, potential_cell.t_min)
-                    else:
-                        t_min = self._t_min
-                    if self._t_max is None:
-                        t_max = min(cell.t_max, potential_cell.t_max)
-                    else:
-                        t_max = self._t_max
-                    train = cell.train.slice(t_min, t_max)
-                    potential_train = potential_cell.train.slice(t_min, t_max)
-                    potential_errors[k] = train.compute_difference(potential_train)
-                index = np.argmin(potential_errors)
-                self._indices[i] = potential_indices[index]
-                self._errors[i] = potential_errors[index]
-            else:
-                self._indices[i] = -1
-                self._errors[i] = +1.0
+        else:
+
+            similarities = self._cells_pred.compute_similarities(self._cells_true)
+
+            self._indices = np.zeros(self._nb_matches, dtype=np.int)
+            self._errors = np.zeros(self._nb_matches, dtype=np.float)
+
+            for i, cell in enumerate(self._cells_pred):
+                potential_indices = np.where(similarities[i, :] > self._threshold)[0]
+                potential_cells = self._cells_true.slice_by_ids(potential_indices)
+                nb_potential_cells = len(potential_cells)
+                if nb_potential_cells > 0:
+                    potential_errors = np.zeros(nb_potential_cells, dtype=np.float)
+                    for k, potential_cell in enumerate(potential_cells):
+                        if self._t_min is None:
+                            t_min = max(cell.t_min, potential_cell.t_min)
+                        else:
+                            t_min = self._t_min
+                        if self._t_max is None:
+                            t_max = min(cell.t_max, potential_cell.t_max)
+                        else:
+                            t_max = self._t_max
+                        train = cell.train.slice(t_min, t_max)
+                        potential_train = potential_cell.train.slice(t_min, t_max)
+                        potential_errors[k] = train.compute_difference(potential_train)
+                    index = np.argmin(potential_errors)
+                    self._indices[i] = potential_indices[index]
+                    self._errors[i] = potential_errors[index]
+                else:
+                    self._indices[i] = -1
+                    self._errors[i] = +1.0
+
+            self._ordered_indices = similarities.ordered_indices
+
+            self._save()
 
         return
 
@@ -161,6 +173,46 @@ class Matches(object):
 
         return
 
+    def plot_curve(self, ax=None, ordering=False, path=None, **kwargs):
+
+        if ax is None:
+            fig, ax = plt.subplots(ncols=2)
+        else:
+            fig = ax.get_figure()
+
+        x = 100.0 * self._false_negative_rates
+        y = 100.0 * (1.0 - self._false_discovery_rates)
+        if ordering:
+            x = x[self._ordered_indices]
+            y = y[self._ordered_indices]
+
+        for k, ax_ in enumerate(ax):
+            ax_.scatter(x, y, s=5, **kwargs)
+
+            if k == 0:
+                ax_.plot([0.0, 100.0], [0.0, 100.0], color='black', linestyle='--')
+                ax_.set_xlim(left=-5.0, right=+105.0)
+                ax_.set_ylim(bottom=-5.0, top=+105.0)
+                ax_.set_aspect('equal')
+            else:
+                xlim = ax_.get_xlim()
+                ylim = ax_.get_ylim()
+                ax_.plot([-5.0, +105.0], [-5.0, +105.0], color='black', linestyle='--')
+                ax_.set_xlim(*xlim)
+                ax_.set_ylim(*ylim)
+                ax_.set_aspect((xlim[1] - xlim[0]) / (ylim[1] - ylim[0]))
+
+            ax_.set_xlabel("false negative rate (%)")
+            ax_.set_ylabel("positive predicted value (%)")
+            ax_.set_title("Matches curve")
+
+        fig.tight_layout()
+
+        if path is not None:
+            fig.savefig(path)
+
+        return
+
     def plot_errors(self, ax=None, ordering=False):
 
         if ax is None:
@@ -169,7 +221,7 @@ class Matches(object):
         x = np.arange(0, self._nb_matches)
         y = 100.0 * self._errors
         if ordering:
-            y = y[self._similarities.ordered_indices]
+            y = y[self._ordered_indices]
 
         ax.bar(x, y, width=1.0)
 
@@ -192,7 +244,7 @@ class Matches(object):
         x = np.arange(0, self._nb_matches)
         y = 100.0 * self._false_negative_rates
         if ordering:
-            y = y[self._similarities.ordered_indices]
+            y = y[self._ordered_indices]
 
         ax.bar(x, y, width=1.0)
 
@@ -215,7 +267,7 @@ class Matches(object):
         x = np.arange(0, self._nb_matches)
         y = 100.0 * self._false_discovery_rates
         if ordering:
-            y = y[self._similarities.ordered_indices]
+            y = y[self._ordered_indices]
 
         ax.bar(x, y, width=1.0)
 
@@ -238,7 +290,7 @@ class Matches(object):
         x = np.arange(0, self._nb_matches)
         y = np.abs(self._true_positive_differences)
         if ordering:
-            y = y[self._similarities.ordered_indices]
+            y = y[self._ordered_indices]
 
         ax.bar(x, y, width=1.0)
 
@@ -250,5 +302,31 @@ class Matches(object):
         ax.set_xlabel("match")
         ax.set_ylabel("abs. diff.")
         ax.set_title("True positive abs. diff.")
+
+        return
+
+    def _save(self):
+
+        if self._path is not None:
+            self.save(self._path)
+
+    def save(self, path):
+
+        kwargs = {
+            'indices': self._indices,
+            'errors': self._errors,
+            'order': self._ordered_indices,
+        }
+
+        np.savez(path, **kwargs)
+
+        return
+
+    def _load(self):
+
+        with np.load(self._path) as file:
+            self._indices = file['indices']
+            self._errors = file['errors']
+            self._ordered_indices = file['order']
 
         return

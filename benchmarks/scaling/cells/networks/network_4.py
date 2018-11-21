@@ -183,7 +183,7 @@ def sorting(configuration_name):
         'two_components': False,
         'local_merges': 3,
         'introspection_path': introspection_directory,
-        'log_level': DEBUG,
+        'log_level': INFO,
     }
     updater_bis_kwargs = {
         'name': "updater_bis",

@@ -4,14 +4,16 @@ from scipy.cluster.hierarchy import leaves_list, linkage, optimal_leaf_ordering
 
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 
 
 class Similarities(object):
 
-    def __init__(self, cells_pred, cells_true):
+    def __init__(self, cells_pred, cells_true, path=None):
 
         self._cells_pred = cells_pred
         self._cells_true = cells_true
+        self._path = path
 
         self._cmap = 'RdBu'
 
@@ -30,17 +32,25 @@ class Similarities(object):
 
     def _update(self):
 
-        nb_cells_pred = self._cells_pred.nb_cells
-        nb_cells_true = self._cells_true.nb_cells
-        shape = (nb_cells_pred, nb_cells_true)
+        if self._path is not None and os.path.isfile(self._path):
 
-        self._similarities = np.zeros(shape, dtype=np.float)
+            self._load()
 
-        for i, cell_pred in enumerate(self._cells_pred):
-            template_pred = cell_pred.template
-            for j, cell_true in enumerate(self._cells_true):
-                template_true = cell_true.template
-                self._similarities[i, j] = template_pred.similarity(template_true)
+        else:
+
+            nb_cells_pred = self._cells_pred.nb_cells
+            nb_cells_true = self._cells_true.nb_cells
+            shape = (nb_cells_pred, nb_cells_true)
+
+            self._similarities = np.zeros(shape, dtype=np.float)
+
+            for i, cell_pred in enumerate(self._cells_pred):
+                template_pred = cell_pred.template
+                for j, cell_true in enumerate(self._cells_true):
+                    template_true = cell_true.template
+                    self._similarities[i, j] = template_pred.similarity(template_true)
+
+            self._save()
 
         return
 
@@ -103,5 +113,33 @@ class Similarities(object):
 
         if path is not None:
             fig.savefig(path)
+
+        return
+
+    def _save(self):
+
+        if self._path is not None:
+            self.save(self._path)
+
+        return
+
+    def save(self, path):
+
+        kwargs = {
+            'i': np.array(self._cells_pred.ids),
+            'j': np.array(self._cells_true.ids),
+            'matrix': np.array(self._similarities),
+        }
+        if self._ordered_indices is not None:
+            kwargs['order'] = np.array(self._ordered_indices)
+
+        np.savez(path, **kwargs)
+
+        return
+
+    def _load(self):
+
+        with np.load(self._path) as file:
+            self._similarities = file['matrix']
 
         return
