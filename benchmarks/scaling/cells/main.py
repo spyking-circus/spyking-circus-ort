@@ -9,6 +9,8 @@ import circusort
 
 from collections import OrderedDict
 
+from circusort.plt.cells import plot_reconstruction
+
 from networks import network_4 as network
 
 
@@ -455,7 +457,9 @@ def main():
             from circusort.io.template_store import load_template_store
 
             detected_spikes_path = os.path.join(sorting_directory, "spikes.h5")
-            detected_spikes = circusort.io.load_spikes(detected_spikes_path)
+            t_min = 0.0  # s
+            t_max = duration
+            detected_spikes = circusort.io.load_spikes(detected_spikes_path, t_min=t_min, t_max=t_max)
 
             detected_templates_path = os.path.join(sorting_directory, "templates.h5")
             detected_templates = load_template_store(detected_templates_path)
@@ -495,27 +499,32 @@ def main():
             image_format = 'pdf'
 
             # Compute the similarities between detected and injected cells.
-            print("# Computing similarities...")
-            similarities_filename = "similarities_{}.npz".format(configuration_name)
-            similarities_path = os.path.join(output_directory, similarities_filename)
-            similarities = detected_cells.compute_similarities(injected_cells, path=similarities_path)
             similarities_filename = "similarities_{}.{}".format(configuration_name, image_format)
             similarities_path = os.path.join(output_directory, similarities_filename)
-            similarities.plot(ordering=ordering, path=similarities_path)
+            if not os.path.isfile(similarities_path):
+                print("# Computing similarities...")
+                similarities_cache_filename = "similarities_{}.npz".format(configuration_name)
+                similarities_cache_path = os.path.join(output_directory, similarities_cache_filename)
+                similarities = detected_cells.compute_similarities(injected_cells, path=similarities_cache_path)
+                similarities.plot(ordering=ordering, path=similarities_path)
 
             # Compute the matches between detected and injected cells.
-            print("# Computing matches...")
-            t_min = 1.0 * 60.0  # s  # discard the 1st minute
-            t_max = None
-            matches_filename = "matches_{}.npz".format(configuration_name)
-            matches_path = os.path.join(output_directory, matches_filename)
-            matches = detected_cells.compute_matches(injected_cells, t_min=t_min, t_max=t_max, path=matches_path)
             matches_filename = "matches_{}.{}".format(configuration_name, image_format)
             matches_path = os.path.join(output_directory, matches_filename)
-            matches.plot(ordering=ordering, path=matches_path)
-            matches_filename = "matches_curve_{}.{}".format(configuration_name, image_format)
-            matches_path = os.path.join(output_directory, matches_filename)
-            matches.plot_curve(ordering=ordering, path=matches_path)
+            matches_curve_filename = "matches_curve_{}.{}".format(configuration_name, image_format)
+            matches_curve_path = os.path.join(output_directory, matches_curve_filename)
+            if not os.path.isfile(matches_path) or not os.path.isfile(matches_curve_path):
+                print("# Computing matches...")
+                t_min = 0.0  # s
+                t_max = duration
+                matches_cache_filename = "matches_{}.npz".format(configuration_name)
+                matches_cache_path = os.path.join(output_directory, matches_cache_filename)
+                matches = detected_cells.compute_matches(injected_cells, t_min=t_min, t_max=t_max,
+                                                         path=matches_cache_path)
+                if not os.path.isfile(matches_path):
+                    matches.plot(ordering=ordering, path=matches_path)
+                if not os.path.isfile(matches_curve_path):
+                    matches.plot_curve(path=matches_curve_path)
 
             # # Consider the match with the worst error.
             # sorted_indices = np.argsort(matches.errors)
@@ -534,20 +543,77 @@ def main():
             #     times_of_interest_path = os.path.join(output_directory, times_of_interest_filename)
             #     plot_times_of_interest(data, times_of_interest,
             #                            window=10e-3, cells=detected_cells, sampling_rate=sampling_rate,
-            #                            mads=mads, peaks=peaks, filtered_data=filtered_data, path=times_of_interest_path)
+            #                            mads=mads, peaks=peaks, filtered_data=filtered_data,
+            #                            path=times_of_interest_path)
 
             # Plot the reconstruction.
-            from circusort.plt.cells import plot_reconstruction
-            t = 3.0 * 60.0  # s  # start time of the reconstruction plot
-            d = 1.0  # s  # duration of the reconstruction plot
-            if nb_channels > 32:
-                channels = np.random.choice(nb_channels, size=32, replace=False)
-            else:
-                channels = None
             reconstruction_filename = "reconstruction_{}.{}".format(configuration_name, image_format)
             reconstruction_path = os.path.join(output_directory, reconstruction_filename)
-            plot_reconstruction(detected_cells, t, t + d, sampling_rate, data, channels=channels,
-                                mads=mads, peaks=peaks, filtered_data=filtered_data, output=reconstruction_path)
+            if not os.path.isfile(reconstruction_path):
+                print("# Computing reconstruction...")
+                t = 3.0 * 60.0  # s  # start time of the reconstruction plot
+                d = 1.0  # s  # duration of the reconstruction plot
+                if nb_channels > 32:
+                    channels = np.random.choice(nb_channels, size=32, replace=False)
+                else:
+                    channels = None
+                plot_reconstruction(detected_cells, t, t + d, sampling_rate, data, channels=channels,
+                                    mads=mads, peaks=peaks, filtered_data=filtered_data, output=reconstruction_path)
+
+            # TODO plot the highest similarity with another template against the false negative rate.
+            sim_vs_fnr_filename = "sim_vs_fnr_{}.{}".format(configuration_name, image_format)
+            sim_vs_fnr_path = os.path.join(output_directory, sim_vs_fnr_filename)
+            if not os.path.isfile(sim_vs_fnr_path):
+                print("# Computing sim. v.s. FNR...")
+                # Retrieve the template similarities.
+                similarities_cache_filename = "similarities_{}.npz".format(configuration_name)
+                similarities_cache_path = os.path.join(output_directory, similarities_cache_filename)
+                similarities = detected_cells.compute_similarities(injected_cells, path=similarities_cache_path)
+                # Retrieve the best matching between templates.
+                t_min = 0.0  # s
+                t_max = duration
+                matches_cache_filename = "matches_{}.npz".format(configuration_name)
+                matches_cache_path = os.path.join(output_directory, matches_cache_filename)
+                matches = detected_cells.compute_matches(injected_cells, t_min=t_min, t_max=t_max,
+                                                         path=matches_cache_path)
+                # Plot similarity v.s. FNR.
+                x = 100.0 * matches.false_negative_rates
+                y = similarities.highest_similarities(num=2)
+                y = y[:, 1]
+                # y = np.mean(y, axis=1)
+                fig, ax = plt.subplots()
+                ax.scatter(x, y, s=5, color='black')
+                ax.set_xlabel("false negative rate (%)")
+                ax.set_ylabel("2nd highest similarity (arb. unit)")
+                fig.tight_layout()
+                fig.savefig(sim_vs_fnr_path)
+
+            # TODO plot the templates with worst FNR.
+            worst_fnr_filename = "worst_fnr_{}.{}".format(configuration_name, image_format)
+            worst_fnr_path = os.path.join(output_directory, worst_fnr_filename)
+            force = True  # TODO remove this line.
+            if not os.path.isfile(worst_fnr_path) or force:
+                # Retrieve the best matching between templates.
+                t_min = 0.0  # s
+                t_max = duration
+                matches_cache_filename = "matches_{}.npz".format(configuration_name)
+                matches_cache_path = os.path.join(output_directory, matches_cache_filename)
+                matches = detected_cells.compute_matches(injected_cells, t_min=t_min, t_max=t_max,
+                                                         path=matches_cache_path)
+                # Find the worst FNR.
+                fnrs = matches.false_negative_rates
+                index = np.argmax(fnrs)
+                match = matches[index]
+                sorted_cell, injected_cell = match.get_cells()
+                sorted_template = sorted_cell.template
+                injected_template = injected_cell.template
+                probe_filename = "probe.prb"
+                probe_path = os.path.join(generation_directory, probe_filename)
+                probe = circusort.io.load_probe(probe_path)
+                # Plot templates with worst FNR.
+                fig, ax = plt.subplots(ncols=2)
+                sorted_template.plot(ax=ax[0], output=worst_fnr_path, probe=probe, time_factor=25.0)
+                injected_template.plot(ax=ax[1], output=worst_fnr_path, probe=probe, time_factor=25.0)
 
             # plt.show()  # Figures are saved to files and don't need to be shown.
 

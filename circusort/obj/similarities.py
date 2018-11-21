@@ -79,6 +79,16 @@ class Similarities(object):
 
         return self._ordered_indices
 
+    def highest_similarities(self, num=1):
+
+        ordered_similarities = np.sort(self._similarities, axis=1)
+        k_min = ordered_similarities.shape[1] - num
+        k_max = ordered_similarities.shape[1]
+        highest_similarities = ordered_similarities[:, k_min:k_max]
+        highest_similarities = np.fliplr(highest_similarities)
+
+        return highest_similarities
+
     def plot(self, ax=None, ordering=False, path=None):
 
         if ax is None:

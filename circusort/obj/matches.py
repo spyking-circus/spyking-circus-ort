@@ -45,7 +45,7 @@ class Matches(object):
         return self._cells_pred.nb_cells
 
     @property
-    def _false_negative_rates(self):
+    def false_negative_rates(self):
 
         rates = np.zeros(self._nb_matches, dtype=np.float)
         for i, j in enumerate(self._indices):
@@ -173,18 +173,15 @@ class Matches(object):
 
         return
 
-    def plot_curve(self, ax=None, ordering=False, path=None, **kwargs):
+    def plot_curve(self, ax=None, path=None, **kwargs):
 
         if ax is None:
             fig, ax = plt.subplots(ncols=2)
         else:
             fig = ax.get_figure()
 
-        x = 100.0 * self._false_negative_rates
+        x = 100.0 * self.false_negative_rates
         y = 100.0 * (1.0 - self._false_discovery_rates)
-        if ordering:
-            x = x[self._ordered_indices]
-            y = y[self._ordered_indices]
 
         for k, ax_ in enumerate(ax):
             ax_.scatter(x, y, s=5, **kwargs)
@@ -242,7 +239,7 @@ class Matches(object):
             _, ax = plt.subplots()
 
         x = np.arange(0, self._nb_matches)
-        y = 100.0 * self._false_negative_rates
+        y = 100.0 * self.false_negative_rates
         if ordering:
             y = y[self._ordered_indices]
 
