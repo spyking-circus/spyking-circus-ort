@@ -7,7 +7,7 @@ import sys
 
 
 def plot_reconstruction(cells, t_min, t_max, sampling_rate, data_file, ax=None, output=None, channels=None,
-                        mads=None, peaks=None, filtered_data=None):
+                        mads=None, peaks=None, filtered_data=None, buffer_width=None, linewidth=0.1):
 
     sampling_rate = float(sampling_rate)
     g_min = int(np.ceil(t_min * sampling_rate))  # first timestep
@@ -65,11 +65,11 @@ def plot_reconstruction(cells, t_min, t_max, sampling_rate, data_file, ax=None, 
 
     for k, channel in enumerate(channels):
         y_offset = float(k)
-        ax.plot(x, y_scale * snippet[:, channel] + y_offset, color='0.5', linewidth=0.1)
+        ax.plot(x, y_scale * snippet[:, channel] + y_offset, color='0.5', linewidth=linewidth)
         if filtered_snippet is not None:
-            ax.plot(x, y_scale * filtered_snippet[:, channel] + y_offset, color='0.75', linewidth=0.1)
+            ax.plot(x, y_scale * filtered_snippet[:, channel] + y_offset, color='0.75', linewidth=linewidth)
         y = y_scale * result[:, channel] + y_offset
-        ax.plot(x, y, color='r', linewidth=0.1)
+        ax.plot(x, y, color='r', linewidth=linewidth)
 
     # Add MADs (if possible).
     if mads is not None:
@@ -78,7 +78,7 @@ def plot_reconstruction(cells, t_min, t_max, sampling_rate, data_file, ax=None, 
         for k, channel in enumerate(channels):
             y_offset = float(k)
             y = y_scale * (-7.0 * mads_snippet[:, channel]) + y_offset
-            ax.plot(x, y, color='C0', linewidth=0.1)
+            ax.plot(x, y, color='C0', linewidth=linewidth)
 
     # Add peaks (if possible).
     if peaks is not None:
@@ -87,7 +87,18 @@ def plot_reconstruction(cells, t_min, t_max, sampling_rate, data_file, ax=None, 
             for peak_time in peaks.get_times(t_min=t_min, t_max=t_max, channels=[channel]):
                 x = [peak_time, peak_time]
                 y = [y_offset + 0.15, y_offset + 0.35]
-                ax.plot(x, y, color='C1', zorder=3, linewidth=0.1)
+                ax.plot(x, y, color='C1', zorder=3, linewidth=linewidth)
+
+    # Add buffer edges (if possible).
+    if buffer_width is not None:
+        buffer_min = int(np.ceil(g_min / buffer_width))
+        buffer_max = int(np.floor(g_max / buffer_width))
+        buffer_edges = np.array([
+            float(buffer_id * buffer_width) / sampling_rate
+            for buffer_id in range(buffer_min, buffer_max + 1)
+        ])
+        for buffer_edge in buffer_edges:
+            ax.axvline(buffer_edge, color='grey', linestyle='--', linewidth=linewidth)
 
     ax.set_xlabel(u"time (s)")
     ax.set_ylabel(u"channel")

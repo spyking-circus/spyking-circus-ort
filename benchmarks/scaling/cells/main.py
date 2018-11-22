@@ -557,8 +557,10 @@ def main():
                     channels = np.random.choice(nb_channels, size=32, replace=False)
                 else:
                     channels = None
+                buffer_width = 1024
                 plot_reconstruction(detected_cells, t, t + d, sampling_rate, data, channels=channels,
-                                    mads=mads, peaks=peaks, filtered_data=filtered_data, output=reconstruction_path)
+                                    mads=mads, peaks=peaks, filtered_data=filtered_data, buffer_width=buffer_width,
+                                    output=reconstruction_path)
 
             # TODO plot the highest similarity with another template against the false negative rate.
             sim_vs_fnr_filename = "sim_vs_fnr_{}.{}".format(configuration_name, image_format)
@@ -587,12 +589,12 @@ def main():
                 ax.set_ylabel("2nd highest similarity (arb. unit)")
                 fig.tight_layout()
                 fig.savefig(sim_vs_fnr_path)
+                plt.close(fig)
 
             # TODO plot the templates with worst FNR.
             worst_fnr_filename = "worst_fnr_{}.{}".format(configuration_name, image_format)
             worst_fnr_path = os.path.join(output_directory, worst_fnr_filename)
-            force = True  # TODO remove this line.
-            if not os.path.isfile(worst_fnr_path) or force:
+            if not os.path.isfile(worst_fnr_path):
                 # Retrieve the best matching between templates.
                 t_min = 0.0  # s
                 t_max = duration
@@ -614,6 +616,198 @@ def main():
                 fig, ax = plt.subplots(ncols=2)
                 sorted_template.plot(ax=ax[0], output=worst_fnr_path, probe=probe, time_factor=25.0)
                 injected_template.plot(ax=ax[1], output=worst_fnr_path, probe=probe, time_factor=25.0)
+                plt.close(fig)
+
+            # TODO plot template norm against the false negative rates.
+            norm_vs_fnr_filename = "norm_vs_fnr_{}.{}".format(configuration_name, image_format)
+            norm_vs_fnr_path = os.path.join(output_directory, norm_vs_fnr_filename)
+            if not os.path.isfile(norm_vs_fnr_path):
+                # Retrieve the best matching between templates.
+                t_min = 0.0  # s
+                t_max = duration
+                matches_cache_filename = "matches_{}.npz".format(configuration_name)
+                matches_cache_path = os.path.join(output_directory, matches_cache_filename)
+                matches = detected_cells.compute_matches(injected_cells, t_min=t_min, t_max=t_max,
+                                                         path=matches_cache_path)
+                # Plot template norm against FNR.
+                x = 100.0 * matches.false_negative_rates
+                y = np.array([cell.template.norm for cell in detected_cells])
+                fig, ax = plt.subplots()
+                ax.scatter(x, y, s=5, color='black')
+                ax.set_xlabel("false negative rate (%)")
+                ax.set_ylabel("template norm (arb. unit)")
+                ax.set_title("Template norm against false negative rate")
+                fig.tight_layout()
+                fig.savefig(norm_vs_fnr_path)
+                plt.close(fig)
+
+            # TODO plot template amplitude against the false negative rates.
+            ampl_vs_fnr_filename = "ampl_vs_fnr_{}.{}".format(configuration_name, image_format)
+            ampl_vs_fnr_path = os.path.join(output_directory, ampl_vs_fnr_filename)
+            if not os.path.isfile(ampl_vs_fnr_path):
+                # Retrieve the best matching between templates.
+                t_min = 0.0  # s
+                t_max = duration
+                matches_cache_filename = "matches_{}.npz".format(configuration_name)
+                matches_cache_path = os.path.join(output_directory, matches_cache_filename)
+                matches = detected_cells.compute_matches(injected_cells, t_min=t_min, t_max=t_max,
+                                                         path=matches_cache_path)
+                # Plot template norm against FNR.
+                x = 100.0 * matches.false_negative_rates
+                y = np.array([cell.template.peak_amplitude() for cell in detected_cells])
+                z = detected_cells.ids
+                fig, ax = plt.subplots()
+                ax.scatter(x, y, s=5, color='black')
+                for x_, y_, z_ in zip(x, y, z):
+                    ax.annotate(z_, (x_, y_), fontsize=1, color='grey',
+                                verticalalignment='center', horizontalalignment='center')
+                ax.set_xlabel("false negative rate (%)")
+                ax.set_ylabel("template amplitude (µV)")
+                ax.set_title("Template amplitude against false negative rate")
+                fig.tight_layout()
+                fig.savefig(ampl_vs_fnr_path)
+                plt.close(fig)
+
+            # TODO plot false negative count through time.
+            fnr_filename = "fnr_{}.{}".format(configuration_name, image_format)
+            fnr_path = os.path.join(output_directory, fnr_filename)
+            if not os.path.isfile(norm_vs_fnr_path):
+                # Retrieve the best matching between templates.
+                t_min = 0.0  # s
+                t_max = duration
+                matches_cache_filename = "matches_{}.npz".format(configuration_name)
+                matches_cache_path = os.path.join(output_directory, matches_cache_filename)
+                matches = detected_cells.compute_matches(injected_cells, t_min=t_min, t_max=t_max,
+                                                         path=matches_cache_path)
+                # Plot FNR through time.
+                mode = 'sorted'
+                x, y, z = matches.false_negative_counts(nb_bins=100)
+                if mode == 'sorted':
+                    i = np.argsort(matches.false_negative_rates)
+                    z = z[i, :]
+                fig, ax = plt.subplots()
+                c = ax.pcolor(x, y, z)
+                ax.set_xlabel("time (s)")
+                ax.set_ylabel("detected unit")
+                ax.set_title("False negative count through time")
+                cbar = fig.colorbar(c, ax=ax)
+                cbar.set_label("false negative count")
+                fig.tight_layout()
+                fig.savefig(fnr_path)
+                plt.close(fig)
+
+            # TODO plot the templates with worst FNR.
+            nb_worst_templates = 10
+            worst_fnr_paths = {}
+            for k in range(0, nb_worst_templates):
+                worst_fnr_filename = "worst_fnr_{}_{}.{}".format(configuration_name, k, image_format)
+                worst_fnr_paths[k] = os.path.join(output_directory, worst_fnr_filename)
+            if np.any([not os.path.isfile(path) for path in worst_fnr_paths.values()]):
+                # Retrieve the best matching between templates.
+                t_min = 0.0  # s
+                t_max = duration
+                matches_cache_filename = "matches_{}.npz".format(configuration_name)
+                matches_cache_path = os.path.join(output_directory, matches_cache_filename)
+                matches = detected_cells.compute_matches(injected_cells, t_min=t_min, t_max=t_max,
+                                                         path=matches_cache_path)
+                # Find the worst FNRs.
+                fnrs = matches.false_negative_rates
+                indices = np.argsort(fnrs)
+                for k in range(0, nb_worst_templates):
+                    if not os.path.isfile(worst_fnr_paths[k]):
+                        index = indices[-k-1]
+                        match = matches[index]
+                        sorted_cell, injected_cell = match.get_cells()
+                        sorted_template = sorted_cell.template
+                        injected_template = injected_cell.template
+                        probe_filename = "probe.prb"
+                        probe_path = os.path.join(generation_directory, probe_filename)
+                        probe = circusort.io.load_probe(probe_path)
+                        # Plot templates with worst FNR.
+                        fig, ax = plt.subplots(ncols=2)
+                        sorted_template.plot(ax=ax[0], output=worst_fnr_paths[k], probe=probe,
+                                             time_factor=25.0, voltage_factor=0.5)
+                        injected_template.plot(ax=ax[1], output=worst_fnr_paths[k], probe=probe,
+                                               time_factor=25.0, voltage_factor=0.5)
+                        plt.close(fig)
+
+            # TODO plot the templates with best FNR.
+            nb_best_templates = 10
+            best_fnr_paths = {}
+            for k in range(0, nb_best_templates):
+                best_fnr_filename = "best_fnr_{}_{}.{}".format(configuration_name, k, image_format)
+                best_fnr_paths[k] = os.path.join(output_directory, best_fnr_filename)
+            if np.any([not os.path.isfile(path) for path in best_fnr_paths.values()]):
+                # Retrieve the best matching between templates.
+                t_min = 0.0  # s
+                t_max = duration
+                matches_cache_filename = "matches_{}.npz".format(configuration_name)
+                matches_cache_path = os.path.join(output_directory, matches_cache_filename)
+                matches = detected_cells.compute_matches(injected_cells, t_min=t_min, t_max=t_max,
+                                                         path=matches_cache_path)
+                # Find the best FNRs.
+                fnrs = matches.false_negative_rates
+                indices = np.argsort(fnrs)
+                for k in range(0, nb_best_templates):
+                    if not os.path.isfile(best_fnr_paths[k]) or force:
+                        index = indices[k]
+                        match = matches[index]
+                        sorted_cell, injected_cell = match.get_cells()
+                        sorted_template = sorted_cell.template
+                        injected_template = injected_cell.template
+                        probe_filename = "probe.prb"
+                        probe_path = os.path.join(generation_directory, probe_filename)
+                        probe = circusort.io.load_probe(probe_path)
+                        # Plot templates with best FNR.
+                        fig, ax = plt.subplots(ncols=2)
+                        sorted_template.plot(ax=ax[0], output=best_fnr_paths[k], probe=probe,
+                                             time_factor=25.0, voltage_factor=0.5)
+                        injected_template.plot(ax=ax[1], output=best_fnr_paths[k], probe=probe,
+                                               time_factor=25.0, voltage_factor=0.5)
+                        plt.close(fig)
+
+            # TODO plot the annoying templates.
+            nb_annoying_templates = 5
+            annoying_paths = {}
+            for k in range(0, nb_annoying_templates):
+                annoying_filename = "annoying_{}_{}.{}".format(configuration_name, k, image_format)
+                annoying_paths[k] = os.path.join(output_directory, annoying_filename)
+            if np.any([not os.path.isfile(path) for path in annoying_paths.values()]):
+                # Retrieve the best matching between templates.
+                t_min = 0.0  # s
+                t_max = duration
+                matches_cache_filename = "matches_{}.npz".format(configuration_name)
+                matches_cache_path = os.path.join(output_directory, matches_cache_filename)
+                matches = detected_cells.compute_matches(injected_cells, t_min=t_min, t_max=t_max,
+                                                         path=matches_cache_path)
+                # Find the annoying templates.
+                # fnrs = matches.false_negative_rates
+                # amplitudes = np.array([cell.template.peak_amplitude() for cell in detected_cells])
+                # indices = np.where(np.logical_and(fnrs > np.median(fnrs), amplitudes > np.median(amplitudes)))[0]
+                # np.random.shuffle(indices)
+                indices = {
+                    "64": np.array([3, 56, 32, 50, 59]),
+                    "256": np.array([130, 154, 228, 207, 27]),
+                    "1024": np.array([397, 593, 876, 1001, 525]),
+                }
+                indices = indices[configuration_name]
+                for k in range(0, nb_annoying_templates):
+                    if not os.path.isfile(annoying_paths[k]):
+                        index = indices[k]
+                        match = matches[index]
+                        sorted_cell, injected_cell = match.get_cells()
+                        sorted_template = sorted_cell.template
+                        injected_template = injected_cell.template
+                        probe_filename = "probe.prb"
+                        probe_path = os.path.join(generation_directory, probe_filename)
+                        probe = circusort.io.load_probe(probe_path)
+                        # Plot annoying templates.
+                        fig, ax = plt.subplots(ncols=2)
+                        sorted_template.plot(ax=ax[0], output=annoying_paths[k], probe=probe,
+                                             time_factor=25.0, voltage_factor=0.5)
+                        injected_template.plot(ax=ax[1], output=annoying_paths[k], probe=probe,
+                                               time_factor=25.0, voltage_factor=0.5)
+                        plt.close(fig)
 
             # plt.show()  # Figures are saved to files and don't need to be shown.
 

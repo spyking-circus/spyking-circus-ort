@@ -60,6 +60,26 @@ class Matches(object):
 
         return rates
 
+    def false_negative_counts(self, nb_bins=50):
+
+        shape = (self._nb_matches, nb_bins)
+        edges = np.arange(0, nb_bins + 1)
+        indices = np.arange(0, self._nb_matches)
+        counts = np.zeros(shape, dtype=np.int)
+
+        for i, j in enumerate(self._indices):
+            if j == -1:
+                counts[i, :] = -1  # TODO use another value than -1?
+            else:
+                cell_pred = self._cells_pred[i]
+                cell_true = self._cells_true[j]
+                train_pred = cell_pred.train
+                train_true = cell_true.train
+                counts[i, :], edges = train_pred.compute_false_negative_count(train_true, t_min=self._t_min,
+                                                                              t_max=self._t_max, nb_bins=nb_bins)
+
+        return edges, indices, counts
+
     @property
     def _false_discovery_rates(self):
 

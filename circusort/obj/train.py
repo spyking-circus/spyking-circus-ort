@@ -330,6 +330,21 @@ class Train(object):
 
         return r_fn
 
+    def compute_false_negative_count(self, train, jitter=2e-3, t_min=None, t_max=None, nb_bins=50):
+        """Compute the false negative count."""
+
+        train_pred, train_true = self.check_temporal_support(train, t_min=t_min, t_max=t_max)
+
+        fn_train = train_pred.collect_false_negatives(train_true, jitter=jitter, t_min=t_min, t_max=t_max)
+        fn_times = fn_train.times
+        range_ = (
+            t_min if t_min is not None else fn_times.min(),
+            t_max if t_max is not None else fn_times.max(),
+        )
+        bin_values, bin_edges = np.histogram(fn_times, bins=nb_bins, range=range_)
+
+        return bin_values, bin_edges
+
     def compute_positive_predictive_value(self, train, jitter=2e-3, t_min=None, t_max=None):
         """Compute the positive predictive value."""
 

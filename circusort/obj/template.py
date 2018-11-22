@@ -89,8 +89,21 @@ class TemplateComponent(object):
     @property
     def extrema(self):
         index = self.temporal_width//2 + 1
-        return (np.min(self.waveforms[:, index]), np.max(self.waveforms[:, index]))
-    
+        return np.min(self.waveforms[:, index]), np.max(self.waveforms[:, index])
+
+    def peak_amplitude(self, polarity=None, reference_value=0.0):
+
+        if polarity is None:
+            amplitude = np.max(np.abs(self.waveforms - reference_value))
+        elif polarity == 'positive':
+            amplitude = np.max(self.waveforms - reference_value)
+        elif polarity == 'negative':
+            amplitude = np.min(self.waveforms - reference_value)
+        else:
+            raise ValueError("unexpected polarity value: {}".format(polarity))
+
+        return amplitude
+
     def __str__(self):
 
         string = "TemplateComponent for {} channels with amplitudes {}"
@@ -382,6 +395,10 @@ class Template(object):
     @property
     def extrema(self):
         return self.first_component.extrema
+
+    def peak_amplitude(self, polarity=None, reference_value=0.0):
+
+        return self.first_component.peak_amplitude(polarity=polarity, reference_value=reference_value)
 
     @property
     def is_compressed(self):
