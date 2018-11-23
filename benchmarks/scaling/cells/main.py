@@ -10,6 +10,7 @@ import circusort
 from collections import OrderedDict
 
 from circusort.plt.cells import plot_reconstruction
+from circusort.plt.base import plot_time_of_interest
 
 from networks import network_4 as network
 
@@ -18,7 +19,8 @@ nb_rows = 16
 nb_columns = 16
 radius = 100.0  # µm
 # nb_cells_range = [3, 12, 48, 192]
-cell_densities = [0.25, 1.0, 4.0]
+# cell_densities = [0.25, 1.0, 4.0]
+cell_densities = [4.0]
 duration = 10.0 * 60.0  # s
 
 
@@ -471,6 +473,10 @@ def main():
             from circusort.io.datafile import load_datafile
             data = load_datafile(data_path, sampling_rate, nb_channels, 'int16', 0.1042)
 
+            # Load the probe.
+            probe_path = os.path.join(generation_directory, "probe.prb")
+            probe = circusort.io.load_probe(probe_path)
+
             # Load the MADs (if possible).
             mads_path = os.path.join(sorting_directory, "mad.raw")
             if os.path.isfile(mads_path):
@@ -497,6 +503,11 @@ def main():
 
             ordering = True
             image_format = 'pdf'
+
+            # Plot probe.
+            output_probe_filename = "probe_{}.{}".format(configuration_name, image_format)
+            output_probe_path = os.path.join(output_directory, output_probe_filename)
+            probe.plot(path=output_probe_path)
 
             # Compute the similarities between detected and injected cells.
             similarities_filename = "similarities_{}.{}".format(configuration_name, image_format)
@@ -749,7 +760,7 @@ def main():
                 fnrs = matches.false_negative_rates
                 indices = np.argsort(fnrs)
                 for k in range(0, nb_best_templates):
-                    if not os.path.isfile(best_fnr_paths[k]) or force:
+                    if not os.path.isfile(best_fnr_paths[k]):
                         index = indices[k]
                         match = matches[index]
                         sorted_cell, injected_cell = match.get_cells()
@@ -780,11 +791,12 @@ def main():
                 matches_cache_path = os.path.join(output_directory, matches_cache_filename)
                 matches = detected_cells.compute_matches(injected_cells, t_min=t_min, t_max=t_max,
                                                          path=matches_cache_path)
-                # Find the annoying templates.
+                # # Find the annoying templates.
                 # fnrs = matches.false_negative_rates
                 # amplitudes = np.array([cell.template.peak_amplitude() for cell in detected_cells])
                 # indices = np.where(np.logical_and(fnrs > np.median(fnrs), amplitudes > np.median(amplitudes)))[0]
                 # np.random.shuffle(indices)
+                # Select the annoying templates.
                 indices = {
                     "64": np.array([3, 56, 32, 50, 59]),
                     "256": np.array([130, 154, 228, 207, 27]),
@@ -809,7 +821,56 @@ def main():
                                                time_factor=25.0, voltage_factor=0.5)
                         plt.close(fig)
 
-            # plt.show()  # Figures are saved to files and don't need to be shown.
+            # TODO plot snippets of false negatives.
+            template_indices = {
+                "64": np.array([3, 56]),
+                "256": np.array([130, 154]),
+                "1024": np.array([397, 593]),
+            }
+            template_indices = template_indices[configuration_name]
+            toi_dirname = "false_negative_snippets"
+            toi_directory = os.path.join(output_directory, toi_dirname)
+            if not os.path.isdir(toi_directory):
+                os.makedirs(toi_directory)
+            toi_directories = {}
+            for i in template_indices:
+                toi_dirname = "fn_{}_{}".format(configuration_name, i)
+                toi_directories[i] = os.path.join(toi_directory, toi_dirname)
+            nb_fns_max = 10
+            if np.any([not os.path.isfile(path) for path in toi_directories.values()]):
+                # Retrieve the best matching between templates.
+                t_min = 0.0  # s
+                t_max = duration
+                matches_cache_filename = "matches_{}.npz".format(configuration_name)
+                matches_cache_path = os.path.join(output_directory, matches_cache_filename)
+                matches = detected_cells.compute_matches(injected_cells, t_min=t_min, t_max=t_max,
+                                                         path=matches_cache_path)
+                # Load the probe.
+                probe_filename = "probe.prb"
+                probe_path = os.path.join(generation_directory, probe_filename)
+                probe = circusort.io.load_probe(probe_path)
+                # Load the peaks.
+                peaks_filename = "peaks.h5"
+                peaks_path = os.path.join(sorting_directory, peaks_filename)
+                peaks = circusort.io.load_peaks(peaks_path)
+                print(peaks)
+                # Plot the false negative snippets.
+                for i in template_indices:
+                    if not os.path.isdir(toi_directories[i]):
+                        os.makedirs(toi_directories[i])
+                        # Select some false negatives.
+                        match = matches[i]
+                        fn_train = match.collect_false_negatives()
+                        nb_fn_to_select = min(len(fn_train), nb_fns_max)
+                        fn_indices = np.random.choice(np.arange(0, len(fn_train)), size=nb_fn_to_select, replace=False)
+                        fn_times = fn_train.times[fn_indices]
+                        for fn_index, fn_time in zip(fn_indices, fn_times):
+                            toi_filename = "fn_{}.{}".format(fn_index, image_format)
+                            toi_path = os.path.join(toi_directories[i], toi_filename)
+                            # Plot false negative snippets.
+                            plot_time_of_interest(data, fn_time, window=10e-3, sampling_rate=sampling_rate, probe=probe,
+                                                  peaks=peaks, color='C0', linewidth=0.5, voltage_factor=0.25,
+                                                  path=toi_path)
 
 
 if __name__ == '__main__':

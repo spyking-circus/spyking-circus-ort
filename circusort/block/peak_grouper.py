@@ -94,6 +94,12 @@ class PeakGrouper(Block):
                 if key == 'offset':
                     grouped_peaks.update([(key, value)])
                 elif key in ['negative', 'positive']:
+                    # Remap channels correctly.
+                    value = {
+                        str(int(channel) * self.nb_groups + k): times
+                        for channel, times in value.items()
+                    }
+                    # Accumulate peaks.
                     if key in grouped_peaks:
                         grouped_peaks[key].update(value)
                     else:
