@@ -89,10 +89,11 @@ class Similarities(object):
 
         return highest_similarities
 
-    def plot(self, ax=None, ordering=False, path=None):
+    def plot(self, ax=None, ordering=False, path=None, figsize=None, title="Template similarities", title_fontsize=None,
+             label_fontsize=None, ticklabel_fontsize=None):
 
         if ax is None:
-            fig, ax = plt.subplots()
+            fig, ax = plt.subplots(figsize=figsize)
         else:
             fig = ax.get_figure()
 
@@ -112,12 +113,12 @@ class Similarities(object):
         ax.set_xticks([])
         ax.set_yticks([])
 
-        ax.set_xlabel("injected templates")
-        ax.set_ylabel("detected templates")
-        ax.set_title("Template similarities")
+        ax.set_xlabel("injected templates", fontsize=label_fontsize)
+        ax.set_ylabel("detected templates", fontsize=label_fontsize)
+        ax.set_title(title, fontsize=title_fontsize)
 
-        bar.set_label("correlation")
-        bar.ax.set_yticklabels(["$-1$", "$0$", "$+1$"])
+        bar.set_label("correlation", fontsize=label_fontsize)
+        bar.ax.set_yticklabels(["$-1$", "$0$", "$+1$"], fontsize=ticklabel_fontsize)
 
         fig.tight_layout()
 

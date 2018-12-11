@@ -58,6 +58,11 @@ class Cell(object):
         self.chunk_width = None
         self.subtrains = None
 
+        self.template_path = None
+        self.train_path = None
+        self.amplitude_path = None
+        self.position_path = None
+
     def precompute_chunk_subtrains(self, chunk_width=51.2):
         """Precompute the chunk subtrains.
 
@@ -128,7 +133,6 @@ class Cell(object):
         return x/time_bin
 
     def slice(self, t_min=None, t_max=None):
-        # TODO add docstring.
 
         if self.amplitude is not None:
             new_amplitude = self.amplitude.slice(t_min, t_max)
@@ -185,7 +189,6 @@ class Cell(object):
         return
 
     def plot(self, output=None, **kwargs):
-        # TODO add docstring.
 
         if output is None:
 
@@ -240,7 +243,6 @@ class Cell(object):
         return
 
     def plot_rate(self, output=None, ax=None, **kwargs):
-        # TODO add docstring.
 
         if output is not None and ax is None:
             plt.ioff()
@@ -268,7 +270,6 @@ class Cell(object):
         return
 
     def _plot_position(self, ax, **kwargs):
-        # TODO add docstring.
 
         self.plot_x_position(ax=ax[0], **kwargs)
         self.plot_y_position(ax=ax[1], **kwargs)
@@ -276,7 +277,6 @@ class Cell(object):
         return
 
     def plot_position(self, output=None, ax=None, **kwargs):
-        # TODO add docstring.
 
         if output is not None and ax is None:
             plt.ioff()
@@ -326,7 +326,6 @@ class Cell(object):
         return
 
     def plot_x_position(self, output=None, ax=None, **kwargs):
-        # TODO add docstring.
 
         if output is not None and ax is None:
             plt.ioff()
@@ -379,7 +378,6 @@ class Cell(object):
         return
 
     def plot_y_position(self, output=None, ax=None, **kwargs):
-        # TODO add docstring.
 
         if output is not None and ax is None:
             plt.ioff()

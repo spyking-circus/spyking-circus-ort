@@ -2,6 +2,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 
+from mpl_toolkits.axes_grid1.inset_locator import mark_inset
+from mpl_toolkits.axes_grid1.inset_locator import zoomed_inset_axes
+
 from circusort.obj.match import Match
 
 
@@ -193,35 +196,94 @@ class Matches(object):
 
         return
 
-    def plot_curve(self, ax=None, path=None, **kwargs):
+    def plot_curve(self, ax=None, path=None, figsize=None, mode='with inset', **kwargs):
 
-        if ax is None:
-            fig, ax = plt.subplots(ncols=2)
-        else:
-            fig = ax.get_figure()
+        if mode == 'with inset':
 
-        x = 100.0 * self.false_negative_rates
-        y = 100.0 * (1.0 - self._false_discovery_rates)
-
-        for k, ax_ in enumerate(ax):
-            ax_.scatter(x, y, s=5, **kwargs)
-
-            if k == 0:
-                ax_.plot([0.0, 100.0], [0.0, 100.0], color='black', linestyle='--')
-                ax_.set_xlim(left=-5.0, right=+105.0)
-                ax_.set_ylim(bottom=-5.0, top=+105.0)
-                ax_.set_aspect('equal')
+            if ax is None:
+                fig, ax = plt.subplots(figsize=figsize)
             else:
-                xlim = ax_.get_xlim()
-                ylim = ax_.get_ylim()
-                ax_.plot([-5.0, +105.0], [-5.0, +105.0], color='black', linestyle='--')
-                ax_.set_xlim(*xlim)
-                ax_.set_ylim(*ylim)
-                ax_.set_aspect((xlim[1] - xlim[0]) / (ylim[1] - ylim[0]))
+                fig = ax.get_figure()
 
-            ax_.set_xlabel("false negative rate (%)")
-            ax_.set_ylabel("positive predicted value (%)")
-            ax_.set_title("Matches curve")
+            x = 100.0 * self.false_negative_rates
+            y = 100.0 * (1.0 - self._false_discovery_rates)
+
+            print("error rate: {} %".format(np.mean((x + (100.0 - y)) / 2.0)))
+
+            axins = zoomed_inset_axes(ax, 12.0, loc='right')
+
+            ax.scatter(x, y, s=5, color='black', zorder=3, **kwargs)
+            ax.plot([0.0, 100.0], [0.0, 100.0], color='black', linestyle='--', zorder=1)
+
+            axins.scatter(x, y, s=5, color='black', zorder=3, **kwargs)
+            axins.plot([0.0, 100.0], [0.0, 100.0], color='black', linestyle='--', zorder=1)
+
+            ax.set_xlim(left=-5.0, right=+105.0)
+            ax.set_ylim(bottom=-5.0, top=+105.0)
+            ax.set_aspect('equal')
+            ax.set_title("Performance curve", fontsize=22)
+            ax.set_xlabel("false negative rate (%)", fontsize=18)
+            ax.set_ylabel("positive predicted\nvalue (%)", fontsize=18)
+            xticks = [0, 25, 50, 75, 100]
+            ax.set_xticks(xticks)
+            xticklabels = ["{}".format(xtick) for xtick in xticks]
+            ax.set_xticklabels(xticklabels, fontsize=14)
+            yticks = [0, 25, 50, 75, 100]
+            ax.set_yticks(yticks)
+            yticklabels = ["{}".format(ytick) for ytick in yticks]
+            ax.set_yticklabels(yticklabels, fontsize=14)
+            # Hide the right and top spines
+            ax.spines['right'].set_visible(False)
+            ax.spines['top'].set_visible(False)
+
+            axins.set_xlim(0.0 - 0.5, 6.0 + 0.5)
+            axins.set_ylim(99.0 - 0.5, 100.0 + 0.5)
+            xticks = [0, 5]
+            axins.set_xticks(xticks)
+            xticklabels = ["{}".format(v) for v in xticks]
+            axins.set_xticklabels(xticklabels, fontsize=10)
+            # axins.xaxis.tick_top()
+            yticks = [99, 100]
+            axins.set_yticks(yticks)
+            yticklabels = ["{}".format(v) for v in yticks]
+            axins.set_yticklabels(yticklabels, fontsize=10)
+
+            mark_inset(ax, axins, loc1=1, loc2=3, fc="none", ec="0.5")
+
+        elif mode == 'without inset':
+
+            if ax is None:
+                fig, ax = plt.subplots(figsize=figsize, ncols=2)
+            else:
+                fig = ax.get_figure()
+
+            x = 100.0 * self.false_negative_rates
+            y = 100.0 * (1.0 - self._false_discovery_rates)
+
+            for k, ax_ in enumerate(ax):
+                ax_.scatter(x, y, s=5, color='black', **kwargs)
+
+                if k == 0:
+                    ax_.plot([0.0, 100.0], [0.0, 100.0], color='black', linestyle='--')
+                    ax_.set_xlim(left=-5.0, right=+105.0)
+                    ax_.set_ylim(bottom=-5.0, top=+105.0)
+                    ax_.set_aspect('equal')
+                    ax_.set_title("Performance curve")
+                else:
+                    xlim = ax_.get_xlim()
+                    ylim = ax_.get_ylim()
+                    ax_.plot([-5.0, +105.0], [-5.0, +105.0], color='black', linestyle='--')
+                    ax_.set_xlim(*xlim)
+                    ax_.set_ylim(*ylim)
+                    ax_.set_aspect((xlim[1] - xlim[0]) / (ylim[1] - ylim[0]))
+                    ax_.set_title("Performance curve (zoomed)")
+
+                ax_.set_xlabel("false negative rate (%)")
+                ax_.set_ylabel("positive predicted value (%)")
+
+        else:
+
+            raise ValueError("unexpected mode value: {}".format(mode))
 
         fig.tight_layout()
 

@@ -118,6 +118,7 @@ def main():
         if not os.path.isdir(output_directory):
             os.makedirs(output_directory)
         image_format = 'pdf'
+        # image_format = 'png'
 
         configuration_names = [
             configuration['general']['name']
@@ -251,10 +252,22 @@ def main():
         mode = 'mean_and_standard_deviation'
         # mode = 'median_and_median_absolute_deviation'
 
-        fig, ax = plt.subplots(1, 1, num=0, clear=True)
+        # fig, ax = plt.subplots(1, 1, num=0, clear=True)
         # fig, ax = plt.subplots(1, 1, figsize=(3.6, 2.4), num=1, clear=True)
+        # fig, ax = plt.subplots(1, 1, figsize=(4.8, 4.8), num=1, clear=True)
+        format_ = 'presentation'
+        if format_ == 'presentation':
+            figsize = (4.5, 5.5)
+            # title_fs = 18
+            label_fs = 14
+            ticklabel_fs = 10
+        else:
+            raise NotImplementedError()
+        fig, ax = plt.subplots(1, 1, figsize=figsize, num=1, clear=True)
         ax.set(yscale='log')
+        ax.tick_params(labelsize=ticklabel_fs)
         ax_ = ax.twinx()
+        ax_.tick_params(labelsize=ticklabel_fs)
         x = [
             k
             for k, _ in enumerate(configuration_names)
@@ -337,15 +350,21 @@ def main():
         ax_.set_yticklabels([])
         ax_.set_ylabel("")
         ax_.set_ylim(bottom=np.log10(y_min))
-        # ax_.set_ylim(bottom=np.log10(y_min), top=0.0)
+        ax_.set_ylim(bottom=np.log10(y_min), top=0.0)
         ax.set_ylim(10.0 ** np.array(ax_.get_ylim()))
         ax.set_xticks(x)
-        ax.set_xticklabels(configuration_names)
+        ax.set_xticklabels(configuration_names, fontsize=ticklabel_fs)
         # ax.set_xticklabels(["$2^{" + "{}".format(2 * i) + "}$" for i in [1, 2, 3, 4, 5]])
-        ax.set_xlabel("number of channels")
-        ax.set_ylabel("duration (s)")
-        ax.set_title("Real-time performances")
-        ax_.legend(loc='center left', bbox_to_anchor=(1.0, 0.5))
+        # Hide the right and top spines
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+        ax_.spines['right'].set_visible(False)
+        ax_.spines['top'].set_visible(False)
+        # Add labels.
+        ax.set_xlabel("number of channels", fontsize=label_fs)
+        ax.set_ylabel("duration (s)", fontsize=label_fs)
+        # ax.set_title("Real-time performances")
+        ax_.legend(loc='center left', bbox_to_anchor=(1.0, 0.5), fontsize=ticklabel_fs)
         fig.tight_layout()
         fig.savefig(output_path)
 

@@ -155,12 +155,12 @@ def sorting(configuration_name):
         'introspection_path': introspection_directory,
         'log_level': DEBUG,
     }
-    # peak_writer_kwargs = {
-    #     'name': "peak_writer",
-    #     'data_path': os.path.join(sorting_directory, "peaks.h5"),
-    #     'introspection_path': introspection_directory,
-    #     'log_level': DEBUG,
-    # }
+    peak_writer_kwargs = {
+        'name': "peak_writer",
+        'data_path': os.path.join(sorting_directory, "peaks.h5"),
+        'introspection_path': introspection_directory,
+        'log_level': DEBUG,
+    }
     pca_kwargs = {
         'name': "pca",
         'spike_width': spike_width,
@@ -226,7 +226,7 @@ def sorting(configuration_name):
     filter_ = managers['slave_1'].create_network('filter', **filter_kwargs)
     mad = managers['slave_1'].create_block('mad_estimator', **mad_kwargs)
     detector = managers['slave_2'].create_network('peak_detector', **detector_kwargs)
-    # peak_writer = managers['slave_2'].create_block('peak_writer', **peak_writer_kwargs)
+    peak_writer = managers['slave_2'].create_block('peak_writer', **peak_writer_kwargs)
     pca = managers['slave_2'].create_block('pca', **pca_kwargs)
     cluster = managers['slave_2'].create_block('density_clustering', **cluster_kwargs)
     updater = managers['slave_2'].create_block('template_updater_bis', **updater_bis_kwargs)
@@ -252,7 +252,7 @@ def sorting(configuration_name):
     ])
     director.connect_network(detector)
     director.connect(detector.get_output('peaks'), [
-        # peak_writer.get_input('peaks'),
+        peak_writer.get_input('peaks'),
         pca.get_input('peaks'),
         cluster.get_input('peaks'),
         fitter.get_input('peaks'),

@@ -7,7 +7,7 @@ import sys
 
 
 def plot_reconstruction(cells, t_min, t_max, sampling_rate, data_file, ax=None, output=None, channels=None,
-                        mads=None, peaks=None, filtered_data=None, buffer_width=None, linewidth=0.1):
+                        mads=None, peaks=None, filtered_data=None, buffer_width=None, linewidth=0.5, figsize=None):
 
     sampling_rate = float(sampling_rate)
     g_min = int(np.ceil(t_min * sampling_rate))  # first timestep
@@ -20,7 +20,7 @@ def plot_reconstruction(cells, t_min, t_max, sampling_rate, data_file, ax=None, 
         plt.ioff()
 
     if ax is None:
-        fig = plt.figure()
+        fig = plt.figure(figsize=figsize)
         gs = gds.GridSpec(1, 1)
         ax = plt.subplot(gs[0])
     else:
@@ -86,8 +86,8 @@ def plot_reconstruction(cells, t_min, t_max, sampling_rate, data_file, ax=None, 
             y_offset = float(k)
             for peak_time in peaks.get_times(t_min=t_min, t_max=t_max, channels=[channel]):
                 x = [peak_time, peak_time]
-                y = [y_offset + 0.15, y_offset + 0.35]
-                ax.plot(x, y, color='C1', zorder=3, linewidth=linewidth)
+                y = [y_offset + 0.25, y_offset + 0.45]
+                ax.plot(x, y, color='C1', zorder=3, linewidth=2.0 * linewidth)
 
     # Add buffer edges (if possible).
     if buffer_width is not None:
@@ -100,8 +100,20 @@ def plot_reconstruction(cells, t_min, t_max, sampling_rate, data_file, ax=None, 
         for buffer_edge in buffer_edges:
             ax.axvline(buffer_edge, color='grey', linestyle='--', linewidth=linewidth)
 
-    ax.set_xlabel(u"time (s)")
-    ax.set_ylabel(u"channel")
+    # Hide the right and top spines
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+
+    ax.set_title(u"Signal reconstruction", fontsize=21)
+    ax.set_xlabel(u"time (s)", fontsize=18)
+    ax.set_ylabel(u"channel", fontsize=18)
+    xticks = ax.get_xticks()
+    xticklabels = ["{:.2f}".format(v) for v in xticks]
+    ax.set_xticklabels(xticklabels, fontsize=14)
+    yticks = [k for k, _ in enumerate(channels)]
+    ax.set_yticks(yticks)
+    yticklabels = ["{:d}".format(v) for v in channels]
+    ax.set_yticklabels(yticklabels, fontsize=14)
 
     if gs is not None:
         gs.tight_layout(fig)

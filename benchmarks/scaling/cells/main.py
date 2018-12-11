@@ -20,7 +20,10 @@ nb_columns = 16
 radius = 100.0  # µm
 # nb_cells_range = [3, 12, 48, 192]
 # cell_densities = [0.25, 1.0, 4.0]
-cell_densities = [4.0]
+# cell_densities = [4.0]
+# cell_densities = [1.0]
+# cell_densities = [3.0]
+cell_densities = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0]
 duration = 10.0 * 60.0  # s
 
 
@@ -507,9 +510,15 @@ def main():
             # Plot probe.
             output_probe_filename = "probe_{}.{}".format(configuration_name, image_format)
             output_probe_path = os.path.join(output_directory, output_probe_filename)
-            probe.plot(path=output_probe_path)
+            if not os.path.isfile(output_probe_path):
+                probe.plot(path=output_probe_path)
 
             # Compute the similarities between detected and injected cells.
+            # figsize = (2.25, 2.25)  # slide
+            figsize = (4.0, 3.5)  # poster
+            ticklabel_fontsize = 14  # poster
+            label_fontsize = 18  # poster
+            title_fontsize = 22  # poster
             similarities_filename = "similarities_{}.{}".format(configuration_name, image_format)
             similarities_path = os.path.join(output_directory, similarities_filename)
             if not os.path.isfile(similarities_path):
@@ -517,17 +526,19 @@ def main():
                 similarities_cache_filename = "similarities_{}.npz".format(configuration_name)
                 similarities_cache_path = os.path.join(output_directory, similarities_cache_filename)
                 similarities = detected_cells.compute_similarities(injected_cells, path=similarities_cache_path)
-                similarities.plot(ordering=ordering, path=similarities_path)
+                similarities.plot(ordering=ordering, path=similarities_path, figsize=figsize,
+                                  title_fontsize=title_fontsize, label_fontsize=label_fontsize,
+                                  ticklabel_fontsize=ticklabel_fontsize)
 
             # Compute the matches between detected and injected cells.
+            # figsize = (4.5, 2.25)  # slide
+            figsize = (4.0, 3.5)  # poster
             matches_filename = "matches_{}.{}".format(configuration_name, image_format)
             matches_path = os.path.join(output_directory, matches_filename)
             matches_curve_filename = "matches_curve_{}.{}".format(configuration_name, image_format)
             matches_curve_path = os.path.join(output_directory, matches_curve_filename)
             if not os.path.isfile(matches_path) or not os.path.isfile(matches_curve_path):
                 print("# Computing matches...")
-                t_min = 0.0  # s
-                t_max = duration
                 matches_cache_filename = "matches_{}.npz".format(configuration_name)
                 matches_cache_path = os.path.join(output_directory, matches_cache_filename)
                 matches = detected_cells.compute_matches(injected_cells, t_min=t_min, t_max=t_max,
@@ -535,7 +546,7 @@ def main():
                 if not os.path.isfile(matches_path):
                     matches.plot(ordering=ordering, path=matches_path)
                 if not os.path.isfile(matches_curve_path):
-                    matches.plot_curve(path=matches_curve_path)
+                    matches.plot_curve(path=matches_curve_path, figsize=figsize)
 
             # # Consider the match with the worst error.
             # sorted_indices = np.argsort(matches.errors)
@@ -558,20 +569,24 @@ def main():
             #                            path=times_of_interest_path)
 
             # Plot the reconstruction.
+            # figsize = (4.5, 4.5)  # slide
+            figsize = (8.0, 3.5)  # poster
             reconstruction_filename = "reconstruction_{}.{}".format(configuration_name, image_format)
             reconstruction_path = os.path.join(output_directory, reconstruction_filename)
             if not os.path.isfile(reconstruction_path):
                 print("# Computing reconstruction...")
-                t = 3.0 * 60.0  # s  # start time of the reconstruction plot
-                d = 1.0  # s  # duration of the reconstruction plot
-                if nb_channels > 32:
-                    channels = np.random.choice(nb_channels, size=32, replace=False)
+                t = 5.0 * 60.0  # s  # start time of the reconstruction plot
+                d = 0.3  # s  # duration of the reconstruction plot
+                nb_channels_max = 8
+                if nb_channels > nb_channels_max:
+                    channels = np.random.choice(nb_channels, size=nb_channels_max, replace=False)
+                    channels = np.sort(channels)
                 else:
                     channels = None
                 buffer_width = 1024
                 plot_reconstruction(detected_cells, t, t + d, sampling_rate, data, channels=channels,
                                     mads=mads, peaks=peaks, filtered_data=filtered_data, buffer_width=buffer_width,
-                                    output=reconstruction_path)
+                                    output=reconstruction_path, figsize=figsize)
 
             # TODO plot the highest similarity with another template against the false negative rate.
             sim_vs_fnr_filename = "sim_vs_fnr_{}.{}".format(configuration_name, image_format)
@@ -583,8 +598,6 @@ def main():
                 similarities_cache_path = os.path.join(output_directory, similarities_cache_filename)
                 similarities = detected_cells.compute_similarities(injected_cells, path=similarities_cache_path)
                 # Retrieve the best matching between templates.
-                t_min = 0.0  # s
-                t_max = duration
                 matches_cache_filename = "matches_{}.npz".format(configuration_name)
                 matches_cache_path = os.path.join(output_directory, matches_cache_filename)
                 matches = detected_cells.compute_matches(injected_cells, t_min=t_min, t_max=t_max,
@@ -606,9 +619,8 @@ def main():
             worst_fnr_filename = "worst_fnr_{}.{}".format(configuration_name, image_format)
             worst_fnr_path = os.path.join(output_directory, worst_fnr_filename)
             if not os.path.isfile(worst_fnr_path):
+                print("# Computing worst FNRs...")
                 # Retrieve the best matching between templates.
-                t_min = 0.0  # s
-                t_max = duration
                 matches_cache_filename = "matches_{}.npz".format(configuration_name)
                 matches_cache_path = os.path.join(output_directory, matches_cache_filename)
                 matches = detected_cells.compute_matches(injected_cells, t_min=t_min, t_max=t_max,
@@ -633,9 +645,8 @@ def main():
             norm_vs_fnr_filename = "norm_vs_fnr_{}.{}".format(configuration_name, image_format)
             norm_vs_fnr_path = os.path.join(output_directory, norm_vs_fnr_filename)
             if not os.path.isfile(norm_vs_fnr_path):
+                print("# Computing norm v.s. FNR...")
                 # Retrieve the best matching between templates.
-                t_min = 0.0  # s
-                t_max = duration
                 matches_cache_filename = "matches_{}.npz".format(configuration_name)
                 matches_cache_path = os.path.join(output_directory, matches_cache_filename)
                 matches = detected_cells.compute_matches(injected_cells, t_min=t_min, t_max=t_max,
@@ -656,9 +667,8 @@ def main():
             ampl_vs_fnr_filename = "ampl_vs_fnr_{}.{}".format(configuration_name, image_format)
             ampl_vs_fnr_path = os.path.join(output_directory, ampl_vs_fnr_filename)
             if not os.path.isfile(ampl_vs_fnr_path):
+                print("# Computing amplitude v.s. FNR")
                 # Retrieve the best matching between templates.
-                t_min = 0.0  # s
-                t_max = duration
                 matches_cache_filename = "matches_{}.npz".format(configuration_name)
                 matches_cache_path = os.path.join(output_directory, matches_cache_filename)
                 matches = detected_cells.compute_matches(injected_cells, t_min=t_min, t_max=t_max,
@@ -666,12 +676,12 @@ def main():
                 # Plot template norm against FNR.
                 x = 100.0 * matches.false_negative_rates
                 y = np.array([cell.template.peak_amplitude() for cell in detected_cells])
-                z = detected_cells.ids
-                fig, ax = plt.subplots()
+                # z = detected_cells.ids
+                fig, ax = plt.subplots(figsize=(4.5, 2.25))
                 ax.scatter(x, y, s=5, color='black')
-                for x_, y_, z_ in zip(x, y, z):
-                    ax.annotate(z_, (x_, y_), fontsize=1, color='grey',
-                                verticalalignment='center', horizontalalignment='center')
+                # for x_, y_, z_ in zip(x, y, z):
+                #     ax.annotate(z_, (x_, y_), fontsize=1, color='grey',
+                #                 verticalalignment='center', horizontalalignment='center')
                 ax.set_xlabel("false negative rate (%)")
                 ax.set_ylabel("template amplitude (µV)")
                 ax.set_title("Template amplitude against false negative rate")
@@ -682,10 +692,9 @@ def main():
             # TODO plot false negative count through time.
             fnr_filename = "fnr_{}.{}".format(configuration_name, image_format)
             fnr_path = os.path.join(output_directory, fnr_filename)
-            if not os.path.isfile(norm_vs_fnr_path):
+            if not os.path.isfile(fnr_path):
+                print("# Computing FN counts through time...")
                 # Retrieve the best matching between templates.
-                t_min = 0.0  # s
-                t_max = duration
                 matches_cache_filename = "matches_{}.npz".format(configuration_name)
                 matches_cache_path = os.path.join(output_directory, matches_cache_filename)
                 matches = detected_cells.compute_matches(injected_cells, t_min=t_min, t_max=t_max,
@@ -696,7 +705,7 @@ def main():
                 if mode == 'sorted':
                     i = np.argsort(matches.false_negative_rates)
                     z = z[i, :]
-                fig, ax = plt.subplots()
+                fig, ax = plt.subplots(figsize=(4.5, 2.25))
                 c = ax.pcolor(x, y, z)
                 ax.set_xlabel("time (s)")
                 ax.set_ylabel("detected unit")
@@ -715,8 +724,6 @@ def main():
                 worst_fnr_paths[k] = os.path.join(output_directory, worst_fnr_filename)
             if np.any([not os.path.isfile(path) for path in worst_fnr_paths.values()]):
                 # Retrieve the best matching between templates.
-                t_min = 0.0  # s
-                t_max = duration
                 matches_cache_filename = "matches_{}.npz".format(configuration_name)
                 matches_cache_path = os.path.join(output_directory, matches_cache_filename)
                 matches = detected_cells.compute_matches(injected_cells, t_min=t_min, t_max=t_max,
@@ -750,8 +757,6 @@ def main():
                 best_fnr_paths[k] = os.path.join(output_directory, best_fnr_filename)
             if np.any([not os.path.isfile(path) for path in best_fnr_paths.values()]):
                 # Retrieve the best matching between templates.
-                t_min = 0.0  # s
-                t_max = duration
                 matches_cache_filename = "matches_{}.npz".format(configuration_name)
                 matches_cache_path = os.path.join(output_directory, matches_cache_filename)
                 matches = detected_cells.compute_matches(injected_cells, t_min=t_min, t_max=t_max,
@@ -777,100 +782,98 @@ def main():
                                                time_factor=25.0, voltage_factor=0.5)
                         plt.close(fig)
 
-            # TODO plot the annoying templates.
-            nb_annoying_templates = 5
-            annoying_paths = {}
-            for k in range(0, nb_annoying_templates):
-                annoying_filename = "annoying_{}_{}.{}".format(configuration_name, k, image_format)
-                annoying_paths[k] = os.path.join(output_directory, annoying_filename)
-            if np.any([not os.path.isfile(path) for path in annoying_paths.values()]):
-                # Retrieve the best matching between templates.
-                t_min = 0.0  # s
-                t_max = duration
-                matches_cache_filename = "matches_{}.npz".format(configuration_name)
-                matches_cache_path = os.path.join(output_directory, matches_cache_filename)
-                matches = detected_cells.compute_matches(injected_cells, t_min=t_min, t_max=t_max,
-                                                         path=matches_cache_path)
-                # # Find the annoying templates.
-                # fnrs = matches.false_negative_rates
-                # amplitudes = np.array([cell.template.peak_amplitude() for cell in detected_cells])
-                # indices = np.where(np.logical_and(fnrs > np.median(fnrs), amplitudes > np.median(amplitudes)))[0]
-                # np.random.shuffle(indices)
-                # Select the annoying templates.
-                indices = {
-                    "64": np.array([3, 56, 32, 50, 59]),
-                    "256": np.array([130, 154, 228, 207, 27]),
-                    "1024": np.array([397, 593, 876, 1001, 525]),
-                }
-                indices = indices[configuration_name]
-                for k in range(0, nb_annoying_templates):
-                    if not os.path.isfile(annoying_paths[k]):
-                        index = indices[k]
-                        match = matches[index]
-                        sorted_cell, injected_cell = match.get_cells()
-                        sorted_template = sorted_cell.template
-                        injected_template = injected_cell.template
-                        probe_filename = "probe.prb"
-                        probe_path = os.path.join(generation_directory, probe_filename)
-                        probe = circusort.io.load_probe(probe_path)
-                        # Plot annoying templates.
-                        fig, ax = plt.subplots(ncols=2)
-                        sorted_template.plot(ax=ax[0], output=annoying_paths[k], probe=probe,
-                                             time_factor=25.0, voltage_factor=0.5)
-                        injected_template.plot(ax=ax[1], output=annoying_paths[k], probe=probe,
-                                               time_factor=25.0, voltage_factor=0.5)
-                        plt.close(fig)
+            # # TODO plot the annoying templates.
+            # annoying_indices = {
+            #     "64": np.array([3, 56, 32, 50, 59]),
+            #     "256": np.array([127, 105, 133, 177, 10]),
+            #     "1024": np.array([397, 593, 876, 1001, 525]),
+            # }
+            # if configuration_name in annoying_indices:
+            #     annoying_indices = annoying_indices[configuration_name]
+            # else:
+            #     raise NotImplementedError()
+            # # nb_annoying_templates = annoying_indices.size
+            # annoying_paths = {}
+            # for k in annoying_indices:
+            #     annoying_filename = "annoying_{}_{}.{}".format(configuration_name, k, image_format)
+            #     annoying_paths[k] = os.path.join(output_directory, annoying_filename)
+            # if np.any([not os.path.isfile(path) for path in annoying_paths.values()]):
+            #     # Retrieve the best matching between templates.
+            #     matches_cache_filename = "matches_{}.npz".format(configuration_name)
+            #     matches_cache_path = os.path.join(output_directory, matches_cache_filename)
+            #     matches = detected_cells.compute_matches(injected_cells, t_min=t_min, t_max=t_max,
+            #                                              path=matches_cache_path)
+            #     # # Find the annoying templates.
+            #     # fnrs = matches.false_negative_rates
+            #     # amplitudes = np.array([cell.template.peak_amplitude() for cell in detected_cells])
+            #     # indices = np.where(np.logical_and(fnrs > np.median(fnrs), amplitudes > np.median(amplitudes)))[0]
+            #     # np.random.shuffle(indices)
+            #     # Select the annoying templates.
+            #     for k in annoying_indices:
+            #         if not os.path.isfile(annoying_paths[k]):
+            #             match = matches[k]
+            #             sorted_cell, injected_cell = match.get_cells()
+            #             sorted_template = sorted_cell.template
+            #             injected_template = injected_cell.template
+            #             probe_filename = "probe.prb"
+            #             probe_path = os.path.join(generation_directory, probe_filename)
+            #             probe = circusort.io.load_probe(probe_path)
+            #             # Plot annoying templates.
+            #             fig, ax = plt.subplots(ncols=2)
+            #             sorted_template.plot(ax=ax[0], output=annoying_paths[k], probe=probe,
+            #                                  time_factor=25.0, voltage_factor=0.5)
+            #             injected_template.plot(ax=ax[1], output=annoying_paths[k], probe=probe,
+            #                                    time_factor=25.0, voltage_factor=0.5)
+            #             plt.close(fig)
 
-            # TODO plot snippets of false negatives.
-            template_indices = {
-                "64": np.array([3, 56]),
-                "256": np.array([130, 154]),
-                "1024": np.array([397, 593]),
-            }
-            template_indices = template_indices[configuration_name]
-            toi_dirname = "false_negative_snippets"
-            toi_directory = os.path.join(output_directory, toi_dirname)
-            if not os.path.isdir(toi_directory):
-                os.makedirs(toi_directory)
-            toi_directories = {}
-            for i in template_indices:
-                toi_dirname = "fn_{}_{}".format(configuration_name, i)
-                toi_directories[i] = os.path.join(toi_directory, toi_dirname)
-            nb_fns_max = 10
-            if np.any([not os.path.isfile(path) for path in toi_directories.values()]):
-                # Retrieve the best matching between templates.
-                t_min = 0.0  # s
-                t_max = duration
-                matches_cache_filename = "matches_{}.npz".format(configuration_name)
-                matches_cache_path = os.path.join(output_directory, matches_cache_filename)
-                matches = detected_cells.compute_matches(injected_cells, t_min=t_min, t_max=t_max,
-                                                         path=matches_cache_path)
-                # Load the probe.
-                probe_filename = "probe.prb"
-                probe_path = os.path.join(generation_directory, probe_filename)
-                probe = circusort.io.load_probe(probe_path)
-                # Load the peaks.
-                peaks_filename = "peaks.h5"
-                peaks_path = os.path.join(sorting_directory, peaks_filename)
-                peaks = circusort.io.load_peaks(peaks_path)
-                print(peaks)
-                # Plot the false negative snippets.
-                for i in template_indices:
-                    if not os.path.isdir(toi_directories[i]):
-                        os.makedirs(toi_directories[i])
-                        # Select some false negatives.
-                        match = matches[i]
-                        fn_train = match.collect_false_negatives()
-                        nb_fn_to_select = min(len(fn_train), nb_fns_max)
-                        fn_indices = np.random.choice(np.arange(0, len(fn_train)), size=nb_fn_to_select, replace=False)
-                        fn_times = fn_train.times[fn_indices]
-                        for fn_index, fn_time in zip(fn_indices, fn_times):
-                            toi_filename = "fn_{}.{}".format(fn_index, image_format)
-                            toi_path = os.path.join(toi_directories[i], toi_filename)
-                            # Plot false negative snippets.
-                            plot_time_of_interest(data, fn_time, window=10e-3, sampling_rate=sampling_rate, probe=probe,
-                                                  peaks=peaks, color='C0', linewidth=0.5, voltage_factor=0.25,
-                                                  path=toi_path)
+            # # TODO plot snippets of false negatives.
+            # template_indices = {
+            #     "64": np.array([3, 56]),
+            #     "256": np.array([127, 105]),
+            #     "1024": np.array([397, 593]),
+            # }
+            # template_indices = template_indices[configuration_name]
+            # toi_dirname = "false_negative_snippets"
+            # toi_directory = os.path.join(output_directory, toi_dirname)
+            # if not os.path.isdir(toi_directory):
+            #     os.makedirs(toi_directory)
+            # toi_directories = {}
+            # for i in template_indices:
+            #     toi_dirname = "fn_{}_{}".format(configuration_name, i)
+            #     toi_directories[i] = os.path.join(toi_directory, toi_dirname)
+            # nb_fns_max = 10
+            # if np.any([not os.path.isfile(path) for path in toi_directories.values()]):
+            #     # Retrieve the best matching between templates.
+            #     matches_cache_filename = "matches_{}.npz".format(configuration_name)
+            #     matches_cache_path = os.path.join(output_directory, matches_cache_filename)
+            #     matches = detected_cells.compute_matches(injected_cells, t_min=t_min, t_max=t_max,
+            #                                              path=matches_cache_path)
+            #     # Load the probe.
+            #     probe_filename = "probe.prb"
+            #     probe_path = os.path.join(generation_directory, probe_filename)
+            #     probe = circusort.io.load_probe(probe_path)
+            #     # Load the peaks.
+            #     peaks_filename = "peaks.h5"
+            #     peaks_path = os.path.join(sorting_directory, peaks_filename)
+            #     peaks = circusort.io.load_peaks(peaks_path)
+            #     print(peaks)
+            #     # Plot the false negative snippets.
+            #     for i in template_indices:
+            #         if not os.path.isdir(toi_directories[i]):
+            #             os.makedirs(toi_directories[i])
+            #             # Select some false negatives.
+            #             match = matches[i]
+            #             fn_train = match.collect_false_negatives()
+            #             nb_fn_to_select = min(len(fn_train), nb_fns_max)
+            #             fn_indices = np.random.choice(np.arange(0, len(fn_train)), size=nb_fn_to_select, replace=False)
+            #             fn_times = fn_train.times[fn_indices]
+            #             for fn_index, fn_time in zip(fn_indices, fn_times):
+            #                 toi_filename = "fn_{}.{}".format(fn_index, image_format)
+            #                 toi_path = os.path.join(toi_directories[i], toi_filename)
+            #                 # Plot false negative snippets.
+            #                 plot_time_of_interest(data, fn_time, window=10e-3, sampling_rate=sampling_rate, probe=probe,
+            #                                       peaks=peaks, color='C0', linewidth=0.5, voltage_factor=0.25,
+            #                                       path=toi_path)
 
 
 if __name__ == '__main__':
