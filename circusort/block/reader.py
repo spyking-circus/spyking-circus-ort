@@ -38,6 +38,7 @@ class Reader(Block):
         'is_realistic': True,
         'speed_factor': 1.0,
         'nb_replay': 1,
+        'offset': 0
     }
 
     def __init__(self, **kwargs):
@@ -69,6 +70,7 @@ class Reader(Block):
         self.is_realistic = self.is_realistic
         self.speed_factor = self.speed_factor
         self.nb_replay = self.nb_replay
+        self.offset = self.offset
 
         self._output_dtype = 'float32'
         self._quantum_size = 0.1042  # µV / AD
@@ -81,7 +83,7 @@ class Reader(Block):
     def _initialize(self):
         """Initialization of the processing block."""
 
-        data = np.memmap(self.data_path, dtype=self.dtype, mode='r')
+        data = np.memmap(self.data_path, dtype=self.dtype, offset=self.offset, mode='r')
         self.real_shape = (data.size // self.nb_channels, self.nb_channels)
         self.shape = (self.real_shape[0] * self.nb_replay, self.real_shape[1])
         self.output.configure(dtype=self._output_dtype, shape=(self.nb_samples, self.nb_channels))

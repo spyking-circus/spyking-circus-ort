@@ -732,7 +732,7 @@ class OnlineManager(object):
 
         if smart_select_mode == 'ransac':
 
-            z_score_threshold = 4.0
+            z_score_threshold = 3.0
             x = sm.add_constant(rho)
             model = sm.RLM(delta, x)
             results = model.fit()
