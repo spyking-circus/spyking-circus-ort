@@ -1,3 +1,5 @@
+# coding: utf8
+
 from .block import Block
 import numpy as np
 import os
