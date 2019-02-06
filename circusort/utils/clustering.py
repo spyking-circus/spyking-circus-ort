@@ -711,7 +711,8 @@ class OnlineManager(object):
         dist_sorted = np.sort(dist, axis=1) # sorting each row in ascending order
         dist_sorted = dist_sorted[:, 1:nb_neighbors+1]
         rho = np.mean(dist_sorted, axis=1) # density computation
-        dist = scipy.spatial.distance.squareform(dist, checks=False)
+
+        #dist = scipy.spatial.distance.squareform(dist, checks=False)
         return rho, dist, nb_neighbors
 
     def fit_rho_delta(self, rho, delta, smart_select_mode='ransac'):
@@ -747,7 +748,7 @@ class OnlineManager(object):
             # Plot rho and delta values (if necessary).
             if self.debug_plots is not None:
                 labels = z_score >= 0
-                self.plot_rho_delta(rho, delta - prediction, labels=labels, filename_suffix="modified")
+                self.plot_rho_delta(rho, delta - prediction, labels=labels, filename_suffix="ransac")
 
         elif smart_select_mode == 'ransac_bis':
 
@@ -863,12 +864,13 @@ class OnlineManager(object):
                 The number of detected clusters.
         """
 
-        dist = scipy.spatial.distance.squareform(distances, checks=False)
-        delta = self.compute_delta(dist, rho)
+        #dist = scipy.spatial.distance.squareform(distances, checks=False)
+        rho = -rho + rho.max()
+        delta = self.compute_delta(distances, rho)
         if self.debug_plots is not None:
             self.plot_rho_delta(rho, delta)
-        nclus, labels, centers = self.find_centroids_and_cluster(dist, rho, delta, alpha=3)
-        halolabels = self.halo_assign(dist, labels, centers)
+        nclus, labels, centers = self.find_centroids_and_cluster(distances, rho, delta, alpha=3)
+        halolabels = self.halo_assign(distances, labels, centers)
         halolabels -= 1
         centers = np.where(np.in1d(centers - 1, np.arange(halolabels.max() + 1)))[0]
         return halolabels, len(centers)
