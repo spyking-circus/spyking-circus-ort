@@ -48,7 +48,6 @@ class MacroCluster(object):
     def set_label(self, label):
         assert label in ['sparse', 'dense']
         self.label = label
-
         return
 
     @property
@@ -59,24 +58,21 @@ class MacroCluster(object):
     def is_dense(self):
         return self.label == 'dense'
 
-    def add_and_update(self, pca_data, data, time, decay_factor):
-        factor = 2 ** (-decay_factor * (time - self.last_update))
-        self.density = factor * self.density + 1.
-        self.sum_pca = factor * self.sum_pca + pca_data
-        self.sum_pca_sq = factor * self.sum_pca_sq + pca_data ** 2
-        self.sum_full = factor * self.sum_full + data
-        self.last_update = time
-
+    def add(self, pca_data, data):
+        self.density += 1.
+        self.sum_pca += pca_data
+        self.sum_pca_sq += pca_data ** 2
+        self.sum_full += data
         return
 
     def update(self, time, decay_factor):
-        factor = 2 ** (-decay_factor * (time - self.last_update))
-        self.density = factor * self.density
-        self.sum_pca = factor * self.sum_pca
-        self.sum_pca_sq = factor * self.sum_pca_sq
-        self.sum_full = factor * self.sum_full
-        self.last_update = time
-
+        if time > self.last_update:
+            factor = 2 ** (-decay_factor * (time - self.last_update))
+            self.density = factor * self.density
+            self.sum_pca = factor * self.sum_pca
+            self.sum_pca_sq = factor * self.sum_pca_sq
+            self.sum_full = factor * self.sum_full
+            self.last_update = time
         return
 
     def remove(self, pca_data, data):
@@ -84,7 +80,6 @@ class MacroCluster(object):
         self.sum_pca -= pca_data
         self.sum_pca_sq -= pca_data ** 2
         self.sum_full -= data
-
         return
 
     @property
@@ -389,7 +384,7 @@ class OnlineManager(object):
 
         cluster = self._get_nearest_cluster(pca_data, cluster_type)
         if cluster is not None:
-            cluster.add_and_update(pca_data[0], data[0], self.time, self.decay_factor)
+            cluster.add(pca_data[0], data[0])
             merged = cluster.radius <= self.epsilon
 
             if merged:
@@ -401,8 +396,6 @@ class OnlineManager(object):
         return merged
 
     def _prune(self):
-
-        self._update_clusters()
 
         count = 0
         for cluster in self.dense_clusters:
@@ -476,7 +469,7 @@ class OnlineManager(object):
         """
 
         self.time = time
-
+        self._update_clusters()
         # Log debug message.
         string = "{} processes time {} with {} sparse and {} dense clusters. Time gap is {}"
         message = string.format(self.name, time, self.nb_sparse, self.nb_dense, self.time_gap)
