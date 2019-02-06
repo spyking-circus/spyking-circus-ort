@@ -4,7 +4,7 @@ import os
 from circusort.obj.datafile import DataFile
 
 
-def load_datafile(path, sampling_rate, nb_channels, dtype, gain=1.0):
+def load_datafile(path, sampling_rate, nb_channels, dtype, gain=1.0, offset=0):
     """Load datafile from path.
 
     Arguments:
@@ -19,6 +19,8 @@ def load_datafile(path, sampling_rate, nb_channels, dtype, gain=1.0):
         gain: float (optional)
             The data gain.
             The default value is 1.0.
+        offste: int (optional)
+            The offset if the file has a header
     Return:
         train: numpy.array
             Train. An array of spike times.
@@ -30,7 +32,7 @@ def load_datafile(path, sampling_rate, nb_channels, dtype, gain=1.0):
         message = "No such data file: {}".format(path)
         raise IOError(message)
 
-    datafile = DataFile(path, sampling_rate, nb_channels, dtype=dtype, gain=gain)
+    datafile = DataFile(path, sampling_rate, nb_channels, dtype=dtype, gain=gain, offset=offset)
 
     return datafile
 

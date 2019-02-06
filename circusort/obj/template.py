@@ -87,9 +87,10 @@ class TemplateComponent(object):
         return self.waveforms.shape[1]
 
     def center_of_mass(self, probe):
-        data = self.waveforms.sum(1)
+        data = np.sum(self.waveforms**2, 1)
+        data /= data.sum()
         positions = probe.positions[:, self.indices]
-        return np.sum(data * positions, 1)/data.sum()
+        return np.sum(data * positions, 1)
 
     @property
     def extrema(self):
