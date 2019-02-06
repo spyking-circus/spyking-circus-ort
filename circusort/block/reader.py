@@ -114,7 +114,7 @@ class Reader(Block):
             self._absolute_start_time = time.time()
 
         # Read data from the file on disk.
-        data = np.memmap(self.data_path, dtype=self.dtype, mode='r', shape=self.real_shape)
+        data = np.memmap(self.data_path, dtype=self.dtype, mode='r', shape=self.real_shape, offset=self.offset)
 
         g_min = (self.nb_samples * self.counter)
 
