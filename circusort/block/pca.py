@@ -38,7 +38,7 @@ class PCA(Block):
     name = "PCA"
 
     params = {
-        'spike_width': 5.0,  # ms
+        'spike_width': 3.0,  # ms
         'spike_jitter': 1.0,  # ms
         'spike_sigma': 0.0,  # µV
         'output_dim': 5,
