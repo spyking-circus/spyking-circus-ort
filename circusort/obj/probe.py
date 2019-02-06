@@ -142,7 +142,7 @@ class Probe(object):
     def positions(self):
         positions = np.zeros((2, 0), dtype=np.float32)
         for key in self.channel_groups.keys():
-            positions = np.hstack((positions, np.array(self.channel_groups[key]['geometry'].values()).T))
+            positions = np.hstack((positions, np.array(list(self.channel_groups[key]['geometry'].values())).T))
         return positions
 
     @property

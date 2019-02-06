@@ -18,7 +18,7 @@ class DataFile(object):
         gain: float
     """
 
-    def __init__(self, path, sampling_rate, nb_channels, dtype='float32', gain=1.0):
+    def __init__(self, path, sampling_rate, nb_channels, dtype='float32', gain=1.0, offset=0):
         """Initialize data file.
 
         Arguments:
@@ -29,6 +29,8 @@ class DataFile(object):
                 The default value is 'float32'.
             gain: float (optional)
                 The default value is 1.0.
+            offset: int (optional)
+                The offset if the file has a header
         """
 
         self.path = path
@@ -36,7 +38,8 @@ class DataFile(object):
         self.nb_channels = nb_channels
         self.sampling_rate = sampling_rate
         self.gain = gain
-        self.data = np.memmap(self.path, dtype=self.dtype)
+        self.offset = offset
+        self.data = np.memmap(self.path, dtype=self.dtype, offset=self.offset)
 
         if self.nb_channels > 1:
             self.nb_samples = self.data.shape[0] // self.nb_channels

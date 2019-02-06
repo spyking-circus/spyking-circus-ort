@@ -86,6 +86,11 @@ class TemplateComponent(object):
 
         return self.waveforms.shape[1]
 
+    def center_of_mass(self, probe):
+        data = self.waveforms.sum(1)
+        positions = probe.positions[:, self.indices]
+        return np.sum(data * positions, 1)/data.sum()
+
     @property
     def extrema(self):
         index = self.temporal_width//2 + 1
@@ -411,6 +416,9 @@ class Template(object):
             component.normalize()
 
         return
+
+    def center_of_mass(self, probe):
+        return self.first_component.center_of_mass(probe)
 
     def intersect(self, template):
 
