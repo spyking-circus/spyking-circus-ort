@@ -108,7 +108,7 @@ class OnlineManager(object):
 
     def __init__(self, probe, channel, sampling_rate=20e+3, decay=0.05, mu=2, epsilon='auto', theta=-np.log(0.001),
                  dispersion=(5, 5), n_min=0.01, noise_thr=0.8, pca=None, logger=None, two_components=False, name=None,
-                 debug_plots=None, debug_ground_truth_templates=None, debug_file_format='pdf', local_merges=3):
+                 debug_plots=None, debug_ground_truth_templates=None, debug_file_format='pdf', local_merges=3, smart_select='ransac'):
 
         if name is None:
             self.name = "OnlineManager"
@@ -131,6 +131,7 @@ class OnlineManager(object):
         self.debug_file_format = debug_file_format
         self.local_merges = local_merges
         self.sampling_rate = sampling_rate
+        self.smart_select_mode = smart_select
 
         if self.debug_plots is not None:
             self.fig_name = os.path.join(self.debug_plots, '{n}_{t}.{f}')
@@ -715,7 +716,7 @@ class OnlineManager(object):
         #dist = scipy.spatial.distance.squareform(dist, checks=False)
         return rho, dist, nb_neighbors
 
-    def fit_rho_delta(self, rho, delta, smart_select_mode='ransac'):
+    def fit_rho_delta(self, rho, delta):
         """Fit relation between rho and delta values.
 
         Arguments:
@@ -731,7 +732,7 @@ class OnlineManager(object):
                 Either 'curve_fit' or 'ransac'.
         """
 
-        if smart_select_mode == 'ransac':
+        if self.smart_select_mode == 'ransac':
 
             z_score_threshold = 3.0
             x = sm.add_constant(rho)
@@ -750,7 +751,7 @@ class OnlineManager(object):
                 labels = z_score >= 0
                 self.plot_rho_delta(rho, delta - prediction, labels=labels, filename_suffix="ransac")
 
-        elif smart_select_mode == 'ransac_bis':
+        elif self.smart_select_mode == 'ransac_bis':
 
             x = sm.add_constant(rho)
             model = sm.RLM(delta, x)
@@ -800,7 +801,7 @@ class OnlineManager(object):
         delta[np.isinf(delta)] = 0
         return delta
 
-    def find_centroids_and_cluster(self, dist, rho, delta, alpha=3):
+    def find_centroids_and_cluster(self, dist, rho, delta):
 
         npnts = len(rho)    
         centers = np.zeros((npnts))
@@ -867,9 +868,7 @@ class OnlineManager(object):
         #dist = scipy.spatial.distance.squareform(distances, checks=False)
         rho = -rho + rho.max()
         delta = self.compute_delta(distances, rho)
-        if self.debug_plots is not None:
-            self.plot_rho_delta(rho, delta)
-        nclus, labels, centers = self.find_centroids_and_cluster(distances, rho, delta, alpha=3)
+        nclus, labels, centers = self.find_centroids_and_cluster(distances, rho, delta)
         halolabels = self.halo_assign(distances, labels, centers)
         halolabels -= 1
         centers = np.where(np.in1d(centers - 1, np.arange(halolabels.max() + 1)))[0]

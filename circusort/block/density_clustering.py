@@ -60,7 +60,8 @@ class DensityClustering(Block):
         'debug_plots': None,
         'debug_ground_truth_templates': None,
         'debug_file_format': 'png',
-        'debug_data': None
+        'debug_data': None,
+        'smart_select': 'ransac'
     }
 
     def __init__(self, **kwargs):
@@ -96,6 +97,7 @@ class DensityClustering(Block):
         self.debug_ground_truth_templates = self.debug_ground_truth_templates
         self.debug_file_format = self.debug_file_format
         self.debug_data = self.debug_data
+        self.smart_select = self.smart_select
 
         if self.probe_path is None:
             # Log error message.
@@ -261,7 +263,8 @@ class DensityClustering(Block):
                     'debug_ground_truth_templates': self.debug_ground_truth_templates,
                     'local_merges': self.local_merges,
                     'debug_file_format': self.debug_file_format,
-                    'sampling_rate': self.sampling_rate
+                    'sampling_rate': self.sampling_rate,
+                    'smart_select': self.smart_select
                 }
 
                 if key == 'negative':
