@@ -635,8 +635,8 @@ class Template(object):
         if self._compressed:
             res['compressed'] = self.indices
 
-        res['channel'] = self.channel
-        res['time'] = self.creation_time
+        res['channel'] = str(self.channel)
+        res['time'] = str(self.creation_time)
 
         return res
 

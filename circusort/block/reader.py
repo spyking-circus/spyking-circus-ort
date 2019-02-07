@@ -143,7 +143,7 @@ class Reader(Block):
 
             chunk = data[i_min:i_max, :]
             if self.probe is not None:
-                chunk = data[:, self.probe.nodes]
+                chunk = chunk[:, self.probe.nodes]
 
             # Repeat last sampling time (if necessary, data buffer incomplete).
             if chunk.shape[0] < self.nb_samples:

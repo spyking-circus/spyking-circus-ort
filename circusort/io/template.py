@@ -216,10 +216,10 @@ def load_template_from_dict(template_dict, probe):
         indices = probe.edges[channel]
         compressed = False
 
-    first_component = load_component_from_dict(template_dict['0'], indices, probe.nb_channels)
+    first_component = load_component_from_dict(template_dict['0'], indices, probe.total_nb_channels)
 
     if '2' in template_dict:
-        second_component = load_component_from_dict(template_dict['1'], indices, probe.nb_channels)
+        second_component = load_component_from_dict(template_dict['1'], indices, probe.total_nb_channels)
     else:
         second_component = None
 
