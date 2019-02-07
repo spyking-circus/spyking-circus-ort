@@ -3,6 +3,7 @@
 import numpy as np
 import time
 import warnings
+from circusort.io.probe import load_probe
 
 from circusort.block.block import Block
 
@@ -38,7 +39,8 @@ class Reader(Block):
         'is_realistic': True,
         'speed_factor': 1.0,
         'nb_replay': 1,
-        'offset': 0
+        'offset': 0,
+        'probe_path': None
     }
 
     def __init__(self, **kwargs):
@@ -53,6 +55,7 @@ class Reader(Block):
             is_realistic: boolean
             speed_factor: float
             nb_replay: integer
+            probe_path: string
 
         See also:
             circusort.block.Block
@@ -71,7 +74,7 @@ class Reader(Block):
         self.speed_factor = self.speed_factor
         self.nb_replay = self.nb_replay
         self.offset = self.offset
-
+        self.probe_path = self.probe_path
         self._output_dtype = 'float32'
         self._quantum_size = 0.1042  # µV / AD
         self._quantum_offset = float(np.iinfo('int16').min)
@@ -80,14 +83,29 @@ class Reader(Block):
         self._absolute_start_time = None
         self._absolute_end_time = None
 
+        if self.probe_path is not None:
+            self.probe = load_probe(self.probe_path, logger=self.log)
+            # Log info message.
+            string = "{} reads the probe layout"
+            message = string.format(self.name)
+            self.log.info(message)
+        else:
+            self.probe = None
+
+    @property
+    def nb_output_channels(self):
+        if self.probe is None:
+            return self.nb_channels
+        else:
+            return self.probe.nb_channels
+
     def _initialize(self):
         """Initialization of the processing block."""
 
         data = np.memmap(self.data_path, dtype=self.dtype, offset=self.offset, mode='r')
         self.real_shape = (data.size // self.nb_channels, self.nb_channels)
-        self.shape = (self.real_shape[0] * self.nb_replay, self.real_shape[1])
-        self.output.configure(dtype=self._output_dtype, shape=(self.nb_samples, self.nb_channels))
-
+        self.shape = (self.real_shape[0] * self.nb_replay, self.nb_output_channels)
+        self.output.configure(dtype=self._output_dtype, shape=(self.nb_samples, self.nb_output_channels))
         return
 
     def _get_output_parameters(self):
@@ -95,7 +113,7 @@ class Reader(Block):
 
         params = {
             'dtype': self._output_dtype,
-            'nb_channels': self.nb_channels,
+            'nb_channels': self.nb_output_channels,
             'nb_samples': self.nb_samples,
             'sampling_rate': self.sampling_rate,
         }
@@ -124,6 +142,9 @@ class Reader(Block):
             i_max = i_min + self.nb_samples
 
             chunk = data[i_min:i_max, :]
+            if self.probe is not None:
+                chunk = data[:, self.probe.nodes]
+
             # Repeat last sampling time (if necessary, data buffer incomplete).
             if chunk.shape[0] < self.nb_samples:
                 nb_samples = chunk.shape[0]

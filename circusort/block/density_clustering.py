@@ -210,12 +210,12 @@ class DensityClustering(Block):
     def _update_initialization(self):
 
         if self.channels is None:
-            self.channels = np.arange(self._nb_channels)
+            self.channels = self.probe.nodes
 
         if self._dtype is not None:
             self.decay_time = self.decay_factor
-            self.chan_positions = np.zeros(self._nb_channels, dtype=np.int32)
-            for channel in range(self._nb_channels):
+            self.chan_positions = {}
+            for channel in self.channels:
                 mask = self.probe.edges[channel] == channel
                 self.chan_positions[channel] = np.where(mask)[0]
 

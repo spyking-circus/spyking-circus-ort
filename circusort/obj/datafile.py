@@ -179,7 +179,7 @@ class DataFile(object):
         # t_min_ = float(b_min) / self.sampling_rate
         # t_max_ = float(b_max) / self.sampling_rate
 
-        snippet = self.get_snippet(t_min_, t_max_)
+        snippet = self.get_snippet(t_min, t_max)
 
         # Define the number of channels to be plotted.
         max_nb_channels = 10
