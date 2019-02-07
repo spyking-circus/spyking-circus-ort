@@ -207,13 +207,10 @@ def plot_mean_rate(cells, time_bin=1, ax=None, output=None):
         gs = None
 
     rates = cells.rate(time_bin)
-    ax.plot(np.mean(rates, 0))
+    times = np.arange(cells.t_min, cells.t_max, time_bin)
+    ax.plot(times[:-1], np.mean(rates, 0))
     ax.set_xlabel(u"Times (s)")
     ax.set_ylabel(u"Firing Rate [Hz]")
-
-    x = ax.get_xticks()
-    axis = ['%g' % i for i in np.linspace(cells.t_min, cells.t_max, len(x[1:]))]
-    ax.set_xticks(x[1:], axis)
 
     if gs is not None:
         gs.tight_layout(fig)
