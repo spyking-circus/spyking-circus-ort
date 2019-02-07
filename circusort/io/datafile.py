@@ -4,7 +4,7 @@ import os
 from circusort.obj.datafile import DataFile
 
 
-def load_datafile(path, sampling_rate, nb_channels, dtype, gain=1.0, offset=0):
+def load_datafile(path, sampling_rate, nb_channels, dtype, gain=1.0, offset=0, nb_replay=1):
     """Load datafile from path.
 
     Arguments:
@@ -32,7 +32,7 @@ def load_datafile(path, sampling_rate, nb_channels, dtype, gain=1.0, offset=0):
         message = "No such data file: {}".format(path)
         raise IOError(message)
 
-    datafile = DataFile(path, sampling_rate, nb_channels, dtype=dtype, gain=gain, offset=offset)
+    datafile = DataFile(path, sampling_rate, nb_channels, dtype=dtype, gain=gain, offset=offset, nb_replay=nb_replay)
 
     return datafile
 

@@ -12,8 +12,9 @@ def plot_reconstruction(cells, t_min, t_max, sampling_rate, data_file, ax=None, 
     sampling_rate = float(sampling_rate)
     g_min = int(np.ceil(t_min * sampling_rate))  # first timestep
     g_max = int(np.floor(t_max * sampling_rate))  # last timestep
-    nb_samples = g_max - g_min + 1
-
+    
+    snippet = data_file.get_snippet(t_min, t_max)
+    nb_samples = snippet.shape[0]
     nb_channels = cells[cells.ids[0]].template.first_component.nb_channels
 
     if output is not None:
@@ -48,7 +49,7 @@ def plot_reconstruction(cells, t_min, t_max, sampling_rate, data_file, ax=None, 
             else:
                 result[int(offset - half_width):int(offset + half_width + 1), :] += amp * t1
 
-    snippet = data_file.get_snippet(t_min, t_max)
+    
 
     if filtered_data is not None:
         filtered_snippet = filtered_data.get_snippet(t_min, t_max)
