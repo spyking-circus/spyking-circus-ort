@@ -156,6 +156,10 @@ class OnlineManager(object):
         message = string.format(self.name)
         self.log.debug(message)
 
+        self.inodes = np.zeros(self.probe.total_nb_channels, dtype=np.int32)
+        self.inodes[self.probe.nodes] = np.argsort(self.probe.nodes)
+        self._channel_edges = self.inodes[self.probe.edges[self.probe.nodes[self.channel]]]
+
     @property
     def d_threshold(self):
 
@@ -366,11 +370,11 @@ class OnlineManager(object):
         waveforms = np.median(data, 0)
         amplitudes, full_ = self._compute_amplitudes(data, waveforms)
 
-        first_component = TemplateComponent(waveforms, self.probe.edges[self.channel], self.probe.nb_channels,
+        first_component = TemplateComponent(waveforms, self._channel_edges, self.probe.nb_channels,
                                             amplitudes)
         if self.two_components:
             waveforms = self._compute_second_component(data, waveforms, full_)
-            second_component = TemplateComponent(waveforms, self.probe.edges[self.channel], self.probe.nb_channels)
+            second_component = TemplateComponent(waveforms, self._channel_edges, self.probe.nb_channels)
         else:
             second_component = None
 
