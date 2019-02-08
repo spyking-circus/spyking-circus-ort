@@ -37,8 +37,8 @@ class DensityClustering(Block):
         'spike_width': 3.0,  # ms
         'spike_jitter': 1.0,  # ms
         'spike_sigma': 0.0,  # µV
-        'nb_waveforms': 10000,
-        'nb_waveforms_tracking': 500,
+        'nb_waveforms': 1000,
+        'nb_waveforms_tracking': 1000,
         'channels': None,
         'probe_path': None,
         'radius': None,

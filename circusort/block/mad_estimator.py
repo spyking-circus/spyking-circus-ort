@@ -29,7 +29,7 @@ class MADEstimator(Block):
     params = {
         'sampling_rate': 20e+3,
         'time_constant': 1.0,
-        'epsilon': 5e-3,
+        'epsilon': 1e-3,
     }
 
     def __init__(self, **kwargs):
