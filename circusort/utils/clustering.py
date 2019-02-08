@@ -223,7 +223,7 @@ class OnlineManager(object):
         # Log debug message.
         string = "{} founds {} initial clusters from {} data points"
         message = string.format(self.name, len(np.unique(labels[mask])), len(sub_data))
-        self.log.debug(message)
+        self.log.info(message)
 
         epsilon = np.inf
 
@@ -366,11 +366,11 @@ class OnlineManager(object):
         waveforms = np.median(data, 0)
         amplitudes, full_ = self._compute_amplitudes(data, waveforms)
 
-        first_component = TemplateComponent(waveforms, self.probe.edges[self.channel], self.probe.total_nb_channels,
+        first_component = TemplateComponent(waveforms, self.probe.edges[self.channel], self.probe.nb_channels,
                                             amplitudes)
         if self.two_components:
             waveforms = self._compute_second_component(data, waveforms, full_)
-            second_component = TemplateComponent(waveforms, self.probe.edges[self.channel], self.probe.total_nb_channels)
+            second_component = TemplateComponent(waveforms, self.probe.edges[self.channel], self.probe.nb_channels)
         else:
             second_component = None
 
