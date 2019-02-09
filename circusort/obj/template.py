@@ -86,16 +86,19 @@ class TemplateComponent(object):
 
         return self.waveforms.shape[1]
 
+    @property
+    def extrema(self):
+        index = self.temporal_width//2 + 1
+        return np.min(self.waveforms[:, index]), np.max(self.waveforms[:, index])
+
     def center_of_mass(self, probe):
         data = np.sum(self.waveforms**2, 1)
         data /= data.sum()
         positions = probe.positions[:, self.indices]
         return np.sum(data * positions, 1)
 
-    @property
-    def extrema(self):
-        index = self.temporal_width//2 + 1
-        return np.min(self.waveforms[:, index]), np.max(self.waveforms[:, index])
+    def real_indices(self, probe):
+        return probe.nodes[self.indices]
 
     def peak_amplitude(self, polarity=None, reference_value=0.0):
 
@@ -421,6 +424,9 @@ class Template(object):
     def center_of_mass(self, probe):
         return self.first_component.center_of_mass(probe)
 
+    def real_indices(self, probe):
+        return self.first_component.real_indices(probe)
+
     def intersect(self, template):
 
         return self.first_component.intersect(template)
@@ -577,7 +583,7 @@ class Template(object):
             y_min, y_max = probe.y_limits
             ax.set_xlim(x_min, x_max)
             ax.set_ylim(y_min, y_max)
-            for k, channel in enumerate(self.first_component.indices):
+            for k, channel in enumerate(self.first_component.real_indices(probe)):
                 x_0, y_0 = probe.get_channel_position(channel)
                 x = time_factor * np.linspace(-0.5, +0.5, num=nb_samples) + x_0
                 y = voltage_factor * self.first_component.waveforms[k, :] + y_0
