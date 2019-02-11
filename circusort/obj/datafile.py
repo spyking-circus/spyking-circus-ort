@@ -99,7 +99,7 @@ class DataFile(object):
 
         data = self.data[self._get_slice(t_min, t_max, False), :]
         if self.probe is not None:
-            data = self.data[:, self.probe.nodes]
+            data = data[:, self.probe.nodes]
         data = data.astype(np.float32)
         data = self.gain * data
 
@@ -136,7 +136,7 @@ class DataFile(object):
             data = self.data[np.ix_(time_steps, channels)]
 
         if self.probe is not None:
-            data = self.data[:, self.probe.nodes]
+            data = data[:, self.probe.nodes]
 
         return data
 
