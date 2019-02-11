@@ -5,6 +5,7 @@ import os
 import warnings
 
 from circusort.utils.path import normalize_path
+from circusort.io.probe import load_probe
 
 
 class DataFile(object):
@@ -18,7 +19,7 @@ class DataFile(object):
         gain: float
     """
 
-    def __init__(self, path, sampling_rate, nb_channels, dtype='float32', gain=1.0, offset=0, nb_replay=1):
+    def __init__(self, path, sampling_rate, nb_channels=None, probe=None, dtype='float32', gain=1.0, offset=0, nb_replay=1):
         """Initialize data file.
 
         Arguments:
@@ -35,7 +36,16 @@ class DataFile(object):
 
         self.path = path
         self.dtype = dtype
-        self.nb_channels = nb_channels
+        assert (probe is not None) or (nb_channels is not None), "Please provide either a probe file, either a number of channels"
+        if probe is None:
+            self.total_nb_channels = nb_channels
+            self.nb_channels = nb_channels
+            self.probe = None
+        else:
+            self.probe = probe
+            self.total_nb_channels = probe.total_nb_channels
+            self.nb_channels = probe.nb_channels
+
         self.sampling_rate = sampling_rate
         self.gain = gain
         self.offset = offset
@@ -43,11 +53,11 @@ class DataFile(object):
         self._quantum_offset = float(np.iinfo('int16').min)
         self.data = np.memmap(self.path, dtype=self.dtype, offset=self.offset)
 
-        if self.nb_channels > 1:
-            self.real_shape = self.data.shape[0] // self.nb_channels
-            self.nb_samples = self.nb_replay*self.data.shape[0] // self.nb_channels
-            self.data = self.data.reshape(self.real_shape, self.nb_channels)
-        elif self.nb_channels == 1:
+        if self.total_nb_channels > 1:
+            self.real_shape = self.data.shape[0] // self.total_nb_channels
+            self.nb_samples = self.nb_replay*self.data.shape[0] // self.total_nb_channels
+            self.data = self.data.reshape(self.real_shape, self.total_nb_channels)
+        elif self.total_nb_channels == 1:
             self.nb_samples = self.nb_replay*self.data.shape[0]
         else:
             raise NotImplementedError()
@@ -88,6 +98,8 @@ class DataFile(object):
         """
 
         data = self.data[self._get_slice(t_min, t_max, False), :]
+        if self.probe is not None:
+            data = self.data[:, self.probe.nodes]
         data = data.astype(np.float32)
         data = self.gain * data
 
@@ -123,6 +135,9 @@ class DataFile(object):
         else:
             data = self.data[np.ix_(time_steps, channels)]
 
+        if self.probe is not None:
+            data = self.data[:, self.probe.nodes]
+
         return data
 
     def put(self, data, channels=None, ts_min=None, ts_max=None):
@@ -156,7 +171,7 @@ class DataFile(object):
 
         return
 
-    def _plot(self, ax, t_min=0.0, t_max=0.5, colors=None, **kwargs):
+    def _plot(self, ax, t_min=0.0, t_max=1, colors=None, **kwargs):
         """Plot data from file.
 
         Arguments:
@@ -164,7 +179,7 @@ class DataFile(object):
             t_min: float (optional)
                 The default value is 0.0.
             t_max: float (optional)
-                The default value is 0.5.
+                The default value is 1.
             colors: none | iterable (optional)
                 The default value is None.
             kwargs: dict (optional)
@@ -180,6 +195,7 @@ class DataFile(object):
         # t_max_ = float(b_max) / self.sampling_rate
 
         snippet = self.get_snippet(t_min, t_max)
+        nb_samples = snippet.shape[0]
 
         # Define the number of channels to be plotted.
         max_nb_channels = 10
@@ -198,9 +214,9 @@ class DataFile(object):
         factor = factor if factor > 0.0 else 1.0
 
         # Plot data.
+        x = np.linspace(t_min, t_max, num=nb_samples)
         for count, channel in enumerate(range(0, nb_plotted_channels)):
-            x = np.linspace(t_min_, t_max_, num=nb_samples)
-            y = snippet[0:nb_samples, channel]
+            y = snippet[:, channel]
             y = y - np.mean(y)
             y = count + 0.5 * y / factor
             if colors is None:
