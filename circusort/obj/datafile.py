@@ -36,6 +36,7 @@ class DataFile(object):
 
         self.path = path
         self.dtype = dtype
+
         assert (probe is not None) or (nb_channels is not None), "Please provide either a probe file, either a number of channels"
         if probe is None:
             self.total_nb_channels = nb_channels
