@@ -92,6 +92,8 @@ class Demultiplexer(Block):
         self._nb_channels = None
         self._nb_samples = None
 
+        self._number = None
+
     @staticmethod
     def _get_output_name(name, k):
 
@@ -163,6 +165,23 @@ class Demultiplexer(Block):
                 for token in tokens:
                     name_ = self._get_output_name(name, token)
                     self.outputs[name_].send(packet)
+
+                # TODO remove the following lines.
+                if self._number is None:
+                    if isinstance(packet, dict) and 'number' in packet:
+                        self._number = packet['number']
+                    else:
+                        self._number = None
+                else:
+                    if isinstance(packet, dict) and 'number' in packet:
+                        number = packet['number']
+                        if self._number + 1 < number:
+                            string = "{} {} was interrupted (from {} to {})"
+                            message = string.format(self.name_and_counter, name, self._number, number)
+                            self.log.info(message)
+                        self._number = number
+                    else:
+                        self._number = None
 
             elif policy == 'soft_blocking':
 

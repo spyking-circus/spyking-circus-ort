@@ -251,7 +251,16 @@ class PeakDetector(Block):
                             self.peaks[key][i] = data
                             self.nb_cum_peaks[key][i] += len(data)
 
-            self.peaks['offset'] = (self.counter - 1) * self._nb_samples
+            # self.peaks['offset'] = (self.counter - 1) * self._nb_samples
+            offset = (self.counter - 1) * self._nb_samples
+            self.peaks['offset'] = offset
+
+            # TODO remove the following lines.
+            has_peaks = np.any([len(self.peaks[key]) > 0 for key in self.key_peaks])
+            if not has_peaks:
+                string = "{} has no peaks (offset: {})"
+                message = string.format(self.name_and_counter, offset)
+                self.log.info(message)
 
             # Prepare output packet.
             packet = {
@@ -261,7 +270,7 @@ class PeakDetector(Block):
 
             # TODO remove the following lines.
             if self.peaks is None:
-                string = "{} payload:{}"
+                string = "{} payload: {}"
                 message = string.format(self.name_and_counter, self.peaks)
                 self.log.debug(message)
 

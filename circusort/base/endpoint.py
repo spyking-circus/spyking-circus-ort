@@ -57,12 +57,12 @@ class Connection(object):
 
         return
 
-    def _get_data(self, blocking=True, number=None, discarding_eoc=False):
+    def _get_data(self, blocking=True, number=None, discarding_eoc=False, with_number=False):
         """Abstract method to get data from this connection."""
 
         raise NotImplementedError()
 
-    def receive(self, blocking=True, number=None, discarding_eoc=False):
+    def receive(self, blocking=True, number=None, discarding_eoc=False, with_number=False):
         """Receive data.
 
         Parameter:
@@ -80,9 +80,11 @@ class Connection(object):
                 The data to receive.
         """
 
-        data = self._get_data(blocking=blocking, number=number, discarding_eoc=discarding_eoc)
+        # data = self._get_data(blocking=blocking, number=number, discarding_eoc=discarding_eoc)
+        #
+        # return data
 
-        return data
+        return self._get_data(blocking=blocking, number=number, discarding_eoc=discarding_eoc, with_number=with_number)
 
     def _has_received(self):
 
@@ -301,7 +303,7 @@ class Endpoint(Connection):
 
         return
 
-    def _get_data(self, blocking=True, number=None, discarding_eoc=False):
+    def _get_data(self, blocking=True, number=None, discarding_eoc=False, with_number=False):
         """Get batch of data from this endpoint.
 
         Parameter:
@@ -330,9 +332,18 @@ class Endpoint(Connection):
         if number is not None:
             while batch is not None and batch['number'] < number:
                 batch = self._get_data_aux(blocking=True, discarding_eoc=discarding_eoc)
+            batch_number = batch['number'] if batch is not None else None
             if batch is not None and batch['number'] > number:
                 self._put_cached_batch(batch)
                 batch = None
+        else:
+            batch_number = batch['number'] if batch is not None else None
+
+        if with_number:
+            batch = {
+                'batch': batch,
+                'number_found': batch_number
+            }
 
         return batch
 

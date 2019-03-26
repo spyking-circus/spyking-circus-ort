@@ -136,6 +136,7 @@ class SpikeWriter(Block):
             if self.input.structure == 'dict':
 
                 offset = batch.pop('offset')
+
                 if self._mode == 'raw':
                     for key in batch:
                         if key in ['spike_times']:
@@ -164,6 +165,15 @@ class SpikeWriter(Block):
                                 for timestamp in batch[key]
                             ]
                             data = np.array(times, dtype=np.float32)
+                            # TODO remove the following lines.
+                            nb_spike_times = len(times)
+                            if nb_spike_times == 0:
+                                string = "{} offset: {} ({} b, {} s)"
+                                message = string.format(self.name_and_counter, offset, offset // 1024, float(offset) / 20e+3)
+                                self.log.debug(message)
+                                string = "{} nb_spike_times: {}"
+                                message = string.format(self.name_and_counter, len(times))
+                                self.log.debug(message)
                         elif key == 'templates':
                             data = np.array(batch[key], dtype=np.int16)
                         elif key == 'amplitudes':
@@ -178,6 +188,7 @@ class SpikeWriter(Block):
                             data = np.array(batch[key], dtype=np.float32)
                         else:
                             data = None
+                        # ...
                         if data is None or data.size == 0:
                             pass
                         elif dataset_name in self._h5_file:
@@ -191,6 +202,11 @@ class SpikeWriter(Block):
                             dataset = self._h5_file.create_dataset(dataset_name, data=data,
                                                                    chunks=True, maxshape=(None,))
                             dataset.flush()
+                else:
+                    # Log error message.
+                    string = "unknown mode value: {}"
+                    message = string.format(self._mode)
+                    self.log.error(message)
 
             else:
 

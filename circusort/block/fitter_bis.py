@@ -253,10 +253,12 @@ class FitterBis(Block):
         nb_peaks = np.count_nonzero(is_in_work_area)
         peaks = self.p[is_in_work_area]
 
-        if verbose:
+        # TODO swap the 2 following lines.
+        # if verbose:
+        if nb_peaks == 0:
             # Log debug message.
             string = "{} has {} peaks in the work area among {} peaks"
-            message = string.format(self.name, nb_peaks, len(self.p))
+            message = string.format(self.name_and_counter, nb_peaks, len(self.p))
             self.log.debug(message)
 
         if verbose:
@@ -462,11 +464,16 @@ class FitterBis(Block):
 
         else:  # i.e. nb_peaks == 0
 
-            if verbose:
-                # Log debug message.
-                string = "{} can't fit spikes ({} templates)"
-                message = string.format(self.name_and_counter, self.nb_templates)
-                self.log.debug(message)
+            # TODO swap the 2 following code blocks.
+            # if verbose:
+            #     # Log debug message.
+            #     string = "{} can't fit spikes ({} templates)"
+            #     message = string.format(self.name_and_counter, self.nb_templates)
+            #     self.log.debug(message)
+            # Log debug message.
+            string = "{} can't fit spikes ({} templates)"
+            message = string.format(self.name_and_counter, self.nb_templates)
+            self.log.debug(message)
 
         return
 
@@ -552,13 +559,19 @@ class FitterBis(Block):
     def _collect_peaks(self, verbose=False):
 
         if self.is_active:
-            peaks_packet = self.get_input('peaks').receive(blocking=True, number=self._number)
+            peaks_packet = self.get_input('peaks').receive(blocking=True, number=self._number, with_number=True)
+            number = peaks_packet['number_found']
+            peaks_packet = peaks_packet['batch']
             if peaks_packet is None:
                 # This is the last packet (last data packet don't have a corresponding peak packet since the peak
                 # detector needs two consecutive data packets to produce one peak packet).
                 peaks = {
                     'offset': None,  # TODO correct offset value?
                 }
+                # TODO remove the following lines.
+                string = "{} peaks_packet is None (self._number: {}, number: {})"
+                message = string.format(self.name_and_counter, self._number, number)
+                self.log.info(message)
             else:
                 peaks = peaks_packet['payload']
             self._handle_peaks(peaks)
@@ -620,6 +633,8 @@ class FitterBis(Block):
         if timing:
             self._measure_time('preamble_end', period=10)
 
+        # 1. Start templates and overlaps update.
+
         if updater is not None:
 
             self._measure_time('update_start', period=1)
@@ -668,6 +683,8 @@ class FitterBis(Block):
 
             self._measure_time('update_end', period=1)
 
+        # 2. Fit chunk and send result.
+
         if self.p is not None:
 
             if self.nb_templates > 0:
@@ -693,6 +710,11 @@ class FitterBis(Block):
 
             elif self._nb_fitters > 1:
 
+                # # TODO remove the following lines.
+                # string = "{} nb_templates == 0"
+                # message = string.format(self.name_and_counter)
+                # self.log.debug(message)
+
                 packet = {
                     'number': self._number,
                     'payload': self._empty_result,
@@ -700,6 +722,11 @@ class FitterBis(Block):
                 self.get_output('spikes').send(packet)
 
         elif self._nb_fitters > 1:
+
+            # # TODO remove the following lines.
+            # string = "{} self.p is None"
+            # message = string.format(self.name_and_counter)
+            # self.log.debug(message)
 
             packet = {
                 'number': self._number,

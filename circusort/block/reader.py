@@ -22,7 +22,8 @@ class Reader(Block):
         sampling_rate: float
         is_realistic: boolean
         speed_factor: float
-        nb_replay:integer
+        nb_replay: integer
+        offset: integer
 
     See also:
         circusort.block.Block
