@@ -13,5 +13,3 @@ from .madfile import MADFile
 from .peaks import Peaks
 from .similarities import Similarities
 from .matches import Matches
-
-from . import mcs_raw_binary
