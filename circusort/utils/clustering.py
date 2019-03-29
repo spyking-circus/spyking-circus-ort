@@ -13,6 +13,86 @@ from circusort.io.template import load_template
 from circusort.obj.template import Template, TemplateComponent
 
 
+
+class DistanceMatrix(object):
+
+    def __init__(self, size):
+        self.size = size
+        self.didx = lambda i,j: i*self.size + j - i*(i+1)//2 - i - 1
+
+    def initialize(self, data, ydata=None):
+        if ydata is None:
+            self.distances = scipy.spatial.distance.pdist(data, 'euclidean').astype(numpy.float32)
+        else:
+            self.distances = scipy.spatial.distance.cdist(data, ydata, 'euclidean').astype(numpy.float32)
+
+    def get_value(self, i, j):
+        if i < j:
+            return self.distances[self.didx(i, j)]
+        elif i > j:
+            return self.distances[self.didx(j, i)]
+        elif i == j:
+            return 0
+
+    def get_row(self, i, with_diag=True):
+        start = self.distances[self.didx(numpy.arange(0, i), i)]
+        end = self.distances[self.didx(i, numpy.arange(i+1, self.size))]
+        if with_diag:
+            result = numpy.concatenate((start, numpy.array([0], dtype=numpy.float32), end))
+        else:
+            result = numpy.concatenate((start, end))
+    
+        return result
+
+    def get_col(self, i, with_diag=True):
+        return self.get_row(i, with_diag)
+
+    def to_dense(self):
+        return scipy.spatial.distance.squareform(self.distances)
+
+    def get_rows(self, indices, with_diag=True):
+        if with_diag:
+            result = numpy.zeros((len(indices), self.size), dtype=numpy.float32)
+        else:
+            result = numpy.zeros((len(indices), self.size - 1), dtype=numpy.float32)
+
+        for count, i in enumerate(indices):
+            result[count] = self.get_row(i, with_diag)
+        return result
+
+    def get_cols(self, indices, with_diag=True):
+        if with_diag:
+            result = numpy.zeros((self.size, len(indices)), dtype=numpy.float32)
+        else:
+            result = numpy.zeros((self.size - 1, len(indices)), dtype=numpy.float32)
+
+        for count, i in enumerate(indices):
+            result[:, count] = self.get_col(i, with_diag)
+        return result
+
+    def get_deltas(self, rho):
+        rho_sort_id = numpy.argsort(rho) # index to sort
+        rho_sort_id = (rho_sort_id[::-1]) # reversing sorting indexes
+        sort_rho = rho[rho_sort_id] # sortig rho in ascending order
+        auxdelta = numpy.zeros(self.size, dtype=numpy.float32)
+
+        for count, i in enumerate(rho_sort_id):
+            line = self.get_row(i)[rho_sort_id[:count+1]]
+            line[line == 0] = float("inf")
+            auxdelta[count] = numpy.min(line)
+
+        delta = numpy.zeros_like(auxdelta) 
+        delta[rho_sort_id] = auxdelta 
+        delta[rho == numpy.max(rho)] = numpy.max(delta[numpy.logical_not(numpy.isinf(delta))]) # assigns max delta to the max rho
+        delta[numpy.isinf(delta)] = 0
+
+        return delta
+
+    @property
+    def max(self):
+        return numpy.max(self.distances)
+
+
 class MacroCluster(object):
     """Macro cluster"""
 
@@ -698,22 +778,21 @@ class OnlineManager(object):
             nb_neighbors: integer
                 The number of neighbors.
         """
-
-        dist = scipy.spatial.distance.cdist(data, data, metric='euclidean')
-        dist = dist.astype(np.float32)
+        distances = DistanceMatrix(size=len(data))
+        distances.initialize(data)
 
         N = len(data)
-        nb_neighbors = max(5, int(neighbors_ratio*N))
+        nb_neighbors = max(2, int(neighbors_ratio*N))
 
-        #dist = sklearn.metrics.pairwise_distances(data, data, n_jobs=1)
-        dist_sorted = np.sort(dist, axis=1) # sorting each row in ascending order
-        dist_sorted = dist_sorted[:, 1:nb_neighbors+1]
-        rho = np.mean(dist_sorted, axis=1) # density computation
+        for i in range(N):
+            dist_sorted[i] = numpy.sort(dist.get_row(i, with_diag=False))[:nb_selec]
+            rho[i] = numpy.mean(dist_sorted[i])
 
-        #dist = scipy.spatial.distance.squareform(dist, checks=False)
-        return rho, dist, nb_neighbors
+        rho = -rho + rho.max()
+        
+        return rho, distances, dist_sorted
 
-    def fit_rho_delta(self, rho, delta):
+    def fit_rho_delta(self, rho, delta, smart_select_mode='ransac_bis'):
         """Fit relation between rho and delta values.
 
         Arguments:
@@ -729,9 +808,42 @@ class OnlineManager(object):
                 Either 'curve_fit' or 'ransac'.
         """
 
-        if self.smart_select_mode == 'ransac':
+        if smart_select_mode == 'curve_fit':
 
             z_score_threshold = 3.0
+
+            rho_max = rho.max()
+            off = delta.min()
+            idx = np.argmin(rho)
+            a_0 = (delta[idx] - off) / np.log(1 + (rho_max - rho[idx]))
+
+            def my_func(t, a, b, c, d):
+                return a * np.log(1.0 + c * ((rho_max - t) ** b)) + d  # TODO fix runtime warning...
+
+            try:
+                result, p_cov = scipy.optimize.curve_fit(my_func, rho, delta, p0=[a_0, 1., 1., off])
+                prediction = my_func(rho, result[0], result[1], result[2], result[3])
+                difference = rho * (delta - prediction)
+                # TODO swap and clean the following lines.
+                # z_score = (difference - difference.mean()) / difference.std()
+                difference_median = np.median(difference)
+                difference_mad = 1.4826 * np.median(np.absolute(difference - difference_median))
+                z_score = (difference - difference_median) / difference_mad
+                sub_indices = np.where(z_score >= z_score_threshold)[0]
+                # Plot rho and delta values (if necessary).
+                if self.debug_plots is not None:
+                    labels = z_score >= z_score_threshold
+                    self.plot_rho_delta(rho, delta - prediction, labels=labels, filename_suffix="modified")
+            except Exception as exception:
+                # Log debug message.
+                string = "{} raises an error in 'fit_rho_delta': {}"
+                message = string.format(self.name, exception)
+                self.log.debug(message)
+                sub_indices = np.argsort(rho * np.log(1 + delta))[::-1][:max_clusters]
+
+        elif smart_select_mode == 'ransac':
+
+            z_score_threshold = 4.0
             x = sm.add_constant(rho)
             model = sm.RLM(delta, x)
             results = model.fit()
@@ -741,20 +853,27 @@ class OnlineManager(object):
             # z_score = (difference - difference.mean()) / difference.std()
             difference_median = np.median(difference)
             difference_mad = 1.4826 * np.median(np.absolute(difference - difference_median))
-            z_score = difference - z_score_threshold*difference_mad*(1 + results.fittedvalues)
-            sub_indices = np.where(z_score >= 0)[0]
+            z_score = (difference - difference_median) / difference_mad
+            sub_indices = np.where(z_score >= z_score_threshold)[0]
             # Plot rho and delta values (if necessary).
             if self.debug_plots is not None:
-                labels = z_score >= 0
-                self.plot_rho_delta(rho, delta - prediction, labels=labels, filename_suffix="ransac")
+                labels = z_score >= z_score_threshold
+                self.plot_rho_delta(rho, delta - prediction, labels=labels, filename_suffix="modified")
 
-        elif self.smart_select_mode == 'ransac_bis':
-
+        elif smart_select_mode == 'ransac_bis':
             x = sm.add_constant(rho)
             model = sm.RLM(delta, x)
             results = model.fit()
             delta_mean = results.fittedvalues
             difference = delta - delta_mean
+            # 1st solution.
+            # sigma = difference.std()  # TODO this estimation is sensible to outliers
+            # 2nd solution.
+            # difference_median = np.median(difference)
+            # difference_mad = 1.4826 * np.median(np.absolute(difference - difference_median))
+            # sigma = difference_mad
+            # upper = + 3.0 * sigma  # + sigma * prediction  # TODO check/optimize this last term?
+            # 3rd solution (fit variance also).
             sigma = 1.4826 * np.median(np.absolute(difference - np.median(difference)))
             variance_model = sm.RLM(np.square(difference), x)
             variance_result = variance_model.fit()
@@ -776,58 +895,52 @@ class OnlineManager(object):
             message = string.format(smart_select_mode)
             raise ValueError(message)
 
-        return sub_indices
+        return sub_indices, len(sub_indices)
+
+    def density_based_clustering(self, rho, distances, n_min, smart_select_mode='ransac_bis'):
+        distances = DistanceMatrix(len(rho))
+        distances.distances = dist
+        delta = compute_delta(distances, rho)
+        nclus, labels, centers = find_centroids_and_cluster(distances, rho, delta, n_min, alpha)
+        halolabels = halo_assign(distances, labels, centers)
+        halolabels -= 1
+        centers = numpy.where(numpy.in1d(centers - 1, numpy.arange(halolabels.max() + 1)))[0]
+        return halolabels, rho, delta, centers
 
     @staticmethod
     def compute_delta(dist, rho):
-        rho_sort_id = np.argsort(rho) # index to sort
-        rho_sort_id = (rho_sort_id[::-1]) # reversing sorting indexes
-        sort_rho = rho[rho_sort_id] # sortig rho in ascending order
-        gtmat = np.greater_equal(sort_rho, sort_rho[:, None]) # gtmat(i,j)=1 if rho(i)>=rho(j) and 0 otherwise
-        
-        sortdist = np.zeros_like(dist)
-        sortdist = dist[rho_sort_id, :]
-        sortdist = sortdist[:, rho_sort_id]    
-        sortdist *= gtmat # keeping only distance to points with highest or equal rho 
-        sortdist[sortdist == 0] = float("inf")
+        return dist.get_deltas(rho)
 
-        auxdelta = np.min(sortdist, axis=1)
-        delta = np.zeros_like(auxdelta) 
-        delta[rho_sort_id] = auxdelta 
-        delta[rho == np.max(rho)] = np.max(delta[np.logical_not(np.isinf(delta))]) # assigns max delta to the max rho
-        delta[np.isinf(delta)] = 0
-        return delta
-
-    def find_centroids_and_cluster(self, dist, rho, delta):
+    def find_centroids_and_cluster(self, dist, rho, delta, n_min, smart_select_mode):
 
         npnts = len(rho)    
-        centers = np.zeros((npnts))
+        centers = numpy.zeros(npnts)
         
-        auxid = self.fit_rho_delta(rho, delta)
+        auxid = fit_rho_delta(rho, delta, smart_select_mode)
         nclus = len(auxid)
 
-        centers[auxid] = np.arange(nclus) + 1 # assigning labels to centroids
+        centers[auxid] = numpy.arange(nclus) + 1 # assigning labels to centroids
         
         # assigning points to clusters based on their distance to the centroids
         if nclus <= 1:
-            labels = np.ones(npnts)
+            labels = numpy.ones(npnts)
         else:
-            centersx = np.where(centers)[0] # index of centroids
-            dist2cent = dist[centersx, :]
-            labels = np.argmin(dist2cent, axis=0) + 1
-            _, cluscounts = np.unique(labels, return_counts=True) # number of elements of each cluster
+            centersx = numpy.where(centers)[0] # index of centroids
+            dist2cent = dist.get_rows(centersx)
+            labels = numpy.argmin(dist2cent, axis=0) + 1
+            _, cluscounts = numpy.unique(labels, return_counts=True) # number of elements of each cluster
             
-            small_clusters = np.where(cluscounts < 2)[0] # index of 1 or 0 members clusters
+            small_clusters = numpy.where(cluscounts < n_min)[0] # index of 1 or 0 members clusters
 
             if len(small_clusters) > 0: # if there one or more 1 or 0 member cluster # if there one or more 1 or 0 member cluster
                 cluslab = centers[centersx] # cluster labels
-                id2rem = np.where(np.in1d(cluslab, small_clusters))[0] # ids to remove
-                clusidx = np.delete(centersx, id2rem) # removing
-                centers = np.zeros(len(centers))
+                id2rem = numpy.where(numpy.in1d(cluslab, small_clusters))[0] # ids to remove
+                clusidx = numpy.delete(centersx, id2rem) # removing
+                centers = numpy.zeros(len(centers))
                 nclus = nclus - len(id2rem)
-                centers[clusidx] = np.arange(nclus) + 1 # re labeling centroids            
-                dist2cent = dist[centersx, :]# re compute distances from centroid to any other point
-                labels = np.argmin(dist2cent, axis=0) + 1 # re assigns clusters 
+                centers[clusidx] = numpy.arange(nclus) + 1 # re labeling centroids            
+                dist2cent = dist.get_rows(centersx)# re compute distances from centroid to any other point
+                labels = numpy.argmin(dist2cent, axis=0) + 1 # re assigns clusters 
                 
         return nclus, labels, centers
         
@@ -835,42 +948,17 @@ class OnlineManager(object):
     def halo_assign(dist, labels, centers):
 
         halolabels = labels.copy()    
-        sameclusmat = np.equal(labels, labels[:, None]) #
+        sameclusmat = numpy.equal(labels, labels[:, None]) #
         sameclus_cent = sameclusmat[centers > 0, :] # selects only centroids
-        dist2cent = dist[centers > 0, :] # distance to centroids
+        dist2cent = dist.get_rows(numpy.where(centers > 0)[0]) # distance to centroids
         dist2cluscent = dist2cent*sameclus_cent # preserves only distances to the corresponding cluster centroid
-        nclusmem = np.sum(sameclus_cent, axis=1) # number of cluster members
+        nclusmem = numpy.sum(sameclus_cent, axis=1) # number of cluster members
             
-        meandist2cent = np.sum(dist2cluscent, axis=1)/nclusmem # mean distance to corresponding centroid
-        gt_meandist2cent = np.greater(dist2cluscent, meandist2cent[:, None]) # greater than the mean dist to centroid
-        remids = np.sum(gt_meandist2cent, axis=0)
+        meandist2cent = numpy.sum(dist2cluscent, axis=1)/nclusmem # mean distance to corresponding centroid
+        gt_meandist2cent = numpy.greater(dist2cluscent, meandist2cent[:, None]) # greater than the mean dist to centroid
+        remids = numpy.sum(gt_meandist2cent, axis=0)
         halolabels[remids > 0] = 0 # setting to 0 the removes points
         return halolabels
-
-    def density_based_clustering(self, rho, distances):
-        """Run a density based clustering.
-
-        Arguments:
-            rho: np.ndarray
-                An array which contains the local density of each sample.
-            distances: np.ndarray
-                A condensed matrix which contains the distances between pairs of samples.
-        Returns:
-            labels: np.ndarray
-                The array which contains the cluster labels of the data samples.
-            nb_clusters: integer
-                The number of detected clusters.
-        """
-
-        #dist = scipy.spatial.distance.squareform(distances, checks=False)
-        rho = -rho + rho.max()
-        delta = self.compute_delta(distances, rho)
-        nclus, labels, centers = self.find_centroids_and_cluster(distances, rho, delta)
-        halolabels = self.halo_assign(distances, labels, centers)
-        halolabels -= 1
-        centers = np.where(np.in1d(centers - 1, np.arange(halolabels.max() + 1)))[0]
-        return halolabels, len(centers)
-
 
     @staticmethod
     def _do_merging(data, labels, clusters, local_merges):
@@ -953,7 +1041,7 @@ class OnlineManager(object):
         nb_samples = len(data)
 
         if nb_samples > 1:
-            rhos, distances, _ = self.rho_estimation(data)
+            rhos, distances, dist_sorted = self.rho_estimation(data)
             labels, nb_clusters = self.density_based_clustering(rhos, distances)
         elif nb_samples == 1:
             labels = np.array([0])
