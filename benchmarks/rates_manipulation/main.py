@@ -13,10 +13,10 @@ nb_columns = 5
 nb_cells = 25
 duration = 2 * 60
 radius = 100
-preload_templates = True
+preload_templates = False
 nb_waveforms_clustering = 100
-nb_replay = 3
-nb_fitters = 4
+nb_replay = 1
+nb_fitters = 1
 data_path = "rates_manipulation"
 
 
@@ -209,6 +209,10 @@ def main():
         cluster = manager.create_block('density_clustering', **cluster_kwargs)
         updater = manager.create_block('template_updater_bis', **updater_kwargs)
         fitter = manager.create_network('fitter_bis', **fitter_kwargs)
+
+
+        cluster = manager.create_network('cluster', **cluster_args)
+
         writer = manager.create_block('spike_writer', **writer_kwargs)
         # Initialize the elements of the network.
         director.initialize()
