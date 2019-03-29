@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# coding: utf8
 from .block import Block
 
 # import matplotlib.pyplot as plt
@@ -37,7 +37,7 @@ class PCA(Block):
     name = "PCA"
 
     params = {
-        'spike_width': 5.0,  # ms
+        'spike_width': 3.0,  # ms
         'spike_jitter': 1.0,  # ms
         'spike_sigma': 0.0,  # µV
         'output_dim': 5,
@@ -126,7 +126,7 @@ class PCA(Block):
 
         if peaks is not None:
 
-            self._measure_time('start', frequency=100)
+            self._measure_time('start')
 
             _ = peaks.pop('offset')
 
@@ -216,7 +216,7 @@ class PCA(Block):
                     # Update internal variable.
                     self.send_pcs = False
 
-            self._measure_time('end', frequency=100)
+            self._measure_time('end')
 
         return
 

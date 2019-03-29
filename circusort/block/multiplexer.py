@@ -143,14 +143,14 @@ class Multiplexer(Block):
                 input_ = self.inputs[input_name]
                 input_packets[output_name] = input_.receive(blocking=True)
 
-            self._measure_time('start', frequency=100)
+            self._measure_time('start')
 
             # Send data.
             for output_name, packet in input_packets.items():
 
                 self.outputs[output_name].send(packet)
 
-            self._measure_time('end', frequency=100)
+            self._measure_time('end')
 
         except Exception as exception:
 

@@ -330,6 +330,21 @@ class Train(object):
 
         return r_fn
 
+    def compute_false_negative_count(self, train, jitter=2e-3, t_min=None, t_max=None, nb_bins=50):
+        """Compute the false negative count."""
+
+        train_pred, train_true = self.check_temporal_support(train, t_min=t_min, t_max=t_max)
+
+        fn_train = train_pred.collect_false_negatives(train_true, jitter=jitter, t_min=t_min, t_max=t_max)
+        fn_times = fn_train.times
+        range_ = (
+            t_min if t_min is not None else fn_times.min(),
+            t_max if t_max is not None else fn_times.max(),
+        )
+        bin_values, bin_edges = np.histogram(fn_times, bins=nb_bins, range=range_)
+
+        return bin_values, bin_edges
+
     def compute_positive_predictive_value(self, train, jitter=2e-3, t_min=None, t_max=None):
         """Compute the positive predictive value."""
 
@@ -454,13 +469,13 @@ class Train(object):
 
         return bin_counts, bin_edges
 
-    def auto_correlogram(self, bin_width=1.0, width=201.0):
+    def auto_correlogram(self, bin_width=2.0, width=202.0):
         """Compute the auto-correlogram.
 
         Arguments:
             bin_width: float (optional)
                 The bin width of the auto-correlogram (ms).
-                The default value is 1.0.
+                The default value is 2.0.
             width: float (optional)
                 The width of the auto-correlogram (ms).
                 The default value is 201.0.
@@ -476,13 +491,13 @@ class Train(object):
 
         return bin_counts, bin_edges
 
-    def interspike_interval_histogram(self, bin_width=0.25, width=25.0):
+    def interspike_interval_histogram(self, bin_width=0.5, width=25.0):
         """Compute the interspike interval histogram.
 
         Arguments:
             bin_width: float (optional)
                 The bin width of the interspike interval histogram (ms).
-                The default value is 0.25.
+                The default value is 0.5.
             width: float (optional)
                 The width of the interspike interval histogram (ms).
                 The default value is 25.0.

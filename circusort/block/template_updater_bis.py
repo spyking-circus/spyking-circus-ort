@@ -211,7 +211,7 @@ class TemplateUpdaterBis(Block):
 
         if data is not None:
 
-            self._measure_time('start', frequency=1)
+            self._measure_time('start', period=1)
 
             # Set mode as active (if necessary).
             if not self.is_active:
@@ -271,7 +271,7 @@ class TemplateUpdaterBis(Block):
             message = string.format(self.name_and_counter)
             self.log.debug(message)
 
-            self._measure_time('end', frequency=1)
+            self._measure_time('end', period=1)
 
         return
 

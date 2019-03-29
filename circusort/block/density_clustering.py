@@ -1,4 +1,5 @@
-# -*- coding: utf-8 -*-
+
+# coding: utf8
 from .block import Block
 import numpy as np
 import os
@@ -30,14 +31,14 @@ class DensityClustering(Block):
     name = "Density Clustering"
 
     params = {
-        'threshold_factor': 7.0,
+        'threshold_factor': 6.0,
         'alignment': True,
         'sampling_rate': 20.e+3,  # Hz
-        'spike_width': 5.0,  # ms
+        'spike_width': 3.0,  # ms
         'spike_jitter': 1.0,  # ms
         'spike_sigma': 0.0,  # µV
-        'nb_waveforms': 10000,
-        'nb_waveforms_tracking': 500,
+        'nb_waveforms': 1000,
+        'nb_waveforms_tracking': 1000,
         'channels': None,
         'probe_path': None,
         'radius': None,
@@ -59,7 +60,8 @@ class DensityClustering(Block):
         'debug_plots': None,
         'debug_ground_truth_templates': None,
         'debug_file_format': 'png',
-        'debug_data': None
+        'debug_data': None,
+        'smart_select': 'ransac'
     }
 
     def __init__(self, **kwargs):
@@ -95,6 +97,7 @@ class DensityClustering(Block):
         self.debug_ground_truth_templates = self.debug_ground_truth_templates
         self.debug_file_format = self.debug_file_format
         self.debug_data = self.debug_data
+        self.smart_select = self.smart_select
 
         if self.probe_path is None:
             # Log error message.
@@ -129,6 +132,9 @@ class DensityClustering(Block):
         self._dtype = None
         self._nb_channels = None
         self._nb_samples = None
+
+        self.inodes = np.zeros(self.probe.total_nb_channels, dtype=np.int32)
+        self.inodes[self.probe.nodes] = np.argsort(self.probe.nodes)
 
     def _initialize(self):
 
@@ -166,7 +172,7 @@ class DensityClustering(Block):
 
     def _remove_nn_peaks(self, key, peak_idx, channel):
 
-        indices = self.probe.edges[channel]
+        indices = self.inodes[self.probe.edges[self.probe.nodes[channel]]]
         min_times_mask = self.masks[key]['min_times'][peak_idx]
         max_times_mask = self.masks[key]['max_times'][peak_idx]
         self.masks[key]['all_times'][indices, min_times_mask:max_times_mask] = True
@@ -175,7 +181,7 @@ class DensityClustering(Block):
 
     def _isolated_peak(self, key, peak_idx, channel):
 
-        indices = self.probe.edges[channel]
+        indices = self.inodes[self.probe.edges[self.probe.nodes[channel]]]
         min_times_mask = self.masks[key]['min_times'][peak_idx]
         max_times_mask = self.masks[key]['max_times'][peak_idx]
         my_slice = self.masks[key]['all_times'][indices, min_times_mask:max_times_mask]
@@ -207,14 +213,14 @@ class DensityClustering(Block):
     def _update_initialization(self):
 
         if self.channels is None:
-            self.channels = np.arange(self._nb_channels)
+            self.channels = self.inodes[self.probe.nodes]
 
         if self._dtype is not None:
             self.decay_time = self.decay_factor
-            self.chan_positions = np.zeros(self._nb_channels, dtype=np.int32)
-            for channel in range(self._nb_channels):
-                mask = self.probe.edges[channel] == channel
-                self.chan_positions[channel] = np.where(mask)[0]
+            # self.chan_positions = {}
+            # for channel in self.channels:
+            #     mask = self.probe.edges[channel] == channel
+            #     self.chan_positions[channel] = np.where(mask)[0]
 
         return
 
@@ -260,7 +266,8 @@ class DensityClustering(Block):
                     'debug_ground_truth_templates': self.debug_ground_truth_templates,
                     'local_merges': self.local_merges,
                     'debug_file_format': self.debug_file_format,
-                    'sampling_rate': self.sampling_rate
+                    'sampling_rate': self.sampling_rate,
+                    'smart_select': self.smart_select
                 }
 
                 if key == 'negative':
@@ -330,7 +337,7 @@ class DensityClustering(Block):
 
             if (peaks is not None) and (self.thresholds is not None):  # (i.e. if we receive some peaks and MADs)
 
-                self._measure_time('start', frequency=100)
+                self._measure_time('start')
 
                 self.to_reset = []
 
@@ -362,7 +369,7 @@ class DensityClustering(Block):
                             self._remove_nn_peaks(peak_type, peak_idx, best_channel)
                             
                             if best_channel in self.channels:
-                                channels = self.probe.edges[best_channel]
+                                channels = self.inodes[self.probe.edges[self.probe.nodes[best_channel]]]
                                 waveforms = self.batch.get_snippet(channels, peak, peak_type=peak_type,
                                                                    ref_channel=best_channel, sigma=self.spike_sigma)
 
@@ -423,7 +430,7 @@ class DensityClustering(Block):
                     for key, channel in self.to_reset:
                         self._reset_data_structures(key, channel)
 
-                self._measure_time('end', frequency=100)
+                self._measure_time('end')
 
         return
 

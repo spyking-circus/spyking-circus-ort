@@ -89,6 +89,17 @@ class PeakWriter(Block):
         elif self._mode == 'hdf5':
             self._h5_file = h5py.File(self.data_path, mode='w', swmr=True)
 
+        # Log info message.
+        if self._mode == 'raw':
+            string = "{} records data into {} (negative peaks) and {} (positive peaks)"
+            message = string.format(self.name, self.recorded_peaks['negative'], self.recorded_peaks['positive'])
+            self.log.info(message)
+        elif self._mode == 'hdf5':
+            # Log info message.
+            string = "{} records data into {}"
+            message = string.format(self.name, self.data_path)
+            self.log.info(message)
+
         return
 
     def _process(self):
@@ -97,7 +108,7 @@ class PeakWriter(Block):
         peaks_packet = self.get_input('peaks').receive()
         batch = peaks_packet['payload']
 
-        self._measure_time('start', frequency=100)
+        self._measure_time('start')
 
         if self.input.structure == 'dict':
 
@@ -154,7 +165,7 @@ class PeakWriter(Block):
             message = string.format(self.name)
             self.log.error(message)
 
-        self._measure_time('end', frequency=100)
+        self._measure_time('end')
 
         return
 

@@ -61,6 +61,8 @@ class Block(threading.Thread):
         self.counter = 0
         self.mpl_display = False
         self.introspection_path = None
+        self.introspection_period = 50
+        self.introspection_factor = 1.0
         self._timeout = 60000  # ms
 
         self.context = zmq.Context()
@@ -162,9 +164,19 @@ class Block(threading.Thread):
         return len(self.inputs)
 
     @property
+    def has_input(self):
+
+        return self.nb_inputs > 0
+
+    @property
     def nb_outputs(self):
 
         return len(self.outputs)
+
+    @property
+    def has_output(self):
+
+        return self.nb_outputs > 0
 
     def get_input(self, key):
 
@@ -226,6 +238,15 @@ class Block(threading.Thread):
         self._configure_input_parameters(**kwargs)
 
         return
+
+    @property
+    def input_endpoints_are_configured(self):
+
+        for input_endpoint in iter(self.inputs.values()):
+            if not input_endpoint.parameters_are_configured:
+                return False
+
+        return True
 
     def _update_initialization(self):
 
@@ -405,9 +426,16 @@ class Block(threading.Thread):
 
         return self.params.keys()
 
-    def _measure_time(self, label='default', frequency=1):
+    def _measure_time(self, label='default', period=None, factor=None):
 
-        if self.counter % frequency == 0:
+        if period is None:
+            period = self.introspection_period
+        if factor is None:
+            factor = self.introspection_factor
+        period = round(factor * float(period))
+        period = max(1, period)
+
+        if self.counter % period == 0:
             time_ = time.time()
             try:
                 self._measured_times[label].append(time_)

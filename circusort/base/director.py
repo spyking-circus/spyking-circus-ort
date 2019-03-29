@@ -189,14 +189,22 @@ class Director(object):
                     # Transmit information between blocks.
                     params = output_endpoint.block.get_output_parameters()
                     input_endpoint.block.configure_input_parameters(**params)
-                    # Update initialization in output block.
-                    input_endpoint.block.update_initialization()
+                    # Transmit information between endpoints.
+                    params = output_endpoint.get_output_parameters()
+                    input_endpoint.configure_input_parameters(**params)
+                    # Update initialization in output block (if necessary).
+                    if input_endpoint.block.input_endpoints_are_configured:
+                        input_endpoint.block.update_initialization()
 
                     # Log debug message.
-                    string = "{p} connection established from {a}[{s}] to {b}[{t}]"
-                    message = string.format(p=local_protocol, s=(output_endpoint.name, output_endpoint.structure),
-                                            t=(input_endpoint.name, input_endpoint.structure),
-                                            a=output_endpoint.block.name, b=input_endpoint.block.name)
+                    string = "{} connection established from {}[{}] to {}[{}]"
+                    message = string.format(
+                        local_protocol,
+                        output_endpoint.block.name,
+                        (output_endpoint.name, output_endpoint.structure),
+                        input_endpoint.block.name,
+                        (input_endpoint.name, input_endpoint.structure)
+                    )
                     self.log.debug(message)
 
         return
@@ -294,7 +302,7 @@ class Director(object):
 
     def destroy(self):
 
-        self.__del__()
+        del self  # not self.__del__() which is different.
 
         return
 

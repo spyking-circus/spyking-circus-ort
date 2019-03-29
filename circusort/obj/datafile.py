@@ -5,6 +5,7 @@ import os
 import warnings
 
 from circusort.utils.path import normalize_path
+from circusort.io.probe import load_probe
 
 
 class DataFile(object):
@@ -18,7 +19,7 @@ class DataFile(object):
         gain: float
     """
 
-    def __init__(self, path, sampling_rate, nb_channels, dtype='float32', gain=1.0):
+    def __init__(self, path, sampling_rate, nb_channels=None, probe=None, dtype='float32', gain=1.0, offset=0, nb_replay=1):
         """Initialize data file.
 
         Arguments:
@@ -29,26 +30,63 @@ class DataFile(object):
                 The default value is 'float32'.
             gain: float (optional)
                 The default value is 1.0.
+            offset: int (optional)
+                The offset if the file has a header
         """
 
         self.path = path
         self.dtype = dtype
-        self.nb_channels = nb_channels
+
+        assert (probe is not None) or (nb_channels is not None), "Please provide either a probe file, either a number of channels"
+        if probe is None:
+            self.total_nb_channels = nb_channels
+            self.nb_channels = nb_channels
+            self.probe = None
+        else:
+            self.probe = probe
+            self.total_nb_channels = probe.total_nb_channels
+            self.nb_channels = probe.nb_channels
+
         self.sampling_rate = sampling_rate
         self.gain = gain
-        self.data = np.memmap(self.path, dtype=self.dtype)
+        self.offset = offset
+        self.nb_replay = nb_replay
+        self._quantum_offset = float(np.iinfo('int16').min)
+        self.data = np.memmap(self.path, dtype=self.dtype, offset=self.offset)
 
-        if self.nb_channels > 1:
-            self.nb_samples = self.data.shape[0] // self.nb_channels
-            self.data = self.data.reshape(self.nb_samples, self.nb_channels)
-        elif self.nb_channels == 1:
-            self.nb_samples = self.data.shape[0]
+        if self.total_nb_channels > 1:
+            self.real_shape = self.data.shape[0] // self.total_nb_channels
+            self.nb_samples = self.nb_replay*self.data.shape[0] // self.total_nb_channels
+            self.data = self.data.reshape(self.real_shape, self.total_nb_channels)
+        elif self.total_nb_channels == 1:
+            self.nb_samples = self.nb_replay*self.data.shape[0]
         else:
             raise NotImplementedError()
 
     def __len__(self):
 
-        return len(self.data)
+        return self.nb_samples
+
+    @property
+    def duration(self):
+        return self.nb_samples
+   
+    def _get_slice(self, t_min, t_max, samples = True):
+
+        if samples is False:
+            b_min = int(np.ceil(t_min * self.sampling_rate))
+            b_max = int(np.floor(t_max * self.sampling_rate))
+
+        assert b_min < self.nb_samples, "Please provide valid t_start, t_stop"
+        assert b_max < self.nb_samples, "Please provide valid t_start, t_stop"
+        b_min = b_min % self.real_shape
+        b_max = b_max % self.real_shape
+        
+
+        if b_min < b_max:
+            return np.arange(b_min, b_max + 1)
+        else:
+            return list(range(b_max, self.real_shape)) + list(range(b_min + 1))
 
     def get_snippet(self, t_min, t_max):
         """Get data snippet.
@@ -60,10 +98,9 @@ class DataFile(object):
             data: numpy.ndarray
         """
 
-        b_min = int(np.ceil(t_min * self.sampling_rate))
-        b_max = int(np.floor(t_max * self.sampling_rate))
-
-        data = self.data[b_min:b_max + 1, :]
+        data = self.data[self._get_slice(t_min, t_max, False), :]
+        if self.probe is not None:
+            data = data[:, self.probe.nodes]
         data = data.astype(np.float32)
         data = self.gain * data
 
@@ -92,11 +129,15 @@ class DataFile(object):
         if ts_max is None:
             ts_max = self.data.shape[0] - 1
 
+        time_steps = self._get_slice(ts_min, ts_max)
+
         if channels is None:
-            data = self.data[ts_min:ts_max + 1, :]
+            data = self.data[time_steps, :]
         else:
-            time_steps = np.arange(ts_min, ts_max + 1)
             data = self.data[np.ix_(time_steps, channels)]
+
+        if self.probe is not None:
+            data = data[:, self.probe.nodes]
 
         return data
 
@@ -122,15 +163,16 @@ class DataFile(object):
         if ts_max is None:
             ts_max = self.data.shape[0] - 1
 
+        time_steps = self._get_slice(ts_min, ts_max)
+
         if channels is None:
-            self.data[ts_min:ts_max+1, :] = data
+            self.data[time_steps, :] = data
         else:
-            time_steps = np.arange(ts_min, ts_max + 1)
             self.data[np.ix_(time_steps, channels)] = data
 
         return
 
-    def _plot(self, ax, t_min=0.0, t_max=0.5, colors=None, **kwargs):
+    def _plot(self, ax, t_min=0.0, t_max=1, colors=None, **kwargs):
         """Plot data from file.
 
         Arguments:
@@ -138,7 +180,7 @@ class DataFile(object):
             t_min: float (optional)
                 The default value is 0.0.
             t_max: float (optional)
-                The default value is 0.5.
+                The default value is 1.
             colors: none | iterable (optional)
                 The default value is None.
             kwargs: dict (optional)
@@ -147,13 +189,14 @@ class DataFile(object):
             ax: matplotlib.axes.Axes
         """
 
-        b_min = int(np.ceil(t_min * self.sampling_rate))
-        b_max = int(np.floor(t_max * self.sampling_rate))
-        nb_samples = b_max - b_min + 1
-        t_min_ = float(b_min) / self.sampling_rate
-        t_max_ = float(b_max) / self.sampling_rate
+        # b_min = int(np.ceil(t_min * self.sampling_rate))
+        # b_max = int(np.floor(t_max * self.sampling_rate))
+        # nb_samples = b_max - b_min + 1
+        # t_min_ = float(b_min) / self.sampling_rate
+        # t_max_ = float(b_max) / self.sampling_rate
 
-        snippet = self.get_snippet(t_min_, t_max_)
+        snippet = self.get_snippet(t_min, t_max)
+        nb_samples = snippet.shape[0]
 
         # Define the number of channels to be plotted.
         max_nb_channels = 10
@@ -172,9 +215,9 @@ class DataFile(object):
         factor = factor if factor > 0.0 else 1.0
 
         # Plot data.
+        x = np.linspace(t_min, t_max, num=nb_samples)
         for count, channel in enumerate(range(0, nb_plotted_channels)):
-            x = np.linspace(t_min_, t_max_, num=nb_samples)
-            y = snippet[0:nb_samples, channel]
+            y = snippet[:, channel]
             y = y - np.mean(y)
             y = count + 0.5 * y / factor
             if colors is None:

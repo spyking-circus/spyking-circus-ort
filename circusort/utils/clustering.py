@@ -128,7 +128,6 @@ class MacroCluster(object):
     def set_label(self, label):
         assert label in ['sparse', 'dense']
         self.label = label
-
         return
 
     @property
@@ -139,24 +138,21 @@ class MacroCluster(object):
     def is_dense(self):
         return self.label == 'dense'
 
-    def add_and_update(self, pca_data, data, time, decay_factor):
-        factor = 2 ** (-decay_factor * (time - self.last_update))
-        self.density = factor * self.density + 1.
-        self.sum_pca = factor * self.sum_pca + pca_data
-        self.sum_pca_sq = factor * self.sum_pca_sq + pca_data ** 2
-        self.sum_full = factor * self.sum_full + data
-        self.last_update = time
-
+    def add(self, pca_data, data):
+        self.density += 1.
+        self.sum_pca += pca_data
+        self.sum_pca_sq += pca_data ** 2
+        self.sum_full += data
         return
 
     def update(self, time, decay_factor):
-        factor = 2 ** (-decay_factor * (time - self.last_update))
-        self.density = factor * self.density
-        self.sum_pca = factor * self.sum_pca
-        self.sum_pca_sq = factor * self.sum_pca_sq
-        self.sum_full = factor * self.sum_full
-        self.last_update = time
-
+        if time > self.last_update:
+            factor = 2 ** (-decay_factor * (time - self.last_update))
+            self.density = factor * self.density
+            self.sum_pca = factor * self.sum_pca
+            self.sum_pca_sq = factor * self.sum_pca_sq
+            self.sum_full = factor * self.sum_full
+            self.last_update = time
         return
 
     def remove(self, pca_data, data):
@@ -164,7 +160,6 @@ class MacroCluster(object):
         self.sum_pca -= pca_data
         self.sum_pca_sq -= pca_data ** 2
         self.sum_full -= data
-
         return
 
     @property
@@ -188,7 +183,7 @@ class OnlineManager(object):
 
     def __init__(self, probe, channel, sampling_rate=20e+3, decay=0.05, mu=2, epsilon='auto', theta=-np.log(0.001),
                  dispersion=(5, 5), n_min=0.01, noise_thr=0.8, pca=None, logger=None, two_components=False, name=None,
-                 debug_plots=None, debug_ground_truth_templates=None, debug_file_format='pdf', local_merges=3):
+                 debug_plots=None, debug_ground_truth_templates=None, debug_file_format='pdf', local_merges=3, smart_select='ransac'):
 
         if name is None:
             self.name = "OnlineManager"
@@ -211,6 +206,7 @@ class OnlineManager(object):
         self.debug_file_format = debug_file_format
         self.local_merges = local_merges
         self.sampling_rate = sampling_rate
+        self.smart_select_mode = smart_select
 
         if self.debug_plots is not None:
             self.fig_name = os.path.join(self.debug_plots, '{n}_{t}.{f}')
@@ -239,6 +235,10 @@ class OnlineManager(object):
         string = "{} is created"
         message = string.format(self.name)
         self.log.debug(message)
+
+        self.inodes = np.zeros(self.probe.total_nb_channels, dtype=np.int32)
+        self.inodes[self.probe.nodes] = np.argsort(self.probe.nodes)
+        self._channel_edges = self.inodes[self.probe.edges[self.probe.nodes[self.channel]]]
 
     @property
     def d_threshold(self):
@@ -307,7 +307,7 @@ class OnlineManager(object):
         # Log debug message.
         string = "{} founds {} initial clusters from {} data points"
         message = string.format(self.name, len(np.unique(labels[mask])), len(sub_data))
-        self.log.debug(message)
+        self.log.info(message)
 
         epsilon = np.inf
 
@@ -450,11 +450,11 @@ class OnlineManager(object):
         waveforms = np.median(data, 0)
         amplitudes, full_ = self._compute_amplitudes(data, waveforms)
 
-        first_component = TemplateComponent(waveforms, self.probe.edges[self.channel], self.probe.nb_channels,
+        first_component = TemplateComponent(waveforms, self._channel_edges, self.probe.nb_channels,
                                             amplitudes)
         if self.two_components:
             waveforms = self._compute_second_component(data, waveforms, full_)
-            second_component = TemplateComponent(waveforms, self.probe.edges[self.channel], self.probe.nb_channels)
+            second_component = TemplateComponent(waveforms, self._channel_edges, self.probe.nb_channels)
         else:
             second_component = None
 
@@ -468,7 +468,7 @@ class OnlineManager(object):
 
         cluster = self._get_nearest_cluster(pca_data, cluster_type)
         if cluster is not None:
-            cluster.add_and_update(pca_data[0], data[0], self.time, self.decay_factor)
+            cluster.add(pca_data[0], data[0])
             merged = cluster.radius <= self.epsilon
 
             if merged:
@@ -480,8 +480,6 @@ class OnlineManager(object):
         return merged
 
     def _prune(self):
-
-        self._update_clusters()
 
         count = 0
         for cluster in self.dense_clusters:
@@ -555,7 +553,7 @@ class OnlineManager(object):
         """
 
         self.time = time
-
+        self._update_clusters()
         # Log debug message.
         string = "{} processes time {} with {} sparse and {} dense clusters. Time gap is {}"
         message = string.format(self.name, time, self.nb_sparse, self.nb_dense, self.time_gap)
@@ -765,7 +763,7 @@ class OnlineManager(object):
         The rho value of a sample corresponds to the mean distances between this samples and its nearest neighbors.
 
         Arguments:
-            data: numpy.ndarray
+            data: np.ndarray
                 An array which contains the data sample. The size of the first dimension must be equal to the number of
                 samples.
             neighbors_ratio: float (optional)
@@ -773,14 +771,13 @@ class OnlineManager(object):
                 equal to the number of samples multiplied by this ratio and is at least equal to 5.
                 The default value is 0.01.
         Returns:
-            rho: numpy.ndarray
+            rho: np.ndarray
                 The rho values.
-            distances: numpy.ndarray
+            distances: np.ndarray
                 The condensed matrix of distances between pair of samples.
             nb_neighbors: integer
                 The number of neighbors.
         """
-
         distances = DistanceMatrix(size=len(data))
         distances.initialize(data)
 
@@ -799,8 +796,8 @@ class OnlineManager(object):
         """Fit relation between rho and delta values.
 
         Arguments:
-            rho: numpy.ndarray
-            delta: numpy.ndarray
+            rho: np.ndarray
+            delta: np.ndarray
             smart_select: boolean (optional)
                 If true then we will try to detect automatically the clusters based on the rho and delta values.
                 The default value is False.
@@ -864,7 +861,6 @@ class OnlineManager(object):
                 self.plot_rho_delta(rho, delta - prediction, labels=labels, filename_suffix="modified")
 
         elif smart_select_mode == 'ransac_bis':
-
             x = sm.add_constant(rho)
             model = sm.RLM(delta, x)
             results = model.fit()
@@ -895,7 +891,6 @@ class OnlineManager(object):
                                         threshold=delta_mean + upper, filename_suffix="ransac_bis")
 
         else:
-
             string = "unexpected smart select mode: {}"
             message = string.format(smart_select_mode)
             raise ValueError(message)
@@ -1028,7 +1023,7 @@ class OnlineManager(object):
         """Run a density clustering on the given data.
 
         Arguments:
-            data: numpy.ndarray
+            data: np.ndarray
             n_min: none | float (optional)
                 Minimal number in any cluster.
                 The default value is None.
@@ -1039,7 +1034,7 @@ class OnlineManager(object):
                 Threshold for merging clusters on this electrode (i.e. similar clusters).
                 The default value is None.
         Return:
-            labels: numpy.ndarray
+            labels: np.ndarray
                 An array which contains the cluster labels of the data samples.
         """
 

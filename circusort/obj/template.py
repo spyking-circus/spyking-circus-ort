@@ -49,7 +49,7 @@ class TemplateComponent(object):
         for k, index in enumerate(self.indices):
             waveforms[index, :] += self.waveforms[k, :]
         for k, index in enumerate(other.indices):
-            waveforms[index, :] += self.waveforms[k, :]
+            waveforms[index, :] += other.waveforms[k, :]
         waveforms = waveforms[indices, :]
         nb_channels = self.nb_channels
         amplitudes = None
@@ -89,8 +89,30 @@ class TemplateComponent(object):
     @property
     def extrema(self):
         index = self.temporal_width//2 + 1
-        return (np.min(self.waveforms[:, index]), np.max(self.waveforms[:, index]))
-    
+        return np.min(self.waveforms[:, index]), np.max(self.waveforms[:, index])
+
+    def center_of_mass(self, probe):
+        data = np.sum(self.waveforms**2, 1)
+        data /= data.sum()
+        positions = probe.positions[:, self.indices]
+        return np.sum(data * positions, 1)
+
+    def real_indices(self, probe):
+        return probe.nodes[self.indices]
+
+    def peak_amplitude(self, polarity=None, reference_value=0.0):
+
+        if polarity is None:
+            amplitude = np.max(np.abs(self.waveforms - reference_value))
+        elif polarity == 'positive':
+            amplitude = np.max(self.waveforms - reference_value)
+        elif polarity == 'negative':
+            amplitude = np.min(self.waveforms - reference_value)
+        else:
+            raise ValueError("unexpected polarity value: {}".format(polarity))
+
+        return amplitude
+
     def __str__(self):
 
         string = "TemplateComponent for {} channels with amplitudes {}"
@@ -383,6 +405,10 @@ class Template(object):
     def extrema(self):
         return self.first_component.extrema
 
+    def peak_amplitude(self, polarity=None, reference_value=0.0):
+
+        return self.first_component.peak_amplitude(polarity=polarity, reference_value=reference_value)
+
     @property
     def is_compressed(self):
 
@@ -394,6 +420,12 @@ class Template(object):
             component.normalize()
 
         return
+
+    def center_of_mass(self, probe):
+        return self.first_component.center_of_mass(probe)
+
+    def real_indices(self, probe):
+        return self.first_component.real_indices(probe)
 
     def intersect(self, template):
 
@@ -551,7 +583,7 @@ class Template(object):
             y_min, y_max = probe.y_limits
             ax.set_xlim(x_min, x_max)
             ax.set_ylim(y_min, y_max)
-            for k, channel in enumerate(self.first_component.indices):
+            for k, channel in enumerate(self.first_component.real_indices(probe)):
                 x_0, y_0 = probe.get_channel_position(channel)
                 x = time_factor * np.linspace(-0.5, +0.5, num=nb_samples) + x_0
                 y = voltage_factor * self.first_component.waveforms[k, :] + y_0
@@ -609,8 +641,8 @@ class Template(object):
         if self._compressed:
             res['compressed'] = self.indices
 
-        res['channel'] = self.channel
-        res['time'] = self.creation_time
+        res['channel'] = str(self.channel)
+        res['time'] = str(self.creation_time)
 
         return res
 
