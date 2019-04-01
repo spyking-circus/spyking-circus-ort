@@ -897,15 +897,15 @@ class OnlineManager(object):
             message = string.format(smart_select_mode)
             raise ValueError(message)
 
-        return sub_indices, len(sub_indices)
+        return sub_indices
 
     def density_based_clustering(self, rho, distances, n_min, smart_select_mode='ransac_bis'):
         delta = self.compute_delta(distances, rho)
-        nclus, labels, centers = self.find_centroids_and_cluster(distances, rho, delta, n_min, alpha)
+        nclus, labels, centers = self.find_centroids_and_cluster(distances, rho, delta, n_min, smart_select_mode)
         halolabels = self.halo_assign(distances, labels, centers)
         halolabels -= 1
         centers = np.where(np.in1d(centers - 1, np.arange(halolabels.max() + 1)))[0]
-        return halolabels, rho, delta, centers
+        return halolabels, centers
 
     @staticmethod
     def compute_delta(dist, rho):
@@ -916,7 +916,7 @@ class OnlineManager(object):
         npnts = len(rho)    
         centers = np.zeros(npnts)
         
-        auxid = fit_rho_delta(rho, delta, smart_select_mode)
+        auxid = self.fit_rho_delta(rho, delta, smart_select_mode)
         nclus = len(auxid)
 
         centers[auxid] = np.arange(nclus) + 1 # assigning labels to centroids
