@@ -5,6 +5,7 @@ __all__ = [
     'network',
     'peak_detector',
     'pregenerator',
+    'density_clustering'
 ]
 
 from .pregenerator import pregenerator

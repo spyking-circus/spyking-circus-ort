@@ -1,10 +1,10 @@
 from circusort.net.network import Network
 
 
-__classname__ = "Cluster"
+__classname__ = "DensityClustering"
 
 
-class Cluster(Network):
+class DensityClustering(Network):
     """Cluster network.
 
     Attributes:
@@ -14,7 +14,7 @@ class Cluster(Network):
         circusort.net.network.Network
     """
 
-    name = "Filter network"
+    name = "Density Clustering network"
 
     params = {
         'degree': 2,
@@ -39,12 +39,13 @@ class Cluster(Network):
     def _create_blocks(self):
         """Create the blocks of the network."""
 
+        cluster_kwargs = {k : kwargs 
+                            for k in range(self.degree)}
+
         # # Keyword arguments of filter blocks.
         for k in range(0, self.degree):
             cluster_kwargs[k].update({
-                key: value
-                for key, value in self.params.items()
-                if key in ['introspection_path']
+                'channels' : np.arange(k, self.nb_channels)[::self.degree]
             })
 
         clusters = {
@@ -52,12 +53,19 @@ class Cluster(Network):
             for k in range(0, self.degree)
         }
 
+        clustering_dispatcher = self._create_block('clustering_dispatcher')
+
         # Register network inputs, outputs and blocks.
         for k in range(self.degree):
-            self._add_input('data', clusters[k].get_input('data'))
-    
-        self._add_output('data', grouper.get_output('data'))
-        self._add_block('filters', clusters)
+            self._add_output('templates_k', clusters[k].get_output('templates'))
+        
+        self._add_input('data', clustering_dispatcher.get_input('data'))
+        self._add_input('mads', clustering_dispatcher.get_input('data'))
+        self._add_input('peaks', clustering_dispatcher.get_input('peaks'))
+        self._add_input('pcs', clustering_dispatcher.get_input('pcs'))
+
+        self._add_block('data_dispatcher', clustering_dispatcher)
+        self._add_block('clusters', clusters)
 
         return
 
@@ -71,27 +79,12 @@ class Cluster(Network):
     def _connect(self):
 
         clusters = self.get_block('clusters')
+        data_dispatcher = self.get_block('data_dispatcher')
 
-        for k in range(0, self.degree):
-            # Extract k-th filter.
-            filter_ = filters[k]
-            # Connect degrouper to k-th filter.
-            input_name = 'data'
-            output_name = self._get_name(input_name, k)
+        for name in ['data', 'peaks', 'mads', 'pcs']:
             self.manager.connect(
-                dispatcher.get_output(output_name),
-                [filter_.get_input(input_name)]
-            )
-
-        for k in range(0, self.degree):
-            # Extract k-th filter.
-            filter_ = filters[k]
-            # Connect k-th filter to grouper.
-            output_name = 'data'
-            input_name = self._get_name(output_name, k)
-            self.manager.connect(
-                filter_.get_output(output_name),
-                [grouper.get_input(input_name)]
+                data_dispatcher.get_output(name),
+                [clusters[k].get_input(name) for k in range(self.degree)]
             )
 
         return

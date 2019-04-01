@@ -713,7 +713,7 @@ class OnlineManager(object):
         else:
             output = None
 
-        labels = self.density_clustering(centers, n_min=None, output=output, local_merges=self.local_merges)
+        labels = self.density_clustering(centers, n_min=0, output=output, local_merges=self.local_merges)
 
         self.nb_updates = 0
 

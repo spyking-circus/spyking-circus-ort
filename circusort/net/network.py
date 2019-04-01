@@ -24,6 +24,14 @@ class Network(object):
 
         self._create_blocks()
 
+    @property
+    def inputs(self):
+        return [self._inputs[name] for name in self._inputs.keys()]
+
+    @property
+    def outputs(self):
+        return [self._outputs[name] for name in self._outputs.keys()]
+
     def _configure(self, **kwargs):
 
         for key, value in kwargs.items():
