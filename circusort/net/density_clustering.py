@@ -60,11 +60,11 @@ class DensityClustering(Network):
             self._add_output('templates_k', clusters[k].get_output('templates'))
         
         self._add_input('data', clustering_dispatcher.get_input('data'))
-        self._add_input('mads', clustering_dispatcher.get_input('data'))
+        self._add_input('mads', clustering_dispatcher.get_input('mads'))
         self._add_input('peaks', clustering_dispatcher.get_input('peaks'))
         self._add_input('pcs', clustering_dispatcher.get_input('pcs'))
 
-        self._add_block('data_dispatcher', clustering_dispatcher)
+        self._add_block('clustering_dispatcher', clustering_dispatcher)
         self._add_block('clusters', clusters)
 
         return
@@ -79,11 +79,11 @@ class DensityClustering(Network):
     def _connect(self):
 
         clusters = self.get_block('clusters')
-        data_dispatcher = self.get_block('data_dispatcher')
+        clustering_dispatcher = self.get_block('clustering_dispatcher')
 
         for name in ['data', 'peaks', 'mads', 'pcs']:
             self.manager.connect(
-                data_dispatcher.get_output(name),
+                clustering_dispatcher.get_output(name),
                 [clusters[k].get_input(name) for k in range(self.degree)]
             )
 

@@ -7,14 +7,18 @@ __classname__ = "ClusteringDispatcher"
 
 
 class ClusteringDispatcher(Block):
-    """Node to dispathc data for clsutering network
+    """Channel dispatcher.
 
     Attribute:
         nb_groups: integer
             The default value is 1.
     """
 
-    name = "Channel dispatcher"
+    name = "Clustering dispatcher"
+
+    params = {
+        'nb_groups': 1
+    }
 
     def __init__(self, **kwargs):
         """Initialize channel dispatcher.
@@ -27,12 +31,14 @@ class ClusteringDispatcher(Block):
 
         Block.__init__(self, **kwargs)
 
-        # The following line is useful to disable some PyCharm's warning
+        # The following line is useful to disable some PyCharm's warning.
+        self.nb_groups = self.nb_groups
 
-        self.names = ['data', 'peaks', 'pcs', 'mads']
-        for n in self.names:
-            self.add_input(n, structure='dict')
-            self.add_output(n, structure='dict')
+        keys =  ['data', 'peaks', 'mads', 'pcs']
+
+        for key in keys:
+            self.add_input(key, structure='dict')
+            self.add_output(key, structure='dict')
 
         self.dtype = None
         self.nb_samples = None
@@ -46,15 +52,6 @@ class ClusteringDispatcher(Block):
         return
 
     def _configure_input_parameters(self, dtype=None, nb_samples=None, nb_channels=None, sampling_rate=None, **kwargs):
-
-        if dtype is not None:
-            self.dtype = dtype
-        if nb_samples is not None:
-            self.nb_samples = nb_samples
-        if nb_channels is not None:
-            self.nb_channels = nb_channels
-        if sampling_rate is not None:
-            self.sampling_rate = sampling_rate
 
         return
 
@@ -70,31 +67,25 @@ class ClusteringDispatcher(Block):
     def _get_output_parameters(self):
 
         params = {
-            'dtype': self.dtype,
-            'nb_samples': self.nb_samples,
-            'sampling_rate': self.sampling_rate,
         }
 
         return params
 
     def _process(self):
-    
-        results = {}
 
-        results['data'] = self.inputs['data'].receive()
-        results['mads'] = self.inputs['mads'].receive(blocking=False)
-        results['pcs'] = self.inputs['pcs'].receive(blocking=False)
-        results['peaks'] = self.get_input('peaks').receive()
+        data_packet = self.get_input('data').receive()
+        peaks_paquet = self.get_input('peaks').receive(blocking=False)
+        mads_packet = self.get_input('mads').receive(blocking=False)
+        pcs_packet = self.get_input('pcs').receive(blocking=False)
 
         self._measure_time('start')
 
-        # Unpack input packet.
-        number = input_packet['number']
-        batch = input_packet['payload']
-
         # Send output packets.
-        for name in self._names:
-            self.get_output(name).send(results[name]['payload'])
+        for output_name in self.outputs.keys():
+            self.get_output(output_name).send(data_packet)
+            self.get_output(output_name).send(peaks_paquet)
+            self.get_output(output_name).send(mads_packet)
+            self.get_output(output_name).send(pcs_packet)
 
         self._measure_time('end')
 
