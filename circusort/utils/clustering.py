@@ -788,8 +788,8 @@ class OnlineManager(object):
 
         for i in range(N):
             data = distances.get_row(i, with_diag=False)
-            dist_sorted[i] = data[numpy.argpartition(data, nb_neighbors)[:nb_neighbors]]
-            rho[i] = numpy.mean(dist_sorted[i])
+            dist_sorted[i] = data[np.argpartition(data, nb_neighbors)[:nb_neighbors]]
+            rho[i] = np.mean(dist_sorted[i])
 
         rho = -rho + rho.max()
         
