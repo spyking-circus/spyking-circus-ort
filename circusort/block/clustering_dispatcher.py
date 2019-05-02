@@ -17,22 +17,15 @@ class ClusteringDispatcher(Block):
     name = "Clustering dispatcher"
 
     params = {
-        'nb_groups': 1
+        'sampling_rate': 20e+3,  # Hz
+        'nb_samples': 1024
     }
 
     def __init__(self, **kwargs):
         """Initialize channel dispatcher.
-
-        Argument:
-            nb_groups: integer (optional)
-                The number of groups into which data will be dispatch.
-                The default value is 1.
         """
 
         Block.__init__(self, **kwargs)
-
-        # The following line is useful to disable some PyCharm's warning.
-        self.nb_groups = self.nb_groups
 
         keys =  ['data', 'peaks', 'mads', 'pcs']
 
@@ -40,18 +33,9 @@ class ClusteringDispatcher(Block):
             self.add_input(key, structure='dict')
             self.add_output(key, structure='dict')
 
-        self.dtype = None
-        self.nb_samples = None
-        self.nb_channels = None
-        self.sampling_rate = None
+        self._nb_samples = None
 
     def _initialize(self):
-
-        pass
-
-        return
-
-    def _configure_input_parameters(self, dtype=None, nb_samples=None, nb_channels=None, sampling_rate=None, **kwargs):
 
         return
 
@@ -63,13 +47,6 @@ class ClusteringDispatcher(Block):
         self.log.debug(message)
 
         return
-
-    def _get_output_parameters(self):
-
-        params = {
-        }
-
-        return params
 
     def _process(self):
 

@@ -1,5 +1,5 @@
 from circusort.net.network import Network
-
+import numpy as np
 
 __classname__ = "DensityClustering"
 
@@ -17,8 +17,8 @@ class DensityClustering(Network):
     name = "Density Clustering network"
 
     params = {
-        'degree': 2,
-        'nb_channels' : 10
+        'degree': 4,
+        'nb_channels' : 252
     }
 
     def __init__(self, *args, **kwargs):
@@ -39,14 +39,12 @@ class DensityClustering(Network):
     def _create_blocks(self):
         """Create the blocks of the network."""
 
-        cluster_kwargs = {k : kwargs 
-                            for k in range(self.degree)}
+        cluster_kwargs = {k : self.params for k in range(self.degree)}
 
-        # # Keyword arguments of filter blocks.
-        for k in range(0, self.degree):
-            cluster_kwargs[k].update({
-                'channels' : np.arange(k, self.nb_channels)[::self.degree]
-            })
+        # for k in range(0, self.degree):
+        #     cluster_kwargs[k].update({
+        #         'channels' : list(np.arange(k, self.nb_channels)[::self.degree])
+        #     })
 
         clusters = {
             k: self._create_block('density_clustering', **cluster_kwargs[k])
@@ -57,7 +55,7 @@ class DensityClustering(Network):
 
         # Register network inputs, outputs and blocks.
         for k in range(self.degree):
-            self._add_output('templates_k', clusters[k].get_output('templates'))
+            self._add_output('templates_%d' %k, clusters[k].get_output('templates'))
         
         self._add_input('data', clustering_dispatcher.get_input('data'))
         self._add_input('mads', clustering_dispatcher.get_input('mads'))
