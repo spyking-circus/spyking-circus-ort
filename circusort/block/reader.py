@@ -40,7 +40,8 @@ class Reader(Block):
         'speed_factor': 1.0,
         'nb_replay': 1,
         'offset': 0,
-        'probe_path': None
+        'probe_path': None,
+        'zero_channels': None
     }
 
     def __init__(self, **kwargs):
@@ -75,6 +76,7 @@ class Reader(Block):
         self.nb_replay = self.nb_replay
         self.offset = self.offset
         self.probe_path = self.probe_path
+        self.zero_channels = zero_channels
         self._output_dtype = 'float32'
         self._quantum_size = 0.1042  # µV / AD
         self._quantum_offset = float(np.iinfo('int16').min)
@@ -163,6 +165,10 @@ class Reader(Block):
                 chunk *= self._quantum_size
             else:
                 chunk = chunk.astype(self._output_dtype)
+
+            if self.zero_channels is not None:
+                chunk[:, self.zero_channels] = 0
+
             # Prepare output data packet.
             packet = {
                 'number': self.counter,

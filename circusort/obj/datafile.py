@@ -102,6 +102,10 @@ class DataFile(object):
         if self.probe is not None:
             data = data[:, self.probe.nodes]
         data = data.astype(np.float32)
+
+        if self.dtype == 'uint16':
+            data += self._quantum_offset
+
         data = self.gain * data
 
         return data
