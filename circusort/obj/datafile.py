@@ -71,11 +71,11 @@ class DataFile(object):
     def duration(self):
         return self.nb_samples
    
-    def _get_slice(self, t_min, t_max, samples = True):
+    def _get_slice(self, t_min, duration, samples = True):
 
         if samples is False:
-            b_min = int(np.ceil(t_min * self.sampling_rate))
-            b_max = int(np.floor(t_max * self.sampling_rate))
+            b_min = int(np.floor(t_min * self.sampling_rate))
+            b_max = int(np.floor((t_min + duration) * self.sampling_rate))
 
         assert b_min < self.nb_samples, "Please provide valid t_start, t_stop"
         assert b_max < self.nb_samples, "Please provide valid t_start, t_stop"
@@ -88,17 +88,17 @@ class DataFile(object):
         else:
             return list(range(b_max, self.real_shape)) + list(range(b_min + 1))
 
-    def get_snippet(self, t_min, t_max):
+    def get_snippet(self, t_min, duration):
         """Get data snippet.
 
         Arguments:
             t_min: float
-            t_max: float
+            duration: float
         Return:
             data: numpy.ndarray
         """
 
-        data = self.data[self._get_slice(t_min, t_max, False), :]
+        data = self.data[self._get_slice(t_min, duration, False), :]
         if self.probe is not None:
             data = data[:, self.probe.nodes]
         data = data.astype(np.float32)
@@ -110,30 +110,34 @@ class DataFile(object):
 
         return data
 
-    def take(self, channels=None, ts_min=None, ts_max=None):
+    def psth(self, times, temporal_width=101):
+        
+        result = np.zeros((0, temporal_width+1, self.nb_channels))
+        for time in times:
+            snippet = self.get_snippet(time, temporal_width/self.sampling_rate).reshape(1, temporal_width+1, self.nb_channels)
+            print(snippet.shape, result.shape)
+            result = np.vstack((result, snippet))
+        return result
+
+    def take(self, channels=None, ts_min=0, duration=1):
         """Take samples from data file.
 
         Arguments:
             channels: none | iterable (optional)
                 The indices of the channels to extract.
                 The default value is None.
-            ts_min: none | integer (optional)
-                The minimum time step to extract.
-                The default value is None.
-            ts_max: none | integer (optional)
-                The maximum time step to extract.
-                The default value is None.
+            ts_min: 0 | integer (optional)
+                The minimum time to extract.
+                The default value is 0.
+            duration: 1 | integer (optional)
+                The duration to extract (in second).
+                The default value is 1.
         Return:
             data: numpy.ndarray
                 The extracted samples.
         """
 
-        if ts_min is None:
-            ts_min = 0
-        if ts_max is None:
-            ts_max = self.data.shape[0] - 1
-
-        time_steps = self._get_slice(ts_min, ts_max)
+        time_steps = self._get_slice(ts_min, duration)
 
         if channels is None:
             data = self.data[time_steps, :]
