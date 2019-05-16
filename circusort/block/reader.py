@@ -76,7 +76,7 @@ class Reader(Block):
         self.nb_replay = self.nb_replay
         self.offset = self.offset
         self.probe_path = self.probe_path
-        self.zero_channels = zero_channels
+        self.zero_channels = self.zero_channels
         self._output_dtype = 'float32'
         self._quantum_size = 0.1042  # µV / AD
         self._quantum_offset = float(np.iinfo('int16').min)
@@ -93,6 +93,12 @@ class Reader(Block):
             self.log.info(message)
         else:
             self.probe = None
+
+        if self.zero_channels is not None:
+    	    if np.iterable(self.zero_channels):
+    		    self.zero_channels = np.array(self.zero_channels)
+    	    else:
+    		    self.zero_channels = np.array([self.zero_channels])
 
     @property
     def nb_output_channels(self):
