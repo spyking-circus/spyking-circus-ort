@@ -5,6 +5,7 @@ import os
 import pickle  # TODO check if we should use cPickle instead.
 import scipy.sparse
 import filelock
+import time
 
 from circusort.obj.overlaps import Overlaps
 from circusort.obj.template import Template, TemplateComponent
@@ -172,19 +173,19 @@ class OverlapsStore(object):
 
     def _update_masks(self, index, template):
 
-        if np.any(np.in1d(self._indices[index], template.indices)):
-            self._masks[index, self.nb_templates] = True
-        else:
-            self._masks[index, self.nb_templates] = False
-
-        # data = self.first_component[index].reshape(self.nb_channels, self.temporal_width).tocsr()[self._indices[index]].toarray().flatten()
-        # first_component = TemplateComponent(data, self._indices[index], self.nb_channels)
-        # itemplate = Template(first_component=first_component)
-        
-        # if itemplate.norm_intersect(template) > 0.5:
+        # if np.any(np.in1d(self._indices[index], template.indices)):
         #     self._masks[index, self.nb_templates] = True
         # else:
         #     self._masks[index, self.nb_templates] = False
+
+        #data = self.first_component[index].reshape(self.nb_channels, self.temporal_width).tocsr()[self._indices[index]].toarray().flatten()
+        #first_component = TemplateComponent(data, self._indices[index], self.nb_channels)
+        #itemplate = Template(first_component=first_component)
+
+        if self.first_component[index].dot(template.T)[0,0] > 0.1:
+            self._masks[index, self.nb_templates] = True
+        else:
+            self._masks[index, self.nb_templates] = False
 
         return
 
@@ -193,8 +194,10 @@ class OverlapsStore(object):
         if index not in self.overlaps[component]:
             target = self.all_components
             template = self.all_components[index]
+            t_start = time.time()
             self.overlaps[component][index] = Overlaps(self._scols, self.temporal_width)
             self.overlaps[component][index].initialize(template, target, self.non_zeros(index))
+            print("Single overlap", len(self.non_zeros(index)), time.time() - t_start)
         else:
             if self.overlaps[component][index].do_update:
                 target = self.all_components
@@ -228,17 +231,17 @@ class OverlapsStore(object):
             self.norms['2'] = np.concatenate((self.norms['2'], [template.second_component.norm]))
 
         template.normalize()
+        csr_template = template.first_component.to_sparse('csr', flatten=True)
 
         if self.optimize:
 
             self._masks[self.nb_templates, self.nb_templates] = True
 
             for index in range(self.nb_templates):
-                self._update_masks(index, template)
+                self._update_masks(index, csr_template)
 
             self._indices += [template.indices]
 
-        csr_template = template.first_component.to_sparse('csr', flatten=True)
         self.first_component = scipy.sparse.vstack((self.first_component, csr_template), format='csr')
 
         if self.two_components:
@@ -256,7 +259,10 @@ class OverlapsStore(object):
 
     def update(self, indices, laziness=True):
 
+        
+        t_start = time.time()
         templates = self.template_store.get(indices)
+        print("Getting templates", time.time() - t_start)
 
         for template in templates:
             self.add_template(template)
@@ -267,8 +273,9 @@ class OverlapsStore(object):
                 self.load_overlaps(self.path)
             else:
                 # Pre-compute overlaps.
+                t_start = time.time()
                 self.compute_overlaps()
-
+                print(time.time() - t_start)
         return
 
     def compute_overlaps(self):

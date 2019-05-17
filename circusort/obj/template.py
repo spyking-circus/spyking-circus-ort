@@ -196,9 +196,9 @@ class TemplateComponent(object):
             self.waveforms = aligned_template
         return
 
-    def get_waveform(self, index):
-        j = np.where(self.indices == index)[0]
-        return self.waveforms[j]
+    def get_waveforms(self, index):
+        mask = np.in1d(self.indices, index)
+        return self.waveforms[mask]
 
 
 class Template(object):
@@ -654,9 +654,7 @@ class Template(object):
         mask = np.in1d(self.indices, template.first_component.indices)
         if np.any(mask):
             indices = self.indices[mask]
-            res = []
-            for i in indices:
-                res += [np.corrcoef(self.first_component.get_waveform(i), template.first_component.get_waveform(i))[0, 1]]
+            res = np.linalg.norm(self.first_component.get_waveforms(indices) - template.first_component.get_waveforms(indices), axis=1)
             return np.max(res)
         else:
             return 0
