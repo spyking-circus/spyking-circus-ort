@@ -177,7 +177,7 @@ class OverlapsStore(object):
         if index not in self.overlaps[component]:
             target = self.all_components
             template = self.all_components[index]
-            self.overlaps[component][index] = Overlaps(self._scols, self.size, self.temporal_width)
+            self.overlaps[component][index] = Overlaps(self._scols, self.temporal_width)
             self.overlaps[component][index].initialize(template, target, self.non_zeros(index))
         else:
             if self.overlaps[component][index].do_update:

@@ -34,7 +34,7 @@ class DensityClustering(Block):
         'threshold_factor': 6.0,
         'alignment': True,
         'sampling_rate': 20.e+3,  # Hz
-        'spike_width': 3.0,  # ms
+        'spike_width': 5.0,  # ms
         'spike_jitter': 1.0,  # ms
         'spike_sigma': 0.0,  # µV
         'nb_waveforms': 1000,

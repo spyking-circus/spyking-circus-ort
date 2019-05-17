@@ -5,11 +5,11 @@ import scipy.sparse
 
 class Overlaps(object):
 
-    def __init__(self, _scols, size, temporal_width):
+    def __init__(self, _scols, temporal_width):
 
         self._scols = _scols
-        self.size = size
         self.temporal_width = temporal_width
+        self.size = 2*self.temporal_width - 1
         self.indices_ = []
         self.overlaps = None
 
