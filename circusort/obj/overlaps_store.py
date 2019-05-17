@@ -7,6 +7,7 @@ import scipy.sparse
 import filelock
 
 from circusort.obj.overlaps import Overlaps
+from circusort.obj.template import Template, TemplateComponent
 
 
 class OverlapsStore(object):
@@ -103,8 +104,14 @@ class OverlapsStore(object):
             self.norms['2'] = np.zeros(0, dtype=np.float32)
 
         self._cols = np.arange(self.nb_channels * self._temporal_width).astype(np.int32)
+        
+        if self.optimize:
+            delays = np.arange(self.temporal_width//3, self.temporal_width + 1)
+        else:
+            delays = np.arange(1, self.temporal_width + 1)
+        
         self._scols = {
-            'delays': np.arange(1, self.temporal_width + 1),
+            'delays': delays,
             'left': {},
             'right': {}
         }
@@ -163,12 +170,21 @@ class OverlapsStore(object):
         else:
             return None
 
-    def _update_masks(self, index, new_indices):
+    def _update_masks(self, index, template):
 
-        if np.any(np.in1d(self._indices[index], new_indices)):
+        if np.any(np.in1d(self._indices[index], template.indices)):
             self._masks[index, self.nb_templates] = True
         else:
             self._masks[index, self.nb_templates] = False
+
+        # data = self.first_component[index].reshape(self.nb_channels, self.temporal_width).tocsr()[self._indices[index]].toarray().flatten()
+        # first_component = TemplateComponent(data, self._indices[index], self.nb_channels)
+        # itemplate = Template(first_component=first_component)
+        
+        # if itemplate.norm_intersect(template) > 0.5:
+        #     self._masks[index, self.nb_templates] = True
+        # else:
+        #     self._masks[index, self.nb_templates] = False
 
         return
 
@@ -218,7 +234,7 @@ class OverlapsStore(object):
             self._masks[self.nb_templates, self.nb_templates] = True
 
             for index in range(self.nb_templates):
-                self._update_masks(index, template.indices)
+                self._update_masks(index, template)
 
             self._indices += [template.indices]
 

@@ -35,7 +35,6 @@ class TemplateComponent(object):
         assert len(self.waveforms) == len(self.indices), message
 
     def __add__(self, other):
-
         if not isinstance(other, TemplateComponent):
             string = "unsupported operand type(s) for +: '{}' and '{}'"
             message = string.format(type(self), type(other))
@@ -59,7 +58,6 @@ class TemplateComponent(object):
         return result
 
     def __mul__(self, other):
-
         if not isinstance(other, float):
             string = "unsupported operand type(s) for *: '{}' and '{}'"
             message = string.format(type(self), type(other))
@@ -76,14 +74,11 @@ class TemplateComponent(object):
 
     @property
     def norm(self):
-
         norm = np.linalg.norm(self.waveforms)
-
         return norm
 
     @property
     def temporal_width(self):
-
         return self.waveforms.shape[1]
 
     @property
@@ -101,7 +96,6 @@ class TemplateComponent(object):
         return probe.nodes[self.indices]
 
     def peak_amplitude(self, polarity=None, reference_value=0.0):
-
         if polarity is None:
             amplitude = np.max(np.abs(self.waveforms - reference_value))
         elif polarity == 'positive':
@@ -114,21 +108,18 @@ class TemplateComponent(object):
         return amplitude
 
     def __str__(self):
-
         string = "TemplateComponent for {} channels with amplitudes {}"
         message = string.format(self.nb_channels, self.amplitudes)
 
         return message
 
     def compress(self, indices):
-
         self.waveforms = np.delete(self.waveforms, indices, 0)
         self.indices = np.delete(self.indices, indices, 0)
 
         return
 
     def to_sparse(self, method='csr', flatten=False):
-
         data = self.to_dense()
         if flatten:
             data = data.flatten()[None, :]
@@ -145,16 +136,12 @@ class TemplateComponent(object):
         return sparse_data
 
     def to_dense(self):
-
         result = np.zeros((self.nb_channels, self.temporal_width), dtype=np.float32)
         result[self.indices] = self.waveforms
-
         return result
 
     def normalize(self):
-
         self.waveforms /= self.norm
-
         return
 
     def similarity(self, component):
@@ -184,7 +171,6 @@ class TemplateComponent(object):
         return coefficient
 
     def intersect(self, component):
-
         return np.any(np.in1d(self.indices, component.indices))
 
     def to_dict(self, full=True):
@@ -200,7 +186,6 @@ class TemplateComponent(object):
         return res
 
     def center(self, shift):
-
         if shift != 0:
             aligned_template = np.zeros(self.waveforms.shape, dtype=np.float32)
             if shift > 0:
@@ -209,8 +194,11 @@ class TemplateComponent(object):
                 aligned_template[:, :shift] = self.waveforms[:, -shift:]
 
             self.waveforms = aligned_template
-
         return
+
+    def get_waveform(self, index):
+        j = np.where(self.indices == index)[0]
+        return self.waveforms[j]
 
 
 class Template(object):
@@ -632,7 +620,6 @@ class Template(object):
         return
 
     def to_dict(self):
-
         res = {}
         for count, component in enumerate(self):
             key = "{}".format(count)
@@ -647,7 +634,6 @@ class Template(object):
         return res
 
     def center(self, peak_type='negative'):
-
         if peak_type == 'negative':
             tmp_idx = np.divmod(self.first_component.waveforms.argmin(), self.first_component.waveforms.shape[1])
         elif peak_type == 'positive':
@@ -663,3 +649,14 @@ class Template(object):
             component.center(shift)
 
         return
+
+    def norm_intersect(self, template):
+        mask = np.in1d(self.indices, template.first_component.indices)
+        if np.any(mask):
+            indices = self.indices[mask]
+            res = []
+            for i in indices:
+                res += [np.corrcoef(self.first_component.get_waveform(i), template.first_component.get_waveform(i))[0, 1]]
+            return np.max(res)
+        else:
+            return 0
