@@ -41,7 +41,7 @@ def plot_data(data_file, t_min=0.0, t_max=1.0, channels=None, ax=None, output=No
         ax = plt.subplot(gs[0])
 
     # Plot the figure.
-    snippet = data_file.get_snippet(t_min, t_max)
+    snippet = data_file.get_snippet(t_min, t_max-t_min)
 
     x = np.linspace(t_min, t_max, num=len(snippet), endpoint=False)
 
