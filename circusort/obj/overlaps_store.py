@@ -171,23 +171,26 @@ class OverlapsStore(object):
         else:
             return None
 
-    def _update_masks(self, index, template):
+    def _update_masks(self, index, template, csr_template=None):
 
         # if np.any(np.in1d(self._indices[index], template.indices)):
         #     self._masks[index, self.nb_templates] = True
         # else:
         #     self._masks[index, self.nb_templates] = False
 
-        #data = self.first_component[index].reshape(self.nb_channels, self.temporal_width).tocsr()[self._indices[index]].toarray().flatten()
-        #first_component = TemplateComponent(data, self._indices[index], self.nb_channels)
-        #itemplate = Template(first_component=first_component)
-
-        if self.first_component[index].dot(template.T)[0,0] > 0.1:
+        overlap = np.sum(np.in1d(self._indices[index], template.indices))
+        if overlap > 0.5*len(self._indices[index]):
             self._masks[index, self.nb_templates] = True
-        else:
+        elif overlap == 0:
             self._masks[index, self.nb_templates] = False
+        else:
+            csr_template = template.first_component.to_sparse('csr', flatten=True)
+            if self.first_component[index].dot(csr_template.T)[0,0] > 0.5:
+                self._masks[index, self.nb_templates] = True
+            else:
+                self._masks[index, self.nb_templates] = False
 
-        return
+        return csr_template
 
     def get_overlaps(self, index, component='1'):
 
@@ -231,17 +234,19 @@ class OverlapsStore(object):
             self.norms['2'] = np.concatenate((self.norms['2'], [template.second_component.norm]))
 
         template.normalize()
-        csr_template = template.first_component.to_sparse('csr', flatten=True)
+        csr_template = None
 
         if self.optimize:
 
             self._masks[self.nb_templates, self.nb_templates] = True
 
             for index in range(self.nb_templates):
-                self._update_masks(index, csr_template)
+                csr_template = self._update_masks(index, template, csr_template)
 
             self._indices += [template.indices]
 
+        if csr_template is None:
+            csr_template = template.first_component.to_sparse('csr', flatten=True)
         self.first_component = scipy.sparse.vstack((self.first_component, csr_template), format='csr')
 
         if self.two_components:
@@ -264,8 +269,10 @@ class OverlapsStore(object):
         templates = self.template_store.get(indices)
         print("Getting templates", time.time() - t_start)
 
+        t_start = time.time()
         for template in templates:
             self.add_template(template)
+        print("Adding templates", time.time() - t_start)
 
         if not laziness:
             if self.path is not None and os.path.isfile(self.path):
