@@ -61,7 +61,8 @@ class DensityClustering(Block):
         'debug_ground_truth_templates': None,
         'debug_file_format': 'png',
         'debug_data': None,
-        'smart_select': 'ransac'
+        'smart_select': 'ransac',
+        'hanning_filtering' : True
     }
 
     def __init__(self, **kwargs):
@@ -98,6 +99,7 @@ class DensityClustering(Block):
         self.debug_file_format = self.debug_file_format
         self.debug_data = self.debug_data
         self.smart_select = self.smart_select
+        self.hanning_filtering = self.hanning_filtering
 
         if self.probe_path is None:
             # Log error message.
@@ -267,7 +269,8 @@ class DensityClustering(Block):
                     'local_merges': self.local_merges,
                     'debug_file_format': self.debug_file_format,
                     'sampling_rate': self.sampling_rate,
-                    'smart_select': self.smart_select
+                    'smart_select': self.smart_select,
+                    'hanning_filtering': self.hanning_filtering
                 }
 
                 if key == 'negative':
@@ -371,7 +374,7 @@ class DensityClustering(Block):
                             if best_channel in self.channels:
                                 channels = self.inodes[self.probe.edges[self.probe.nodes[best_channel]]]
                                 waveforms = self.batch.get_snippet(channels, peak, peak_type=peak_type,
-                                                                   ref_channel=best_channel, sigma=self.spike_sigma)
+                                                                   ref_channel=best_channel)
 
                                 online_manager = self.managers[key][best_channel]
                                 if not online_manager.is_ready:

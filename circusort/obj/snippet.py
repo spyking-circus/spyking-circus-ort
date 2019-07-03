@@ -136,7 +136,7 @@ class Snippet(object):
 
         return amplitude
 
-    def align(self, peak_type='negative', factor=5, sigma=0.0, degree=3):
+    def align(self, peak_type='negative', factor=5, sigma=0, degree=3):
 
         if not self._is_aligned:
             if self._is_bivariate:
@@ -172,7 +172,10 @@ class Snippet(object):
         z = self._data
         kx = degree  # i.e. degree of the bivariate spline along the x-axis
         ky = 1  # i.e. degree of the bivariate spline along the y-axis
-        s = nb_data_points * sigma ** 2.0  # i.e. smoothing factor
+        if sigma > 0:
+            s = nb_data_points * sigma  # i.e. smoothing factor
+        else:
+            s = 0
         f = scipy.interpolate.RectBivariateSpline(x, y, z, kx=kx, ky=ky, s=s)
 
         return f
@@ -223,8 +226,11 @@ class Snippet(object):
         x = self._extended_time_steps
         y = self._data
         k = degree  # i.e. degree of the univariate spline
-        s = float(nb_data_points) * sigma  # i.e. smoothing factor
-        f = scipy.interpolate.UnivariateSpline(x, y, k=k, s=s)
+        if sigma > 0:
+            s = float(nb_data_points) * sigma
+        else:
+            s = 0
+        f = scipy.interpolate.UnivariateSpline(x, y, k=k, s=0)
 
         return f
 
@@ -272,6 +278,9 @@ class Snippet(object):
             array = np.transpose(self._data)
 
         return array
+
+    def filter(self, my_filter):
+        self._data = (self._data.T * my_filter).T
 
     def plot(self, ax=None, **kwargs):
 

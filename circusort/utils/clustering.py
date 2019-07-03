@@ -183,7 +183,7 @@ class OnlineManager(object):
 
     def __init__(self, probe, channel, sampling_rate=20e+3, decay=0.05, mu=2, epsilon='auto', theta=-np.log(0.001),
                  dispersion=(5, 5), n_min=0.01, noise_thr=0.8, pca=None, logger=None, two_components=False, name=None,
-                 debug_plots=None, debug_ground_truth_templates=None, debug_file_format='pdf', local_merges=3, smart_select='ransac'):
+                 debug_plots=None, debug_ground_truth_templates=None, debug_file_format='pdf', local_merges=3, smart_select='ransac', hanning_filtering=False):
 
         if name is None:
             self.name = "OnlineManager"
@@ -207,6 +207,7 @@ class OnlineManager(object):
         self.local_merges = local_merges
         self.sampling_rate = sampling_rate
         self.smart_select_mode = smart_select
+        self.hanning_filtering = hanning_filtering
 
         if self.debug_plots is not None:
             self.fig_name = os.path.join(self.debug_plots, '{n}_{t}.{f}')
@@ -260,6 +261,9 @@ class OnlineManager(object):
                 Data snippets which correspond to multiple peaks.
         """
 
+        # if self.hanning_filtering:
+        #     snippets.hanning_filtering()
+    
         data = snippets.to_array()
 
         self.time = time
@@ -909,6 +913,19 @@ class OnlineManager(object):
         halolabels = self.halo_assign(distances, labels, centers)
         halolabels -= 1
         centers = np.where(np.in1d(centers - 1, np.arange(halolabels.max() + 1)))[0]
+        
+        idx_clusters, counts = numpy.unique(halolabels, return_counts=True)
+        count = 0
+        to_remove = []
+        for label, cluster_size in zip(idx_clusters, counts):
+            if label > -1 and cluster_size < n_min:
+                tmp = halolabels == label
+                halolabels[tmp] = -1
+                to_remove += [count]
+            count += 1
+
+        centers = numpy.delete(centers, to_remove)
+
         return halolabels, centers
 
     @staticmethod
@@ -932,19 +949,18 @@ class OnlineManager(object):
             centersx = np.where(centers)[0] # index of centroids
             dist2cent = dist.get_rows(centersx)
             labels = np.argmin(dist2cent, axis=0) + 1
-            _, cluscounts = np.unique(labels, return_counts=True) # number of elements of each cluster
-            
-            small_clusters = np.where(cluscounts < n_min)[0] # index of 1 or 0 members clusters
 
-            if len(small_clusters) > 0: # if there one or more 1 or 0 member cluster # if there one or more 1 or 0 member cluster
-                cluslab = centers[centersx] # cluster labels
-                id2rem = np.where(np.in1d(cluslab, small_clusters))[0] # ids to remove
-                clusidx = np.delete(centersx, id2rem) # removing
-                centers = np.zeros(len(centers))
-                nclus = nclus - len(id2rem)
-                centers[clusidx] = np.arange(nclus) + 1 # re labeling centroids            
-                dist2cent = dist.get_rows(centersx)# re compute distances from centroid to any other point
-                labels = np.argmin(dist2cent, axis=0) + 1 # re assigns clusters 
+            #_, cluscounts = np.unique(labels, return_counts=True) # number of elements of each cluster
+            #small_clusters = np.where(cluscounts < n_min)[0] # index of 1 or 0 members clusters
+            # if len(small_clusters) > 0: # if there one or more 1 or 0 member cluster # if there one or more 1 or 0 member cluster
+            #     cluslab = centers[centersx] # cluster labels
+            #     id2rem = np.where(np.in1d(cluslab, small_clusters))[0] # ids to remove
+            #     clusidx = np.delete(centersx, id2rem) # removing
+            #     centers = np.zeros(len(centers))
+            #     nclus = nclus - len(id2rem)
+            #     centers[clusidx] = np.arange(nclus) + 1 # re labeling centroids            
+            #     dist2cent = dist.get_rows(centersx)# re compute distances from centroid to any other point
+            #     labels = np.argmin(dist2cent, axis=0) + 1 # re assigns clusters 
                 
         return nclus, labels, centers
         

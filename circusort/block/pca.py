@@ -44,6 +44,7 @@ class PCA(Block):
         'alignment': True,
         'nb_waveforms': 10000,
         'sampling_rate': 20e+3,  # Hz
+        'hanning_filtering': True
     }
 
     def __init__(self, **kwargs):
@@ -73,7 +74,7 @@ class PCA(Block):
 
         self.sign_peaks = None
         self.send_pcs = True
-        self.batch = Buffer(self.sampling_rate, self.spike_width, self.spike_jitter, alignment=self.alignment)
+        self.batch = Buffer(self.sampling_rate, self.spike_width, self.spike_jitter, alignment=self.alignment, hanning_filtering=self.hanning_filtering)
         self._output_shape = (2, self.batch.temporal_width, self.output_dim)
         self.pcs = np.zeros(self._output_shape, dtype=self._output_dtype)
 
