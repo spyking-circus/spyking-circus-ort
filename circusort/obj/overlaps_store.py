@@ -200,7 +200,6 @@ class OverlapsStore(object):
             t_start = time.time()
             self.overlaps[component][index] = Overlaps(self._scols, self.temporal_width)
             self.overlaps[component][index].initialize(template, target, self.non_zeros(index))
-            print("Single overlap", len(self.non_zeros(index)), time.time() - t_start)
         else:
             if self.overlaps[component][index].do_update:
                 target = self.all_components
@@ -264,15 +263,9 @@ class OverlapsStore(object):
 
     def update(self, indices, laziness=True):
 
-        
-        t_start = time.time()
         templates = self.template_store.get(indices)
-        print("Getting templates", time.time() - t_start)
-
-        t_start = time.time()
         for template in templates:
             self.add_template(template)
-        print("Adding templates", time.time() - t_start)
 
         if not laziness:
             if self.path is not None and os.path.isfile(self.path):

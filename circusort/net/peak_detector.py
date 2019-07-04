@@ -30,7 +30,7 @@ class PeakDetector(Network):
         'degree': 2,
         'threshold_factor': 6.0,
         'sign_peaks': 'negative',
-        'spike_width': 5.0,  # ms
+        'spike_width': 3.0,  # ms
         'sampling_rate': 20e+3,  # Hz
         'safety_time': 'auto',
     }

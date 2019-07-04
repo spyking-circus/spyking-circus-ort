@@ -7,8 +7,8 @@ from circusort.cli.process import main
 
 if __name__ == '__main__':
 
-    sys.stdout.write("spawn process...\n")
-    sys.stdout.flush()  # required
+    #sys.stdout.write("spawn process...\n")
+    #sys.stdout.flush()  # required
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-H', '--host')
@@ -20,7 +20,7 @@ if __name__ == '__main__':
 
     main(args)
 
-    sys.stdout.write("process spawned\n")
-    sys.stdout.flush()  # required
+    #sys.stdout.write("process spawned\n")
+    #sys.stdout.flush()  # required
 
     sys.exit(0)

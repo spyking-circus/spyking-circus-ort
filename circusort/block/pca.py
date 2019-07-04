@@ -37,14 +37,14 @@ class PCA(Block):
     name = "PCA"
 
     params = {
-        'spike_width': 5.0,  # ms
-        'spike_jitter': 1.0,  # ms
+        'spike_width': 3.0,  # ms
+        'spike_jitter': 0.1,  # ms
         'spike_sigma': 0.0,  # µV
         'output_dim': 5,
         'alignment': True,
         'nb_waveforms': 10000,
         'sampling_rate': 20e+3,  # Hz
-        'hanning_filtering': True
+        'hanning_filtering': False
     }
 
     def __init__(self, **kwargs):

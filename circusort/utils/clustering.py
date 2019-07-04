@@ -802,7 +802,7 @@ class OnlineManager(object):
         
         return rho, distances, dist_sorted
 
-    def fit_rho_delta(self, rho, delta, smart_select_mode='ransac_bis'):
+    def fit_rho_delta(self, rho, delta, smart_select_mode='ransac'):
         """Fit relation between rho and delta values.
 
         Arguments:
@@ -853,7 +853,7 @@ class OnlineManager(object):
 
         elif smart_select_mode == 'ransac':
 
-            z_score_threshold = 4.0
+            z_score_threshold = 3.0
             x = sm.add_constant(rho)
             model = sm.RLM(delta, x)
             results = model.fit()
@@ -914,7 +914,7 @@ class OnlineManager(object):
         halolabels -= 1
         centers = np.where(np.in1d(centers - 1, np.arange(halolabels.max() + 1)))[0]
         
-        idx_clusters, counts = numpy.unique(halolabels, return_counts=True)
+        idx_clusters, counts = np.unique(halolabels, return_counts=True)
         count = 0
         to_remove = []
         for label, cluster_size in zip(idx_clusters, counts):
@@ -924,7 +924,7 @@ class OnlineManager(object):
                 to_remove += [count]
             count += 1
 
-        centers = numpy.delete(centers, to_remove)
+        centers = np.delete(centers, to_remove)
 
         return halolabels, centers
 
@@ -999,15 +999,18 @@ class OnlineManager(object):
                         v_n = m1 - m2
                         pr_1 = np.dot(sd1, v_n)
                         pr_2 = np.dot(sd2, v_n)
-                        norm = np.median(np.abs(pr_1 - np.median(pr_1))) ** 2 + \
-                            np.median(np.abs(pr_2 - np.median(pr_2))) ** 2
+                        med1 = np.median(pr_1)
+                        med2 = np.median(pr_2)
+                        mad1 = np.median(np.abs(pr_1 - med1))
+                        mad2 = np.median(np.abs(pr_2 - med2))
+                        norm =  mad1** 2 + mad2**2
                         if norm > 0.0:
-                            dist = np.sum(v_n ** 2) / np.sqrt(norm)
+                            dist = np.sqrt((med1 - med2) ** 2 / norm)
                             if dist < d_min:
                                 d_min = dist
                                 to_merge = [ic1, ic2]
 
-        if d_min < local_merges:
+        if d_min < local_merges/0.674:
             labels[np.where(labels == clusters[to_merge[1]])[0]] = clusters[to_merge[0]]
             return True, labels
 

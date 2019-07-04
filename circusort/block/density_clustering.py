@@ -34,8 +34,8 @@ class DensityClustering(Block):
         'threshold_factor': 6.0,
         'alignment': True,
         'sampling_rate': 20.e+3,  # Hz
-        'spike_width': 5.0,  # ms
-        'spike_jitter': 1.0,  # ms
+        'spike_width': 3.0,  # ms
+        'spike_jitter': 0.1,  # ms
         'spike_sigma': 0.0,  # µV
         'nb_waveforms': 1000,
         'nb_waveforms_tracking': 1000,
@@ -62,7 +62,7 @@ class DensityClustering(Block):
         'debug_file_format': 'png',
         'debug_data': None,
         'smart_select': 'ransac',
-        'hanning_filtering' : True
+        'hanning_filtering' : False
     }
 
     def __init__(self, **kwargs):

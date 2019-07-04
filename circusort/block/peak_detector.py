@@ -37,7 +37,7 @@ class PeakDetector(Block):
     params = {
         'threshold_factor': 6.0,
         'sign_peaks': 'negative',
-        'spike_width': 5.0,  # ms
+        'spike_width': 3.0,  # ms
         'sampling_rate': 20e+3,  # Hz
         'safety_time': 'auto',
     }
@@ -100,6 +100,7 @@ class PeakDetector(Block):
         input_parameters = self.get_input('data').get_input_parameters()
         self.configure_input_parameters(**input_parameters)
 
+        print(input_parameters, self._nb_samples, self._nb_channels)
         shape = (2 * self._nb_samples, self._nb_channels)
 
         self.X = np.zeros(shape, dtype=np.float)
