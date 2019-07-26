@@ -143,12 +143,21 @@ class MADEstimator(Block):
         # Update the weights.
         alpha = self._alpha(self._gamma, self._n)
         beta = self._beta(self._gamma, self._n)
+
+
         # Compute the medians.
         medians = np.median(batch, axis=0)
+
+
         self._medians = alpha * self._medians + beta * medians
+        #self._medians = self._gamma * self._medians + (1 - self._gamma) * medians
+
         # Compute the MADs.
         mads = np.median(np.abs(batch - self._medians), axis=0)
+
         self._mads = alpha * self._mads + beta * mads
+        #self._mads = self._gamma * self._mads + (1 - self._gamma) * mads
+
         # Increment counter.
         self._n += 1
         # Check state (if necessary).

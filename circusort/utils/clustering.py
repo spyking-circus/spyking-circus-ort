@@ -182,7 +182,7 @@ class MacroCluster(object):
 class OnlineManager(object):
 
     def __init__(self, probe, channel, sampling_rate=20e+3, decay=0.05, mu=2, epsilon='auto', theta=-np.log(0.001),
-                 dispersion=(5, 5), n_min=0.01, noise_thr=0.8, pca=None, logger=None, two_components=False, name=None,
+                 dispersion=(5, 5), n_min=0.01, noise_thr=0.8, pca=None, sub_dim=5, logger=None, two_components=False, name=None,
                  debug_plots=None, debug_ground_truth_templates=None, debug_file_format='pdf', local_merges=3, smart_select='ransac', hanning_filtering=False):
 
         if name is None:
@@ -217,7 +217,7 @@ class OnlineManager(object):
         self.is_ready = False
         self.abs_n_min = 10
         self.nb_updates = 0
-        self.sub_dim = 5
+        self.sub_dim = sub_dim
         self.loc_pca = None
         self.tracking = {}
         self.beta = 0.5
@@ -261,9 +261,9 @@ class OnlineManager(object):
                 Data snippets which correspond to multiple peaks.
         """
 
-        # if self.hanning_filtering:
-        #     snippets.hanning_filtering()
-    
+        if self.hanning_filtering:
+            snippets.filter()
+
         data = snippets.to_array()
 
         self.time = time
@@ -564,6 +564,9 @@ class OnlineManager(object):
         self.log.debug(message)
 
         if snippets is not None:
+
+            if self.hanning_filtering:
+                snippets.filter()
 
             data = snippets.to_array()
 

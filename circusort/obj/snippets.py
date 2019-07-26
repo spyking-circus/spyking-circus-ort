@@ -31,7 +31,7 @@ class Snippets(object):
 
         return array
 
-    def hanning_filtering(self):
+    def filter(self):
         hanning_filter = np.hanning(self._snippets[0]._width)
         for snippet in self._snippets:
             snippet.filter(hanning_filter)

@@ -16,7 +16,6 @@ class Buffer(object):
 
         self._spike_width_ = compute_snippet_width(self.snippet_duration, self.sampling_rate)
         self._width = (self._spike_width_ - 1) // 2
-        print(self._width)
         self._jitter = compute_maximum_snippet_jitter(self.snippet_jitter, self.sampling_rate)
         self._extended_width = self._width + self._jitter
         self._limits = None

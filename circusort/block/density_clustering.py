@@ -46,7 +46,7 @@ class DensityClustering(Block):
         'noise_thr': 0.8,
         'n_min': 0.01,
         'dispersion': [5, 5],
-        'sub_dim': 5,
+        'sub_dim': 10,
         'extraction': 'median-raw',
         'two_components': False,
         'decay_factor': 0.01,
@@ -88,6 +88,7 @@ class DensityClustering(Block):
         self.two_components = self.two_components
         self.decay_factor = self.decay_factor / float(self.sampling_rate)
         self.mu = self.mu
+        self.sub_dim = self.sub_dim
         self.epsilon = self.epsilon
         self.theta = self.theta
         self.tracking = self.tracking
@@ -262,6 +263,7 @@ class DensityClustering(Block):
                     'noise_thr': self.noise_thr,
                     'pca': None,  # see below
                     'logger': self.log,
+                    'sub_dim': self.sub_dim,
                     'two_components': self.two_components,
                     'name': 'OnlineManager for {p} peak on channel {c}'.format(p=key, c=channel),
                     'debug_plots': self.debug_plots,

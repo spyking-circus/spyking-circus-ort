@@ -273,9 +273,7 @@ class OverlapsStore(object):
                 self.load_overlaps(self.path)
             else:
                 # Pre-compute overlaps.
-                t_start = time.time()
                 self.compute_overlaps()
-                print(time.time() - t_start)
         return
 
     def compute_overlaps(self):
