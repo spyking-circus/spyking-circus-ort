@@ -44,7 +44,7 @@ class PCA(Block):
         'alignment': True,
         'nb_waveforms': 10000,
         'sampling_rate': 20e+3,  # Hz
-        'hanning_filtering': False
+        'hanning_filtering': True
     }
 
     def __init__(self, **kwargs):

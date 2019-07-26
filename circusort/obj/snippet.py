@@ -280,7 +280,10 @@ class Snippet(object):
         return array
 
     def filter(self, my_filter):
-        self._data = (self._data.T * my_filter).T
+        if self._is_aligned:
+            self._aligned_data = (self._aligned_data.T * my_filter).T
+        else:
+            self._data = (self._data.T * my_filter).T
 
     def plot(self, ax=None, **kwargs):
 

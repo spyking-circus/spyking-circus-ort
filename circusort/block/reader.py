@@ -79,7 +79,7 @@ class Reader(Block):
         self.probe_path = self.probe_path
         self.zero_channels = self.zero_channels
         self._output_dtype = 'float32'
-        self._quantum_size = gain
+        self._quantum_size = self.gain
         self._quantum_offset = float(np.iinfo('int16').min)
         self._buffer_rate = float(self.nb_samples) / self.sampling_rate
 
