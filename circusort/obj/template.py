@@ -8,7 +8,6 @@ import scipy
 from circusort.utils.path import normalize_path
 from scipy.sparse import csc_matrix
 
-
 class TemplateComponent(object):
 
     def __init__(self, waveforms, indices, nb_channels, amplitudes=None):
@@ -199,6 +198,12 @@ class TemplateComponent(object):
     def get_waveforms(self, index):
         mask = np.in1d(self.indices, index)
         return self.waveforms[mask]
+
+    def smooth(self, window=11, order=3):
+        savgol_filter = np.hanning(self.temporal_width) ** 3
+        for i in range(self.waveforms.shape[0]):
+            tmp = scipy.signal.savgol_filter(self.waveforms[i], window, order)
+            self.waveforms[i] = savgol_filter*self.waveforms[i] + (1 - savgol_filter)*tmp
 
 
 class Template(object):
@@ -566,7 +571,7 @@ class Template(object):
                     label = "waveform {}".format(k)
                     ax.plot(x, y, label=label, **kwargs)
         else:
-            ax.set_aspect('equal')
+            #ax.set_aspect('equal')
             x_min, x_max = probe.x_limits
             y_min, y_max = probe.y_limits
             ax.set_xlim(x_min, x_max)
@@ -658,3 +663,7 @@ class Template(object):
             return np.max(res)
         else:
             return 0
+
+    def smooth(self, window=11, order=3):
+        for component in self:
+            component.smooth(window, order)

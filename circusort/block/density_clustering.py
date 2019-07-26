@@ -291,6 +291,7 @@ class DensityClustering(Block):
         for ind in templates.keys():
             template = templates[ind]
             template.compress(self.compression)
+            template.smooth()
             template.center(key)
             self.templates[key][str(channel)][str(ind)] = template.to_dict()
 

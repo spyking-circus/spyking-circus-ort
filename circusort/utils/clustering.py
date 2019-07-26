@@ -907,26 +907,19 @@ class OnlineManager(object):
 
         return sub_indices
 
-    def density_based_clustering(self, rho, distances, n_min, smart_select_mode='ransac_bis'):
+    def density_based_clustering(self, rho, distances, n_min, smart_select_mode='ransac_bis', refine=True):
         delta = self.compute_delta(distances, rho)
         nclus, labels, centers = self.find_centroids_and_cluster(distances, rho, delta, n_min, smart_select_mode)
-        halolabels = self.halo_assign(distances, labels, centers)
-        halolabels -= 1
+
+        if refine:
+            halolabels = self.halo_assign(distances, labels, centers)
+            halolabels -= 1
+        else:
+            halolabels = labels
+
         centers = np.where(np.in1d(centers - 1, np.arange(halolabels.max() + 1)))[0]
-        
-        idx_clusters, counts = np.unique(halolabels, return_counts=True)
-        count = 0
-        to_remove = []
-        for label, cluster_size in zip(idx_clusters, counts):
-            if label > -1 and cluster_size < n_min:
-                tmp = halolabels == label
-                halolabels[tmp] = -1
-                to_remove += [count]
-            count += 1
 
-        centers = np.delete(centers, to_remove)
-
-        return halolabels, centers
+        return halolabels
 
     @staticmethod
     def compute_delta(dist, rho):
@@ -1065,7 +1058,7 @@ class OnlineManager(object):
 
         if nb_samples > 1:
             rhos, distances, dist_sorted = self.rho_estimation(data)
-            labels, nb_clusters = self.density_based_clustering(rhos, distances, n_min)
+            labels = self.density_based_clustering(rhos, distances, n_min, refine=False)
         elif nb_samples == 1:
             labels = np.array([0])
         else:

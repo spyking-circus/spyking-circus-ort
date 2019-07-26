@@ -353,7 +353,7 @@ class OverlapsStore(object):
             sub_target = self.first_component
 
         nb_delays = self._scols['delays'].size
-        for k in range(nb_delays, 0, -1):  # i.e. consider overlaps by increasing time jitter
+        for k in range(nb_delays, 0, -2):  # i.e. consider overlaps by increasing time jitter
             i_delay = self._scols['delays'][k - 1]
             # Positive time jitter.
             tmp_1 = csr_template[:, self._scols['left'][i_delay]]
