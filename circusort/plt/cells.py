@@ -6,14 +6,14 @@ import numpy as np
 import sys
 
 
-def plot_reconstruction(cells, t_min, t_max, sampling_rate, data_file, ax=None, output=None, channels=None,
+def plot_reconstruction(cells, t_min, t_max, data_file, ax=None, output=None, channels=None,
                         mads=None, peaks=None, filtered_data=None, buffer_width=None, linewidth=0.5, figsize=None):
 
-    sampling_rate = float(sampling_rate)
+    sampling_rate = float(data_file.sampling_rate)
     g_min = int(np.ceil(t_min * sampling_rate))  # first timestep
     g_max = int(np.floor(t_max * sampling_rate))  # last timestep
     
-    snippet = data_file.get_snippet(t_min, t_max)
+    snippet = data_file.get_snippet(t_min, t_max-t_min)
     nb_samples = snippet.shape[0]
     nb_channels = cells[cells.ids[0]].template.first_component.nb_channels
 
@@ -49,10 +49,9 @@ def plot_reconstruction(cells, t_min, t_max, sampling_rate, data_file, ax=None, 
             else:
                 result[int(offset - half_width):int(offset + half_width + 1), :] += amp * t1
 
-    
 
     if filtered_data is not None:
-        filtered_snippet = filtered_data.get_snippet(t_min, t_max)
+        filtered_snippet = filtered_data.get_snippet(t_min, t_max-t_min)
     else:
         filtered_snippet = None
 

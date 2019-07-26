@@ -40,6 +40,7 @@ class Reader(Block):
         'speed_factor': 1.0,
         'nb_replay': 1,
         'offset': 0,
+        'gain': 0.1042,
         'probe_path': None,
         'zero_channels': None
     }
@@ -78,7 +79,7 @@ class Reader(Block):
         self.probe_path = self.probe_path
         self.zero_channels = self.zero_channels
         self._output_dtype = 'float32'
-        self._quantum_size = 0.1042  # µV / AD
+        self._quantum_size = gain
         self._quantum_offset = float(np.iinfo('int16').min)
         self._buffer_rate = float(self.nb_samples) / self.sampling_rate
 
@@ -95,10 +96,10 @@ class Reader(Block):
             self.probe = None
 
         if self.zero_channels is not None:
-    	    if np.iterable(self.zero_channels):
-    		    self.zero_channels = np.array(self.zero_channels)
-    	    else:
-    		    self.zero_channels = np.array([self.zero_channels])
+            if np.iterable(self.zero_channels):
+                self.zero_channels = np.array(self.zero_channels)
+            else:
+                self.zero_channels = np.array([self.zero_channels])
 
     @property
     def nb_output_channels(self):
