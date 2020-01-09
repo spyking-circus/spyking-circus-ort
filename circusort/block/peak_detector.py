@@ -61,7 +61,7 @@ class PeakDetector(Block):
 
     def _initialize(self):
 
-        self.peaks = {'offset': 0}
+        self.peaks = {}
         if self.sign_peaks == 'both':
             self.key_peaks = ['negative', 'positive']
         else:
@@ -251,12 +251,12 @@ class PeakDetector(Block):
                             self.peaks[key][i] = data
                             self.nb_cum_peaks[key][i] += len(data)
 
-            self.peaks['offset'] = (self.counter - 1) * self._nb_samples
+            offset = (self.counter - 1) * self._nb_samples
 
             # Prepare output packet.
             packet = {
                 'number': number - 1,
-                'payload': {'peaks' : self.peaks, 'thresholds' : self.threshold_factor * self.mph}
+                'payload': {'peaks' : self.peaks, 'thresholds' : self.threshold_factor * self.mph, 'offset' : offset}
             }
 
             # TODO remove the following lines.

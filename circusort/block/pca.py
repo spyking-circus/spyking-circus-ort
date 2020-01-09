@@ -131,8 +131,6 @@ class PCA(Block):
 
             self._measure_time('start')
 
-            _ = peaks.pop('offset')
-
             if self.sign_peaks is None:
                 self._infer_sign_peaks(peaks)
 

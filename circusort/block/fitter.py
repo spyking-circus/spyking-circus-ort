@@ -279,9 +279,7 @@ class Fitter(Block):
             nb_failures = np.zeros(nb_peaks, dtype=np.int32)
             # Initialize the matching matrix.
             mask = np.ones((self._overlaps_store.nb_templates, nb_peaks), dtype=np.int32)
-            # Filter scalar products of the first component of each template.
-            sub_b = scalar_products[:self._overlaps_store.nb_templates, :]
-
+            
             if verbose:
                 # Log debug message.
                 string = "{} buffer offset: {}"
@@ -290,137 +288,120 @@ class Fitter(Block):
 
             if timing:
                 self._measure_time('while_loop_start', period=10)
+
             # TODO rewrite condition according to the 3 last lines of the nested while loop.
             # while not np.all(nb_failures == self.max_nb_trials):
             while np.mean(nb_failures) < self.nb_chances:
 
                 # Set scalar products of tested matchings to zero.
-                data = sub_b * mask
-                # Sort peaks by decreasing highest scalar product with all the templates.
-                peak_indices = np.argsort(np.max(data, axis=0))[::-1]
+                data = scalar_products[:self._overlaps_store.nb_templates, :] * mask
+
+                # Find the best template.
+                best_template_index, peak_index = numpy.unravel_index(data.argmax(), data.shape)
+
                 # TODO remove peaks with scalar products equal to zero?
                 # TODO consider the absolute values of the scalar products?
+                                
+                # Compute the best amplitude.
+                best_amplitude = scalar_products[best_template_index, peak_index] / self._overlaps_store.nb_elements
+                if self._overlaps_store.two_components:
+                    best_scalar_product = scalar_products[best_template_index + self.nb_templates, peak_index]
+                    best_amplitude_2 = best_scalar_product / self._overlaps_store.nb_elements
 
-                if timing:
-                    self._measure_time('for_loop_start', period=10)
-                for peak_index in peak_indices:
+                # Compute the best normalized amplitude.
+                best_amplitude_ = best_amplitude / self._overlaps_store.norms['1'][best_template_index]
+                if self._overlaps_store.two_components:
+                    best_amplitude_2_ = best_amplitude_2 / self._overlaps_store.norms['2'][best_template_index]
+
+                # Verify amplitude constraint.
+                a_min = self._overlaps_store.amplitudes[best_template_index, 0]
+                a_max = self._overlaps_store.amplitudes[best_template_index, 1]
+                
+                if (a_min <= best_amplitude_) & (best_amplitude_ <= a_max):
+                    if verbose:
+                        # Log debug message.
+                        string = "{} processes (p {}, t {}) -> (a {}, keep)"
+                        message = string.format(self.name, peak_index, best_template_index, best_amplitude)
+                        self.log.debug(message)
+                    if timing:
+                        self._measure_time('for_loop_accept_start', period=10)
+                    # Keep the matching.
+                    peak_time_step = peaks[peak_index]
+                    # # Compute the neighboring peaks.
+                    # # TODO use this definition of `is_neighbor` instead of the other.
+                    # is_neighbor = np.abs(peaks - peak_index) <= 2 * self._width
 
                     if timing:
-                        self._measure_time('for_loop_preamble_start', period=10)
-                    # Find the best template.
-                    peak_scalar_products = np.take(sub_b, peak_index, axis=1)
-                    best_template_index = np.argmax(peak_scalar_products, axis=0)
+                        self._measure_time('for_loop_update_start', period=10)
+                    if timing:
+                        self._measure_time('for_loop_update_1_start', period=10)
+                    # Update scalar products.
+                    # TODO simplify the following 11 lines.
+                    tmp = np.dot(np.ones((1, 1), dtype=np.int32), np.reshape(peaks, (1, nb_peaks)))
+                    tmp -= np.array([[peak_time_step]])
+                    is_neighbor = np.abs(tmp) <= self._2_width
+                    ytmp = tmp[0, is_neighbor[0, :]] + self._2_width
+                    indices = np.zeros((self._overlaps_store.size, len(ytmp)), dtype=np.int32)
+                    indices[ytmp, np.arange(len(ytmp))] = 1
+                    if timing:
+                        self._measure_time('for_loop_update_1_end', period=10)
 
-                    # Compute the best amplitude.
-                    best_amplitude = sub_b[best_template_index, peak_index] / self._overlaps_store.nb_elements
+                    if timing:
+                        self._measure_time('for_loop_update_2_start', period=10)
+                    if timing:
+                        self._measure_time('for_loop_overlaps_start', period=10)
+                    tmp1_ = self._overlaps_store.get_overlaps(best_template_index, '1')
+                    if timing:
+                        self._measure_time('for_loop_overlaps_end', period=10)
+                    tmp1 = tmp1_.multiply(-best_amplitude).dot(indices)
+                    scalar_products[:, is_neighbor[0, :]] += tmp1
+                    if timing:
+                        self._measure_time('for_loop_update_2_end', period=10)
+
                     if self._overlaps_store.two_components:
-                        best_scalar_product = scalar_products[best_template_index + self.nb_templates, peak_index]
-                        best_amplitude_2 = best_scalar_product / self._overlaps_store.nb_elements
+                        tmp2_ = self._overlaps_store.get_overlaps(best_template_index, '2')
+                        tmp2 = tmp2_.multiply(-best_amplitude_2).dot(indices)
+                        scalar_products[:, is_neighbor[0, :]] += tmp2
+                    if timing:
+                        self._measure_time('for_loop_update_end', period=10)
+
+                    if timing:
+                        self._measure_time('for_loop_concatenate_start', period=10)
+                    # Add matching to the result.
+                    self.r['spike_times'] = np.concatenate((self.r['spike_times'], [peak_time_step]))
+                    self.r['amplitudes'] = np.concatenate((self.r['amplitudes'], [best_amplitude_]))
+                    self.r['templates'] = np.concatenate((self.r['templates'], [best_template_index]))
+                    if timing:
+                        self._measure_time('for_loop_concatenate_end', period=10)
+                    # Mark current matching as tried.
+                    mask[best_template_index, peak_index] = 0
+                    if timing:
+                        self._measure_time('for_loop_accept_end', period=10)
+                else:
+                    if verbose:
+                        # Log debug message.
+                        string = "{} processes (p {}, t {}) -> (a {}, reject)"
+                        message = string.format(self.name, peak_index, best_template_index, best_amplitude)
+                        self.log.debug(message)
+                    if timing:
+                        self._measure_time('for_loop_reject_start', period=10)
+                    # Reject the matching.
+                    # Update failure counter of the peak.
+                    nb_failures[peak_index] += 1
+                    # If the maximal number of failures is reached then mark peak as solved (i.e. not fitted).
+                    if nb_failures[peak_index] == self.nb_chances:
+                        mask[:, peak_index] = 0
                     else:
-                        best_amplitude_2 = None
-
-                    # Compute the best normalized amplitude.
-                    best_amplitude_ = best_amplitude / self._overlaps_store.norms['1'][best_template_index]
-                    if self._overlaps_store.two_components:
-                        best_amplitude_2_ = best_amplitude_2 / self._overlaps_store.norms['2'][best_template_index]
-                        _ = best_amplitude_2_  # TODO complete.
-
-                    # Verify amplitude constraint.
-                    a_min = self._overlaps_store.amplitudes[best_template_index, 0]
-                    a_max = self._overlaps_store.amplitudes[best_template_index, 1]
-                    if timing:
-                        self._measure_time('for_loop_preamble_end', period=10)
-
-                    if timing:
-                        self._measure_time('for_loop_process_start', period=10)
-                    if (a_min <= best_amplitude_) & (best_amplitude_ <= a_max):
-                        if verbose:
-                            # Log debug message.
-                            string = "{} processes (p {}, t {}) -> (a {}, keep)"
-                            message = string.format(self.name, peak_index, best_template_index, best_amplitude)
-                            self.log.debug(message)
-                        if timing:
-                            self._measure_time('for_loop_accept_start', period=10)
-                        # Keep the matching.
-                        peak_time_step = peaks[peak_index]
-                        # # Compute the neighboring peaks.
-                        # # TODO use this definition of `is_neighbor` instead of the other.
-                        # is_neighbor = np.abs(peaks - peak_index) <= 2 * self._width
-
-                        if timing:
-                            self._measure_time('for_loop_update_start', period=10)
-                        if timing:
-                            self._measure_time('for_loop_update_1_start', period=10)
-                        # Update scalar products.
-                        # TODO simplify the following 11 lines.
-                        tmp = np.dot(np.ones((1, 1), dtype=np.int32), np.reshape(peaks, (1, nb_peaks)))
-                        tmp -= np.array([[peak_time_step]])
-                        is_neighbor = np.abs(tmp) <= self._2_width
-                        ytmp = tmp[0, is_neighbor[0, :]] + self._2_width
-                        indices = np.zeros((self._overlaps_store.size, len(ytmp)), dtype=np.int32)
-                        indices[ytmp, np.arange(len(ytmp))] = 1
-                        if timing:
-                            self._measure_time('for_loop_update_1_end', period=10)
-
-                        if timing:
-                            self._measure_time('for_loop_update_2_start', period=10)
-                        if timing:
-                            self._measure_time('for_loop_overlaps_start', period=10)
-                        tmp1_ = self._overlaps_store.get_overlaps(best_template_index, '1')
-                        if timing:
-                            self._measure_time('for_loop_overlaps_end', period=10)
-                        tmp1 = tmp1_.multiply(-best_amplitude).dot(indices)
-                        scalar_products[:, is_neighbor[0, :]] += tmp1
-                        if timing:
-                            self._measure_time('for_loop_update_2_end', period=10)
-
-                        if self._overlaps_store.two_components:
-                            tmp2_ = self._overlaps_store.get_overlaps(best_template_index, '2')
-                            tmp2 = tmp2_.multiply(-best_amplitude_2).dot(indices)
-                            scalar_products[:, is_neighbor[0, :]] += tmp2
-                        if timing:
-                            self._measure_time('for_loop_update_end', period=10)
-
-                        if timing:
-                            self._measure_time('for_loop_concatenate_start', period=10)
-                        # Add matching to the result.
-                        self.r['spike_times'] = np.concatenate((self.r['spike_times'], [peak_time_step]))
-                        self.r['amplitudes'] = np.concatenate((self.r['amplitudes'], [best_amplitude_]))
-                        self.r['templates'] = np.concatenate((self.r['templates'], [best_template_index]))
-                        if timing:
-                            self._measure_time('for_loop_concatenate_end', period=10)
-                        # Mark current matching as tried.
                         mask[best_template_index, peak_index] = 0
-                        if timing:
-                            self._measure_time('for_loop_accept_end', period=10)
-                    else:
-                        if verbose:
-                            # Log debug message.
-                            string = "{} processes (p {}, t {}) -> (a {}, reject)"
-                            message = string.format(self.name, peak_index, best_template_index, best_amplitude)
-                            self.log.debug(message)
-                        if timing:
-                            self._measure_time('for_loop_reject_start', period=10)
-                        # Reject the matching.
-                        # Update failure counter of the peak.
-                        nb_failures[peak_index] += 1
-                        # If the maximal number of failures is reached then mark peak as solved (i.e. not fitted).
-                        if nb_failures[peak_index] == self.nb_chances:
-                            mask[:, peak_index] = 0
-                        else:
-                            mask[best_template_index, peak_index] = 0
-                        # Add reject to the result if necessary.
-                        if self.with_rejected_times:
-                            self.r['rejected_times'] = np.concatenate((self.r['rejected_times'],
-                                                                       [peaks[peak_index]]))
-                            self.r['rejected_amplitudes'] = np.concatenate((self.r['rejected_amplitudes'],
-                                                                            [best_amplitude_]))
-                        if timing:
-                            self._measure_time('for_loop_reject_end', period=10)
+                    # Add reject to the result if necessary.
+                    if self.with_rejected_times:
+                        self.r['rejected_times'] = np.concatenate((self.r['rejected_times'],
+                                                                   [peaks[peak_index]]))
+                        self.r['rejected_amplitudes'] = np.concatenate((self.r['rejected_amplitudes'],
+                                                                        [best_amplitude_]))
                     if timing:
-                        self._measure_time('for_loop_process_end', period=10)
-                if timing:
-                    self._measure_time('for_loop_end', period=10)
+                        self._measure_time('for_loop_reject_end', period=10)
+                        
             if timing:
                 self._measure_time('while_loop_end', period=10)
 

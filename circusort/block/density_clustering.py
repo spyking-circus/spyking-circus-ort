@@ -345,17 +345,18 @@ class DensityClustering(Block):
                 self.to_reset = []
 
                 # Synchronize the reception of the peaks with the reception of the data.
-                while not self._sync_buffer(peaks, self._nb_samples):
+                while not self._sync_buffer(peaks_packet['payload'], self._nb_samples):
                     peaks_packet = self.inputs['peaks'].receive()
                     peaks = peaks_packet['payload']['peaks']
                     self.threholds = peaks_packet['payload']['thresholds']
+                    offset = peaks_packet['payload']['offset']
 
                 # Set active mode (i.e. use a blocking reception for the peaks).
                 if not self.is_active:
                     self._set_active_mode()
 
                 # Retrieve peaks from received buffer.
-                offset = peaks.pop('offset')
+                
                 all_peaks = self._get_all_valid_peaks(peaks)
 
                 for key in self.sign_peaks:

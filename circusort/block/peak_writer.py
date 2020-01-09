@@ -107,12 +107,12 @@ class PeakWriter(Block):
         # Receive input data.
         peaks_packet = self.get_input('peaks').receive()
         batch = peaks_packet['payload']['peaks']
+        offset = peaks_packet['payload']['offset']
 
         self._measure_time('start')
 
         if self.input.structure == 'dict':
 
-            offset = batch.pop('offset')
             if self._mode == 'raw':
                 for key in batch:
                     to_write = []
