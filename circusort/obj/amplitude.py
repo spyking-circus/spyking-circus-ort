@@ -14,12 +14,21 @@ class Amplitude(object):
     """The amplitude of a cell through time."""
     # TODO complete docstring.
 
-    def __init__(self, amplitudes, times):
+    def __init__(self, amplitudes, times, t_min=None, t_max=None):
         """Initialization."""
         # TODO complete docstring.
 
-        self.amplitudes = amplitudes
-        self.times = times
+        mask = np.ones_like(times, dtype=np.bool)
+        if t_min is not None:
+            mask = np.logical_and(mask, t_min <= times)
+        if t_max is not None:
+            mask = np.logical_and(mask, times <= t_max)
+
+        self.amplitudes = amplitudes[mask]
+        self.times = times[mask]
+
+        self.t_min = max(np.min(times), 0) if t_min is None else t_min
+        self.t_max = min(np.max(times), np.inf) if t_max is None else t_max
 
     def __iter__(self):
 
@@ -29,24 +38,17 @@ class Amplitude(object):
 
         return len(self.times)
 
+    def __str__(self):
+
+        string = "<circusort.obj.amplitude.Amplitude t_min:{:.3f} t_max:{:.3f} len:{} a_min:{:.3f} a_max:{:.3f}>"
+        string = string.format(self.t_min, self.t_max, len(self), np.min(self.amplitudes), np.max(self.amplitudes))
+
+        return string
+
     @property
     def two_components(self):
         res = self.amplitudes.shape[0] == 2
         return res
-
-    @property
-    def t_min(self):
-        if len(self.times) > 0:
-            return self.times.min()
-        else:
-            return 0
-
-    @property
-    def t_max(self):
-        if len(self.times) > 0:
-            return self.times.max()
-        else:
-            return np.inf
 
     def slice(self, t_min=None, t_max=None):
         # TODO add docstring.
@@ -58,7 +60,7 @@ class Amplitude(object):
 
         idx = np.where((self.times >= t_min) & (self.times <= t_max))[0]
 
-        amplitude = Amplitude(self.amplitudes[idx], self.times[idx])
+        amplitude = Amplitude(self.amplitudes[idx], self.times[idx], t_min=t_min, t_max=t_max)
 
         return amplitude
 

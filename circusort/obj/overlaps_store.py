@@ -5,8 +5,10 @@ import os
 import pickle  # TODO check if we should use cPickle instead.
 import scipy.sparse
 import filelock
+import time
 
 from circusort.obj.overlaps import Overlaps
+from circusort.obj.template import Template, TemplateComponent
 
 
 class OverlapsStore(object):
@@ -103,8 +105,14 @@ class OverlapsStore(object):
             self.norms['2'] = np.zeros(0, dtype=np.float32)
 
         self._cols = np.arange(self.nb_channels * self._temporal_width).astype(np.int32)
+        
+        if self.optimize:
+            delays = np.arange(self.temporal_width//3, self.temporal_width + 1)
+        else:
+            delays = np.arange(1, self.temporal_width + 1)
+        
         self._scols = {
-            'delays': np.arange(1, self.temporal_width + 1),
+            'delays': delays,
             'left': {},
             'right': {}
         }
@@ -163,21 +171,34 @@ class OverlapsStore(object):
         else:
             return None
 
-    def _update_masks(self, index, new_indices):
+    def _update_masks(self, index, template, csr_template=None):
 
-        if np.any(np.in1d(self._indices[index], new_indices)):
+        # if np.any(np.in1d(self._indices[index], template.indices)):
+        #     self._masks[index, self.nb_templates] = True
+        # else:
+        #     self._masks[index, self.nb_templates] = False
+
+        overlap = np.sum(np.in1d(self._indices[index], template.indices))
+        if overlap > 0.5*len(self._indices[index]):
             self._masks[index, self.nb_templates] = True
-        else:
+        elif overlap == 0:
             self._masks[index, self.nb_templates] = False
+        else:
+            csr_template = template.first_component.to_sparse('csr', flatten=True)
+            if self.first_component[index].dot(csr_template.T)[0,0] > 0.5:
+                self._masks[index, self.nb_templates] = True
+            else:
+                self._masks[index, self.nb_templates] = False
 
-        return
+        return csr_template
 
     def get_overlaps(self, index, component='1'):
 
         if index not in self.overlaps[component]:
             target = self.all_components
             template = self.all_components[index]
-            self.overlaps[component][index] = Overlaps(self._scols, self.size, self.temporal_width)
+            t_start = time.time()
+            self.overlaps[component][index] = Overlaps(self._scols, self.temporal_width)
             self.overlaps[component][index].initialize(template, target, self.non_zeros(index))
         else:
             if self.overlaps[component][index].do_update:
@@ -212,17 +233,19 @@ class OverlapsStore(object):
             self.norms['2'] = np.concatenate((self.norms['2'], [template.second_component.norm]))
 
         template.normalize()
+        csr_template = None
 
         if self.optimize:
 
             self._masks[self.nb_templates, self.nb_templates] = True
 
             for index in range(self.nb_templates):
-                self._update_masks(index, template.indices)
+                csr_template = self._update_masks(index, template, csr_template)
 
             self._indices += [template.indices]
 
-        csr_template = template.first_component.to_sparse('csr', flatten=True)
+        if csr_template is None:
+            csr_template = template.first_component.to_sparse('csr', flatten=True)
         self.first_component = scipy.sparse.vstack((self.first_component, csr_template), format='csr')
 
         if self.two_components:
@@ -241,7 +264,6 @@ class OverlapsStore(object):
     def update(self, indices, laziness=True):
 
         templates = self.template_store.get(indices)
-
         for template in templates:
             self.add_template(template)
 
@@ -252,7 +274,6 @@ class OverlapsStore(object):
             else:
                 # Pre-compute overlaps.
                 self.compute_overlaps()
-
         return
 
     def compute_overlaps(self):
@@ -330,7 +351,7 @@ class OverlapsStore(object):
             sub_target = self.first_component
 
         nb_delays = self._scols['delays'].size
-        for k in range(nb_delays, 0, -1):  # i.e. consider overlaps by increasing time jitter
+        for k in range(nb_delays, 0, -2):  # i.e. consider overlaps by increasing time jitter
             i_delay = self._scols['delays'][k - 1]
             # Positive time jitter.
             tmp_1 = csr_template[:, self._scols['left'][i_delay]]

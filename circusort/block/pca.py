@@ -1,3 +1,4 @@
+# coding: utf8
 from .block import Block
 
 # import matplotlib.pyplot as plt
@@ -36,13 +37,14 @@ class PCA(Block):
     name = "PCA"
 
     params = {
-        'spike_width': 5.0,  # ms
-        'spike_jitter': 1.0,  # ms
+        'spike_width': 3.0,  # ms
+        'spike_jitter': 0.1,  # ms
         'spike_sigma': 0.0,  # µV
         'output_dim': 5,
         'alignment': True,
         'nb_waveforms': 10000,
         'sampling_rate': 20e+3,  # Hz
+        'hanning_filtering': True
     }
 
     def __init__(self, **kwargs):
@@ -72,7 +74,7 @@ class PCA(Block):
 
         self.sign_peaks = None
         self.send_pcs = True
-        self.batch = Buffer(self.sampling_rate, self.spike_width, self.spike_jitter, alignment=self.alignment)
+        self.batch = Buffer(self.sampling_rate, self.spike_width, self.spike_jitter, alignment=self.alignment, hanning_filtering=self.hanning_filtering)
         self._output_shape = (2, self.batch.temporal_width, self.output_dim)
         self.pcs = np.zeros(self._output_shape, dtype=self._output_dtype)
 
@@ -125,7 +127,7 @@ class PCA(Block):
 
         if peaks is not None:
 
-            self._measure_time('start', frequency=100)
+            self._measure_time('start')
 
             _ = peaks.pop('offset')
 
@@ -215,7 +217,7 @@ class PCA(Block):
                     # Update internal variable.
                     self.send_pcs = False
 
-            self._measure_time('end', frequency=100)
+            self._measure_time('end')
 
         return
 

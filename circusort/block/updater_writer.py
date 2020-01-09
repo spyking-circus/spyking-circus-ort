@@ -61,7 +61,7 @@ class UpdaterWriter(Block):
 
         updater_packet = self.get_input('updater').receive(blocking=False)
 
-        self._measure_time(label='start', frequency=10)
+        self._measure_time(label='start', period=10)
 
         if updater_packet is None:
             # Wait before entering next loop.
@@ -77,7 +77,7 @@ class UpdaterWriter(Block):
             if self.output_directory is not None:
                 self._save_update(update)
 
-        self._measure_time(label='end', frequency=10)
+        self._measure_time(label='end', period=10)
 
         return
 

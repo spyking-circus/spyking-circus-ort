@@ -79,7 +79,7 @@ class PeakDisplayer(Block):
         if not self._is_peak_reception_blocking and peaks_packet is not None:
             self._is_peak_reception_blocking = True
 
-        self._measure_time(label='start', frequency=10)
+        self._measure_time(label='start', period=10)
 
         self._number_pipe[1].send(number)
         self._data_pipe[1].send(data)
@@ -94,7 +94,7 @@ class PeakDisplayer(Block):
         else:
             self._peaks_pipe[1].send(None)
 
-        self._measure_time(label='end', frequency=10)
+        self._measure_time(label='end', period=10)
 
         return
 

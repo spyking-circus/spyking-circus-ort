@@ -7,7 +7,7 @@ from circusort.utils import compute_snippet_width, compute_maximum_snippet_jitte
 class Buffer(object):
 
     def __init__(self, sampling_rate, snippet_duration, snippet_jitter,
-                 data=None, offset=0, alignment=True, factor=5, probe=None):
+                 data=None, offset=0, alignment=True, factor=5, probe=None, hanning_filtering=False):
 
         self.sampling_rate = sampling_rate
         self.alignment = alignment
@@ -19,6 +19,9 @@ class Buffer(object):
         self._jitter = compute_maximum_snippet_jitter(self.snippet_jitter, self.sampling_rate)
         self._extended_width = self._width + self._jitter
         self._limits = None
+        self.hanning_filtering = hanning_filtering
+        if self.hanning_filtering:
+            self.filter = np.hanning(self._spike_width_)
 
         if self.alignment:
             self.factor = factor
@@ -75,16 +78,14 @@ class Buffer(object):
 
         self.data = data
         self._offset = offset
-
         self._limits = None
-
         return
 
     def median(self):
 
         return np.median(self.data, 1)
 
-    def get_snippet(self, channels, peak, peak_type='negative', ref_channel=None, sigma=0.0):
+    def get_snippet(self, channels, peak, peak_type='negative', ref_channel=None, sigma=0):
 
         ts_min = peak - self._extended_width
         ts_max = peak + self._extended_width
@@ -94,6 +95,9 @@ class Buffer(object):
                           channels=channels, sampling_rate=self.sampling_rate, probe=self._probe)
         if self.alignment:
             snippet.align(peak_type=peak_type, factor=self.factor, sigma=sigma)
+
+        if self.hanning_filtering:
+            snippet.filter(self.filter)
 
         return snippet
 
@@ -107,6 +111,9 @@ class Buffer(object):
                           channels=np.array([channel]), sampling_rate=self.sampling_rate, probe=self._probe)
         if self.alignment:
             snippet.align(peak_type=peak_type, factor=self.factor, sigma=sigma)
+
+        if self.hanning_filtering:
+            snippet.filter(self.filter)
 
         data = snippet.to_array()
 

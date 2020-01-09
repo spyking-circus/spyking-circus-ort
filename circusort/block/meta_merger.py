@@ -1,6 +1,8 @@
 import numpy as np
+
 from circusort.block.block import Block
 from circusort.obj.template_store import TemplateStore
+
 
 class Meta_merger(Block):
     """Meta merger block
@@ -26,17 +28,19 @@ class Meta_merger(Block):
 
         Block.__init__(self, **kwargs)
 
-
         # The following lines are useful to avoid some PyCharm's warning.
         self.templates_init_path = self.templates_init_path
 
         self.add_input('updater')
         self.add_output('spikes', 'dict')
         self._data = {}
-        self.n_size = 2*self.max_delay + 1
+        self.n_size = 2 * self.max_delay + 1
         self.bin_size =  int(self.cc_bin * self.sampling_rate * 1e-3)
         self.raw_lags = np.linspace(-self.max_delay*self.cc_bin, self.max_delay*self.cc_bin, 2*self.max_delay+1)
-        self.results = {'spikes' : [], 'templates': []}
+        self.results = {
+            'spikes': [],
+            'templates': []
+        }
 
     @property
     def nb_bins(self):
@@ -59,7 +63,7 @@ class Meta_merger(Block):
             t1b = np.unique(np.round(spikes_1 / self.bin_size))
             t2b = np.unique(np.round(spikes_2 / self.bin_size))
 
-            for d in xrange(size):
+            for d in range(size):
                 x_cc[d] += len(np.intersect1d(t1b, t2b + d - self.max_delay, assume_unique=True))
 
             x_cc /= self.nb_bins
@@ -74,7 +78,7 @@ class Meta_merger(Block):
 
         if updater is not None:
 
-            self._measure_time('update_start', frequency=1)
+            self._measure_time('update_start', period=1)
 
             indices = updater.get('indices', None)
             # Create the template dictionary if necessary.
@@ -83,7 +87,7 @@ class Meta_merger(Block):
 
         if batch is not None:
 
-            self._measure_time('start', frequency=100)
+            self._measure_time('start')
 
             offset = batch.pop('offset')
             for key in batch:
@@ -104,7 +108,7 @@ class Meta_merger(Block):
                         score = control_value - cc_dip.mean()
                         
 
-            self._measure_time('end', frequency=100)
+            self._measure_time('end')
 
         return
 

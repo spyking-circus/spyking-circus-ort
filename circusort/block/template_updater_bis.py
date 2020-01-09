@@ -40,7 +40,8 @@ class TemplateUpdaterBis(Block):
         'overlaps_path': None,
         'precomputed_template_paths': None,
         'sampling_rate': 20e+3,
-        'nb_samples': 1024
+        'nb_samples': 1024,
+        'skip_overlaps': False
     }
 
     def __init__(self, **kwargs):
@@ -70,6 +71,7 @@ class TemplateUpdaterBis(Block):
         self.precomputed_template_paths = self.precomputed_template_paths
         self.sampling_rate = self.sampling_rate
         self.nb_samples = self.nb_samples
+        self.skip_overlaps = self.skip_overlaps
 
         # Initialize private attributes.
         if self.probe_path is None:
@@ -107,6 +109,9 @@ class TemplateUpdaterBis(Block):
         if not os.path.exists(data_directory):
             os.makedirs(data_directory)
 
+        if self.skip_overlaps:
+            self.overlaps_path = None
+
         # Create object to handle templates.
         self._template_store = TemplateStore(self.templates_path, probe_file=self.probe_path, mode='w')
         self._template_dictionary = TemplateDictionary(self._template_store, cc_merge=self.cc_merge,
@@ -138,11 +143,11 @@ class TemplateUpdaterBis(Block):
                 self.log.debug(message)
 
             # Update precomputed overlaps.
-            self._overlap_store.update(accepted)
-            self._overlap_store.compute_overlaps()
-
-            # Save precomputed overlaps to disk.
-            self._overlap_store.save_overlaps()
+            if not self.skip_overlaps:
+                self._overlap_store.update(accepted)
+                self._overlap_store.compute_overlaps()
+                # Save precomputed overlaps to disk.
+                self._overlap_store.save_overlaps()
 
             # Log some information.
             if len(accepted) > 0:
@@ -211,7 +216,7 @@ class TemplateUpdaterBis(Block):
 
         if data is not None:
 
-            self._measure_time('start', frequency=1)
+            self._measure_time('start', period=1)
 
             # Set mode as active (if necessary).
             if not self.is_active:
@@ -219,7 +224,9 @@ class TemplateUpdaterBis(Block):
 
             # Add received templates to the dictionary.
             templates = self._data_to_templates(data)
+            self._measure_time('add_template_start', period=1)
             accepted, nb_duplicates, nb_mixtures = self._template_dictionary.add(templates)
+            self._measure_time('add_template_end', period=1)
 
             # Log debug messages (if necessary).
             if nb_duplicates > 0:
@@ -240,18 +247,24 @@ class TemplateUpdaterBis(Block):
 
             # Update and pre-compute the overlaps.
             self._overlap_store.update(accepted)
-            self._overlap_store.compute_overlaps()
-            # Log debug message.
-            string = "{} updates and pre-computes the overlaps"
-            message = string.format(self.name_and_counter)
-            self.log.debug(message)
+    
+            if not self.skip_overlaps:
+                self._measure_time('compute_overlap_start', period=1)
+                self._overlap_store.compute_overlaps()
+                self._measure_time('compute_overlap_end', period=1)
+                # Log debug message.
+                string = "{} updates and pre-computes the overlaps"
+                message = string.format(self.name_and_counter)
+                self.log.debug(message)
 
-            # Save precomputed overlaps to disk.
-            self._overlap_store.save_overlaps()
-            # Log debug message.
-            string = "{} saves precomputed overlaps"
-            message = string.format(self.name_and_counter)
-            self.log.debug(message)
+                # Save precomputed overlaps to disk.
+                self._measure_time('save_overlap_start', period=1)
+                self._overlap_store.save_overlaps()
+                self._measure_time('save_overlap_end', period=1)
+                # Log debug message.
+                string = "{} saves precomputed overlaps"
+                message = string.format(self.name_and_counter)
+                self.log.debug(message)
 
             # Prepare output data.
             output_data = {
@@ -271,7 +284,7 @@ class TemplateUpdaterBis(Block):
             message = string.format(self.name_and_counter)
             self.log.debug(message)
 
-            self._measure_time('end', frequency=1)
+            self._measure_time('end', period=1)
 
         return
 

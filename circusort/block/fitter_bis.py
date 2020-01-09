@@ -272,11 +272,11 @@ class FitterBis(Block):
             waveforms = self._extract_waveforms(peaks)
 
             if timing:
-                self._measure_time('scalar_products_start', frequency=10)
+                self._measure_time('scalar_products_start', period=10)
             # Compute the scalar products between waveforms and templates.
             scalar_products = self._overlaps_store.dot(waveforms)
             if timing:
-                self._measure_time('scalar_products_end', frequency=10)
+                self._measure_time('scalar_products_end', period=10)
 
             # Initialize the failure counter of each peak.
             nb_failures = np.zeros(nb_peaks, dtype=np.int32)
@@ -292,7 +292,7 @@ class FitterBis(Block):
                 self.log.debug(message)
 
             if timing:
-                self._measure_time('while_loop_start', frequency=10)
+                self._measure_time('while_loop_start', period=10)
             # TODO rewrite condition according to the 3 last lines of the nested while loop.
             # while not np.all(nb_failures == self.max_nb_trials):
             while np.mean(nb_failures) < self.nb_chances:
@@ -305,11 +305,11 @@ class FitterBis(Block):
                 # TODO consider the absolute values of the scalar products?
 
                 if timing:
-                    self._measure_time('for_loop_start', frequency=10)
+                    self._measure_time('for_loop_start', period=10)
                 for peak_index in peak_indices:
 
                     if timing:
-                        self._measure_time('for_loop_preamble_start', frequency=10)
+                        self._measure_time('for_loop_preamble_start', period=10)
                     # Find the best template.
                     peak_scalar_products = np.take(sub_b, peak_index, axis=1)
                     best_template_index = np.argmax(peak_scalar_products, axis=0)
@@ -336,10 +336,10 @@ class FitterBis(Block):
                     a_min = self._overlaps_store.amplitudes[best_template_index, 0]
                     a_max = self._overlaps_store.amplitudes[best_template_index, 1]
                     if timing:
-                        self._measure_time('for_loop_preamble_end', frequency=10)
+                        self._measure_time('for_loop_preamble_end', period=10)
 
                     if timing:
-                        self._measure_time('for_loop_process_start', frequency=10)
+                        self._measure_time('for_loop_process_start', period=10)
                     if (a_min <= best_amplitude_) & (best_amplitude_ <= a_max):
                         if verbose:
                             # Log debug message.
@@ -347,7 +347,7 @@ class FitterBis(Block):
                             message = string.format(self.name, peak_index, best_template_index, best_amplitude)
                             self.log.debug(message)
                         if timing:
-                            self._measure_time('for_loop_accept_start', frequency=10)
+                            self._measure_time('for_loop_accept_start', period=10)
                         # Keep the matching.
                         peak_time_step = peaks[peak_index]
                         # # Compute the neighboring peaks.
@@ -355,9 +355,9 @@ class FitterBis(Block):
                         # is_neighbor = np.abs(peaks - peak_index) <= 2 * self._width
 
                         if timing:
-                            self._measure_time('for_loop_update_start', frequency=10)
+                            self._measure_time('for_loop_update_start', period=10)
                         if timing:
-                            self._measure_time('for_loop_update_1_start', frequency=10)
+                            self._measure_time('for_loop_update_1_start', period=10)
                         # Update scalar products.
                         # TODO simplify the following 11 lines.
                         tmp = np.dot(np.ones((1, 1), dtype=np.int32), np.reshape(peaks, (1, nb_peaks)))
@@ -367,39 +367,39 @@ class FitterBis(Block):
                         indices = np.zeros((self._overlaps_store.size, len(y_tmp)), dtype=np.int32)
                         indices[y_tmp, np.arange(len(y_tmp))] = 1
                         if timing:
-                            self._measure_time('for_loop_update_1_end', frequency=10)
+                            self._measure_time('for_loop_update_1_end', period=10)
 
                         if timing:
-                            self._measure_time('for_loop_update_2_start', frequency=10)
+                            self._measure_time('for_loop_update_2_start', period=10)
                         if timing:
-                            self._measure_time('for_loop_overlaps_start', frequency=10)
+                            self._measure_time('for_loop_overlaps_start', period=10)
                         tmp1_ = self._overlaps_store.get_overlaps(best_template_index, '1')
                         if timing:
-                            self._measure_time('for_loop_overlaps_end', frequency=10)
+                            self._measure_time('for_loop_overlaps_end', period=10)
                         tmp1 = tmp1_.multiply(-best_amplitude).dot(indices)
                         scalar_products[:, is_neighbor[0, :]] += tmp1
                         if timing:
-                            self._measure_time('for_loop_update_2_end', frequency=10)
+                            self._measure_time('for_loop_update_2_end', period=10)
 
                         if self._overlaps_store.two_components:
                             tmp2_ = self._overlaps_store.get_overlaps(best_template_index, '2')
                             tmp2 = tmp2_.multiply(-best_amplitude_2).dot(indices)
                             scalar_products[:, is_neighbor[0, :]] += tmp2
                         if timing:
-                            self._measure_time('for_loop_update_end', frequency=10)
+                            self._measure_time('for_loop_update_end', period=10)
 
                         if timing:
-                            self._measure_time('for_loop_concatenate_start', frequency=10)
+                            self._measure_time('for_loop_concatenate_start', period=10)
                         # Add matching to the result.
                         self.r['spike_times'] = np.concatenate((self.r['spike_times'], [peak_time_step]))
                         self.r['amplitudes'] = np.concatenate((self.r['amplitudes'], [best_amplitude_]))
                         self.r['templates'] = np.concatenate((self.r['templates'], [best_template_index]))
                         if timing:
-                            self._measure_time('for_loop_concatenate_end', frequency=10)
+                            self._measure_time('for_loop_concatenate_end', period=10)
                         # Mark current matching as tried.
                         mask[best_template_index, peak_index] = 0
                         if timing:
-                            self._measure_time('for_loop_accept_end', frequency=10)
+                            self._measure_time('for_loop_accept_end', period=10)
                     else:
                         if verbose:
                             # Log debug message.
@@ -407,7 +407,7 @@ class FitterBis(Block):
                             message = string.format(self.name, peak_index, best_template_index, best_amplitude)
                             self.log.debug(message)
                         if timing:
-                            self._measure_time('for_loop_reject_start', frequency=10)
+                            self._measure_time('for_loop_reject_start', period=10)
                         # Reject the matching.
                         # Update failure counter of the peak.
                         nb_failures[peak_index] += 1
@@ -423,13 +423,13 @@ class FitterBis(Block):
                             self.r['rejected_amplitudes'] = np.concatenate((self.r['rejected_amplitudes'],
                                                                             [best_amplitude_]))
                         if timing:
-                            self._measure_time('for_loop_reject_end', frequency=10)
+                            self._measure_time('for_loop_reject_end', period=10)
                     if timing:
-                        self._measure_time('for_loop_process_end', frequency=10)
+                        self._measure_time('for_loop_process_end', period=10)
                 if timing:
-                    self._measure_time('for_loop_end', frequency=10)
+                    self._measure_time('for_loop_end', period=10)
             if timing:
-                self._measure_time('while_loop_end', frequency=10)
+                self._measure_time('while_loop_end', period=10)
 
             # Handle result.
             keys = ['spike_times', 'amplitudes', 'templates']
@@ -475,7 +475,11 @@ class FitterBis(Block):
         """Merge positive and negative peaks from all the channels."""
 
         time_steps = set([])
-        keys = [key for key in peaks.keys() if key not in ['offset']]
+        keys = [
+            key
+            for key in peaks.keys()
+            if key not in ['offset']
+        ]
         for key in keys:
             for channel in peaks[key].keys():
                 time_steps = time_steps.union(peaks[key][channel])
@@ -549,7 +553,14 @@ class FitterBis(Block):
 
         if self.is_active:
             peaks_packet = self.get_input('peaks').receive(blocking=True, number=self._number)
-            peaks = peaks_packet['payload']
+            if peaks_packet is None:
+                # This is the last packet (last data packet don't have a corresponding peak packet since the peak
+                # detector needs two consecutive data packets to produce one peak packet).
+                peaks = {
+                    'offset': None,  # TODO correct offset value?
+                }
+            else:
+                peaks = peaks_packet['payload']
             self._handle_peaks(peaks)
             if verbose:
                 # Log debug message.
@@ -580,7 +591,7 @@ class FitterBis(Block):
     def _process(self, verbose=False, timing=False):
 
         if timing:
-            self._measure_time('preamble_start', frequency=10)
+            self._measure_time('preamble_start', period=10)
 
         # First, collect all the buffers we need.
         # # Prepare everything to collect buffers.
@@ -607,11 +618,11 @@ class FitterBis(Block):
         updater = updater_packet['payload'] if updater_packet is not None else None
 
         if timing:
-            self._measure_time('preamble_end', frequency=10)
+            self._measure_time('preamble_end', period=10)
 
         if updater is not None:
 
-            self._measure_time('update_start', frequency=1)
+            self._measure_time('update_start', period=1)
 
             while updater is not None:
 
@@ -655,30 +666,30 @@ class FitterBis(Block):
                                                                    discarding_eoc=self.discarding_eoc_from_updater)
                 updater = updater_packet['payload'] if updater_packet is not None else None
 
-            self._measure_time('update_end', frequency=1)
+            self._measure_time('update_end', period=1)
 
         if self.p is not None:
 
             if self.nb_templates > 0:
 
-                self._measure_time('start', frequency=100)
+                self._measure_time('start')
 
                 if timing:
-                    self._measure_time('fit_start', frequency=10)
+                    self._measure_time('fit_start', period=10)
                 self._fit_chunk(verbose=verbose, timing=timing)
                 if timing:
-                    self._measure_time('fit_end', frequency=10)
+                    self._measure_time('fit_end', period=10)
                 if timing:
-                    self._measure_time('output_start', frequency=10)
+                    self._measure_time('output_start', period=10)
                 packet = {
                     'number': self._number,
                     'payload': self.r,
                 }
                 self.get_output('spikes').send(packet)
                 if timing:
-                    self._measure_time('output_end', frequency=10)
+                    self._measure_time('output_end', period=10)
 
-                self._measure_time('end', frequency=100)
+                self._measure_time('end')
 
             elif self._nb_fitters > 1:
 

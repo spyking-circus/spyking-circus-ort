@@ -35,9 +35,9 @@ class PeakDetector(Block):
     name = "Peak detector"
 
     params = {
-        'threshold_factor': 5.0,
+        'threshold_factor': 6.0,
         'sign_peaks': 'negative',
-        'spike_width': 5.0,  # ms
+        'spike_width': 3.0,  # ms
         'sampling_rate': 20e+3,  # Hz
         'safety_time': 'auto',
     }
@@ -95,6 +95,11 @@ class PeakDetector(Block):
 
     def _update_initialization(self):
 
+        # TODO integrate the 2 following line properly.
+        # TODO Should it be a default pattern to update the initialization of blocks?
+        input_parameters = self.get_input('data').get_input_parameters()
+        self.configure_input_parameters(**input_parameters)
+
         shape = (2 * self._nb_samples, self._nb_channels)
 
         self.X = np.zeros(shape, dtype=np.float)
@@ -103,6 +108,16 @@ class PeakDetector(Block):
         self.mph = None
 
         return
+
+    def _get_output_parameters(self):
+
+        params = {
+            # 'nb_channels': self._nb_channels,  # TODO uncomment?
+            'nb_samples': self._nb_samples,
+            'sampling_rate': self.sampling_rate,
+        }
+
+        return params
 
     def _detect_peaks(self, i, mpd=1, threshold=0.0, edge='rising', kpsh=False, valley=False):
         """Detect peaks
@@ -212,7 +227,7 @@ class PeakDetector(Block):
         mph_packet = self.get_input('mads').receive(blocking=False)
         self.mph = mph_packet['payload'] if mph_packet is not None else self.mph
 
-        self._measure_time('start', frequency=100)
+        self._measure_time('start')
 
         # If median absolute deviations are defined...
         if self.mph is not None:
@@ -244,10 +259,16 @@ class PeakDetector(Block):
                 'payload': self.peaks,
             }
 
+            # TODO remove the following lines.
+            if self.peaks is None:
+                string = "{} payload:{}"
+                message = string.format(self.name_and_counter, self.peaks)
+                self.log.debug(message)
+
             # Send detected peaks.
             self.get_output('peaks').send(packet)
 
-        self._measure_time('end', frequency=100)
+        self._measure_time('end')
 
         return
 

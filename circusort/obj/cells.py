@@ -338,22 +338,25 @@ class Cells(object):
 
         return parameters
 
-    def compute_similarities(self, cells):
+    def compute_similarities(self, cells, path=None):
         """Compute the similarities between two set of cells.
 
-        Argument:
+        Arguments:
             cells: circusort.obj.Cells
                 The set of cells with which similarities have to be computed.
+            path: none | string (optional)
+                The path used to cache the similarities.
+                The default value is None.
         Return:
             similarities: numpy.ndarray
                 The matrix of similarities between the two set of cells.
         """
 
-        similarities = Similarities(self, cells)
+        similarities = Similarities(self, cells, path=path)
 
         return similarities
 
-    def compute_matches(self, cells, threshold=0.9, t_min=None, t_max=None):
+    def compute_matches(self, cells, threshold=0.9, t_min=None, t_max=None, path=None):
         """Compute the matches between two set of cells.
 
         Attribute:
@@ -368,11 +371,14 @@ class Cells(object):
             t_max: none | float (optional)
                 The end time of the window to use to compare trains.
                 The default value is None.
+            path: none | string (optional)
+                The path used to cache the matches.
+                The default value is None.
         Return:
             matches: tuple
                 The matches between the two set of cells.
         """
 
-        matches = Matches(self, cells, threshold=threshold, t_min=t_min, t_max=t_max)
+        matches = Matches(self, cells, threshold=threshold, t_min=t_min, t_max=t_max, path=path)
 
         return matches

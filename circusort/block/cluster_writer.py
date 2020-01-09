@@ -61,7 +61,7 @@ class ClusterWriter(Block):
 
         templates_packet = self.get_input('templates').receive(blocking=False)
 
-        self._measure_time(label='start', frequency=10)
+        self._measure_time(label='start', period=10)
 
         if templates_packet is None:
             # Wait before entering next loop.
@@ -77,7 +77,7 @@ class ClusterWriter(Block):
             if self.output_directory is not None:
                 self._save_templates(templates)
 
-        self._measure_time(label='end', frequency=10)
+        self._measure_time(label='end', period=10)
 
         return
 

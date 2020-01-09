@@ -159,19 +159,16 @@ class TemplateUpdater(Block):
 
     @staticmethod
     def _get_tmp(tmp_basename):
-        # TODO add docstring.
 
         tmp_directory = tempfile.gettempdir()
         tmp_path = os.path.join(tmp_directory, tmp_basename)
         return tmp_path
 
     def _guess_output_endpoints(self):
-        # TODO add docstring.
 
         return
 
     def _data_to_templates(self, data):
-        # TODO add docstring.
 
         all_templates = []
         keys = [key for key in data.keys() if key not in ['offset']]
@@ -192,7 +189,6 @@ class TemplateUpdater(Block):
         return all_templates
 
     def _process(self):
-        # TODO add docstring.
 
         # Send precomputed templates.
         if self.counter == 0 and self._precomputed_output is not None:
@@ -210,7 +206,7 @@ class TemplateUpdater(Block):
 
         if data is not None:
 
-            self._measure_time('start', frequency=1)
+            self._measure_time('start', period=1)
 
             # Set mode as active (if necessary).
             if not self.is_active:
@@ -218,7 +214,9 @@ class TemplateUpdater(Block):
 
             # Add received templates to the dictionary.
             templates = self._data_to_templates(data)
+            self._measure_time('add_template_start', period=1)
             accepted, nb_duplicates, nb_mixtures = self._template_dictionary.add(templates)
+            self._measure_time('add_template_end', period=1)
 
             # Log some information.
             if nb_duplicates > 0:
@@ -238,10 +236,14 @@ class TemplateUpdater(Block):
                 self.log.debug(message)
 
             # Update and precompute the overlaps.
+            self._measure_time('compute_overlap_start', period=1)
             self._template_dictionary.compute_overlaps()
+            self._measure_time('compute_overlap_end', period=1)
 
             # Save precomputed overlaps to disk.
+            self._measure_time('save_overlap_start', period=1)
             self._template_dictionary.save_overlaps()
+            self._measure_time('save_overlap_end', period=1)
 
             # Send output data.
             output_data = self._template_dictionary.to_json
@@ -254,12 +256,11 @@ class TemplateUpdater(Block):
             }
             self.get_output('updater').send(output_packet)
 
-            self._measure_time('end', frequency=1)
+            self._measure_time('end', period=1)
 
         return
 
     def _introspect(self):
-        # TODO add docstring.
 
         nb_buffers = self.counter - self.start_step
         start_times = np.array(self._measured_times.get('start', []))

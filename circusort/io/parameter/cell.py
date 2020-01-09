@@ -5,6 +5,7 @@ default_types = {
     'template': {
         'mode': 'string',
         'path': 'string',
+        'width': 'float',
     },
     'train': {
         'mode': 'string',
@@ -27,6 +28,7 @@ defaults = {
     'template': {
         'mode': "default",
         'path': "",
+        'width': 5.0,
     },
     'train': {
         'mode': "default",

@@ -107,7 +107,7 @@ class Spikes(object):
         first_component = TemplateComponent(waveforms, channels, 1, amplitudes=[0.8, 1.2])
         template = Template(first_component, 0)
         train = Train(times, t_min=self.t_min, t_max=self.t_max)
-        amplitude = Amplitude(amplitudes, times)
+        amplitude = Amplitude(amplitudes, times, t_min=self.t_min, t_max=self.t_max)
 
         cell = Cell(template, train, amplitude)
 
