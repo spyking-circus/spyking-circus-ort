@@ -7,7 +7,7 @@ import scipy.interpolate
 class Snippet(object):
 
     def __init__(self, data, width=None, jitter=None, time_step=None, channel=None, channels=None,
-                 sampling_rate=None, probe=None):
+                 sampling_rate=None):
 
         self._data = data
 
@@ -32,8 +32,6 @@ class Snippet(object):
         self._channels = channels
 
         self._sampling_rate = sampling_rate
-        self._probe = probe
-
         self._is_aligned = False
         self._aligned_time_step = None
         self._aligned_data = None
@@ -149,63 +147,35 @@ class Snippet(object):
 
         return
 
-    def _approximate_bivariate(self, sigma=0.0, degree=3):
-        """Bivariate approximation of the snippet.
-
-        Arguments:
-            sigma: float (optional)
-                Smoothing factor. Ideally, it should be an estimate of the standard deviation for all the data points.
-                If 0.0, spline will interpolate through all the data points (i.e. no smoothing at all).
-                The default value is 0.0.
-            degree: integer (optional)
-                Degree of the spline along the x-axis.
-                The default value is 3.
-        Return:
-            f: scipy.interpolate.RectBivariateSpline
-                Bivariate spline approximation.
-        """
-
-        nb_data_points = self._data.size
-
-        x = self._extended_time_steps
-        y = self._channels
-        z = self._data
-        kx = degree  # i.e. degree of the bivariate spline along the x-axis
-        ky = 1  # i.e. degree of the bivariate spline along the y-axis
-        if sigma > 0:
-            s = nb_data_points * sigma  # i.e. smoothing factor
-        else:
-            s = 0
-        f = scipy.interpolate.RectBivariateSpline(x, y, z, kx=kx, ky=ky, s=s)
-
-        return f
-
     def _align_bivariate(self, peak_type='negative', factor=5, sigma=0.0, degree=3):
 
         # Interpolate data.
-        f = self._approximate_bivariate(sigma=sigma, degree=degree)
+
+        f = self._approximate_univariate(sigma, degree, self._data[:, self._channel])
 
         # Find central time step.
         x = self._jittered_time_steps(factor=factor)
-        y = self._channel
-        z = f(x, y)
+        y = f(x)
         if peak_type == 'negative':
-            index = np.argmin(z)
+            index = np.argmin(y)
         elif peak_type == 'positive':
-            index = np.argmax(z)
+            index = np.argmax(y)
         else:
             raise NotImplementedError()
+
         central_time_step = x[index]
 
         # Align data.
         x = self._aligned_time_steps(central_time_step)
         y = self._channels
+        z = self._data
+        f = scipy.interpolate.RectBivariateSpline(self._extended_time_steps, y, z, kx=degree, ky=1, s=0)
         aligned_data = f(x, y)
         aligned_data = aligned_data.astype('float32')
 
         return central_time_step, aligned_data
 
-    def _approximate_univariate(self, sigma=0.0, degree=3):
+    def _approximate_univariate(self, sigma=0.0, degree=3, data=None):
         """Univariate approximation of the snippet.
 
         Arguments:
@@ -224,13 +194,16 @@ class Snippet(object):
         nb_data_points = self._data.size
 
         x = self._extended_time_steps
-        y = self._data
+        if data is None:
+            y = self._data
+        else:
+            y = data
         k = degree  # i.e. degree of the univariate spline
         if sigma > 0:
-            s = float(nb_data_points) * sigma
+            s = nb_data_points * sigma
         else:
             s = 0
-        f = scipy.interpolate.UnivariateSpline(x, y, k=k, s=0)
+        f = scipy.interpolate.UnivariateSpline(x, y, k=k, s=s)
 
         return f
 
@@ -252,21 +225,22 @@ class Snippet(object):
 
         # Align data.
         x = self._aligned_time_steps(central_time_step)
+        f = self._approximate_univariate(sigma=0, degree=degree)
         aligned_data = f(x)
         aligned_data = aligned_data.astype('float32')
 
         # TODO remove the following line.
-        import os
-        if not os.path.isdir("/tmp/waveforms"):
-            os.makedirs("/tmp/waveforms")
-        central_index = (len(aligned_data) - 1) // 2
-        if np.argmin(aligned_data) != central_index:
-            fig, ax = plt.subplots()
-            ax.plot(self._extended_time_steps, self._data, color='C0')
-            ax.plot(x, aligned_data, color='C1')
-            ax.set_title("c{} ts{}".format(self._channel, self._time_step))
-            fig.savefig("/tmp/waveforms/c{}_ts{}.pdf".format(self._channel, self._time_step))
-            plt.close(fig)
+        # import os
+        # if not os.path.isdir("/tmp/waveforms"):
+        #     os.makedirs("/tmp/waveforms")
+        # central_index = (len(aligned_data) - 1) // 2
+        # if np.argmin(aligned_data) != central_index:
+        #     fig, ax = plt.subplots()
+        #     ax.plot(self._extended_time_steps, self._data, color='C0')
+        #     ax.plot(x, aligned_data, color='C1')
+        #     ax.set_title("c{} ts{}".format(self._channel, self._time_step))
+        #     fig.savefig("/tmp/waveforms/c{}_ts{}.pdf".format(self._channel, self._time_step))
+        #     plt.close(fig)
 
         return central_time_step, aligned_data
 
@@ -281,9 +255,9 @@ class Snippet(object):
 
     def filter(self, my_filter):
         if self._is_aligned:
-            self._aligned_data = (self._aligned_data.T * my_filter).T
+            self._aligned_data *= my_filter
         else:
-            self._data = (self._data.T * my_filter).T
+            self._data *= my_filter
 
     def plot(self, ax=None, **kwargs):
 

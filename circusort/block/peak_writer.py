@@ -106,7 +106,7 @@ class PeakWriter(Block):
 
         # Receive input data.
         peaks_packet = self.get_input('peaks').receive()
-        batch = peaks_packet['payload']
+        batch = peaks_packet['payload']['peaks']
 
         self._measure_time('start')
 

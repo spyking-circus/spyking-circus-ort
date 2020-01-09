@@ -123,7 +123,9 @@ class PCA(Block):
             peaks_packet = self.get_input('peaks').receive(blocking=True, number=number)
         else:
             peaks_packet = self.get_input('peaks').receive(blocking=False, number=number)
-        peaks = peaks_packet['payload'] if peaks_packet is not None else None
+
+        peaks = peaks_packet['payload']['peaks'] if peaks_packet is not None else None
+        thresholds = peaks_packet['payload']['thresholds'] if peaks_packet is not None else None
 
         if peaks is not None:
 
@@ -147,7 +149,7 @@ class PCA(Block):
                             for peak in signed_peaks:
                                 if self.nb_spikes[key] < self.nb_waveforms and self.batch.valid_peaks(peak):
                                     waveform = self.batch.get_waveform(int(channel), peak, peak_type=key,
-                                                                       sigma=self.spike_sigma)
+                                                                       sigma=((1.48*thresholds[0, int(channel)])**2))
                                     self.waveforms[key][self.nb_spikes[key]] = waveform
                                     self.nb_spikes[key] += 1
                             # Log debug message (if necessary).

@@ -256,7 +256,7 @@ class PeakDetector(Block):
             # Prepare output packet.
             packet = {
                 'number': number - 1,
-                'payload': self.peaks,
+                'payload': {'peaks' : self.peaks, 'thresholds' : self.threshold_factor * self.mph}
             }
 
             # TODO remove the following lines.

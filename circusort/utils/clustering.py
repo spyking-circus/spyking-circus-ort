@@ -213,6 +213,9 @@ class OnlineManager(object):
             self.fig_name = os.path.join(self.debug_plots, '{n}_{t}.{f}')
             self.fig_name_2 = os.path.join(self.debug_plots, '{n}_{t}_tracking.{f}')
 
+        if self.hanning_filtering:
+            self.hanning_filter = numpy.hanning(N_t)[:, numpy.newaxis]
+
         self.time = 0
         self.is_ready = False
         self.abs_n_min = 10
@@ -688,22 +691,7 @@ class OnlineManager(object):
     @staticmethod
     def _compute_second_component(data, waveforms, amplitudes=None):
 
-        temp_flat = waveforms.reshape(waveforms.size, 1)
-        if amplitudes is None:
-            amplitudes = np.dot(data, temp_flat)
-            amplitudes /= np.sum(temp_flat ** 2)
-
-        for i in range(len(data)):
-            data[i, :] -= amplitudes[i] * temp_flat[:, 0]
-
-        if len(temp_flat) > 1:
-            pca = PCA(1)
-            pca.fit(data)
-            waveforms = pca.components_.T.astype(np.float32)
-        else:
-            waveforms = data / np.sum(data ** 2)
-
-        return waveforms.reshape(1, waveforms.size)
+        return numpy.diff(waveforms).reshape(1, waveforms.size)
 
     def cluster(self, tracking=True):
 

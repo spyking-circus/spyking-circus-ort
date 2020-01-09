@@ -89,7 +89,8 @@ class PeakGrouper(Block):
         grouped_peaks = {}
         for k in range(0, self.nb_groups):
             number = input_packets[k]['number']
-            peaks = input_packets[k]['payload']
+            peaks = input_packets[k]['payload']['peaks']
+            thresholds = input_packets[k]['payload']['thresholds']
             for key, value in peaks.items():
                 if key == 'offset':
                     grouped_peaks.update([(key, value)])
@@ -111,6 +112,7 @@ class PeakGrouper(Block):
         output_packet = {
             'number': number,
             'payload': grouped_peaks,
+            'thresholds': thresholds
         }
         self.output.send(output_packet)
 

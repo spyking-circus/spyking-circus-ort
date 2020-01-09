@@ -31,7 +31,6 @@ class DensityClustering(Block):
     name = "Density Clustering"
 
     params = {
-        'threshold_factor': 6.0,
         'alignment': True,
         'sampling_rate': 20.e+3,  # Hz
         'spike_width': 3.0,  # ms
@@ -70,7 +69,6 @@ class DensityClustering(Block):
         Block.__init__(self, **kwargs)
 
         # The following lines are useful to avoid some PyCharm's warnings.
-        self.threshold_factor = self.threshold_factor
         self.alignment = self.alignment
         self.sampling_rate = self.sampling_rate
         self.spike_width = self.spike_width
@@ -127,7 +125,6 @@ class DensityClustering(Block):
         self.add_input('data', structure='dict')
         self.add_input('pcs', structure='dict')
         self.add_input('peaks', structure='dict')
-        self.add_input('mads', structure='dict')
         self.add_output('templates', structure='dict')
 
         self.thresholds = None
@@ -142,7 +139,7 @@ class DensityClustering(Block):
     def _initialize(self):
 
         self.batch = Buffer(self.sampling_rate, self.spike_width, self.spike_jitter,
-                            alignment=self.alignment, probe=self.probe)
+                            alignment=self.alignment)
         self.sign_peaks = []
         self.receive_pcs = True
         self.masks = {}
@@ -317,12 +314,12 @@ class DensityClustering(Block):
         self.batch.update(data, offset=offset)
         if self.is_active:
             peaks_packet = self.inputs['peaks'].receive()
-            peaks = peaks_packet['payload']
+            peaks = peaks_packet['payload']['peaks']
+            self.thresholds = peaks_packet['payload']['thresholds']
         else:
             peaks_packet = self.inputs['peaks'].receive(blocking=False)
-            peaks = None if peaks_packet is None else peaks_packet['payload']
-        mads_packet = self.inputs['mads'].receive(blocking=False)
-        self.thresholds = mads_packet['payload'] if mads_packet is not None else self.thresholds
+            peaks = None if peaks_packet is None else peaks_packet['payload']['peaks']
+            self.thresholds = None if peaks_packet is None else peaks_packet['payload']['thresholds']
 
         if self.receive_pcs:
             pcs_packet = self.inputs['pcs'].receive(blocking=False)
@@ -341,7 +338,7 @@ class DensityClustering(Block):
                     path = os.path.join(self.debug_data, 'pca.npy')
                     np.save(path, self.pcs)
 
-            if (peaks is not None) and (self.thresholds is not None):  # (i.e. if we receive some peaks and MADs)
+            if peaks is not None:  # (i.e. if we receive some peaks and MADs)
 
                 self._measure_time('start')
 
@@ -350,7 +347,8 @@ class DensityClustering(Block):
                 # Synchronize the reception of the peaks with the reception of the data.
                 while not self._sync_buffer(peaks, self._nb_samples):
                     peaks_packet = self.inputs['peaks'].receive()
-                    peaks = peaks_packet['payload']
+                    peaks = peaks_packet['payload']['peaks']
+                    self.threholds = peaks_packet['payload']['thresholds']
 
                 # Set active mode (i.e. use a blocking reception for the peaks).
                 if not self.is_active:
@@ -375,9 +373,9 @@ class DensityClustering(Block):
                             self._remove_nn_peaks(peak_type, peak_idx, best_channel)
                             
                             if best_channel in self.channels:
-                                channels = self.inodes[self.probe.edges[self.probe.nodes[best_channel]]]
-                                waveforms = self.batch.get_snippet(channels, peak, peak_type=peak_type,
-                                                                   ref_channel=best_channel)
+                                #channels = self.inodes[self.probe.edges[self.probe.nodes[best_channel]]]
+                                waveforms = self.batch.get_snippet(self.probe.nodes, peak, peak_type=peak_type,
+                                                                   ref_channel=best_channel, sigma=((1.48*self.thresholds[0, best_channel])**2))
 
                                 online_manager = self.managers[key][best_channel]
                                 if not online_manager.is_ready:
@@ -392,7 +390,7 @@ class DensityClustering(Block):
 
                         online_manager = self.managers[key][channel]
 
-                        threshold = self.threshold_factor * self.thresholds[0, channel]
+                        threshold = self.thresholds[0, channel]
                         online_manager.set_physical_threshold(threshold)
 
                         # Log debug message (if necessary).

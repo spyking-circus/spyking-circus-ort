@@ -186,7 +186,7 @@ def load_train(path, **kwargs):
         raise IOError(message)
 
     f = h5py.File(path, mode='r')
-    times = f.get('times').value
+    times = f['times'][()]
     f.close()
     train = Train(times)
 

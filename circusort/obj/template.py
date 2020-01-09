@@ -200,11 +200,10 @@ class TemplateComponent(object):
         return self.waveforms[mask]
 
     def smooth(self, window=11, order=3):
-        savgol_filter = np.hanning(self.temporal_width) ** 3
-        for i in range(self.waveforms.shape[0]):
-            tmp = scipy.signal.savgol_filter(self.waveforms[i], window, order)
-            self.waveforms[i] = savgol_filter*self.waveforms[i] + (1 - savgol_filter)*tmp
-
+        savgol_filter = np.hanning(self.temporal_width)
+        tmp_fast = scipy.signal.savgol_filter(self.waveforms, window, order, axis=1)
+        tmp_slow = scipy.signal.savgol_filter(self.waveforms, window, 3*order, axis=1)
+        self.waveforms = savgol_filter*tmp_fast + (1 - savgol_filter)*tmp_slow
 
 class Template(object):
 
@@ -451,9 +450,7 @@ class Template(object):
 
     def _auto_compression(self):
 
-        sums = np.sum(self.first_component.waveforms, 1)
-        if self.two_components:
-            sums += np.sum(self.second_component.waveforms, 1)
+        sums = np.sum(self.first_component.waveforms**2, 1)
         indices = np.where(sums == 0)[0]
         self._compress(indices)
 
