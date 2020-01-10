@@ -282,9 +282,7 @@ class FitterBis(Block):
             nb_failures = np.zeros(nb_peaks, dtype=np.int32)
             # Initialize the matching matrix.
             mask = np.ones((self._overlaps_store.nb_templates, nb_peaks), dtype=np.int32)
-            # Filter scalar products of the first component of each template.
-            sub_b = scalar_products[:self._overlaps_store.nb_templates, :]
-
+            
             if verbose:
                 # Log debug message.
                 string = "{} buffer offset: {}"
@@ -298,7 +296,6 @@ class FitterBis(Block):
             while np.mean(nb_failures) < self.nb_chances:
 
                 # Set scalar products of tested matches to zero.
-                # Set scalar products of tested matchings to zero.
                 data = scalar_products[:self._overlaps_store.nb_templates, :] * mask
 
                 # Find the best template.
@@ -308,10 +305,10 @@ class FitterBis(Block):
                 # TODO consider the absolute values of the scalar products?
                                 
                 # Compute the best amplitude.
-                best_amplitude = scalar_products[best_template_index, peak_index] / self._overlaps_store.nb_elements
+                best_amplitude = scalar_products[best_template_index, peak_index]
                 if self._overlaps_store.two_components:
                     best_scalar_product = scalar_products[best_template_index + self.nb_templates, peak_index]
-                    best_amplitude_2 = best_scalar_product / self._overlaps_store.nb_elements
+                    best_amplitude_2 = best_scalar_product
 
                 # Compute the best normalized amplitude.
                 best_amplitude_ = best_amplitude / self._overlaps_store.norms['1'][best_template_index]
