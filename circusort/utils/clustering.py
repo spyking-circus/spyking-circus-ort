@@ -12,7 +12,22 @@ from sklearn.decomposition import PCA
 from circusort.io.template import load_template
 from circusort.obj.template import Template, TemplateComponent
 
+def nd_bhatta_dist(X1, X2):
 
+    mu_1 = np.mean(X1, 1)
+    mu_2 = np.mean(X2, 1)
+    ms   = mu_1 - mu_2
+
+    cov_1 = np.cov(X1)
+    cov_2 = np.cov(X2)
+    cov   = (cov_1 + cov_2)/2
+
+    det_1 = np.linalg.det(cov_1)
+    det_2 = np.linalg.det(cov_2)
+    det   = np.linalg.det(cov)
+
+    dist = (1/8.)*np.dot(np.dot(ms.T, np.linalg.inv(cov)), ms) + 0.5*np.log(det/np.sqrt(det_1*det_2))
+    return dist
 
 class DistanceMatrix(object):
 
@@ -182,8 +197,8 @@ class MacroCluster(object):
 class OnlineManager(object):
 
     def __init__(self, probe, channel, sampling_rate=20e+3, decay=0.05, mu=2, epsilon='auto', theta=-np.log(0.001),
-                 dispersion=(5, 5), n_min=0.01, noise_thr=0.8, pca=None, sub_dim=5, logger=None, two_components=False, name=None,
-                 debug_plots=None, debug_ground_truth_templates=None, debug_file_format='pdf', local_merges=3, smart_select='ransac', hanning_filtering=False):
+                 dispersion=(5, 5), noise_thr=0.8, pca=None, sub_dim=5, logger=None, two_components=False, name=None,
+                 debug_plots=None, debug_ground_truth_templates=None, debug_file_format='pdf', local_merges=2, smart_select='ransac', hanning_filtering=False):
 
         if name is None:
             self.name = "OnlineManager"
@@ -196,7 +211,6 @@ class OnlineManager(object):
         self.theta = theta
         self.dispersion = dispersion
         self.noise_thr = noise_thr
-        self.n_min = n_min
         self.glob_pca = pca
         self.probe = probe
         self.channel = channel
@@ -214,11 +228,11 @@ class OnlineManager(object):
             self.fig_name_2 = os.path.join(self.debug_plots, '{n}_{t}_tracking.{f}')
 
         if self.hanning_filtering:
-            self.hanning_filter = numpy.hanning(N_t)[:, numpy.newaxis]
+            self.hanning_filter = np.hanning(N_t)[:, np.newaxis]
 
         self.time = 0
         self.is_ready = False
-        self.abs_n_min = 10
+        self.abs_n_min = 20
         self.nb_updates = 0
         self.sub_dim = sub_dim
         self.loc_pca = None
@@ -294,7 +308,7 @@ class OnlineManager(object):
 
         sub_data = np.dot(sub_data, self.loc_pca)
 
-        n_min = np.maximum(self.abs_n_min, int(self.n_min * len(sub_data)))
+        n_min = self.abs_n_min
 
         if self.debug_plots is not None:
             output = self.fig_name.format(n=self.name, t=self.time, f=self.debug_file_format)
@@ -691,7 +705,7 @@ class OnlineManager(object):
     @staticmethod
     def _compute_second_component(data, waveforms, amplitudes=None):
 
-        return numpy.diff(waveforms).reshape(1, waveforms.size)
+        return np.diff(waveforms).reshape(1, waveforms.size)
 
     def cluster(self, tracking=True):
 
@@ -900,14 +914,9 @@ class OnlineManager(object):
 
     def density_based_clustering(self, rho, distances, n_min, smart_select_mode='ransac_bis', refine=True):
         delta = self.compute_delta(distances, rho)
-        nclus, labels, centers = self.find_centroids_and_cluster(distances, rho, delta, n_min, smart_select_mode)
-
-        if refine:
-            halolabels = self.halo_assign(distances, labels, centers)
-            halolabels -= 1
-        else:
-            halolabels = labels
-
+        nclus, labels, centers = self.find_centroids_and_cluster(distances, rho, delta, smart_select_mode)
+        halolabels = self.halo_assign(distances, labels, centers, n_min)
+        halolabels -= 1
         centers = np.where(np.in1d(centers - 1, np.arange(halolabels.max() + 1)))[0]
 
         return halolabels
@@ -916,7 +925,7 @@ class OnlineManager(object):
     def compute_delta(dist, rho):
         return dist.get_deltas(rho)
 
-    def find_centroids_and_cluster(self, dist, rho, delta, n_min, smart_select_mode):
+    def find_centroids_and_cluster(self, dist, rho, delta, smart_select_mode):
 
         npnts = len(rho)    
         centers = np.zeros(npnts)
@@ -933,23 +942,11 @@ class OnlineManager(object):
             centersx = np.where(centers)[0] # index of centroids
             dist2cent = dist.get_rows(centersx)
             labels = np.argmin(dist2cent, axis=0) + 1
-
-            #_, cluscounts = np.unique(labels, return_counts=True) # number of elements of each cluster
-            #small_clusters = np.where(cluscounts < n_min)[0] # index of 1 or 0 members clusters
-            # if len(small_clusters) > 0: # if there one or more 1 or 0 member cluster # if there one or more 1 or 0 member cluster
-            #     cluslab = centers[centersx] # cluster labels
-            #     id2rem = np.where(np.in1d(cluslab, small_clusters))[0] # ids to remove
-            #     clusidx = np.delete(centersx, id2rem) # removing
-            #     centers = np.zeros(len(centers))
-            #     nclus = nclus - len(id2rem)
-            #     centers[clusidx] = np.arange(nclus) + 1 # re labeling centroids            
-            #     dist2cent = dist.get_rows(centersx)# re compute distances from centroid to any other point
-            #     labels = np.argmin(dist2cent, axis=0) + 1 # re assigns clusters 
                 
         return nclus, labels, centers
         
     @staticmethod
-    def halo_assign(dist, labels, centers):
+    def halo_assign(dist, labels, centers, n_min):
 
         halolabels = labels.copy()    
         sameclusmat = np.equal(labels, labels[:, None]) #
@@ -959,7 +956,19 @@ class OnlineManager(object):
         nclusmem = np.sum(sameclus_cent, axis=1) # number of cluster members
             
         meandist2cent = np.sum(dist2cluscent, axis=1)/nclusmem # mean distance to corresponding centroid
-        gt_meandist2cent = np.greater(dist2cluscent, meandist2cent[:, None]) # greater than the mean dist to centroid
+        mad2cent = np.zeros(meandist2cent.shape)
+        gt_meandist2cent = np.zeros(dist2cluscent.shape, dtype=np.bool)
+
+        for i in range(len(meandist2cent)):
+            idx = np.where(dist2cluscent[i] > 0)[0]
+            mean_i = np.mean(dist2cluscent[i, idx])
+            mad_i = np.median(np.abs(dist2cluscent[i, idx] - np.median(dist2cluscent[i, idx])))
+            bound = mean_i + mad_i
+            gt_meandist2cent[i] = dist2cluscent[i] > bound
+
+            if np.sum(gt_meandist2cent[i]) - len(idx) < n_min:
+                gt_meandist2cent[i] = False
+
         remids = np.sum(gt_meandist2cent, axis=0)
         halolabels[remids > 0] = 0 # setting to 0 the removes points
         return halolabels
@@ -974,27 +983,16 @@ class OnlineManager(object):
             idx1 = np.where(labels == clusters[ic1])[0]
             if len(idx1) > 0:
                 sd1 = np.take(data, idx1, axis=0)
-                m1 = np.median(sd1, 0)
                 for ic2 in range(ic1 + 1, len(clusters)):
                     idx2 = np.where(labels == clusters[ic2])[0]
                     if len(idx2) > 0:
                         sd2 = np.take(data, idx2, axis=0)
-                        m2 = np.median(sd2, 0)
-                        v_n = m1 - m2
-                        pr_1 = np.dot(sd1, v_n)
-                        pr_2 = np.dot(sd2, v_n)
-                        med1 = np.median(pr_1)
-                        med2 = np.median(pr_2)
-                        mad1 = np.median(np.abs(pr_1 - med1))
-                        mad2 = np.median(np.abs(pr_2 - med2))
-                        norm =  mad1** 2 + mad2**2
-                        if norm > 0.0:
-                            dist = np.sqrt((med1 - med2) ** 2 / norm)
-                            if dist < d_min:
-                                d_min = dist
-                                to_merge = [ic1, ic2]
+                        try:
+                            dist = nd_bhatta_dist(sd1.T, sd2.T)
+                        except Exception:
+                            dist = np.inf
 
-        if d_min < local_merges/0.674:
+        if d_min < local_merges:
             labels[np.where(labels == clusters[to_merge[1]])[0]] = clusters[to_merge[0]]
             return True, labels
 

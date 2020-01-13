@@ -43,7 +43,6 @@ class DensityClustering(Block):
         'radius': None,
         'm_ratio': 0.01,
         'noise_thr': 0.8,
-        'n_min': 0.01,
         'dispersion': [5, 5],
         'sub_dim': 10,
         'extraction': 'median-raw',
@@ -55,7 +54,7 @@ class DensityClustering(Block):
         'tracking': False,
         'safety_time': 'auto',
         'compression': 0.5,
-        'local_merges': 3,
+        'local_merges': 2,
         'debug_plots': None,
         'debug_ground_truth_templates': None,
         'debug_file_format': 'png',
@@ -81,7 +80,6 @@ class DensityClustering(Block):
         self.radius = self.radius
         self.m_ratio = self.m_ratio
         self.noise_thr = self.noise_thr
-        self.n_min = self.n_min
         self.dispersion = self.dispersion
         self.two_components = self.two_components
         self.decay_factor = self.decay_factor / float(self.sampling_rate)
@@ -256,7 +254,6 @@ class DensityClustering(Block):
                     'epsilon': self.epsilon,
                     'theta': self.theta,
                     'dispersion': self.dispersion,
-                    'n_min': self.n_min,
                     'noise_thr': self.noise_thr,
                     'pca': None,  # see below
                     'logger': self.log,
@@ -375,7 +372,8 @@ class DensityClustering(Block):
                             
                             if best_channel in self.channels:
                                 #channels = self.inodes[self.probe.edges[self.probe.nodes[best_channel]]]
-                                waveforms = self.batch.get_snippet(self.probe.nodes, peak, peak_type=peak_type,
+                                channels = self.probe.nodes
+                                waveforms = self.batch.get_snippet(channels, peak, peak_type=peak_type,
                                                                    ref_channel=best_channel, sigma=((1.48*self.thresholds[0, best_channel])**2))
 
                                 online_manager = self.managers[key][best_channel]
