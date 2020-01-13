@@ -46,8 +46,8 @@ def main():
     reader_kwargs = {
         'name': "reader",
         'data_path': args.data_path,
-        'dtype': 'uint16',
-        'nb_channels': 256,
+        'dtype': 'int16',
+        'nb_channels': 30,
         'nb_samples': 2000,
         'sampling_rate': 20e+3,
         'is_realistic': True,

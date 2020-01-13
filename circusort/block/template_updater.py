@@ -7,6 +7,7 @@ from circusort.io.probe import load_probe
 from circusort.io.template import load_template
 from circusort.obj.template_store import TemplateStore
 from circusort.obj.template_dictionary import TemplateDictionary
+from circusort.obj.overlaps_store import OverlapsStore
 from circusort.io.template import load_template_from_dict
 
 
@@ -14,7 +15,7 @@ __classname__ = "TemplateUpdater"
 
 
 class TemplateUpdater(Block):
-    """Template updater
+    """Template updater.
 
     Attributes:
         probe_path: string
@@ -27,7 +28,6 @@ class TemplateUpdater(Block):
         sampling_rate: float
         nb_samples: integer
     """
-    # TODO complete docstring.
 
     name = "Template updater"
 
@@ -40,14 +40,15 @@ class TemplateUpdater(Block):
         'overlaps_path': None,
         'precomputed_template_paths': None,
         'sampling_rate': 20e+3,
-        'nb_samples': 1024
+        'nb_samples': 1024,
+        'skip_overlaps': False
     }
 
     def __init__(self, **kwargs):
         """Initialize template updater.
 
         Arguments:
-            probe_path: none | string (optional)
+            probe_path: string
             radius: none | float (optional)
             cc_merge: float (optional)
             cc_mixture: none | float (optional)
@@ -57,7 +58,6 @@ class TemplateUpdater(Block):
             sampling_rate: float (optional)
             nb_samples: integer (optional)
         """
-        # TODO complete docstring.
 
         Block.__init__(self, **kwargs)
 
@@ -71,6 +71,7 @@ class TemplateUpdater(Block):
         self.precomputed_template_paths = self.precomputed_template_paths
         self.sampling_rate = self.sampling_rate
         self.nb_samples = self.nb_samples
+        self.skip_overlaps = self.skip_overlaps
 
         # Initialize private attributes.
         if self.probe_path is None:
@@ -92,35 +93,31 @@ class TemplateUpdater(Block):
 
         self.add_input('templates', structure='dict')
         self.add_output('updater', structure='dict')
-        self.two_components = None
 
     def _initialize(self):
         """Initialize template updater."""
-        # TODO complete docstring.
 
         # Initialize path to save the templates.
         if self.templates_path is None:
-            self.templates_path = self._get_tmp('templates.h5')
+            self.templates_path = self._get_tmp_path()
         else:
             self.templates_path = os.path.expanduser(self.templates_path)
             self.templates_path = os.path.abspath(self.templates_path)
-        # Initialize path to save the overlaps.
-        if self.overlaps_path is None:
-            self.overlaps_path = self._get_tmp('overlaps.pkl')
-        else:
-            self.overlaps_path = os.path.expanduser(self.overlaps_path)
-            self.overlaps_path = os.path.abspath(self.overlaps_path)
 
         # Create the corresponding directory if it does not exist.
-        for directory in [self.templates_path, self.overlaps_path]:
-            data_directory, _ = os.path.split(directory)
-            if not os.path.exists(data_directory):
-                os.makedirs(data_directory)
+        data_directory, _ = os.path.split(self.templates_path)
+        if not os.path.exists(data_directory):
+            os.makedirs(data_directory)
+
+        if self.skip_overlaps:
+            self.overlaps_path = None
 
         # Create object to handle templates.
         self._template_store = TemplateStore(self.templates_path, probe_file=self.probe_path, mode='w')
         self._template_dictionary = TemplateDictionary(self._template_store, cc_merge=self.cc_merge,
-                                                       cc_mixture=self.cc_mixture, overlap_path=self.overlaps_path)
+                                                       cc_mixture=self.cc_mixture)
+        # Create object to handle overlaps.
+        self._overlap_store = OverlapsStore(template_store=self._template_store, path=self.overlaps_path)
 
         # Log info message.
         string = "{} records templates into {}"
@@ -129,44 +126,56 @@ class TemplateUpdater(Block):
 
         # Define precomputed templates (if necessary).
         if self.precomputed_template_paths is not None:
+
+            # Load precomputed templates.
             precomputed_templates = [
                 load_template(path)
                 for path in self.precomputed_template_paths
             ]
-            self.precomputed_templates = precomputed_templates
 
             # Add precomputed templates to the dictionary.
-            accepted, _, _ = self._template_dictionary.add(self.precomputed_templates, force=True)
+            accepted = self._template_dictionary.initialize(precomputed_templates)
 
             # Log some information.
             if len(accepted) > 0:
-                string = "{} added {} precomputed templates."
+                string = "{} added {} precomputed templates"
                 message = string.format(self.name, len(accepted))
                 self.log.debug(message)
 
-            self._template_dictionary.compute_overlaps()
+            # Update precomputed overlaps.
+            if not self.skip_overlaps:
+                self._overlap_store.update(accepted)
+                self._overlap_store.compute_overlaps()
+                # Save precomputed overlaps to disk.
+                self._overlap_store.save_overlaps()
 
-            # Save precomputed overlaps to disk.
-            self._template_dictionary.save_overlaps()
+            # Log some information.
+            if len(accepted) > 0:
+                string = "{} precomputed overlaps"
+                message = string.format(self.name)
+                self.log.debug(message)
 
             # Send output data.
-            self._precomputed_output = self._template_dictionary.to_json
-            self._precomputed_output['indices'] = []
+            self._precomputed_output = {
+                'indices': accepted,
+                'template_store': self._template_store.file_name,
+                'overlaps': self._overlap_store.to_json,
+            }
+
         else:
+
             self._precomputed_output = None
 
         return
 
     @staticmethod
-    def _get_tmp(tmp_basename):
+    def _get_tmp_path():
 
         tmp_directory = tempfile.gettempdir()
+        tmp_basename = "templates.h5"
         tmp_path = os.path.join(tmp_directory, tmp_basename)
+
         return tmp_path
-
-    def _guess_output_endpoints(self):
-
-        return
 
     def _data_to_templates(self, data):
 
@@ -180,6 +189,7 @@ class TemplateUpdater(Block):
                     templates += [load_template_from_dict(template, self.probe)]
 
                 if len(templates) > 0:
+                    # Log debug message.
                     string = "{} received {} {} templates from electrode {}"
                     message = string.format(self.name, len(templates), key, channel)
                     self.log.debug(message)
@@ -218,7 +228,7 @@ class TemplateUpdater(Block):
             accepted, nb_duplicates, nb_mixtures = self._template_dictionary.add(templates)
             self._measure_time('add_template_end', period=1)
 
-            # Log some information.
+            # Log debug messages (if necessary).
             if nb_duplicates > 0:
                 # Log debug message.
                 string = "{} rejected {} duplicated templates"
@@ -235,26 +245,44 @@ class TemplateUpdater(Block):
                 message = string.format(self.name, len(accepted))
                 self.log.debug(message)
 
-            # Update and precompute the overlaps.
-            self._measure_time('compute_overlap_start', period=1)
-            self._template_dictionary.compute_overlaps()
-            self._measure_time('compute_overlap_end', period=1)
+            # Update and pre-compute the overlaps.
+            self._overlap_store.update(accepted)
+    
+            if not self.skip_overlaps:
+                self._measure_time('compute_overlap_start', period=1)
+                self._overlap_store.compute_overlaps()
+                self._measure_time('compute_overlap_end', period=1)
+                # Log debug message.
+                string = "{} updates and pre-computes the overlaps"
+                message = string.format(self.name_and_counter)
+                self.log.debug(message)
 
-            # Save precomputed overlaps to disk.
-            self._measure_time('save_overlap_start', period=1)
-            self._template_dictionary.save_overlaps()
-            self._measure_time('save_overlap_end', period=1)
+                # Save precomputed overlaps to disk.
+                self._measure_time('save_overlap_start', period=1)
+                self._overlap_store.save_overlaps()
+                self._measure_time('save_overlap_end', period=1)
+                # Log debug message.
+                string = "{} saves precomputed overlaps"
+                message = string.format(self.name_and_counter)
+                self.log.debug(message)
 
-            # Send output data.
-            output_data = self._template_dictionary.to_json
-            output_data['indices'] = accepted
-
+            # Prepare output data.
+            output_data = {
+                'indices': accepted,
+                'template_store': self._template_store.file_name,
+                'overlaps': self._overlap_store.to_json,
+            }
             # Prepare output packet.
             output_packet = {
                 'number': templates_packet['number'],
                 'payload': output_data,
             }
+            # Send output packet.
             self.get_output('updater').send(output_packet)
+            # Log debug message.
+            string = "{} sends output packet"
+            message = string.format(self.name_and_counter)
+            self.log.debug(message)
 
             self._measure_time('end', period=1)
 

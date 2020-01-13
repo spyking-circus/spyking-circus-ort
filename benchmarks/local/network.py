@@ -12,29 +12,6 @@ directory = os.path.expanduser(directory)
 
 nb_fitters = 4
 
-block_names = [
-    "reader",
-    "filter",
-    "mad",
-    "detector",
-    "pca",
-    "cluster",
-    "updater_bis",
-    "writer",
-] + [
-    "fitter_bis_{}".format(k)
-    for k in range(0, nb_fitters)
-]
-block_nb_buffers = {
-    "fitter_bis_{}".format(k): nb_fitters
-    for k in range(0, nb_fitters)
-}
-block_labels = {
-    "fitter_bis_{}".format(k): "fitter {}".format(k)
-    for k in range(0, nb_fitters)
-}
-
-
 def sorting(configuration_name):
     """Create the 1st sorting subnetwork.
 
@@ -133,8 +110,8 @@ def sorting(configuration_name):
         'introspection_path': introspection_directory,
         'log_level': INFO,
     }
-    updater_bis_kwargs = {
-        'name': "updater_bis",
+    updater_kwargs = {
+        'name': "updater",
         'probe_path': probe_path,
         'templates_path': os.path.join(sorting_directory, "templates.h5"),
         'overlaps_path': os.path.join(sorting_directory, "overlaps.p"),
@@ -144,8 +121,8 @@ def sorting(configuration_name):
         'introspection_path': introspection_directory,
         'log_level': DEBUG,
     }
-    fitter_bis_kwargs = {
-        'name': "fitter_bis",
+    fitter_kwargs = {
+        'name': "fitter",
         'degree': nb_fitters,
         # 'templates_init_path': os.path.join(sorting_directory, "templates.h5"),
         # 'overlaps_init_path': os.path.join(sorting_directory, "overlaps.p"),
@@ -176,8 +153,8 @@ def sorting(configuration_name):
     peak_writer = managers['master'].create_block('peak_writer', **peak_writer_kwargs)
     pca = managers['master'].create_block('pca', **pca_kwargs)
     cluster = managers['master'].create_block('density_clustering', **cluster_kwargs)
-    updater = managers['master'].create_block('template_updater_bis', **updater_bis_kwargs)
-    fitter = managers['master'].create_network('fitter_bis', **fitter_bis_kwargs)
+    updater = managers['master'].create_block('template_updater', **updater_kwargs)
+    fitter = managers['master'].create_network('fitter', **fitter_kwargs)
     writer = managers['master'].create_block('spike_writer', **writer_kwargs)
     # Initialize the elements of the network.
     director.initialize()

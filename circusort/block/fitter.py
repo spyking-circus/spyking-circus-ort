@@ -1,3 +1,4 @@
+# import matplotlib.pyplot as plt
 import numpy as np
 import os
 
@@ -6,17 +7,28 @@ from circusort.obj.template_store import TemplateStore
 from circusort.obj.overlaps_store import OverlapsStore
 
 
+__classname__ = "Fitter"
+
+
 class Fitter(Block):
     """Fitter
 
     Attributes:
-
-        init_path: none | string (optional)
+        templates_init_path: none | string (optional)
             Path to the location used to load templates to initialize the
             dictionary of templates. If equal to None, this dictionary will
             start empty. The default value is None.
+        overlaps_init_path: none | string (optional)
+            Path to the location used to load the overlaps to initialize the
+            overlap store.
+            The default value is None.
+        with_rejected_times: boolean (optional)
+            The default value is False.
+        sampling_rate: float (optional)
+            The default value is 20e+3.
+        discarding_eoc_from_updater: boolean (optional)
+            The default value is False.
     """
-    # TODO complete docstring.
 
     name = "Fitter"
 
@@ -31,6 +43,17 @@ class Fitter(Block):
     }
 
     def __init__(self, **kwargs):
+        """Initialize fitter
+
+        Arguments:
+            templates_init_path: string (optional)
+            overlaps_init_path: string (optional)
+            with_rejected_times: boolean (optional)
+            sampling_rate: float (optional)
+            discarding_eoc_from_updater: boolean (optional)
+            _nb_fitters: integer (optional)
+            _fitter_id: integer (optional)
+        """
 
         Block.__init__(self, **kwargs)
 
@@ -42,6 +65,10 @@ class Fitter(Block):
         self.discarding_eoc_from_updater = self.discarding_eoc_from_updater
         self._nb_fitters = self._nb_fitters
         self._fitter_id = self._fitter_id
+
+        # Initialize private attributes.
+        self._template_store = None
+        self._overlaps_store = None
 
         self.add_input('updater', structure='dict')
         self.add_input('data', structure='dict')
@@ -56,8 +83,6 @@ class Fitter(Block):
 
         self.space_explo = 0.5
         self.nb_chances = 3
-        self._overlaps_store = None
-        self._template_store = None
 
         if self.templates_init_path is not None:
             self.templates_init_path = os.path.expanduser(self.templates_init_path)
@@ -92,39 +117,22 @@ class Fitter(Block):
         self._overlaps_store = OverlapsStore(template_store=self._template_store, path=self.overlaps_init_path,
                                              fitting_mode=True)
 
-        # Precompute all the overlaps.
-        if self.overlaps_init_path is None:
-            # Log info.
-            string = "{} precomputes all the overlaps..."
-            message = string.format(self.name)
-            self.log.info(message)
-            # Precompute all the overlaps.
-            self._overlaps_store.compute_overlaps()
-        else:
-            if os.path.isfile(self.overlaps_init_path):
-                # Log info.
-                string = "{} loads precomputed overlaps from {}..."
-                message = string.format(self.name, self.overlaps_init_path)
-                self.log.info(message)
-                # Load precomputed overlaps.
-                self._overlaps_store.load_overlaps(self.overlaps_init_path)
-            else:
-                # Log info.
-                string = "{} precomputes and saves all the overlaps in {}..."
-                message = string.format(self.name, self.overlaps_init_path)
-                self.log.info(message)
-                # Precompute and save all the overlaps.
-                self._overlaps_store.compute_overlaps()
-                self._overlaps_store.save_overlaps(self.overlaps_init_path)
+        # Log info message.
+        string = "{} is initialized with precomputed overlaps from {}"
+        message = string.format(self.name, self.overlaps_init_path)
+        self.log.info(message)
 
         return
 
     @property
     def nb_templates(self):
+
         if self._overlaps_store is not None:
-            return self._overlaps_store.nb_templates
+            nb_templates = self._overlaps_store.nb_templates
         else:
-            return 0
+            nb_templates = 0
+
+        return nb_templates
 
     def _configure_input_parameters(self, nb_channels=None, nb_samples=None, **kwargs):
 
@@ -143,7 +151,6 @@ class Fitter(Block):
         return
 
     def _init_temp_window(self):
-        # TODO add docstring.
 
         self.slice_indices = np.zeros(0, dtype=np.int32)
         self._width = (self._overlaps_store.temporal_width - 1) // 2
@@ -161,7 +168,6 @@ class Fitter(Block):
         return
 
     def _is_valid(self, peak_step):
-        # TODO add docstring.
 
         i_min = self._width
         i_max = self._nb_samples - self._width
@@ -170,7 +176,6 @@ class Fitter(Block):
         return is_valid
 
     def _get_all_valid_peaks(self, peak_steps):
-        # TODO add docstring.
 
         all_peak_steps = set([])
         for key in peak_steps.keys():
@@ -193,7 +198,6 @@ class Fitter(Block):
         return r
 
     def _reset_result(self):
-        # TODO add docstring.
 
         self.r = {
             'spike_times': np.zeros(0, dtype=np.int32),
@@ -212,7 +216,7 @@ class Fitter(Block):
     def _extract_waveforms(self, peak_time_steps):
         """Extract waveforms from buffer
 
-        Attributes:
+        Argument:
             peak_time_steps: np.array
                 Peak time steps. Array of shape (number of peaks,).
 
@@ -231,7 +235,6 @@ class Fitter(Block):
         return waveforms
 
     def _fit_chunk(self, verbose=False, timing=False):
-        # TODO add docstring.
 
         if verbose:
             # Log debug message.
@@ -288,25 +291,24 @@ class Fitter(Block):
 
             if timing:
                 self._measure_time('while_loop_start', period=10)
-
             # TODO rewrite condition according to the 3 last lines of the nested while loop.
             # while not np.all(nb_failures == self.max_nb_trials):
             while np.mean(nb_failures) < self.nb_chances:
 
-                # Set scalar products of tested matchings to zero.
+                # Set scalar products of tested matches to zero.
                 data = scalar_products[:self._overlaps_store.nb_templates, :] * mask
 
                 # Find the best template.
-                best_template_index, peak_index = numpy.unravel_index(data.argmax(), data.shape)
+                best_template_index, peak_index = np.unravel_index(data.argmax(), data.shape)
 
                 # TODO remove peaks with scalar products equal to zero?
                 # TODO consider the absolute values of the scalar products?
                                 
                 # Compute the best amplitude.
-                best_amplitude = scalar_products[best_template_index, peak_index] / self._overlaps_store.nb_elements
+                best_amplitude = scalar_products[best_template_index, peak_index]
                 if self._overlaps_store.two_components:
                     best_scalar_product = scalar_products[best_template_index + self.nb_templates, peak_index]
-                    best_amplitude_2 = best_scalar_product / self._overlaps_store.nb_elements
+                    best_amplitude_2 = best_scalar_product
 
                 # Compute the best normalized amplitude.
                 best_amplitude_ = best_amplitude / self._overlaps_store.norms['1'][best_template_index]
@@ -447,10 +449,13 @@ class Fitter(Block):
     @staticmethod
     def _merge_peaks(peaks):
         """Merge positive and negative peaks from all the channels."""
-        # TODO complete docstring.
 
         time_steps = set([])
-        keys = [key for key in peaks.keys() if key not in ['offset']]
+        keys = [
+            key
+            for key in peaks.keys()
+            if key not in ['offset']
+        ]
         for key in keys:
             for channel in peaks[key].keys():
                 time_steps = time_steps.union(peaks[key][channel])
@@ -462,17 +467,17 @@ class Fitter(Block):
     @property
     def nb_buffers(self):
 
-        return self.x.shape[0] / self._nb_samples
+        return self.x.shape[0] // self._nb_samples
 
     @property
     def result_area_start(self):
 
-        return (self.nb_buffers - 1) * self._nb_samples - self._nb_samples / 2
+        return (self.nb_buffers - 1) * self._nb_samples - self._nb_samples // 2
 
     @property
     def result_area_end(self):
 
-        return (self.nb_buffers - 1) * self._nb_samples + self._nb_samples / 2
+        return (self.nb_buffers - 1) * self._nb_samples + self._nb_samples // 2
 
     @property
     def work_area_start(self):
@@ -502,7 +507,6 @@ class Fitter(Block):
         return self.first_buffer_id * self._nb_samples  # + self.result_area_start
 
     def _collect_data(self, shift=0):
-        # TODO add docstring.
 
         k = (self.nb_buffers - 1) + shift
 
@@ -513,7 +517,6 @@ class Fitter(Block):
         return
 
     def _handle_peaks(self, peaks):
-        # TODO add docstring.
 
         p = self._nb_samples + self._merge_peaks(peaks)
         self.p = self.p - self._nb_samples
@@ -522,54 +525,44 @@ class Fitter(Block):
 
         return
 
-    def _collect_peaks(self, shift=0, verbose=False):
-        # TODO add docstring.
+    def _collect_peaks(self, verbose=False):
 
         if self.is_active:
-            peaks_packet = self.get_input('peaks').receive(blocking=True)
-            peaks = peaks_packet['payload']
+            peaks_packet = self.get_input('peaks').receive(blocking=True, number=self._number)
+            if peaks_packet is None:
+                # This is the last packet (last data packet don't have a corresponding peak packet since the peak
+                # detector needs two consecutive data packets to produce one peak packet).
+                peaks = {}
+            else:
+                peaks = peaks_packet['payload']['peaks']
             self._handle_peaks(peaks)
             if verbose:
                 # Log debug message.
-                string = "{} collects peaks {} (shift {}, reg)"
-                message = string.format(self.name, peaks['offset'], shift)
+                string = "{} collects peaks {} (reg)"
+                message = string.format(self.name, peaks_packet['payload']['offset'])
                 self.log.debug(message)
         else:
-            peaks_packet = self.get_input('peaks').receive(blocking=False)
-            peaks = peaks_packet['payload'] if peaks_packet is not None else None
-            if peaks is None:
-                self.p = None
-            else:
-                p = self._nb_samples + self._merge_peaks(peaks)
-                self.p = p
-                if verbose:
-                    # Log debug message.
-                    string = "{} collects peaks {} (shift {}, init)"
-                    message = string.format(self.name, peaks['offset'], shift)
-                    self.log.debug(message)
-                    # Log debug message.
-                    string = "{} synchronizes peaks ({}, {}, {}, {}, {})"
-                    message = string.format(self.name, self._nb_samples, self._nb_fitters,
-                                            self._fitter_id, shift, self.counter)
-                    self.log.debug(message)
-                # Synchronize peak reception.
-                while not self._sync_buffer(peaks, self._nb_samples, nb_parallel_blocks=self._nb_fitters,
-                                            parallel_block_id=self._fitter_id, shift=shift):
-                    peaks_packet = self.get_input('peaks').receive(blocking=True)
-                    peaks = peaks_packet['payload']
-                    self._handle_peaks(peaks)
+            if self.get_input('peaks').has_received():
+                peaks_packet = self.get_input('peaks').receive(blocking=True, number=self._number)
+                if peaks_packet is not None:
+                    peaks = peaks_packet['payload']['peaks']
+                    p = self._nb_samples + self._merge_peaks(peaks)
+                    self.p = p
                     if verbose:
                         # Log debug message.
-                        string = "{} collects peaks {} (shift {}, sync)"
-                        message = string.format(self.name, peaks['offset'], shift)
+                        string = "{} collects peaks {} (init)"
+                        message = string.format(self.name, peaks_packet['payload']['offset'])
                         self.log.debug(message)
-                # Set active mode.
-                self._set_active_mode()
+                    # Set active mode.
+                    self._set_active_mode()
+                else:
+                    self.p = None
+            else:
+                self.p = None
 
         return
 
     def _process(self, verbose=False, timing=False):
-        # TODO add docstring.
 
         if timing:
             self._measure_time('preamble_start', period=10)
@@ -589,10 +582,10 @@ class Fitter(Block):
         # # Collect precedent data and peaks buffers.
         if self._nb_fitters > 1 and not(self.counter == 0 and self._fitter_id == 0):
             self._collect_data(shift=-1)
-            self._collect_peaks(shift=-1, verbose=verbose)
+            self._collect_peaks(verbose=verbose)
         # # Collect current data and peaks buffers.
         self._collect_data(shift=0)
-        self._collect_peaks(shift=0, verbose=verbose)
+        self._collect_peaks(verbose=verbose)
         # # Collect current updater buffer.
         updater_packet = self.get_input('updater').receive(blocking=False,
                                                            discarding_eoc=self.discarding_eoc_from_updater)
@@ -608,43 +601,39 @@ class Fitter(Block):
             while updater is not None:
 
                 # Log debug message.
-                string = "{} modifies template and overlap stores."
-                message = string.format(self.name)
+                string = "{} modifies template and overlap stores"
+                message = string.format(self.name_and_counter)
                 self.log.debug(message)
 
-                # Create the template dictionary if necessary.
+                # Modify template and overlap stores.
                 indices = updater.get('indices', None)
-                if self._overlaps_store is None:
-                    # Log debug message.
-                    string = "{} will initialize template and overlap stores ({}, {})"
-                    message = string.format(self.name, updater['template_store'], updater['overlaps']['path'])
-                    self.log.debug(message)
-                    # Create template store.
+                _ = indices  # Discard unused variable.
+                if self._template_store is None:
+                    # Initialize template and overlap stores.
                     self._template_store = TemplateStore(updater['template_store'], mode='r')
-                    # Create the overlaps store.
                     self._overlaps_store = OverlapsStore(template_store=self._template_store,
                                                          path=updater['overlaps']['path'], fitting_mode=True)
                     self._init_temp_window()
                     # Log debug message.
                     string = "{} initializes template and overlap stores ({}, {})"
-                    message = string.format(self.name, updater['template_store'], updater['overlaps']['path'])
+                    message = string.format(self.name_and_counter, updater['template_store'],
+                                            updater['overlaps']['path'])
                     self.log.debug(message)
+
                 else:
-                    # Log debug message.
-                    string = "{} will update template and overlap stores"
-                    message = string.format(self.name)
-                    self.log.debug(message)
+
+                    # TODO avoid duplicates in template store and uncomment the 3 following lines.
                     # Update template and overlap stores.
                     laziness = updater['overlaps']['path'] is None
                     self._overlaps_store.update(indices, laziness=laziness)
                     # Log debug message.
                     string = "{} updates template and overlap stores"
-                    message = string.format(self.name)
+                    message = string.format(self.name_and_counter)
                     self.log.debug(message)
 
                 # Log debug message.
-                string = "{} modified template and overlap stores."
-                message = string.format(self.name)
+                string = "{} modified template and overlap stores"
+                message = string.format(self.name_and_counter)
                 self.log.debug(message)
 
                 updater_packet = self.get_input('updater').receive(blocking=False,
@@ -696,7 +685,6 @@ class Fitter(Block):
 
     def _introspect(self):
         """Introspection."""
-        # TODO complete docstring.
 
         nb_buffers = self.counter - self.start_step
         start_times = np.array(self._measured_times.get('start', []))
