@@ -201,9 +201,10 @@ class TemplateComponent(object):
 
     def smooth(self, window=11, order=3):
         savgol_filter = np.hanning(self.temporal_width)
-        tmp_fast = scipy.signal.savgol_filter(self.waveforms, window, order, axis=1)
-        tmp_slow = scipy.signal.savgol_filter(self.waveforms, window, 3*order, axis=1)
-        self.waveforms = savgol_filter*tmp_fast + (1 - savgol_filter)*tmp_slow
+        if window > order:
+            tmp_fast = scipy.signal.savgol_filter(self.waveforms, window, order, axis=1)
+            tmp_slow = scipy.signal.savgol_filter(self.waveforms, window, 3*order, axis=1)
+            self.waveforms = savgol_filter*tmp_fast + (1 - savgol_filter)*tmp_slow
 
 class Template(object):
 

@@ -42,7 +42,7 @@ class DensityClustering(Block):
         'probe_path': None,
         'radius': None,
         'm_ratio': 0.01,
-        'noise_thr': 0.8,
+        'noise_thr': 0.2,
         'dispersion': [5, 5],
         'sub_dim': 10,
         'extraction': 'median-raw',
@@ -87,6 +87,9 @@ class DensityClustering(Block):
         self.sub_dim = self.sub_dim
         self.epsilon = self.epsilon
         self.theta = self.theta
+        self.smoothing_factor = int(0.2e-3*self.sampling_rate)
+        if np.mod(self.smoothing_factor, 2) == 0:
+            self.smoothing_factor += 1
         self.tracking = self.tracking
         self.safety_time = self.safety_time
         self.compression = self.compression
@@ -287,7 +290,7 @@ class DensityClustering(Block):
         for ind in templates.keys():
             template = templates[ind]
             template.compress(self.compression)
-            template.smooth()
+            template.smooth(self.smoothing_factor)
             template.center(key)
             self.templates[key][str(channel)][str(ind)] = template.to_dict()
 
@@ -390,7 +393,7 @@ class DensityClustering(Block):
                         online_manager = self.managers[key][channel]
 
                         threshold = self.thresholds[0, channel]
-                        online_manager.set_physical_threshold(threshold)
+                        online_manager.set_threshold(threshold)
 
                         # Log debug message (if necessary).
                         if self.counter % 50 == 0:

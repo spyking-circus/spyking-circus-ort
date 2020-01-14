@@ -470,11 +470,13 @@ class OnlineManager(object):
 
         waveforms = np.median(data, 0)
         amplitudes, full_ = self._compute_amplitudes(data, waveforms)
+        waveforms  *= np.median(full_)
+        amplitudes, full_ = self._compute_amplitudes(data, waveforms)
 
         first_component = TemplateComponent(waveforms, self._channel_edges, self.probe.nb_channels,
                                             amplitudes)
         if self.two_components:
-            waveforms = self._compute_second_component(data, waveforms, full_)
+            waveforms = self._compute_second_component(waveforms)
             second_component = TemplateComponent(waveforms, self._channel_edges, self.probe.nb_channels)
         else:
             second_component = None
@@ -681,7 +683,7 @@ class OnlineManager(object):
 
         return new_templates, modified_templates
 
-    def set_physical_threshold(self, threshold):
+    def set_threshold(self, threshold):
 
         # TODO check if threshold is normalized.
 
@@ -695,15 +697,15 @@ class OnlineManager(object):
         temp_flat = template.reshape(template.size, 1)
         amplitudes = np.dot(data, temp_flat)
         amplitudes /= np.sum(temp_flat ** 2)
-        variation = np.median(np.abs(amplitudes - np.median(amplitudes)))
+        variation = np.median(np.abs(amplitudes - 1))
 
-        amp_min = min(0.8, max(self._physical_threshold, np.median(amplitudes) - self.dispersion[0] * variation))
-        amp_max = max(1.2, np.median(amplitudes) + self.dispersion[1] * variation)
+        amp_min = min(0.8, max(self._physical_threshold, 1 - self.dispersion[0] * variation))
+        amp_max = max(1.2, 1 + self.dispersion[1] * variation)
 
         return np.array([amp_min, amp_max], dtype=np.float32), amplitudes
 
     @staticmethod
-    def _compute_second_component(data, waveforms, amplitudes=None):
+    def _compute_second_component(waveforms):
 
         return np.diff(waveforms).reshape(1, waveforms.size)
 
