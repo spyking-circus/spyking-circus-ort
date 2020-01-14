@@ -97,14 +97,14 @@ def sorting(configuration_name):
     }
     pca_kwargs = {
         'name': "pca",
-        'nb_waveforms': 100,
+        'nb_waveforms': 200,
         'introspection_path': introspection_directory,
         'log_level': DEBUG,
     }
     cluster_kwargs = {
         'name': "cluster",
         'sampling_rate': sampling_rate,
-        'nb_waveforms': 100,
+        'nb_waveforms': 200,
         'probe_path': probe_path,
         'two_components': False,
         'introspection_path': introspection_directory,
