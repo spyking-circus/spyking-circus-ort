@@ -42,7 +42,7 @@ class DensityClustering(Block):
         'probe_path': None,
         'radius': None,
         'm_ratio': 0.01,
-        'noise_thr': 0.2,
+        'noise_thr': 0.8,
         'dispersion': [5, 5],
         'sub_dim': 10,
         'extraction': 'median-raw',
@@ -289,7 +289,7 @@ class DensityClustering(Block):
 
         for ind in templates.keys():
             template = templates[ind]
-            template.compress(self.compression)
+            template.compress(0.1, thresholds=self.thresholds)
             template.smooth(self.smoothing_factor)
             template.center(key)
             self.templates[key][str(channel)][str(ind)] = template.to_dict()
