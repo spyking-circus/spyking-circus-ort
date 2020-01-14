@@ -244,12 +244,15 @@ class Snippet(object):
 
         return central_time_step, aligned_data
 
-    def to_array(self):
+    def to_array(self, indices=None):
 
         if self._is_aligned:
             array = np.transpose(self._aligned_data)
         else:
             array = np.transpose(self._data)
+
+        if indices is not None:
+            array = array[indices, :]
 
         return array
 

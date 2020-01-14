@@ -467,12 +467,15 @@ class Template(object):
 
         return
 
-    def compress(self, compression_factor=0.5):
+    def compress(self, compression_factor=0.5, thresholds=None):
 
         if compression_factor > 0:
             stds = np.std(self.first_component.waveforms, 1)
-            threshold = np.percentile(stds, int(compression_factor * 100.0))
-            indices = np.where(stds < threshold)[0]
+            if thresholds is None:
+                threshold = np.percentile(stds, int(compression_factor * 100.0))
+                indices = np.where(stds < threshold)[0]
+            else:
+                indices = np.where(stds < compression_factor*thresholds)
             self._compress(indices)
 
         return

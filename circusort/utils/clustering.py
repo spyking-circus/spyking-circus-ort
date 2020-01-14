@@ -227,9 +227,6 @@ class OnlineManager(object):
             self.fig_name = os.path.join(self.debug_plots, '{n}_{t}.{f}')
             self.fig_name_2 = os.path.join(self.debug_plots, '{n}_{t}_tracking.{f}')
 
-        if self.hanning_filtering:
-            self.hanning_filter = np.hanning(N_t)[:, np.newaxis]
-
         self.time = 0
         self.is_ready = False
         self.abs_n_min = 20
@@ -245,6 +242,7 @@ class OnlineManager(object):
 
         # Define internal variables.
         self._width = None
+        self._full_width = None
         self._W = None
         self._physical_threshold = None
         self._pc_lim = None
@@ -281,7 +279,8 @@ class OnlineManager(object):
         if self.hanning_filtering:
             snippets.filter()
 
-        data = snippets.to_array()
+        full_data = snippets.to_array()
+        data = full_data[:, self._channel_edges, :]
 
         self.time = time
 
@@ -296,6 +295,9 @@ class OnlineManager(object):
         a, b, c = data.shape
         self._width = b * c
         data = data.reshape(a, self._width)
+        a, b, c = full_data.shape
+        self._full_width = b * c
+        full_data = full_data.reshape(a, self._full_width)
 
         # Log debug message.
         string = "{} computes local PCA"
@@ -335,7 +337,7 @@ class OnlineManager(object):
         for count, cluster_id in enumerate(np.unique(labels[mask])):
 
             indices = np.where(labels == cluster_id)[0]
-            data_cluster = data[indices]
+            data_cluster = full_data[indices]
             sub_data_cluster = sub_data[indices]
 
             self.clusters[count] = MacroCluster(count, sub_data_cluster, data_cluster, creation_time=self.time)
@@ -448,7 +450,7 @@ class OnlineManager(object):
 
     def _get_centers_full(self, cluster_type='dense'):
 
-        centers = np.zeros((0, self._width), dtype=np.float32)
+        centers = np.zeros((0, self._full_width), dtype=np.float32)
         for cluster in self._get_clusters(cluster_type):
             centers = np.vstack((centers, [cluster.center_full]))
 
@@ -468,16 +470,16 @@ class OnlineManager(object):
 
     def _get_template(self, data):
 
-        waveforms = np.median(data, 0)
+        waveforms  = np.median(data, 0)
         amplitudes, full_ = self._compute_amplitudes(data, waveforms)
-        waveforms  *= np.median(full_)
+        waveforms *= np.median(full_)
         amplitudes, full_ = self._compute_amplitudes(data, waveforms)
 
-        first_component = TemplateComponent(waveforms, self._channel_edges, self.probe.nb_channels,
+        first_component = TemplateComponent(waveforms, self.probe.nodes, self.probe.nb_channels,
                                             amplitudes)
         if self.two_components:
             waveforms = self._compute_second_component(waveforms)
-            second_component = TemplateComponent(waveforms, self._channel_edges, self.probe.nb_channels)
+            second_component = TemplateComponent(waveforms, self.probe.nodes, self.probe.nb_channels)
         else:
             second_component = None
 
@@ -587,11 +589,12 @@ class OnlineManager(object):
             if self.hanning_filtering:
                 snippets.filter()
 
-            data = snippets.to_array()
+            full_data = snippets.to_array()
+            data = full_data[self._channel_edges, :]
 
             if self.glob_pca is not None:
                 red_data = np.dot(data, self.glob_pca)
-                data = data.reshape(1, self._width)
+                full_data = full_data.reshape(1, self._full_width)
                 red_data = red_data.reshape(1, self.loc_pca.shape[0])
 
                 if self.loc_pca is not None:
@@ -599,19 +602,19 @@ class OnlineManager(object):
                 else:
                     pca_data = red_data
             else:
-                data = data.reshape(1, self._width)
+                full_data = full_data.reshape(1, self._full_width)
                 if self.loc_pca is not None:
                     pca_data = np.dot(data, self.loc_pca)
                 else:
                     raise NotImplementedError()
 
-            if self._merged_into(pca_data, data, 'dense'):
+            if self._merged_into(pca_data, full_data, 'dense'):
                 # Log debug message.
                 string = "{} merges the data at time {} into a dense cluster"
                 message = string.format(self.name, self.time)
                 self.log.debug(message)
             else:
-                if self._merged_into(pca_data, data, 'sparse'):
+                if self._merged_into(pca_data, full_data, 'sparse'):
                     # Log debug message.
                     string = "{} merges data at time {} into a sparse cluster"
                     message = string.format(self.name, self.time)
@@ -623,7 +626,7 @@ class OnlineManager(object):
                     self.log.debug(message)
                     # Create new sparse cluster.
                     new_id = self._get_id()
-                    new_cluster = MacroCluster(new_id, pca_data, data, creation_time=self.time)
+                    new_cluster = MacroCluster(new_id, pca_data, full_data, creation_time=self.time)
                     new_cluster.set_label('sparse')
                     self.clusters[new_id] = new_cluster
 
@@ -699,8 +702,8 @@ class OnlineManager(object):
         amplitudes /= np.sum(temp_flat ** 2)
         variation = np.median(np.abs(amplitudes - 1))
 
-        amp_min = min(0.8, max(self._physical_threshold, 1 - self.dispersion[0] * variation))
-        amp_max = max(1.2, 1 + self.dispersion[1] * variation)
+        amp_min = min(0.8, max(self._physical_threshold, np.median(amplitudes) - self.dispersion[0] * variation))
+        amp_max = max(1.2, np.median(amplitudes) + self.dispersion[1] * variation)
 
         return np.array([amp_min, amp_max], dtype=np.float32), amplitudes
 
