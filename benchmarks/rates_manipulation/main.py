@@ -207,11 +207,11 @@ def main():
         detector = manager.create_block('peak_detector', **detector_kwargs)
         pca = manager.create_block('pca', **pca_kwargs)
         cluster = manager.create_block('density_clustering', **cluster_kwargs)
-        updater = manager.create_block('template_updater_bis', **updater_kwargs)
-        fitter = manager.create_network('fitter_bis', **fitter_kwargs)
+        updater = manager.create_block('template_updater', **updater_kwargs)
+        fitter = manager.create_network('fitter', **fitter_kwargs)
 
 
-        cluster = manager.create_network('cluster', **cluster_args)
+        cluster = manager.create_network('cluster', **cluster_kwargs)
 
         writer = manager.create_block('spike_writer', **writer_kwargs)
         # Initialize the elements of the network.

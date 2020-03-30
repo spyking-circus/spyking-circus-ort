@@ -129,7 +129,7 @@ def sorting(configuration_name):
         'sampling_rate': sampling_rate,
         'discarding_eoc_from_updater': True,
         'introspection_path': introspection_directory,
-        'log_level': DEBUG,
+        'log_level': INFO,
     }
     writer_kwargs = {
         'name': "writer",
@@ -137,7 +137,7 @@ def sorting(configuration_name):
         'sampling_rate': sampling_rate,
         'nb_samples': nb_samples,
         'introspection_path': introspection_directory,
-        'log_level': DEBUG,
+        'log_level': INFO,
     }
 
     # Define the elements of the network.

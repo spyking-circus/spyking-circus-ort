@@ -3,6 +3,7 @@ import numpy as np
 import os
 
 from circusort.block.block import Block
+from circusort.utils.fitter import largest_indices
 from circusort.obj.template_store import TemplateStore
 from circusort.obj.overlaps_store import OverlapsStore
 
@@ -152,19 +153,10 @@ class Fitter(Block):
 
     def _init_temp_window(self):
 
-        self.slice_indices = np.zeros(0, dtype=np.int32)
         self._width = (self._overlaps_store.temporal_width - 1) // 2
         self._2_width = 2 * self._width
-        temp_window = np.arange(-self._width, self._width + 1)
+        self.temp_window = np.arange(-self._width, self._width + 1)
         buffer_size = 2 * self._nb_samples
-        for idx in range(self._nb_channels):
-            self.slice_indices = np.concatenate((self.slice_indices, idx * buffer_size + temp_window))
-
-        # Log debug message.
-        string = "{} initializes slice indices: {}"
-        message = string.format(self.name, self.slice_indices)
-        self.log.debug(message)
-
         return
 
     def _is_valid(self, peak_step):
@@ -226,12 +218,8 @@ class Fitter(Block):
                 number of channels x number of samples.
         """
 
-        batch = self.x.T.flatten()
-        nb_peaks = len(peak_time_steps)
-        waveforms = np.zeros((self._overlaps_store.nb_elements, nb_peaks), dtype=np.float32)
-        for k, peak_time_step in enumerate(peak_time_steps):
-            waveforms[:, k] = batch[self.slice_indices + peak_time_step]
-
+        waveforms = self.x[peak_time_steps[:, None] + self.temp_window]
+        waveforms = waveforms.transpose(2, 1, 0).reshape(self._overlaps_store.nb_elements, len(peak_time_steps))
         return waveforms
 
     def _fit_chunk(self, verbose=False, timing=False):
@@ -280,8 +268,6 @@ class Fitter(Block):
 
             # Initialize the failure counter of each peak.
             nb_failures = np.zeros(nb_peaks, dtype=np.int32)
-            # Initialize the matching matrix.
-            mask = np.ones((self._overlaps_store.nb_templates, nb_peaks), dtype=np.int32)
             
             if verbose:
                 # Log debug message.
@@ -293,13 +279,24 @@ class Fitter(Block):
                 self._measure_time('while_loop_start', period=10)
             # TODO rewrite condition according to the 3 last lines of the nested while loop.
             # while not np.all(nb_failures == self.max_nb_trials):
+
+            numerous_argmax = False
+            nb_argmax = self.nb_templates
+            best_indices = np.zeros(0, dtype=np.int32)
+
             while np.mean(nb_failures) < self.nb_chances:
 
                 # Set scalar products of tested matches to zero.
-                data = scalar_products[:self._overlaps_store.nb_templates, :] * mask
+                data = scalar_products[:self._overlaps_store.nb_templates, :]
 
                 # Find the best template.
-                best_template_index, peak_index = np.unravel_index(data.argmax(), data.shape)
+
+                if numerous_argmax:
+                    if len(best_indices) == 0:
+                        best_indices = largest_indices(data, nb_argmax)
+                    best_template_index, peak_index = np.unravel_index(best_indices[0], data.shape)
+                else:
+                    best_template_index, peak_index = np.unravel_index(data.argmax(), data.shape)
 
                 # TODO remove peaks with scalar products equal to zero?
                 # TODO consider the absolute values of the scalar products?
@@ -376,10 +373,15 @@ class Fitter(Block):
                     if timing:
                         self._measure_time('for_loop_concatenate_end', period=10)
                     # Mark current matching as tried.
-                    mask[best_template_index, peak_index] = 0
+                    scalar_products[best_template_index, peak_index] = -np.inf
                     if timing:
                         self._measure_time('for_loop_accept_end', period=10)
+
+                    numerous_argmax = False
                 else:
+
+                    numerous_argmax = True
+
                     if verbose:
                         # Log debug message.
                         string = "{} processes (p {}, t {}) -> (a {}, reject)"
@@ -392,9 +394,15 @@ class Fitter(Block):
                     nb_failures[peak_index] += 1
                     # If the maximal number of failures is reached then mark peak as solved (i.e. not fitted).
                     if nb_failures[peak_index] == self.nb_chances:
-                        mask[:, peak_index] = 0
+                        scalar_products[:, peak_index] = -np.inf
+                        index = np.arange(self.nb_templates) * nb_peaks + peak_index
                     else:
-                        mask[best_template_index, peak_index] = 0
+                        scalar_products[best_template_index, peak_index] = -np.inf
+                        index = best_template_index * nb_peaks + peak_index
+
+                    if numerous_argmax:
+                        best_indices = best_indices[~np.in1d(best_indices, index)]
+
                     # Add reject to the result if necessary.
                     if self.with_rejected_times:
                         self.r['rejected_times'] = np.concatenate((self.r['rejected_times'],
