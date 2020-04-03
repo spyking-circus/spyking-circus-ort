@@ -105,14 +105,20 @@ def main():
 
         # Load the data.
         data_path = os.path.join(generation_directory, "data.raw")
-        data = load_datafile(data_path, sampling_rate, nb_channels, 'int16', 0.1042)
+        data = load_datafile(data_path, sampling_rate, nb_channels=nb_channels, dtype='int16', gain=0.1042)
 
         # Load the peaks.
         peaks_path = os.path.join(detection_directory, "peaks.h5")
         peaks = load_peaks(peaks_path)
 
-        t_min = duration - 1.5  # s
-        t_max = duration - 0.5 # s
+        # print("duration: {} s".format(duration))  # i.e. "duration: 300.0 s"
+
+        # t_min = 0.0 + 0.5  # s
+        # t_max = 0.0 + 1.5  # s
+        t_min = 0.5 * duration - 0.5  # s
+        t_max = 0.5 * duration + 0.5  # s
+        # t_min = duration - 1.5  # s
+        # t_max = duration - 0.5  # s
 
         # Plot the data.
         ax = data.plot(t_min=t_min, t_max=t_max, linewidth=0.25, color='C0')

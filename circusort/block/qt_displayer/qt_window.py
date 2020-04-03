@@ -160,6 +160,8 @@ class QtWindow(QMainWindow):
         # Set window title.
         self.setWindowTitle("SpyKING Circus ORT - Read 'n' Qt display")
 
+        print("#####")  # TODO understand why it makes it work!
+
     def number_callback(self, number):
 
         text = u"{}".format(number)

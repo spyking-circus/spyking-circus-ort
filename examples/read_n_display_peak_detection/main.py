@@ -47,7 +47,8 @@ def main():
         'name': "reader",
         'data_path': args.data_path,
         'dtype': 'int16',
-        'nb_channels': 30,
+        # 'nb_channels': 30,  # TODO remove?
+        'nb_channels': 256,  # TODO auto?
         'nb_samples': 2000,
         'sampling_rate': 20e+3,
         'is_realistic': True,
