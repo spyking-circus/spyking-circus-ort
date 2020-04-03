@@ -284,16 +284,17 @@ class Fitter(Block):
             nb_argmax = self.nb_templates
             best_indices = np.zeros(0, dtype=np.int32)
 
-            while np.mean(nb_failures) < self.nb_chances:
+            # Set scalar products of tested matches to zero.
+            data = scalar_products[:self._overlaps_store.nb_templates, :]
+            data_flatten = data.ravel()
 
-                # Set scalar products of tested matches to zero.
-                data = scalar_products[:self._overlaps_store.nb_templates, :]
+            while np.mean(nb_failures) < self.nb_chances:
 
                 # Find the best template.
 
                 if numerous_argmax:
                     if len(best_indices) == 0:
-                        best_indices = largest_indices(data, nb_argmax)
+                        best_indices = largest_indices(data_flatten, nb_argmax)
                     best_template_index, peak_index = np.unravel_index(best_indices[0], data.shape)
                 else:
                     best_template_index, peak_index = np.unravel_index(data.argmax(), data.shape)

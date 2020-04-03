@@ -16,15 +16,15 @@ def nd_bhatta_dist(X1, X2):
 
     mu_1 = np.mean(X1, 1)
     mu_2 = np.mean(X2, 1)
-    ms   = mu_1 - mu_2
+    ms = mu_1 - mu_2
 
     cov_1 = np.cov(X1)
     cov_2 = np.cov(X2)
-    cov   = (cov_1 + cov_2)/2
+    cov = (cov_1 + cov_2)/2
 
     det_1 = np.linalg.det(cov_1)
     det_2 = np.linalg.det(cov_2)
-    det   = np.linalg.det(cov)
+    det = np.linalg.det(cov)
 
     dist = (1/8.)*np.dot(np.dot(ms.T, np.linalg.inv(cov)), ms) + 0.5*np.log(det/np.sqrt(det_1*det_2))
     return dist
