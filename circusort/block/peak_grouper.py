@@ -3,24 +3,24 @@ import numpy as np
 from circusort.block.block import Block
 
 
-__classname__ = "ChannelGrouper"
+__classname__ = "PeakGrouper"
 
 
-class ChannelGrouper(Block):
-    """Channel grouper.
+class PeakGrouper(Block):
+    """Peak grouper.
 
     Attribute:
         nb_groups: integer
     """
 
-    name = "Channel grouper"
+    name = "Peak grouper"
 
-    params = {
+    param = {
         'nb_groups': 1,
     }
 
     def __init__(self, **kwargs):
-        """Initialize channel grouper.
+        """Initialize peak grouper.
 
         Argument:
             nb_groups: integer (optional)
@@ -34,15 +34,14 @@ class ChannelGrouper(Block):
         self.nb_groups = self.nb_groups
 
         for k in range(0, self.nb_groups):
-            self.add_input('data_{}'.format(k), structure='dict')
-        self.add_output('data', structure='dict')
+            self.add_input('peaks_{}'.format(k), structure='dict')
+        self.add_output('peaks', structure='dict')
 
-        self.dtype = None
         self.nb_samples = None
-        self.nb_channels = None
         self.sampling_rate = None
+        # TODO define additional parameters (if necessary).
 
-        self._result = None
+        # TODO define internal parameters (if necessary).
 
     def _initialize(self):
 
@@ -50,47 +49,27 @@ class ChannelGrouper(Block):
 
         return
 
-    def _configure_input_parameters(self, dtype=None, nb_samples=None, nb_channels=None, sampling_rate=None, **kwargs):
+    def _configure_input_parameters(self, nb_samples=None, sampling_rate=None, **kwargs):
 
-        if dtype is not None:
-            self.dtype = dtype
         if nb_samples is not None:
             self.nb_samples = nb_samples
-        if nb_channels is not None:
-            self.nb_channels = nb_channels
         if sampling_rate is not None:
             self.sampling_rate = sampling_rate
+        # TODO configure additional parameters (if necessary).
 
         return
 
     def _update_initialization(self):
 
-        # Compute the number of channels grouped from the input endpoints.
-        nb_channels = 0
-        for k in range(0, self.nb_groups):
-            input_name = 'data_{}'.format(k)
-            input_endpoint = self.get_input(input_name)
-            input_parameters = input_endpoint.get_input_parameters()
-            nb_channels += input_parameters['nb_channels']
-        self.configure_input_parameters(nb_channels=nb_channels)
-
-        shape = (self.nb_samples, self.nb_channels)
-        self._result = np.zeros(shape, dtype=self.dtype)
-
-        # Log debug message.
-        string = "{} updated initialization (nb_channels={})"
-        message = string.format(self.name_and_counter, self.nb_channels)
-        self.log.debug(message)
+        pass
 
         return
 
     def _get_output_parameters(self):
 
         params = {
-            'dtype': self.dtype,
-            'nb_samples': self.nb_samples,
-            'nb_channels': self.nb_channels,
-            'sampling_rate': self.sampling_rate,
+            # 'nb_samples': self.nb_samples,  # TODO uncomment?
+            # 'sampling_rate': self.sampling_rate,  # TODO uncomment?
         }
 
         return params
@@ -98,26 +77,44 @@ class ChannelGrouper(Block):
     def _process(self):
 
         # Receive input packets.
-        packets = {}
+        input_packets = {}
         for k in range(0, self.nb_groups):
-            input_name = 'data_{}'.format(k)
-            packets[k] = self.get_input(input_name).receive()
+            input_name = 'peaks_{}'.format(k)
+            input_packets[k] = self.get_input(input_name).receive()
 
         self._measure_time('start')
 
         # Unpack input packets.
         number = None
+        grouped_peaks = {}
         for k in range(0, self.nb_groups):
-            number = packets[k]['number']  # TODO check that all the number are the same.
-            batch = packets[k]['payload']
-            self._result[:, k::self.nb_groups] = batch
+            number = input_packets[k]['number']
+            peaks = input_packets[k]['payload']['peaks']
+            thresholds = input_packets[k]['payload']['thresholds']
+            for key, value in peaks.items():
+                if key == 'offset':
+                    grouped_peaks.update([(key, value)])
+                elif key in ['negative', 'positive']:
+                    # Remap channels correctly.
+                    value = {
+                        str(int(channel) * self.nb_groups + k): times
+                        for channel, times in value.items()
+                    }
+                    # Accumulate peaks.
+                    if key in grouped_peaks:
+                        grouped_peaks[key].update(value)
+                    else:
+                        grouped_peaks[key] = value
+                else:
+                    pass
 
         # Send output packet.
-        packet = {
+        output_packet = {
             'number': number,
-            'payload': self._result,
+            'payload': grouped_peaks,
+            'thresholds': thresholds
         }
-        self.output.send(packet)
+        self.output.send(output_packet)
 
         self._measure_time('end')
 

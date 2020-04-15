@@ -1,5 +1,4 @@
 class Match(object):
-    # TODO add docstring.
 
     def __init__(self, cell_pred, cell_true, t_min=None, t_max=None):
 
@@ -9,7 +8,6 @@ class Match(object):
         self._t_max = t_max
 
     def collect_false_positives(self):
-        # TODO add docstring.
 
         train_pred = self._cell_pred.train
         train_true = self._cell_true.train
@@ -19,7 +17,6 @@ class Match(object):
         return train_fp
 
     def collect_false_negatives(self):
-        # TODO add docstring.
 
         train_pred = self._cell_pred.train
         train_true = self._cell_true.train
@@ -27,3 +24,7 @@ class Match(object):
         train_fn = train_pred.collect_false_negatives(train_true)
 
         return train_fn
+
+    def get_cells(self):
+
+        return self._cell_pred, self._cell_true

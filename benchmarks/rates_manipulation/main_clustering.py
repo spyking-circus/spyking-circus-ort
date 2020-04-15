@@ -15,7 +15,9 @@ duration = 2 * 60
 radius = 100
 preload_templates = False
 nb_waveforms_clustering = 100
+nb_waveforms_pca = 100
 nb_replay = 1
+nb_clustering = 1
 nb_fitters = 1
 data_path = "rates_manipulation"
 
@@ -146,10 +148,12 @@ def main():
             'name': "detector",
             'threshold_factor': threshold_factor,
             'sampling_rate': sampling_rate,
+            'log_level': DEBUG,
         }
         pca_kwargs = {
             'name': "pca",
-            'nb_waveforms': 10000,
+            'nb_waveforms': nb_waveforms_pca,
+            'log_level': DEBUG,
         }
         cluster_kwargs = {
             'name': "cluster",
@@ -206,13 +210,19 @@ def main():
         mad = manager.create_block('mad_estimator', **mad_kwargs)
         detector = manager.create_block('peak_detector', **detector_kwargs)
         pca = manager.create_block('pca', **pca_kwargs)
-        cluster = manager.create_block('density_clustering', **cluster_kwargs)
-        updater = manager.create_block('template_updater', **updater_kwargs)
-        fitter = manager.create_network('fitter', **fitter_kwargs)
 
 
-        cluster = manager.create_network('cluster', **cluster_kwargs)
+        clusters = []
+        for i in range(nb_clustering):
+            cluster_params = cluster_kwargs
+            cluster_params['name'] = 'cluster_%d' %i
+            cluster_params['channels'] = list(range(i, nb_channels, nb_clustering))
+            clusters += [manager.create_block('density_clustering', **cluster_params)]
 
+        updater = manager.create_block('template_updater_bis', **updater_kwargs)
+        fitter = manager.create_network('fitter_bis', **fitter_kwargs)
+        #cluster = manager.create_network('density_clustering', **cluster_kwargs)
+        
         writer = manager.create_block('spike_writer', **writer_kwargs)
         # Initialize the elements of the network.
         director.initialize()
@@ -224,28 +234,38 @@ def main():
             mad.input,
             detector.get_input('data'),
             pca.get_input('data'),
-            cluster.get_input('data'),
             fitter.get_input('data'),
         ])
         director.connect(mad.output, [
             detector.get_input('mads'),
-            cluster.get_input('mads'),
         ])
         director.connect(detector.get_output('peaks'), [
             pca.get_input('peaks'),
-            cluster.get_input('peaks'),
             fitter.get_input('peaks'),
         ])
-        director.connect(pca.get_output('pcs'), [
-            cluster.get_input('pcs'),
-        ])
-        director.connect(cluster.get_output('templates'), [
-            updater.get_input('templates'),
-        ])
+        for i in range(nb_clustering):
+            director.connect(filter_.output, [
+                clusters[i].get_input('data')
+            ])
+            director.connect(mad.output, [
+                clusters[i].get_input('mads')
+            ])
+            director.connect(detector.get_output('peaks'), [
+                clusters[i].get_input('peaks')
+            ])
+            director.connect(pca.get_output('pcs'), [
+                clusters[i].get_input('pcs')
+            ])
+            director.connect(clusters[i].output,
+                updater.get_input('templates'))
+
         director.connect(updater.get_output('updater'), [
             fitter.get_input('updater'),
         ])
+        
         director.connect_network(fitter)
+        #director.connect_network(cluster)
+
         director.connect(fitter.get_output('spikes'), [
             writer.input,
         ])

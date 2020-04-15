@@ -4,14 +4,16 @@ from scipy.cluster.hierarchy import leaves_list, linkage, optimal_leaf_ordering
 
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 
 
 class Similarities(object):
 
-    def __init__(self, cells_pred, cells_true):
+    def __init__(self, cells_pred, cells_true, path=None):
 
         self._cells_pred = cells_pred
         self._cells_true = cells_true
+        self._path = path
 
         self._cmap = 'RdBu'
 
@@ -30,17 +32,25 @@ class Similarities(object):
 
     def _update(self):
 
-        nb_cells_pred = self._cells_pred.nb_cells
-        nb_cells_true = self._cells_true.nb_cells
-        shape = (nb_cells_pred, nb_cells_true)
+        if self._path is not None and os.path.isfile(self._path):
 
-        self._similarities = np.zeros(shape, dtype=np.float)
+            self._load()
 
-        for i, cell_pred in enumerate(self._cells_pred):
-            template_pred = cell_pred.template
-            for j, cell_true in enumerate(self._cells_true):
-                template_true = cell_true.template
-                self._similarities[i, j] = template_pred.similarity(template_true)
+        else:
+
+            nb_cells_pred = self._cells_pred.nb_cells
+            nb_cells_true = self._cells_true.nb_cells
+            shape = (nb_cells_pred, nb_cells_true)
+
+            self._similarities = np.zeros(shape, dtype=np.float)
+
+            for i, cell_pred in enumerate(self._cells_pred):
+                template_pred = cell_pred.template
+                for j, cell_true in enumerate(self._cells_true):
+                    template_true = cell_true.template
+                    self._similarities[i, j] = template_pred.similarity(template_true)
+
+            self._save()
 
         return
 
@@ -49,25 +59,41 @@ class Similarities(object):
 
         # WARNING: this function is useful only when the detected templates are strictly equal to the generated
         # templates, otherwise it does not make any sense to run a hierarchical clustering on the similarity matrix.
+        assert self._cells_true.nb_cells == self._cells_pred.nb_cells
+        nb_cells = self._cells_true.nb_cells
 
         if self._ordered_indices is None:
 
-            metric = 'correlation'
-            # Define the distance matrix.
-            distances = pdist(self._similarities, metric=metric)
-            # Perform hierachical/agglomerative clustering.
-            linkages = linkage(distances, method='single', metric=metric)
-            # Reorder templates.
-            linkages_ordered = optimal_leaf_ordering(linkages, distances, metric=metric)
-            # Extract ordered list.
-            self._ordered_indices = leaves_list(linkages_ordered)
+            if nb_cells > 1:
+                metric = 'correlation'
+                # Define the distance matrix.
+                distances = pdist(self._similarities, metric=metric)
+                # Perform hierarchical/agglomerative clustering.
+                linkages = linkage(distances, method='single', metric=metric)
+                # Reorder templates.
+                linkages_ordered = optimal_leaf_ordering(linkages, distances, metric=metric)
+                # Extract ordered list.
+                self._ordered_indices = leaves_list(linkages_ordered)
+            else:
+                self._ordered_indices = np.arange(0, nb_cells)
 
         return self._ordered_indices
 
-    def plot(self, ax=None, ordering=False, path=None):
+    def highest_similarities(self, num=1):
+
+        ordered_similarities = np.sort(self._similarities, axis=1)
+        k_min = ordered_similarities.shape[1] - num
+        k_max = ordered_similarities.shape[1]
+        highest_similarities = ordered_similarities[:, k_min:k_max]
+        highest_similarities = np.fliplr(highest_similarities)
+
+        return highest_similarities
+
+    def plot(self, ax=None, ordering=False, path=None, figsize=None, title="Template similarities", title_fontsize=None,
+             label_fontsize=None, ticklabel_fontsize=None):
 
         if ax is None:
-            fig, ax = plt.subplots()
+            fig, ax = plt.subplots(figsize=figsize)
         else:
             fig = ax.get_figure()
 
@@ -87,16 +113,44 @@ class Similarities(object):
         ax.set_xticks([])
         ax.set_yticks([])
 
-        ax.set_xlabel("injected templates")
-        ax.set_ylabel("detected templates")
-        ax.set_title("Template similarities")
+        ax.set_xlabel("injected templates", fontsize=label_fontsize)
+        ax.set_ylabel("detected templates", fontsize=label_fontsize)
+        ax.set_title(title, fontsize=title_fontsize)
 
-        bar.set_label("correlation")
-        bar.ax.set_yticklabels(["$-1$", "$0$", "$+1$"])
+        bar.set_label("correlation", fontsize=label_fontsize)
+        bar.ax.set_yticklabels(["$-1$", "$0$", "$+1$"], fontsize=ticklabel_fontsize)
 
         fig.tight_layout()
 
         if path is not None:
             fig.savefig(path)
+
+        return
+
+    def _save(self):
+
+        if self._path is not None:
+            self.save(self._path)
+
+        return
+
+    def save(self, path):
+
+        kwargs = {
+            'i': np.array(self._cells_pred.ids),
+            'j': np.array(self._cells_true.ids),
+            'matrix': np.array(self._similarities),
+        }
+        if self._ordered_indices is not None:
+            kwargs['order'] = np.array(self._ordered_indices)
+
+        np.savez(path, **kwargs)
+
+        return
+
+    def _load(self):
+
+        with np.load(self._path) as file:
+            self._similarities = file['matrix']
 
         return

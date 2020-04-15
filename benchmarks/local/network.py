@@ -2,7 +2,7 @@ import os
 
 import circusort
 
-from logging import DEBUG
+from logging import DEBUG, INFO
 
 
 name = "network"
@@ -11,29 +11,6 @@ directory = os.path.join("~", ".spyking-circus-ort", "benchmarks", "local")
 directory = os.path.expanduser(directory)
 
 nb_fitters = 4
-
-block_names = [
-    "reader",
-    "filter",
-    "mad",
-    "detector",
-    "pca",
-    # "cluster",
-    # "updater_bis",
-    "writer",
-] + [
-    "fitter_bis_fitter_bis_{}".format(k)
-    for k in range(0, nb_fitters)
-]
-block_nb_buffers = {
-    "fitter_bis_fitter_bis_{}".format(k): nb_fitters
-    for k in range(0, nb_fitters)
-}
-block_labels = {
-    "fitter_bis_fitter_bis_{}".format(k): "fitter {}".format(k)
-    for k in range(0, nb_fitters)
-}
-
 
 def sorting(configuration_name):
     """Create the 1st sorting subnetwork.
@@ -120,40 +97,39 @@ def sorting(configuration_name):
     }
     pca_kwargs = {
         'name': "pca",
-        'nb_waveforms': 100000,
+        'nb_waveforms': 200,
         'introspection_path': introspection_directory,
         'log_level': DEBUG,
     }
     cluster_kwargs = {
         'name': "cluster",
-        'threshold_factor': threshold_factor,
         'sampling_rate': sampling_rate,
-        'nb_waveforms': 100000,
+        'nb_waveforms': 200,
         'probe_path': probe_path,
         'two_components': False,
         'introspection_path': introspection_directory,
-        'log_level': DEBUG,
+        'log_level': INFO,
     }
-    updater_bis_kwargs = {
-        'name': "updater_bis",
+    updater_kwargs = {
+        'name': "updater",
         'probe_path': probe_path,
         'templates_path': os.path.join(sorting_directory, "templates.h5"),
         'overlaps_path': os.path.join(sorting_directory, "overlaps.p"),
-        'precomputed_template_paths': precomputed_template_paths,
+        #'precomputed_template_paths': precomputed_template_paths,
         'sampling_rate': sampling_rate,
         'nb_samples': nb_samples,
         'introspection_path': introspection_directory,
         'log_level': DEBUG,
     }
-    fitter_bis_kwargs = {
-        'name': "fitter_bis",
+    fitter_kwargs = {
+        'name': "fitter",
         'degree': nb_fitters,
         # 'templates_init_path': os.path.join(sorting_directory, "templates.h5"),
         # 'overlaps_init_path': os.path.join(sorting_directory, "overlaps.p"),
         'sampling_rate': sampling_rate,
         'discarding_eoc_from_updater': True,
         'introspection_path': introspection_directory,
-        'log_level': DEBUG,
+        'log_level': INFO,
     }
     writer_kwargs = {
         'name': "writer",
@@ -161,7 +137,7 @@ def sorting(configuration_name):
         'sampling_rate': sampling_rate,
         'nb_samples': nb_samples,
         'introspection_path': introspection_directory,
-        'log_level': DEBUG,
+        'log_level': INFO,
     }
 
     # Define the elements of the network.
@@ -177,8 +153,8 @@ def sorting(configuration_name):
     peak_writer = managers['master'].create_block('peak_writer', **peak_writer_kwargs)
     pca = managers['master'].create_block('pca', **pca_kwargs)
     cluster = managers['master'].create_block('density_clustering', **cluster_kwargs)
-    updater = managers['master'].create_block('template_updater_bis', **updater_bis_kwargs)
-    fitter = managers['master'].create_network('fitter_bis', **fitter_bis_kwargs)
+    updater = managers['master'].create_block('template_updater', **updater_kwargs)
+    fitter = managers['master'].create_network('fitter', **fitter_kwargs)
     writer = managers['master'].create_block('spike_writer', **writer_kwargs)
     # Initialize the elements of the network.
     director.initialize()
@@ -194,8 +170,7 @@ def sorting(configuration_name):
         fitter.get_input('data'),
     ])
     director.connect(mad.output, [
-        detector.get_input('mads'),
-        cluster.get_input('mads'),
+        detector.get_input('mads')
     ])
     director.connect(detector.get_output('peaks'), [
         peak_writer.get_input('peaks'),

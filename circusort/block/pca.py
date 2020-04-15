@@ -1,3 +1,4 @@
+# coding: utf8
 from .block import Block
 
 # import matplotlib.pyplot as plt
@@ -36,13 +37,14 @@ class PCA(Block):
     name = "PCA"
 
     params = {
-        'spike_width': 5.0,  # ms
-        'spike_jitter': 1.0,  # ms
+        'spike_width': 3.0,  # ms
+        'spike_jitter': 0.1,  # ms
         'spike_sigma': 0.0,  # µV
         'output_dim': 5,
         'alignment': True,
         'nb_waveforms': 10000,
         'sampling_rate': 20e+3,  # Hz
+        'hanning_filtering': True
     }
 
     def __init__(self, **kwargs):
@@ -72,7 +74,7 @@ class PCA(Block):
 
         self.sign_peaks = None
         self.send_pcs = True
-        self.batch = Buffer(self.sampling_rate, self.spike_width, self.spike_jitter, alignment=self.alignment)
+        self.batch = Buffer(self.sampling_rate, self.spike_width, self.spike_jitter, alignment=self.alignment, hanning_filtering=self.hanning_filtering)
         self._output_shape = (2, self.batch.temporal_width, self.output_dim)
         self.pcs = np.zeros(self._output_shape, dtype=self._output_dtype)
 
@@ -121,13 +123,13 @@ class PCA(Block):
             peaks_packet = self.get_input('peaks').receive(blocking=True, number=number)
         else:
             peaks_packet = self.get_input('peaks').receive(blocking=False, number=number)
-        peaks = peaks_packet['payload'] if peaks_packet is not None else None
+
+        peaks = peaks_packet['payload']['peaks'] if peaks_packet is not None else None
+        thresholds = peaks_packet['payload']['thresholds'] if peaks_packet is not None else None
 
         if peaks is not None:
 
-            self._measure_time('start', frequency=100)
-
-            _ = peaks.pop('offset')
+            self._measure_time('start')
 
             if self.sign_peaks is None:
                 self._infer_sign_peaks(peaks)
@@ -145,7 +147,7 @@ class PCA(Block):
                             for peak in signed_peaks:
                                 if self.nb_spikes[key] < self.nb_waveforms and self.batch.valid_peaks(peak):
                                     waveform = self.batch.get_waveform(int(channel), peak, peak_type=key,
-                                                                       sigma=self.spike_sigma)
+                                                                       sigma=((1.48*thresholds[0, int(channel)])**2))
                                     self.waveforms[key][self.nb_spikes[key]] = waveform
                                     self.nb_spikes[key] += 1
                             # Log debug message (if necessary).
@@ -215,7 +217,7 @@ class PCA(Block):
                     # Update internal variable.
                     self.send_pcs = False
 
-            self._measure_time('end', frequency=100)
+            self._measure_time('end')
 
         return
 

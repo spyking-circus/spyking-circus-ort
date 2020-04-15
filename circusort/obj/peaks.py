@@ -27,6 +27,23 @@ class Peaks(object):
 
         return time, channel, polarity
 
+    def __str__(self):
+
+        polarities = self._polarities
+        channels = self._channels
+        nb_times = {
+            polarity: {
+                channel: 0
+                for channel in np.unique(channels)
+            }
+            for polarity in np.unique(polarities)
+        }
+        for polarity, channel in zip(polarities, channels):
+            nb_times[polarity][channel] += 1
+        string = str(nb_times)
+
+        return string
+
     @property
     def _times(self):
 

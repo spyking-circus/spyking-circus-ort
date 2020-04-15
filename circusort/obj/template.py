@@ -8,7 +8,6 @@ import scipy
 from circusort.utils.path import normalize_path
 from scipy.sparse import csc_matrix
 
-
 class TemplateComponent(object):
 
     def __init__(self, waveforms, indices, nb_channels, amplitudes=None):
@@ -35,7 +34,6 @@ class TemplateComponent(object):
         assert len(self.waveforms) == len(self.indices), message
 
     def __add__(self, other):
-
         if not isinstance(other, TemplateComponent):
             string = "unsupported operand type(s) for +: '{}' and '{}'"
             message = string.format(type(self), type(other))
@@ -49,7 +47,7 @@ class TemplateComponent(object):
         for k, index in enumerate(self.indices):
             waveforms[index, :] += self.waveforms[k, :]
         for k, index in enumerate(other.indices):
-            waveforms[index, :] += self.waveforms[k, :]
+            waveforms[index, :] += other.waveforms[k, :]
         waveforms = waveforms[indices, :]
         nb_channels = self.nb_channels
         amplitudes = None
@@ -59,7 +57,6 @@ class TemplateComponent(object):
         return result
 
     def __mul__(self, other):
-
         if not isinstance(other, float):
             string = "unsupported operand type(s) for *: '{}' and '{}'"
             message = string.format(type(self), type(other))
@@ -76,37 +73,52 @@ class TemplateComponent(object):
 
     @property
     def norm(self):
-
         norm = np.linalg.norm(self.waveforms)
-
         return norm
 
     @property
     def temporal_width(self):
-
         return self.waveforms.shape[1]
 
     @property
     def extrema(self):
         index = self.temporal_width//2 + 1
-        return (np.min(self.waveforms[:, index]), np.max(self.waveforms[:, index]))
-    
-    def __str__(self):
+        return np.min(self.waveforms[:, index]), np.max(self.waveforms[:, index])
 
+    def center_of_mass(self, probe):
+        data = np.sum(self.waveforms**2, 1)
+        data /= data.sum()
+        positions = probe.positions[:, self.indices]
+        return np.sum(data * positions, 1)
+
+    def real_indices(self, probe):
+        return probe.nodes[self.indices]
+
+    def peak_amplitude(self, polarity=None, reference_value=0.0):
+        if polarity is None:
+            amplitude = np.max(np.abs(self.waveforms - reference_value))
+        elif polarity == 'positive':
+            amplitude = np.max(self.waveforms - reference_value)
+        elif polarity == 'negative':
+            amplitude = np.min(self.waveforms - reference_value)
+        else:
+            raise ValueError("unexpected polarity value: {}".format(polarity))
+
+        return amplitude
+
+    def __str__(self):
         string = "TemplateComponent for {} channels with amplitudes {}"
         message = string.format(self.nb_channels, self.amplitudes)
 
         return message
 
     def compress(self, indices):
-
         self.waveforms = np.delete(self.waveforms, indices, 0)
         self.indices = np.delete(self.indices, indices, 0)
 
         return
 
     def to_sparse(self, method='csr', flatten=False):
-
         data = self.to_dense()
         if flatten:
             data = data.flatten()[None, :]
@@ -123,16 +135,12 @@ class TemplateComponent(object):
         return sparse_data
 
     def to_dense(self):
-
         result = np.zeros((self.nb_channels, self.temporal_width), dtype=np.float32)
         result[self.indices] = self.waveforms
-
         return result
 
     def normalize(self):
-
         self.waveforms /= self.norm
-
         return
 
     def similarity(self, component):
@@ -162,7 +170,6 @@ class TemplateComponent(object):
         return coefficient
 
     def intersect(self, component):
-
         return np.any(np.in1d(self.indices, component.indices))
 
     def to_dict(self, full=True):
@@ -178,7 +185,6 @@ class TemplateComponent(object):
         return res
 
     def center(self, shift):
-
         if shift != 0:
             aligned_template = np.zeros(self.waveforms.shape, dtype=np.float32)
             if shift > 0:
@@ -187,9 +193,18 @@ class TemplateComponent(object):
                 aligned_template[:, :shift] = self.waveforms[:, -shift:]
 
             self.waveforms = aligned_template
-
         return
 
+    def get_waveforms(self, index):
+        mask = np.in1d(self.indices, index)
+        return self.waveforms[mask]
+
+    def smooth(self, window=11, order=3):
+        savgol_filter = np.hanning(self.temporal_width)
+        if window > order:
+            tmp_fast = scipy.signal.savgol_filter(self.waveforms, window, order, axis=1)
+            tmp_slow = scipy.signal.savgol_filter(self.waveforms, 3*window, order, axis=1)
+            self.waveforms = savgol_filter*tmp_fast + (1 - savgol_filter)*tmp_slow
 
 class Template(object):
 
@@ -383,6 +398,10 @@ class Template(object):
     def extrema(self):
         return self.first_component.extrema
 
+    def peak_amplitude(self, polarity=None, reference_value=0.0):
+
+        return self.first_component.peak_amplitude(polarity=polarity, reference_value=reference_value)
+
     @property
     def is_compressed(self):
 
@@ -394,6 +413,12 @@ class Template(object):
             component.normalize()
 
         return
+
+    def center_of_mass(self, probe):
+        return self.first_component.center_of_mass(probe)
+
+    def real_indices(self, probe):
+        return self.first_component.real_indices(probe)
 
     def intersect(self, template):
 
@@ -426,9 +451,7 @@ class Template(object):
 
     def _auto_compression(self):
 
-        sums = np.sum(self.first_component.waveforms, 1)
-        if self.two_components:
-            sums += np.sum(self.second_component.waveforms, 1)
+        sums = np.sum(self.first_component.waveforms**2, 1)
         indices = np.where(sums == 0)[0]
         self._compress(indices)
 
@@ -444,12 +467,15 @@ class Template(object):
 
         return
 
-    def compress(self, compression_factor=0.5):
+    def compress(self, compression_factor=0.5, thresholds=None):
 
         if compression_factor > 0:
             stds = np.std(self.first_component.waveforms, 1)
-            threshold = np.percentile(stds, int(compression_factor * 100.0))
-            indices = np.where(stds < threshold)[0]
+            if thresholds is None:
+                threshold = np.percentile(stds, int(compression_factor * 100.0))
+                indices = np.where(stds < threshold)[0]
+            else:
+                indices = np.where(stds < compression_factor*thresholds)
             self._compress(indices)
 
         return
@@ -546,12 +572,12 @@ class Template(object):
                     label = "waveform {}".format(k)
                     ax.plot(x, y, label=label, **kwargs)
         else:
-            ax.set_aspect('equal')
+            #ax.set_aspect('equal')
             x_min, x_max = probe.x_limits
             y_min, y_max = probe.y_limits
             ax.set_xlim(x_min, x_max)
             ax.set_ylim(y_min, y_max)
-            for k, channel in enumerate(self.first_component.indices):
+            for k, channel in enumerate(self.first_component.real_indices(probe)):
                 x_0, y_0 = probe.get_channel_position(channel)
                 x = time_factor * np.linspace(-0.5, +0.5, num=nb_samples) + x_0
                 y = voltage_factor * self.first_component.waveforms[k, :] + y_0
@@ -600,7 +626,6 @@ class Template(object):
         return
 
     def to_dict(self):
-
         res = {}
         for count, component in enumerate(self):
             key = "{}".format(count)
@@ -609,13 +634,12 @@ class Template(object):
         if self._compressed:
             res['compressed'] = self.indices
 
-        res['channel'] = self.channel
-        res['time'] = self.creation_time
+        res['channel'] = str(self.channel)
+        res['time'] = str(self.creation_time)
 
         return res
 
     def center(self, peak_type='negative'):
-
         if peak_type == 'negative':
             tmp_idx = np.divmod(self.first_component.waveforms.argmin(), self.first_component.waveforms.shape[1])
         elif peak_type == 'positive':
@@ -631,3 +655,16 @@ class Template(object):
             component.center(shift)
 
         return
+
+    def norm_intersect(self, template):
+        mask = np.in1d(self.indices, template.first_component.indices)
+        if np.any(mask):
+            indices = self.indices[mask]
+            res = np.linalg.norm(self.first_component.get_waveforms(indices) - template.first_component.get_waveforms(indices), axis=1)
+            return np.max(res)
+        else:
+            return 0
+
+    def smooth(self, window=11, order=3):
+        for component in self:
+            component.smooth(window, order)

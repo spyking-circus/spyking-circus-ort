@@ -125,12 +125,13 @@ class SpikeWriter(Block):
 
         if batch is None:
 
-            duration = 0.1  # s
+            buffer_duration = float(self.nb_samples) / self.sampling_rate  # s
+            duration = 0.5 * buffer_duration  # s
             time.sleep(duration)
 
         else:
 
-            self._measure_time('start', frequency=100)
+            self._measure_time('start')
 
             if self.input.structure == 'dict':
 
@@ -198,7 +199,7 @@ class SpikeWriter(Block):
                 message = string.format(self.name)
                 self.log.error(message)
 
-            self._measure_time('end', frequency=100)
+            self._measure_time('end')
 
         return
 

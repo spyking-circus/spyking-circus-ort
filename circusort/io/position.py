@@ -121,8 +121,8 @@ def load_position(path):
         raise IOError(message)
 
     file_ = h5py.File(path, mode='r')
-    x = file_.get('x').value
-    y = file_.get('y').value
+    x = file_['x'][()]
+    y = file_['y'][()]
     file_.close()
 
     position = Position(x, y)

@@ -21,12 +21,17 @@ class Snippets(object):
 
         return
 
-    def to_array(self):
+    def to_array(self, indices=None):
 
         list_ = [
-            snippet.to_array()
+            snippet.to_array(indices)
             for snippet in self._snippets
         ]
         array = np.stack(list_)
 
         return array
+
+    def filter(self):
+        hanning_filter = np.hanning(self._snippets[0]._width)
+        for snippet in self._snippets:
+            snippet.filter(hanning_filter)

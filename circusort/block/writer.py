@@ -1,7 +1,4 @@
-import warnings
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore",category=FutureWarning)
-    import h5py
+import h5py
 import numpy as np
 import tempfile
 import os
@@ -99,7 +96,6 @@ class Writer(Block):
         return data_path
 
     def _initialize(self):
-        # TODO add docstring.
 
         # Retrieve extension.
         extension = os.path.splitext(self.data_path)[1]
@@ -186,22 +182,20 @@ class Writer(Block):
         return
 
     def _process(self):
-        # TODO add docstring.
 
         data_packet = self.get_input('data').receive()
         number = data_packet['number']
         batch = data_packet['payload']
 
-        self._measure_time(label='start', frequency=10)
+        self._measure_time(label='start', period=10)
 
         self._write(batch, number=number)
 
-        self._measure_time(label='end', frequency=10)
+        self._measure_time(label='end', period=10)
 
         return
 
     def _introspect(self):
-        # TODO add docstring.
 
         nb_buffers = self.counter - self.start_step
         start_times = np.array(self._measured_times.get('start', []))

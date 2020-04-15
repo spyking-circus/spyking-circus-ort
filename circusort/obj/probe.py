@@ -103,6 +103,18 @@ class Probe(object):
         return y
 
     @property
+    def channel_nbs(self):
+
+        assert len(self.channel_groups) == 1
+        channel_nbs = np.array([
+            channel_nb
+            for group in self.channel_groups.values()
+            for channel_nb in group['channels']
+        ])
+
+        return channel_nbs
+
+    @property
     def labels(self):
 
         if len(self.channel_groups) == 1:
@@ -142,7 +154,7 @@ class Probe(object):
     def positions(self):
         positions = np.zeros((2, 0), dtype=np.float32)
         for key in self.channel_groups.keys():
-            positions = np.hstack((positions, np.array(self.channel_groups[key]['geometry'].values()).T))
+            positions = np.hstack((positions, np.array(list(self.channel_groups[key]['geometry'].values())).T))
         return positions
 
     @property
@@ -547,6 +559,45 @@ class Probe(object):
 
         return copied_probe
 
+    def restrict(self, selection):
+        """Restrict to the specified channels.
+
+        Argument:
+            selection: iterable [ dictionary
+                A data structure which describe the channels to restrict the probe to.
+        """
+
+        # Adapt input argument (if necessary).
+        if not isinstance(selection, dict):
+            nb_channel_group = len(self.channel_groups)
+            assert nb_channel_group == 1, "nb_channel_groups: {}".format(nb_channel_group)
+            selection = {
+                group_key: selection
+                for group_key in self.channel_groups
+            }
+
+        selected_channel_groups = {}
+
+        for group_key in selection:
+            assert group_key in self.channel_groups, "group_key: {}".format(group_key)
+            selected_channels = selection[group_key]
+            kept_channels = []
+            graph = self.channel_groups[group_key]['graph']
+            geometry = self.channel_groups[group_key]['geometry']
+            assert graph == [], "graph: {}".format(graph)
+            for k, channel_key in enumerate(selected_channels):
+                assert channel_key in geometry, "channel_key: {}".format(channel_key)
+                kept_channels.append(channel_key)
+            selected_channel_groups[group_key] = {
+                'channels': kept_channels,
+                'graph': graph,
+                'geometry': geometry,
+            }
+
+        self.channel_groups = selected_channel_groups
+
+        return
+
     def keep(self, selection):
         """Keep the specified channels only.
 
@@ -561,6 +612,7 @@ class Probe(object):
 
         else:
 
+            # Adapt input argument (if necessary).
             if not isinstance(selection, dict):
                 nb_channel_groups = len(self.channel_groups)
                 assert nb_channel_groups == 1, "nb_channel_groups: {}".format(nb_channel_groups)

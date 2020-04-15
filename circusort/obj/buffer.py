@@ -7,7 +7,7 @@ from circusort.utils import compute_snippet_width, compute_maximum_snippet_jitte
 class Buffer(object):
 
     def __init__(self, sampling_rate, snippet_duration, snippet_jitter,
-                 data=None, offset=0, alignment=True, factor=5, probe=None):
+                 data=None, offset=0, alignment=True, factor=5, hanning_filtering=False):
 
         self.sampling_rate = sampling_rate
         self.alignment = alignment
@@ -19,11 +19,12 @@ class Buffer(object):
         self._jitter = compute_maximum_snippet_jitter(self.snippet_jitter, self.sampling_rate)
         self._extended_width = self._width + self._jitter
         self._limits = None
+        self.hanning_filtering = hanning_filtering
+        if self.hanning_filtering:
+            self.filter = np.hanning(self._spike_width_)[:, np.newaxis]
 
         if self.alignment:
             self.factor = factor
-
-        self._probe = probe
 
         self.data = data
         self._offset = offset
@@ -75,25 +76,27 @@ class Buffer(object):
 
         self.data = data
         self._offset = offset
-
         self._limits = None
-
         return
 
     def median(self):
 
         return np.median(self.data, 1)
 
-    def get_snippet(self, channels, peak, peak_type='negative', ref_channel=None, sigma=0.0):
+    def get_snippet(self, channels, peak, peak_type='negative', ref_channel=None, sigma=0):
 
         ts_min = peak - self._extended_width
         ts_max = peak + self._extended_width
         data = self.data[ts_min:ts_max + 1, channels]
         time_step = self._offset + peak
         snippet = Snippet(data, width=self._width, jitter=self._jitter, time_step=time_step, channel=ref_channel,
-                          channels=channels, sampling_rate=self.sampling_rate, probe=self._probe)
+                          channels=channels, sampling_rate=self.sampling_rate)
+        
         if self.alignment:
             snippet.align(peak_type=peak_type, factor=self.factor, sigma=sigma)
+
+        if self.hanning_filtering:
+            snippet.filter(self.filter)
 
         return snippet
 
@@ -104,9 +107,13 @@ class Buffer(object):
         data = self.data[ts_min:ts_max + 1, channel]
         time_step = self._offset + peak
         snippet = Snippet(data, width=self._width, jitter=self._jitter, time_step=time_step, channel=channel,
-                          channels=np.array([channel]), sampling_rate=self.sampling_rate, probe=self._probe)
+                          channels=np.array([channel]), sampling_rate=self.sampling_rate)
+        
         if self.alignment:
             snippet.align(peak_type=peak_type, factor=self.factor, sigma=sigma)
+
+        if self.hanning_filtering:
+            snippet.filter(self.filter[0])
 
         data = snippet.to_array()
 

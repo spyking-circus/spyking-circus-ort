@@ -146,9 +146,9 @@ def load_template(path):
         raise IOError(message)
 
     f = h5py.File(path, mode='r')
-    channels = f.get('indices').value
-    waveforms = f.get('waveforms/1').value
-    amplitudes = f.get('amplitudes').value
+    channels = f['indices'][()]
+    waveforms = f['waveforms/1'][()]
+    amplitudes = f['amplitudes'][()]
     channel = f.attrs['channel']
     creation_time = f.attrs['creation_time']
     nb_channels = f.attrs['nb_channels']
@@ -157,7 +157,7 @@ def load_template(path):
     first_component = TemplateComponent(waveforms, channels, nb_channels, amplitudes)
     second_component = None
     if '2' in f.get('waveforms').keys():
-        waveforms = f.get('waveforms/2').value
+        waveforms = f['waveforms/2'][()]
         second_component = TemplateComponent(waveforms, channels, nb_channels)
 
     f.close()

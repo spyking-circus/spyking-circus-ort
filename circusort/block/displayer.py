@@ -97,7 +97,7 @@ class Displayer(TkBlock):
         number = data_packet['number']
         batch = data_packet['payload']
 
-        self._measure_time(label='start', frequency=10)
+        self._measure_time(label='start', period=10)
 
         # Update number label.
         string = "number: {}"
@@ -128,7 +128,7 @@ class Displayer(TkBlock):
 
         self._root.update()
 
-        self._measure_time(label='end', frequency=10)
+        self._measure_time(label='end', period=10)
 
         return
 

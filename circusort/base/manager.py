@@ -76,6 +76,12 @@ class Manager(object):
         # Register block.
         self.register_block(block)
 
+        # Update initialization in output block (if necessary).
+        if not block.has_input:
+            block.update_initialization()
+        else:
+            pass  # i.e. wait all the input connections before updating the initialization
+
         return block
 
     def create_network(self, network_type, name=None, log_level=None, **kwargs):
@@ -156,19 +162,35 @@ class Manager(object):
                 # Transmit information between blocks.
                 params = output_endpoint.block.get_output_parameters()
                 input_endpoint.block.configure_input_parameters(**params)
-                # Update initialization in output block.
-                input_endpoint.block.update_initialization()
+                # Transmit information between endpoints.
+                params = output_endpoint.get_output_parameters()
+                input_endpoint.configure_input_parameters(**params)
+                # Update initialization in output block (if necessary).
+                if input_endpoint.block.input_endpoints_are_configured:
+                    input_endpoint.block.update_initialization()
 
                 # Log debug message.
-                string = "{p} connection established from {a}[{s}] to {b}[{t}]"
+                string = "{} connection established from {}[{}] to {}[{}]"
                 message = string.format(
-                    p=protocol,
-                    s=(output_endpoint.name, output_endpoint.structure),
-                    t=(input_endpoint.name, input_endpoint.structure),
-                    a=output_endpoint.block.name,
-                    b=input_endpoint.block.name
+                    protocol,
+                    output_endpoint.block.name,
+                    (output_endpoint.name, output_endpoint.structure),
+                    input_endpoint.block.name,
+                    (input_endpoint.name, input_endpoint.structure)
                 )
                 self.log.debug(message)
+
+        return
+
+    def connect_network(self, network):
+
+        # Log info message.
+        string = "{} connects {} network"
+        message = string.format(str(self), network.name)
+        self.log.info(message)
+
+        # Connect network.
+        network.connect()
 
         return
 

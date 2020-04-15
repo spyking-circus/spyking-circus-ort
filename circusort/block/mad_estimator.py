@@ -29,7 +29,7 @@ class MADEstimator(Block):
     params = {
         'sampling_rate': 20e+3,
         'time_constant': 1.0,
-        'epsilon': 5e-3,
+        'epsilon': 1e-3,
     }
 
     def __init__(self, **kwargs):
@@ -86,6 +86,17 @@ class MADEstimator(Block):
 
         return
 
+    def get_output_parameters(self):
+
+        params = {
+            'dtype': self._dtype,
+            'nb_samples': self._nb_samples,
+            'nb_channels': self._nb_channels,
+            'sampling_rate': self.sampling_rate,
+        }
+
+        return params
+
     def _check_if_active(self):
         # Compute test value.
 
@@ -127,17 +138,26 @@ class MADEstimator(Block):
         data_packet = self.get_input('data').receive()
         batch = data_packet['payload']
 
-        self._measure_time('start', frequency=100)
+        self._measure_time('start')
 
         # Update the weights.
         alpha = self._alpha(self._gamma, self._n)
         beta = self._beta(self._gamma, self._n)
+
+
         # Compute the medians.
         medians = np.median(batch, axis=0)
+
+
         self._medians = alpha * self._medians + beta * medians
+        #self._medians = self._gamma * self._medians + (1 - self._gamma) * medians
+
         # Compute the MADs.
         mads = np.median(np.abs(batch - self._medians), axis=0)
+
         self._mads = alpha * self._mads + beta * mads
+        #self._mads = self._gamma * self._mads + (1 - self._gamma) * mads
+
         # Increment counter.
         self._n += 1
         # Check state (if necessary).
@@ -155,7 +175,7 @@ class MADEstimator(Block):
         # Update last seen MADs.
         self._last_mads = self._mads
 
-        self._measure_time('end', frequency=100)
+        self._measure_time('end')
 
         return
 

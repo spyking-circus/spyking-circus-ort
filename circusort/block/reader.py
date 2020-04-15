@@ -3,6 +3,7 @@
 import numpy as np
 import time
 import warnings
+from circusort.io.probe import load_probe
 
 from circusort.block.block import Block
 
@@ -38,6 +39,10 @@ class Reader(Block):
         'is_realistic': True,
         'speed_factor': 1.0,
         'nb_replay': 1,
+        'offset': 0,
+        'gain': 0.1042,
+        'probe_path': None,
+        'zero_channels': None
     }
 
     def __init__(self, **kwargs):
@@ -52,6 +57,7 @@ class Reader(Block):
             is_realistic: boolean
             speed_factor: float
             nb_replay: integer
+            probe_path: string
 
         See also:
             circusort.block.Block
@@ -69,23 +75,46 @@ class Reader(Block):
         self.is_realistic = self.is_realistic
         self.speed_factor = self.speed_factor
         self.nb_replay = self.nb_replay
-
+        self.offset = self.offset
+        self.probe_path = self.probe_path
+        self.zero_channels = self.zero_channels
         self._output_dtype = 'float32'
-        self._quantum_size = 0.1042  # µV / AD
+        self._quantum_size = self.gain
         self._quantum_offset = float(np.iinfo('int16').min)
         self._buffer_rate = float(self.nb_samples) / self.sampling_rate
 
         self._absolute_start_time = None
         self._absolute_end_time = None
 
+        if self.probe_path is not None:
+            self.probe = load_probe(self.probe_path, logger=self.log)
+            # Log info message.
+            string = "{} reads the probe layout"
+            message = string.format(self.name)
+            self.log.info(message)
+        else:
+            self.probe = None
+
+        if self.zero_channels is not None:
+            if np.iterable(self.zero_channels):
+                self.zero_channels = np.array(self.zero_channels)
+            else:
+                self.zero_channels = np.array([self.zero_channels])
+
+    @property
+    def nb_output_channels(self):
+        if self.probe is None:
+            return self.nb_channels
+        else:
+            return self.probe.nb_channels
+
     def _initialize(self):
         """Initialization of the processing block."""
 
-        data = np.memmap(self.data_path, dtype=self.dtype, mode='r')
+        data = np.memmap(self.data_path, dtype=self.dtype, offset=self.offset, mode='r')
         self.real_shape = (data.size // self.nb_channels, self.nb_channels)
-        self.shape = (self.real_shape[0] * self.nb_replay, self.real_shape[1])
-        self.output.configure(dtype=self._output_dtype, shape=(self.nb_samples, self.nb_channels))
-
+        self.shape = (self.real_shape[0] * self.nb_replay, self.nb_output_channels)
+        self.output.configure(dtype=self._output_dtype, shape=(self.nb_samples, self.nb_output_channels))
         return
 
     def _get_output_parameters(self):
@@ -93,7 +122,7 @@ class Reader(Block):
 
         params = {
             'dtype': self._output_dtype,
-            'nb_channels': self.nb_channels,
+            'nb_channels': self.nb_output_channels,
             'nb_samples': self.nb_samples,
             'sampling_rate': self.sampling_rate,
         }
@@ -105,14 +134,14 @@ class Reader(Block):
 
         # TODO check if we need a background thread.
 
-        self._measure_time(label='start', frequency=100)
+        self._measure_time(label='start')
 
         # Initialize start time (if necessary).
         if self._absolute_start_time is None:
             self._absolute_start_time = time.time()
 
         # Read data from the file on disk.
-        data = np.memmap(self.data_path, dtype=self.dtype, mode='r', shape=self.real_shape)
+        data = np.memmap(self.data_path, dtype=self.dtype, mode='r', shape=self.real_shape, offset=self.offset)
 
         g_min = (self.nb_samples * self.counter)
 
@@ -122,6 +151,9 @@ class Reader(Block):
             i_max = i_min + self.nb_samples
 
             chunk = data[i_min:i_max, :]
+            if self.probe is not None:
+                chunk = chunk[:, self.probe.nodes]
+
             # Repeat last sampling time (if necessary, data buffer incomplete).
             if chunk.shape[0] < self.nb_samples:
                 nb_samples = chunk.shape[0]
@@ -140,6 +172,10 @@ class Reader(Block):
                 chunk *= self._quantum_size
             else:
                 chunk = chunk.astype(self._output_dtype)
+
+            if self.zero_channels is not None:
+                chunk[:, self.zero_channels] = 0
+
             # Prepare output data packet.
             packet = {
                 'number': self.counter,
@@ -170,7 +206,7 @@ class Reader(Block):
             # Stop processing block.
             self.stop_pending = True
 
-        self._measure_time(label='end', frequency=100)
+        self._measure_time(label='end')
 
         return
 

@@ -21,12 +21,14 @@ def load_spikes(*args, **kwargs):
         kwargs: dict (optional)
             nb_cells: none | integer (optional)
             mode: none | string (optional)
+            t_max: none | float (optional)
     Return:
         spikes: circusort.obj.Spikes
     """
 
     nb_cells = kwargs.pop('nb_cells', None)
     mode = kwargs.pop('mode', None)
+    t_max = kwargs.pop('t_max', None)
     if mode is None:
         if len(args) == 1:
             mode = 'hdf5'
@@ -102,7 +104,7 @@ def load_spikes(*args, **kwargs):
         raise ValueError(message)
 
     # Instantiate object.
-    spikes = Spikes(nb_cells=nb_cells, **data)
+    spikes = Spikes(nb_cells=nb_cells, t_max=t_max, **data)
 
     return spikes
 

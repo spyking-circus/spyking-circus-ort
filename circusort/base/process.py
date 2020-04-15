@@ -145,30 +145,38 @@ class Process(object):
             ssh_client.connect(self.host)
             stdin, stdout, stderr = ssh_client.exec_command(command, timeout=60)
             # Check if everything went well.
-            try:
-                stderr = stderr.readlines()
-                stderr = ''.join(stderr)
-                if stderr != "":
-                    # Log the standard input.
-                    try:
-                        stdin = stdin.readlines()
-                        stdin = ''.join(stdin)
-                    except IOError:
-                        stdin = ""
-                    if stdin != "":
-                        self.logger.debug("stdin:\n{}".format(stdin))
-                    # Log the standard output.
-                    try:
-                        stdout = stdout.readlines()
-                        stdout = ''.join(stdout)
-                    except IOError:
-                        stdout = ""
-                    if stdout != "":
-                        self.logger.debug("stdout:\n{}".format(stdout))
-                    # Log the standard error.
-                    self.logger.debug("stderr:\n{}".format(stderr))
-            except IOError:
-                pass
+            has_exit_status = stdout.channel.exit_status_ready()
+            if not has_exit_status:
+                # Seems to work.
+                stdout_line = stdout.readline()
+                assert stdout_line == "spawn process...\n", stdout_line
+                self.logger.debug("remote process spawned")
+            else:
+                # Something went wrong.
+                try:
+                    stderr = stderr.readlines()
+                    stderr = ''.join(stderr)
+                    if stderr != "":
+                        # Log the standard input.
+                        try:
+                            stdin = stdin.readlines()
+                            stdin = ''.join(stdin)
+                        except IOError:
+                            stdin = ""
+                        if stdin != "":
+                            self.logger.debug("stdin:\n{}".format(stdin))
+                        # Log the standard output.
+                        try:
+                            stdout = stdout.readlines()
+                            stdout = ''.join(stdout)
+                        except IOError:
+                            stdout = ""
+                        if stdout != "":
+                            self.logger.debug("stdout:\n{}".format(stdout))
+                        # Log the standard error.
+                        self.logger.debug("stderr:\n{}".format(stderr))
+                except IOError as error:
+                    raise error
             # 3. Ensure connection
             self.logger.debug("ensure connection")
             message = socket.recv_json()
@@ -420,6 +428,11 @@ class Process(object):
                 exception_trace = data['result']  # i.e. exception trace
                 # Raise exception.
                 try:
+                    if exception_name == 'KeyError':
+                        # KeyError wraps its argument with single quotes, which prevents the pretty printing of the
+                        # exception trace. We need t avoid KeyError to broadcast the exception.
+                        exception_name = 'Exception'
+                        exception_trace = 'KeyError: ' + exception_trace
                     exception_class = getattr(exceptions, exception_name)
                 except AttributeError:
                     exception_class = getattr(exceptions, 'Exception')
