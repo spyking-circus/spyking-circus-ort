@@ -123,9 +123,9 @@ class TemplateComponent(object):
         if flatten:
             data = data.flatten()[None, :]
 
-        if method is 'csc':
+        if method == 'csc':
             sparse_data = scipy.sparse.csc_matrix(data, dtype=np.float32)
-        elif method is 'csr':
+        elif method == 'csr':
             sparse_data = scipy.sparse.csr_matrix(data, dtype=np.float32)
         else:
             string = "method={}"

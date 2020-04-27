@@ -15,7 +15,6 @@ requires = [
     'tqdm',
     'zmq',
     'sklearn',
-    'hdbscan',
     'pyopencl',
     'filelock',
     'vispy',

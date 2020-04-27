@@ -22,13 +22,13 @@ def resolve_probe_path(path, logger=None):
     if logger is None:
         logger = logging.getLogger(__name__)
 
-    if len(path) > 0 and path[0] is '~':
+    if len(path) > 0 and path[0] == '~':
         path = os.path.expanduser(path)
         if not os.path.isfile(path):
             message = "No such probe file: {}".format(path)
             logger.error(message)
             sys.exit(1)
-    elif len(path) > 0 and path[0] is '/':
+    elif len(path) > 0 and path[0] == '/':
         # TODO make this case compatible with Windows.
         if not os.path.isfile(path):
             message = "No such probe file: {}".format(path)

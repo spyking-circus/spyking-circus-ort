@@ -236,7 +236,7 @@ class SyntheticGenerator(block.Block):
         data = self.queue.get()
         self._number += 1
 
-        if data is 'EOS':
+        if data == 'EOS':
             # Stop processing block.
             self.stop_pending = True
         else:
