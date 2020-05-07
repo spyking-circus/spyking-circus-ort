@@ -125,6 +125,16 @@ class Cell(object):
 
         return self.train.mean_rate
 
+    def add_spikes(self, spike_time, amplitude=None):
+
+        if amplitude is not None:
+            if len(spike_time) > 0 and len(amplitude) > 0:
+                assert spike_time.t_min <= amplitude.t_min, "t_min for Train and Amplitude do not match"
+                assert spike_time.t_max >= amplitude.t_max, "t_max for Train and Amplitude do not match"
+
+        self.train.append(spike_time)
+        self.amplitude.append(amplitude)
+
     def rate(self, time_bin=1):
 
         bins = np.arange(self.t_min, self.t_max, time_bin)

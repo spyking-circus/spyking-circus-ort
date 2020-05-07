@@ -125,6 +125,34 @@ class Spikes(object):
 
         return cells
 
+    def get_spike_data(self, t_min=None, t_max=None, indices=None):
+
+        results = {'spike_times' : [], 'templates' : [], 'amplitudes' : []}
+        if indices is None:
+            indices = range(len(self))
+
+        for i in indices:
+            spikes = self.get_cell(i).train.times
+            amplitudes = self.get_cell(i).amplitude.amplitudes
+            if t_min is not None:
+                mask = spikes >= t_min
+                spikes = spikes[mask]
+                amplitudes = amplitudes[mask]
+            if t_max is not None:
+                mask = spikes < t_max
+                spikes = spikes[mask]
+                amplitudes = amplitudes[mask]
+            templates = i*np.ones(len(spikes), dtype=np.int32)
+            results['spike_times'] += [spikes]
+            results['templates'] += [templates]
+            results['amplitudes'] += [amplitudes]
+
+        if len(indices) > 0:
+            for key in ['spike_times', 'amplitudes', 'templates']:
+                results[key] = np.concatenate(results[key])
+
+        return results
+
     def save(self, path):
 
         raise NotImplementedError()  # TODO complete.

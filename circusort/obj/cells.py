@@ -9,6 +9,9 @@ from circusort.obj.matches import Matches
 from circusort.obj.similarities import Similarities
 from circusort.io.parameter.cells import get_cells_parameters
 from circusort.utils.path import normalize_path
+from circusort.obj.cell import Cell
+from circusort.obj.train import Train
+from circusort.obj.amplitude import Amplitude
 
 
 class Cells(object):
@@ -56,6 +59,11 @@ class Cells(object):
 
         return iterator
 
+    def append(self, cell):
+        assert isinstance(cell, Cell), "Can only append Cell to Cells object"
+        self.cells[len(self)] = cell
+
+
     def keys(self):
 
         iterator = self.cells.keys()
@@ -97,6 +105,19 @@ class Cells(object):
             cells[key] = value.slice(t_min, t_max)
 
         return Cells(cells)
+
+    def add_spikes(self, times, amplitudes, templates):
+        indices = np.unique(templates)
+        for i in indices:
+            mask = templates == i
+            train = Train(times[mask])
+            amplitude = Amplitude(amplitudes[mask], times[mask])
+                
+            if i in self.keys():
+                self.cells[i].add_spikes(train, amplitude)
+            else:
+                new_cell = Cell(train, amplitude)
+                self.cells[i] = new_cell
 
     @property
     def t_min(self):

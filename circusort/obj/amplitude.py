@@ -24,11 +24,21 @@ class Amplitude(object):
         if t_max is not None:
             mask = np.logical_and(mask, times <= t_max)
 
-        self.amplitudes = amplitudes[mask]
-        self.times = times[mask]
+        if len(mask) > 0:
+            self.amplitudes = amplitudes[mask]
+            self.times = times[mask]
+        else:
+            self.amplitudes = np.array(amplitudes)
+            self.times = np.array(times)
 
-        self.t_min = max(np.min(times), 0) if t_min is None else t_min
-        self.t_max = min(np.max(times), np.inf) if t_max is None else t_max
+        assert len(self.times) == len(self.amplitudes), "Times and Amplitudes should have the same length"
+
+        if len(self.times) > 0:
+            self.t_min = max(np.min(times), 0) if t_min is None else t_min
+            self.t_max = min(np.max(times), np.inf) if t_max is None else t_max
+        else:
+            self.t_min = 0
+            self.t_max = 0
 
     def __iter__(self):
 
@@ -49,6 +59,13 @@ class Amplitude(object):
     def two_components(self):
         res = self.amplitudes.shape[0] == 2
         return res
+
+    def append(self, amplitudes):
+        assert isinstance(amplitudes, Amplitude), "Can only append Amplitude to Amplitude object"
+        self.amplitudes = np.concatenate((self.amplitudes, amplitudes.amplitudes))
+        self.times = np.concatenate((self.times, amplitudes.times))
+        self.t_min = min(self.t_min, amplitudes.t_min)
+        self.t_max = max(self.t_max, amplitudes.t_max)
 
     def slice(self, t_min=None, t_max=None):
         # TODO add docstring.

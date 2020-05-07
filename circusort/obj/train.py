@@ -14,8 +14,12 @@ class Train(object):
         self.times = times
         self.times = self.times if t_min is None else self.times[t_min <= self.times]
         self.times = self.times if t_max is None else self.times[self.times <= t_max]
-        self.t_min = min(0.0, np.min(times)) if t_min is None else t_min
-        self.t_max = np.max(times) if t_max is None else t_max
+        if len(times) > 0:
+            self.t_min = min(0.0, np.min(times)) if t_min is None else t_min
+            self.t_max = np.max(times) if t_max is None else t_max
+        else:
+            self.t_min = 0
+            self.t_max = 0
 
     def __len__(self):
 
@@ -34,6 +38,14 @@ class Train(object):
     def mean_rate(self):
 
         return len(self) / (self.t_max - self.t_min)
+
+    def append(self, train, sort=True):
+        assert isinstance(train, Train), 'Can only append Train object to Train'
+        self.times = np.concatenate((self.times, train.times))
+        if sort:
+            self.times = np.sort(self.times)
+        self.t_min = min(self.t_min, train.t_min)
+        self.t_max = max(self.t_max, train.t_max)
 
     def reverse(self):
 
