@@ -35,7 +35,7 @@ class Amplitude(object):
 
         if len(self.times) > 0:
             self.t_min = max(np.min(times), 0) if t_min is None else t_min
-            self.t_max = min(np.max(times), np.inf) if t_max is None else t_max
+            self.t_max = np.max(times) if t_max is None else t_max
         else:
             self.t_min = 0
             self.t_max = 0

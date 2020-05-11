@@ -11,7 +11,7 @@ class Train(object):
 
     def __init__(self, times, t_min=None, t_max=None):
 
-        self.times = times
+        self.times = np.array(times)
         self.times = self.times if t_min is None else self.times[t_min <= self.times]
         self.times = self.times if t_max is None else self.times[self.times <= t_max]
         if len(times) > 0:
@@ -37,7 +37,10 @@ class Train(object):
     @property
     def mean_rate(self):
 
-        return len(self) / (self.t_max - self.t_min)
+        if self.t_max > self.t_min:
+            return len(self) / (self.t_max - self.t_min)
+        else:
+            return 0
 
     def append(self, train, sort=True):
         assert isinstance(train, Train), 'Can only append Train object to Train'

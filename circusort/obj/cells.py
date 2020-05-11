@@ -112,12 +112,9 @@ class Cells(object):
             mask = templates == i
             train = Train(times[mask])
             amplitude = Amplitude(amplitudes[mask], times[mask])
-                
+
             if i in self.keys():
                 self.cells[i].add_spikes(train, amplitude)
-            else:
-                new_cell = Cell(train, amplitude)
-                self.cells[i] = new_cell
 
     @property
     def t_min(self):
