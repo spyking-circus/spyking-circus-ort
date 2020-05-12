@@ -203,7 +203,6 @@ class Cells(object):
 
     def rate(self, time_bin=1):
 
-        print(self.t_min, self.t_max, time_bin)
         bins = np.arange(self.t_min, self.t_max, time_bin)
         if len(bins) > 1:
             result = np.zeros((len(self), len(bins) - 1))
