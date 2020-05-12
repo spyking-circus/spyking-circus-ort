@@ -203,12 +203,15 @@ class Cells(object):
 
     def rate(self, time_bin=1):
 
+        print(self.t_min, self.t_max, time_bin)
         bins = np.arange(self.t_min, self.t_max, time_bin)
-        result = np.zeros((len(self), len(bins) - 1))
+        if len(bins) > 1:
+            result = np.zeros((len(self), len(bins) - 1))
 
-        for count, c in enumerate(self):
-            result[count, :] = c.rate(time_bin)
-
+            for count, c in enumerate(self):
+                result[count, :] = c.rate(time_bin)
+        else:
+            result = np.zeros((len(self), 0), dtype=np.float32)
         return result
 
     def plot(self, output=None, **kwargs):

@@ -18,8 +18,8 @@ class Train(object):
             self.t_min = min(0.0, np.min(times)) if t_min is None else t_min
             self.t_max = np.max(times) if t_max is None else t_max
         else:
-            self.t_min = 0
-            self.t_max = 0
+            self.t_min = 0 if t_min is None else t_min
+            self.t_max = 0 if t_max is None else t_max
 
     def __len__(self):
 
