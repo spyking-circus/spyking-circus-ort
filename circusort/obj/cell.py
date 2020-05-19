@@ -153,6 +153,9 @@ class Cell(object):
 
         return cell
 
+    def interspike_interval_histogram(self, bin_width=0.5, width=25.0):
+        return self.train.interspike_interval_histogram(bin_width, width)
+
     def save(self, directory):
         """Save the cell to file.
 

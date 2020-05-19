@@ -213,6 +213,12 @@ class Cells(object):
             result = np.zeros((len(self), 0), dtype=np.float32)
         return result
 
+    def interspike_interval_histogram(self, bin_width=0.5, width=25.0):
+        res = {}
+        for count, c in enumerate(self):
+            res[count] =  c.train.interspike_interval_histogram(bin_width, width)
+        return res
+
     def plot(self, output=None, **kwargs):
 
         if output is None:
