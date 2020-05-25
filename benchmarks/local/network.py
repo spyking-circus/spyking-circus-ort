@@ -11,6 +11,7 @@ directory = os.path.join("~", ".spyking-circus-ort", "benchmarks", "local")
 directory = os.path.expanduser(directory)
 
 nb_fitters = 4
+nb_replay = 4
 
 def sorting(configuration_name):
     """Create the 1st sorting subnetwork.
@@ -69,6 +70,7 @@ def sorting(configuration_name):
         'is_realistic': True,
         'introspection_path': introspection_directory,
         'log_level': DEBUG,
+        'nb_replay': nb_replay
     }
     filter_kwargs = {
         'name': "filter",

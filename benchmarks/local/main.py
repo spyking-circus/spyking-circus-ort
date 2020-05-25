@@ -11,10 +11,10 @@ from collections import OrderedDict
 
 import network
 
-nb_rows = 3
-nb_columns = 3
+nb_rows = 16
+nb_columns = 16
 radius = 100.0  # µm
-nb_cells_range = [27]
+nb_cells_range = [200]
 duration = 2.5 * 60.0  # s
 
 

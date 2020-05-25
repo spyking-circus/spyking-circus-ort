@@ -216,7 +216,19 @@ class Cells(object):
     def interspike_interval_histogram(self, bin_width=0.5, width=25.0):
         res = {}
         for count, c in enumerate(self):
-            res[count] =  c.train.interspike_interval_histogram(bin_width, width)
+            res[count] = c.train.interspike_interval_histogram(bin_width, width)
+        return res
+
+    # def cross_correlograms(self, indices):
+    #     res = {}
+    #     for i in indices:
+    #         for j in indices[i:]:
+    #             res[i, j] = 
+
+    def rpv_coefficient(self, refractory_period=2.0):
+        res = {}
+        for count, c in enumerate(self):
+            res[count] = c.train.nb_rpv(refractory_period)
         return res
 
     def plot(self, output=None, **kwargs):

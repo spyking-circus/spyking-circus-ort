@@ -156,6 +156,14 @@ class Cell(object):
     def interspike_interval_histogram(self, bin_width=0.5, width=25.0):
         return self.train.interspike_interval_histogram(bin_width, width)
 
+    def cross_correlogram(self, other, bin_width=1.0, width=201):
+        assert isinstance(other, Cell), "The object must be a valid Cell"
+        return self.train.cross_correlogram(other.train, bin_width, width)
+
+    def rpv_coefficient(self, refractory_period=2.0):
+        return self.train.rpv_coefficient(refractory_period)
+
+
     def save(self, directory):
         """Save the cell to file.
 
