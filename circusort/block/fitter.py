@@ -375,6 +375,7 @@ class Fitter(Block):
                         self._measure_time('for_loop_concatenate_end', period=10)
                     # Mark current matching as tried.
                     scalar_products[best_template_index, peak_index] = -np.inf
+                    best_indices = np.zeros(0, dtype=np.int32)
                     if timing:
                         self._measure_time('for_loop_accept_end', period=10)
 
@@ -396,13 +397,10 @@ class Fitter(Block):
                     # If the maximal number of failures is reached then mark peak as solved (i.e. not fitted).
                     if nb_failures[peak_index] == self.nb_chances:
                         scalar_products[:, peak_index] = -np.inf
-                        index = np.arange(self.nb_templates) * nb_peaks + peak_index
                     else:
                         scalar_products[best_template_index, peak_index] = -np.inf
-                        index = best_template_index * nb_peaks + peak_index
 
-                    if numerous_argmax:
-                        best_indices = best_indices[~np.in1d(best_indices, index)]
+                    best_indices = best_indices[data_flatten[best_indices] > -np.inf]
 
                     # Add reject to the result if necessary.
                     if self.with_rejected_times:
