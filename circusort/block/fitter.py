@@ -135,6 +135,10 @@ class Fitter(Block):
 
         return nb_templates
 
+    @property
+    def min_scalar_product(self):
+        return np.min(self._overlaps_store.amplitudes[:, 0] * self._overlaps_store.norms['1'])    
+
     def _configure_input_parameters(self, nb_channels=None, nb_samples=None, **kwargs):
 
         if nb_channels is not None:
@@ -144,7 +148,7 @@ class Fitter(Block):
 
         return
 
-    def _update_initialization(self):
+    def _update_initialization(self):   
 
         if self.templates_init_path is not None:
             self._init_temp_window()
@@ -287,6 +291,7 @@ class Fitter(Block):
             # Set scalar products of tested matches to zero.
             data = scalar_products[:self._overlaps_store.nb_templates, :]
             data_flatten = data.ravel()
+            min_scalar_product = self.min_scalar_product
 
             while np.mean(nb_failures) < self.nb_chances:
 
@@ -304,6 +309,11 @@ class Fitter(Block):
                                 
                 # Compute the best amplitude.
                 best_amplitude = scalar_products[best_template_index, peak_index]
+                
+                if best_amplitude < min_scalar_product:
+                    nb_failures[:] = self.nb_chances
+                    break
+
                 if self._overlaps_store.two_components:
                     best_scalar_product = scalar_products[best_template_index + self.nb_templates, peak_index]
                     best_amplitude_2 = best_scalar_product

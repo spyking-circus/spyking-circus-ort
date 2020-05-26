@@ -85,23 +85,34 @@ class DistanceMatrix(object):
             result[:, count] = self.get_col(i, with_diag)
         return result
 
-    def get_deltas(self, rho):
-        rho_sort_id = np.argsort(rho) # index to sort
-        rho_sort_id = (rho_sort_id[::-1]) # reversing sorting indexes
-        sort_rho = rho[rho_sort_id] # sortig rho in ascending order
-        auxdelta = np.zeros(self.size, dtype=np.float32)
+    def get_deltas_and_neighbors(self, rho):
+        """Find the distance to and the index of the nearest point with a higher density.
 
-        for count, i in enumerate(rho_sort_id):
-            line = self.get_row(i)[rho_sort_id[:count+1]]
-            line[line == 0] = float("inf")
-            auxdelta[count] = np.min(line)
+        Argument:
+            rho
+        Returns:
+            nearest_higher_rho_distances
+                For each point, distance to the nearest point with a higher density (i.e. delta).
+            nearest_higher_rho_indices
+                For each point, index of the nearest point with a higher density (i.e. neighbor).
+        """
 
-        delta = np.zeros_like(auxdelta) 
-        delta[rho_sort_id] = auxdelta 
-        delta[rho == np.max(rho)] = np.max(delta[np.logical_not(np.isinf(delta))]) # assigns max delta to the max rho
-        delta[np.isinf(delta)] = 0
+        indices = np.argsort(-rho)  # sort indices by decreasing rho values
+        nearest_higher_rho_indices = np.zeros(self.size, dtype=np.int)  # i.e. neighbors
+        nearest_higher_rho_distances = np.zeros(self.size, dtype=np.float32)  # i.e. deltas
+        for k, index in enumerate(indices):
+            higher_rho_indices = indices[0:k + 1]
+            higher_rho_distances = self.get_row(index)[higher_rho_indices]
+            higher_rho_distances[higher_rho_distances == 0.0] = float('inf')
+            nearest_index = np.argmin(higher_rho_distances)
+            nearest_higher_rho_indices[index] = higher_rho_indices[nearest_index]
+            nearest_higher_rho_distances[index] = higher_rho_distances[nearest_index]
 
-        return delta
+        if len(indices) > 1:
+            nearest_higher_rho_distances[indices[0]] = np.max(nearest_higher_rho_distances[indices[1:]])
+            nearest_higher_rho_distances[np.isinf(nearest_higher_rho_distances)] = 0
+
+        return nearest_higher_rho_distances, nearest_higher_rho_indices
 
     @property
     def max(self):
@@ -918,64 +929,63 @@ class OnlineManager(object):
         return sub_indices
 
     def density_based_clustering(self, rho, distances, n_min, smart_select_mode='ransac_bis', refine=True):
-        delta = self.compute_delta(distances, rho)
-        nclus, labels, centers = self.find_centroids_and_cluster(distances, rho, delta, smart_select_mode)
-        halolabels = self.halo_assign(distances, labels, centers, n_min)
+        delta, neighbors = self.compute_delta_and_neighbors(distances, rho)
+        nclus, labels, centers = self.find_centroids_and_cluster(distances, rho, delta, neighbors, smart_select_mode)
+        halolabels = self.halo_assign(labels, rho, n_min, 3)
         halolabels -= 1
-        centers = np.where(np.in1d(centers - 1, np.arange(halolabels.max() + 1)))[0]
+        centers = np.where(centers - 1 >= 0)[0]
 
         return halolabels
 
     @staticmethod
-    def compute_delta(dist, rho):
-        return dist.get_deltas(rho)
+    def compute_delta_and_neighbors(dist, rho):
+        return dist.get_deltas_and_neighbors(rho)
 
-    def find_centroids_and_cluster(self, dist, rho, delta, smart_select_mode):
+    def find_centroids_and_cluster(self, dist, rho, delta, neighbors, smart_select_mode, method='nearest_denser_point'):
 
-        npnts = len(rho)    
-        centers = np.zeros(npnts)
-        
-        auxid = self.fit_rho_delta(rho, delta, smart_select_mode)
-        nclus = len(auxid)
-
-        centers[auxid] = np.arange(nclus) + 1 # assigning labels to centroids
-        
-        # assigning points to clusters based on their distance to the centroids
-        if nclus <= 1:
-            labels = np.ones(npnts)
+        nb_points = len(rho)
+        # Find centroids.
+        centroids = np.zeros(nb_points, dtype=np.int)
+        centroid_indices = self.fit_rho_delta(rho, delta, smart_select_mode)
+        nb_clusters = len(centroid_indices)
+        cluster_nbs = np.arange(1, nb_clusters + 1)
+        centroids[centroid_indices] = cluster_nbs  # assigning cluster numbers to centroids
+        # Assign each point to one cluster.
+        if method == 'nearest_centroid':
+            # Custom (and naive) method.
+            if nb_clusters <= 1:
+                labels = np.ones(nb_points, dtype=np.int)  # all points in one cluster
+            else:
+                distances_to_centroids = dist.get_rows(centroid_indices)
+                labels = np.argmin(distances_to_centroids, axis=0) + 1
+        elif method == 'nearest_denser_point':
+            # Method described in [Rodriguez & Laio (2014)](https://science.sciencemag.org/content/344/6191/1492.full).
+            if nb_clusters <= 1:
+                labels = np.ones(nb_points, dtype=np.int)  # all points in one cluster
+            else:
+                labels = np.copy(centroids)
+                indices = np.argsort(-rho)  # sort indices by decreasing density
+                for index in indices:
+                    if labels[index] == 0:
+                        labels[index] = labels[neighbors[index]]
         else:
-            centersx = np.where(centers)[0] # index of centroids
-            dist2cent = dist.get_rows(centersx)
-            labels = np.argmin(dist2cent, axis=0) + 1
-                
-        return nclus, labels, centers
+            raise ValueError("unexpected value %s" % method)
+
+        return nb_clusters, labels, centroids
         
     @staticmethod
-    def halo_assign(dist, labels, centers, n_min):
+    def halo_assign(labels, rhos, n_min, halo_rejection=3):
+        """Unassign outliers."""
 
-        halolabels = labels.copy()    
-        sameclusmat = np.equal(labels, labels[:, None]) #
-        sameclus_cent = sameclusmat[centers > 0, :] # selects only centroids
-        dist2cent = dist.get_rows(np.where(centers > 0)[0]) # distance to centroids
-        dist2cluscent = dist2cent*sameclus_cent # preserves only distances to the corresponding cluster centroid
-        nclusmem = np.sum(sameclus_cent, axis=1) # number of cluster members
-            
-        meandist2cent = np.sum(dist2cluscent, axis=1)/nclusmem # mean distance to corresponding centroid
-        mad2cent = np.zeros(meandist2cent.shape)
-        gt_meandist2cent = np.zeros(dist2cluscent.shape, dtype=np.bool)
-
-        for i in range(len(meandist2cent)):
-            idx = np.where(dist2cluscent[i] > 0)[0]
-            mean_i = np.mean(dist2cluscent[i, idx])
-            mad_i = np.median(np.abs(dist2cluscent[i, idx] - np.median(dist2cluscent[i, idx])))
-            bound = mean_i + mad_i
-            gt_meandist2cent[i] = dist2cluscent[i] > bound
-
-            if np.sum(gt_meandist2cent[i]) - len(idx) < n_min:
-                gt_meandist2cent[i] = False
-
-        remids = np.sum(gt_meandist2cent, axis=0)
-        halolabels[remids > 0] = 0 # setting to 0 the removes points
+        halolabels = labels.copy()
+        for label_nb in np.unique(labels):
+            indices = np.where(labels == label_nb)[0]
+            median_rho = np.median(rhos[indices])
+            # selected_indices = indices[rhos[indices] < median_rho]
+            mad_rho = np.median(np.abs(rhos[indices] - median_rho))
+            selected_indices = indices[rhos[indices] < (median_rho - halo_rejection*mad_rho)]  # TODO enhance?
+            if len(indices) - len(selected_indices) > n_min:
+                halolabels[selected_indices] = 0  # i.e. set to 0 (unassign)
         return halolabels
 
     @staticmethod
