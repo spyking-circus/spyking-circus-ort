@@ -26,7 +26,12 @@ def nd_bhatta_dist(X1, X2):
     det_2 = np.linalg.det(cov_2)
     det = np.linalg.det(cov)
 
-    dist = (1/8.)*np.dot(np.dot(ms.T, np.linalg.inv(cov)), ms) + 0.5*np.log(det/np.sqrt(det_1*det_2))
+    tmp = det_1 * det_2
+    if not numpy.isnan(tmp):
+        dist = (1/8.)*np.dot(np.dot(ms.T, np.linalg.inv(cov)), ms) + 0.5*np.log(det/np.sqrt(det_1*det_2))
+    else:
+        dist = numpy.inf
+
     return dist
 
 class DistanceMatrix(object):
@@ -996,14 +1001,14 @@ class OnlineManager(object):
 
         for ic1 in range(len(clusters)):
             idx1 = np.where(labels == clusters[ic1])[0]
-            if len(idx1) > 0:
-                sd1 = np.take(data, idx1, axis=0)
+            if len(idx1) > 1:
+                sd1 = np.take(data, idx1, axis=0).T
                 for ic2 in range(ic1 + 1, len(clusters)):
                     idx2 = np.where(labels == clusters[ic2])[0]
-                    if len(idx2) > 0:
-                        sd2 = np.take(data, idx2, axis=0)
+                    if len(idx2) > 1:
+                        sd2 = np.take(data, idx2, axis=0).T
                         try:
-                            dist = nd_bhatta_dist(sd1.T, sd2.T)
+                            dist = nd_bhatta_dist(sd1, sd2)
                         except Exception:
                             dist = np.inf
 
