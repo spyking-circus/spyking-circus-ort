@@ -86,15 +86,14 @@ class PeakGrouper(Block):
 
         # Unpack input packets.
         number = None
-        grouped_peaks = {}
+        grouped_peaks = {'peaks' : {}}
         for k in range(0, self.nb_groups):
             number = input_packets[k]['number']
             peaks = input_packets[k]['payload']['peaks']
-            thresholds = input_packets[k]['payload']['thresholds']
+            offset = input_packets[k]['payload']['offset']
+
             for key, value in peaks.items():
-                if key == 'offset':
-                    grouped_peaks.update([(key, value)])
-                elif key in ['negative', 'positive']:
+                if key in ['negative', 'positive']:
                     # Remap channels correctly.
                     value = {
                         str(int(channel) * self.nb_groups + k): times
@@ -102,17 +101,20 @@ class PeakGrouper(Block):
                     }
                     # Accumulate peaks.
                     if key in grouped_peaks:
-                        grouped_peaks[key].update(value)
+                        grouped_peaks['peaks'][key].update(value)
                     else:
-                        grouped_peaks[key] = value
+                        grouped_peaks['peaks'][key] = value
                 else:
                     pass
+
+            grouped_peaks['offset'] = offset
+
+        grouped_peaks['thresholds'] = np.hstack([input_packets[k]['payload']['thresholds'] for k in range(self.nb_groups)])
 
         # Send output packet.
         output_packet = {
             'number': number,
-            'payload': grouped_peaks,
-            'thresholds': thresholds
+            'payload': grouped_peaks
         }
         self.output.send(output_packet)
 

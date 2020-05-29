@@ -363,15 +363,19 @@ class Fitter(Block):
                     tmp1_ = self._overlaps_store.get_overlaps(best_template_index, '1')
                     if timing:
                         self._measure_time('for_loop_overlaps_end', period=10)
-                    tmp1 = tmp1_.multiply(-best_amplitude).dot(indices)
-                    scalar_products[:, is_neighbor[0, :]] += tmp1
+                    tmp1 = tmp1_.multiply(-best_amplitude)
+                    to_add = tmp1.toarray()[:, ytmp]
+
+                    scalar_products[:, is_neighbor[0, :]] += to_add
                     if timing:
                         self._measure_time('for_loop_update_2_end', period=10)
 
                     if self._overlaps_store.two_components:
                         tmp2_ = self._overlaps_store.get_overlaps(best_template_index, '2')
-                        tmp2 = tmp2_.multiply(-best_amplitude_2).dot(indices)
-                        scalar_products[:, is_neighbor[0, :]] += tmp2
+                        tmp2 = tmp2_.multiply(-best_amplitude_2)
+                        to_add = tmp2.toarray()[:, ytmp]
+                        scalar_products[:, is_neighbor[0, :]] += to_add
+
                     if timing:
                         self._measure_time('for_loop_update_end', period=10)
 
