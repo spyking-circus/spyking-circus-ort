@@ -55,8 +55,8 @@ class Spikes(object):
         self.templates = templates
         self.amplitudes = amplitudes
         self.nb_cells = nb_cells
-        self.t_min = (np.min(self.times) if self.times.size > 0 else None) if t_min is None else t_min
-        self.t_max = (np.max(self.times) if self.times.size > 0 else None) if t_max is None else t_max
+        self.t_min = (np.min(self.times) if self.times.size > 0 else 0) if t_min is None else t_min
+        self.t_max = (np.max(self.times) if self.times.size > 0 else 0) if t_max is None else t_max
 
     def __iter__(self):
 

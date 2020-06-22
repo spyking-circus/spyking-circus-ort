@@ -20,9 +20,9 @@ class Amplitude(object):
 
         mask = np.ones_like(times, dtype=np.bool)
         if t_min is not None:
-            mask = np.logical_and(mask, t_min <= times)
+            mask = np.logical_and(mask, t_min <= np.array(times))
         if t_max is not None:
-            mask = np.logical_and(mask, times <= t_max)
+            mask = np.logical_and(mask, np.array(times) <= t_max)
 
         if len(mask) > 0:
             self.amplitudes = amplitudes[mask]

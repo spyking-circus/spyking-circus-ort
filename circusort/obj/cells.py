@@ -89,6 +89,18 @@ class Cells(object):
 
         return nb_cells
 
+    @property
+    def spikes(self):
+        result = {}
+        for count, c in enumerate(self):
+            result[c] = c.train.times
+
+    @property
+    def amplitudes(self):
+        result = {}
+        for count, c in enumerate(self):
+            result[c] = c.amplitude.amplitudes
+
     def slice_by_ids(self, indices):
         
         cells = OrderedDict()
@@ -110,7 +122,7 @@ class Cells(object):
         indices = np.unique(templates)
         for i in indices:
             mask = templates == i
-            train = Train(times[mask])
+            train = Train(times[mask],)
             amplitude = Amplitude(amplitudes[mask], times[mask])
 
             if i in self.keys():
