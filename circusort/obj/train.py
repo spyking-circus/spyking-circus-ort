@@ -506,7 +506,7 @@ class Train(object):
 
         return bin_counts, bin_edges
 
-    def interspike_interval_histogram(self, bin_width=0.5, width=25.0):
+    def interspike_interval_histogram(self, bin_width=0.005, width=1.0, normalize=True):
         """Compute the interspike interval histogram.
 
         Arguments:
@@ -521,20 +521,15 @@ class Train(object):
             bin_edges: numpy.ndarray
         """
 
-        nb_bins = int(np.ceil(width / bin_width))
-        bin_counts = np.zeros(nb_bins, dtype=np.int)
-
         times = np.sort(self.times)
-        nb_times = times.size
+        isis = np.diff(times)
+        mask = isis < width
+        isis = isis[mask]
 
-        for index in range(0, nb_times - 1):
-            interspike_interval_in_s = times[index + 1] - times[index + 0]
-            interspike_interval_in_ms = interspike_interval_in_s * 1e+3
-            if interspike_interval_in_ms < width:
-                bin_index = int(np.floor(interspike_interval_in_ms / bin_width))
-                bin_counts[bin_index] += 1
-
-        bin_edges = np.linspace(0.0, width, num=nb_bins+1)
+        bin_counts, bin_edges = np.histogram(isis, bins=np.arange(0, width, bin_width))
+        if normalize:
+            if bin_counts.sum() > 0:
+                bin_counts = bin_counts / float(bin_counts.sum())
 
         return bin_counts, bin_edges
 
