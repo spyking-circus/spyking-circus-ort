@@ -40,6 +40,7 @@ class OrtDisplayer(Block):
         self._nb_samples = None
         self._nb_channels = None
         self._sampling_rate = None
+        self._number = 0
 
         return
 
@@ -73,12 +74,14 @@ class OrtDisplayer(Block):
     def _process(self):
 
         self._measure_time(label='start', period=10)
-        number = 
 
         for pipe in _ALL_BLOCKING_PIPES:
             if pipe in _ALL_PIPES_:
                 data_packet = self.get_input(pipe).receive()
                 self.all_queues[pipe].put(data_packet['payload'])
+                self._number = data_packet['number']
+
+        self.all_queues['number'].put(self._number)
 
         for pipe in _ALL_NONBLOCKING_PIPES:
             if pipe in _ALL_PIPES_:
