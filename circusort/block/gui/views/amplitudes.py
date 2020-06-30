@@ -6,9 +6,9 @@ from vispy.util import keys
 from circusort.io.probe import load_probe
 from circusort.io.template import load_template_from_dict
 
-from utils.widgets import Controler
-from views.canvas import ViewCanvas
-from views.programs import LinesPlot, SingleLinePlot
+from circusort.block.gui.utils.widgets import Controler
+from circusort.block.gui.views.canvas import ViewCanvas
+from circusort.block.gui.views.programs import LinesPlot, SingleLinePlot
 from circusort.obj.cells import Cells
 from circusort.obj.cell import Cell
 from circusort.obj.train import Train

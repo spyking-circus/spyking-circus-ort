@@ -1,9 +1,9 @@
-import utils.widgets as wid
+import circusort.block.gui.utils.widgets as wid
 import numpy as np
 
 from vispy import app, gloo
 from vispy.util import keys
-from views.programs import LinesPlot, BoxPlot, ProbeBoxPlot
+from circusort.block.gui.views.programs import LinesPlot, BoxPlot, ProbeBoxPlot
 from circusort.io.probe import load_probe
 
 

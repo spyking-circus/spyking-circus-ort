@@ -10,9 +10,9 @@ from circusort.obj.cell import Cell
 from circusort.obj.train import Train
 from circusort.obj.amplitude import Amplitude
 
-from utils.widgets import Controler
-from views.canvas import ViewCanvas
-from views.programs import LinesPlot, ProbeSingleLinePlot
+from circusort.block.gui.utils.widgets import Controler
+from circusort.block.gui.views.canvas import ViewCanvas
+from circusort.block.gui.views.programs import LinesPlot, ProbeSingleLinePlot
 
 import sys
 import matplotlib.pyplot as plt

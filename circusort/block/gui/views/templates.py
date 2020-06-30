@@ -8,9 +8,9 @@ from circusort.io.template import load_template_from_dict
 from circusort.obj.cells import Cells
 from circusort.obj.cell import Cell
 
-from utils.widgets import Controler
-from views.canvas import ViewCanvas
-from views.programs import LinesPlot
+from circusort.block.gui.utils.widgets import Controler
+from circusort.block.gui.views.canvas import ViewCanvas
+from circusort.block.gui.views.programs import LinesPlot
 
 import sys
 import matplotlib.pyplot as plt

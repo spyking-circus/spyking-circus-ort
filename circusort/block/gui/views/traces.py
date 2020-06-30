@@ -5,9 +5,9 @@ from vispy.util import keys
 
 from circusort.io.probe import load_probe
 
-from views.canvas import ViewCanvas
-from views.programs import LinesPlot
-from utils.widgets import Controler
+from circusort.block.gui.views.canvas import ViewCanvas
+from circusort.block.gui.views.programs import LinesPlot
+from circusort.block.gui.utils.widgets import Controler
 
 SIGNAL_VERT_SHADER = """
 // Index of the signal.

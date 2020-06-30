@@ -12,16 +12,16 @@ except ImportError:  # i.e. ModuleNotFoundError
         QSizePolicy, QGroupBox, QGridLayout, QLineEdit, QDockWidget, QListWidget, \
         QListWidgetItem, QAbstractItemView, QCheckBox, QTableWidget, QTableWidgetItem, QAction
 
-import utils.widgets as wid
-from utils.widgets import Controler
+import circusort.block.gui.utils.widgets as wid
+from circusort.block.gui.utils.widgets import Controler
 
-from views.traces import TraceCanvas
-from views.templates import TemplateCanvas
-from views.electrodes import MEACanvas
-from views.rates import RateCanvas
-from views.isis import ISICanvas
+from circusort.block.gui.views.traces import TraceCanvas
+from circusort.block.gui.views.templates import TemplateCanvas
+from circusort.block.gui.views.electrodes import MEACanvas
+from circusort.block.gui.views.rates import RateCanvas
+from circusort.block.gui.views.isis import ISICanvas
 
-from thread import ThreadORT
+from circusort.block.gui.thread import ThreadORT
 from circusort.io.probe import load_probe
 from circusort.io.template import load_template_from_dict
 import numpy as np
