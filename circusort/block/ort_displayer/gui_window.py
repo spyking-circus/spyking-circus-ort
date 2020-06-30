@@ -12,16 +12,16 @@ except ImportError:  # i.e. ModuleNotFoundError
         QSizePolicy, QGroupBox, QGridLayout, QLineEdit, QDockWidget, QListWidget, \
         QListWidgetItem, QAbstractItemView, QCheckBox, QTableWidget, QTableWidgetItem, QAction
 
-import circusort.block.gui.utils.widgets as wid
-from circusort.block.gui.utils.widgets import Controler
+import circusort.block.ort_displayer.utils.widgets as wid
+from circusort.block.ort_displayer.utils.widgets import Controler
 
-from circusort.block.gui.views.traces import TraceCanvas
-from circusort.block.gui.views.templates import TemplateCanvas
-from circusort.block.gui.views.electrodes import MEACanvas
-from circusort.block.gui.views.rates import RateCanvas
-from circusort.block.gui.views.isis import ISICanvas
+from circusort.block.ort_displayer.views.traces import TraceCanvas
+from circusort.block.ort_displayer.views.templates import TemplateCanvas
+from circusort.block.ort_displayer.views.electrodes import MEACanvas
+from circusort.block.ort_displayer.views.rates import RateCanvas
+from circusort.block.ort_displayer.views.isis import ISICanvas
 
-from circusort.block.gui.thread import ThreadORT
+from circusort.block.ort_displayer.thread import ThreadORT
 from circusort.io.probe import load_probe
 from circusort.io.template import load_template_from_dict
 import numpy as np
@@ -32,7 +32,7 @@ from circusort.obj.train import Train
 from circusort.obj.amplitude import Amplitude
 
 
-_all_views_ = [TemplateCanvas]
+_all_views_ = [TraceCanvas]
 
 class InfoController(Controler):
 

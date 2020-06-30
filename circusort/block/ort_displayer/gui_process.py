@@ -6,7 +6,7 @@ try:
 except ImportError:  # i.e. ModuleNotFoundError
     from PyQt5.QtWidgets import QApplication  # Python 3 compatibility.
 
-from circusort.block.gui.gui_window import GUIWindow
+from circusort.block.ort_displayer.gui_window import GUIWindow
 
 class GUIProcess(Process):
 

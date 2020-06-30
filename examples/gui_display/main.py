@@ -115,7 +115,7 @@ def main():
         director = circusort.create_director(host=host, **director_kwargs)
         manager = director.create_manager(host=host)
         reader = manager.create_block('reader', **reader_kwargs)
-        ort_displayer = manager.create_block('ort_displayer', **displayer_kwargs)
+        qt_displayer = manager.create_block('ort_displayer', **displayer_kwargs)
         # Initialize the elements of the network.
         director.initialize()
         # Connect the elements of the network.

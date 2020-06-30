@@ -6,35 +6,37 @@ from vispy.util import keys
 from circusort.io.probe import load_probe
 from circusort.io.template import load_template_from_dict
 
-from circusort.block.gui.utils.widgets import Controler
-from circusort.block.gui.views.canvas import ViewCanvas
-from circusort.block.gui.views.programs import SingleLinePlot, LinesPlot, BoxPlot
+from circusort.block.ort_displayer.utils.widgets import Controler
+from circusort.block.ort_displayer.views.canvas import ViewCanvas
+from circusort.block.ort_displayer.views.programs import LinesPlot, SingleLinePlot
 from circusort.obj.cells import Cells
 from circusort.obj.cell import Cell
 from circusort.obj.train import Train
 from circusort.obj.amplitude import Amplitude
 
 
-class RateCanvas(ViewCanvas):
+class AmplitudeCanvas(ViewCanvas):
 
     requires = ['spikes', 'time']
 
-    name = "Rates"
+    name = "Amplitudes"
 
     def __init__(self, probe_path=None, params=None):
-        ViewCanvas.__init__(self, probe_path, title="Rate view", box='single')
+        ViewCanvas.__init__(self, probe_path, title="Amplitude view", box="single")
         self.cells = Cells({})
         self.time_window = 50
         self.time_window_from_start = True
-        self.programs['rates'] = SingleLinePlot()
-        self.controler = RateControler(self)
+        self.programs['amplitudes'] = SingleLinePlot()
+        # Final details.
+        self.controler = AmplitudeControler(self)
+
 
     @property
     def nb_templates(self):
         return len(self.cells)
 
     def zoom(self, zoom_value):
-        self.programs['rates'].set_zoom_y_axis(zoom_value)
+        self.programs['amplitudes'].set_zoom_y_axis(zoom_value)
         self.update()
         return
 
@@ -65,18 +67,19 @@ class RateCanvas(ViewCanvas):
                 new_cell = Cell(template, Train([], t_min=0), Amplitude([], [], t_min=0))
                 self.cells.append(new_cell)
 
+
             self.cells.add_spikes(spikes['spike_times'], spikes['amplitudes'], spikes['templates'])    
-        
+
         self.cells.set_t_max(self.time)
         self.cells.set_t_min(0)
 
-        rates = self.cells.rate(self.controler.bin_size)
+        amplitudes = self.cells.mean_amplitudes(self.controler.bin_size)
         colors = self.get_colors(self.nb_templates)
             
         if not self.time_window_from_start:
-            rates = rates[:, -self.time_window:]
+            amplitudes = amplitudes[:, -self.time_window:]
 
-        self.programs['rates'].set_data(rates, colors)
+        self.programs['rates'].set_data(amplitudes, colors)
 
         return
 

@@ -7,8 +7,8 @@ from vispy.util import keys
 from circusort.io.probe import load_probe
 from circusort.io.template import load_template_from_dict
 
-from circusort.block.gui.views.canvas import ViewCanvas
-from circusort.block.gui.views.programs import LinesPlot, ScatterPlot
+from circusort.block.ort_displayer.views.canvas import ViewCanvas
+from circusort.block.ort_displayer.views.programs import LinesPlot, ScatterPlot
 
 BOUNDARY_VERT_SHADER = """
 // Coordinates of the position of the box.

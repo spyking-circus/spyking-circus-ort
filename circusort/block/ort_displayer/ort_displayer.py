@@ -3,20 +3,23 @@ import os
 from multiprocessing import Queue
 
 from circusort.block.block import Block
-from circusort.block.gui.gui_process import GUIProcess
+from circusort.block.ort_displayer.gui_process import GUIProcess
 from circusort.io.probe import load_probe
 from circusort.io.template_store import load_template_store
 from circusort.io.spikes import load_spikes
 
-_ALL_PIPES_ = ['templates', 'spikes', 'number', 'params', 'data', 'peaks', 'thresholds']
+_ALL_BLOCKING_PIPES = ['data']
+_ALL_NONBLOCKING_PIPES = ['templates', 'spikes', 'peaks']
+
+_ALL_PIPES_ = ['params'] + _ALL_BLOCKING_PIPES #+ _ALL_NONBLOCKING_PIPES
 
 __classname__ = "OrtDisplayer"
 
 
-class OrtDisplayer(object):
+class OrtDisplayer(Block):
     """Peak displayer"""
 
-    name = "Displayer"
+    name = "OrtDisplayer"
 
     params = {
         'probe_path': None,
@@ -26,6 +29,10 @@ class OrtDisplayer(object):
         """Initialization"""
 
         Block.__init__(self, **kwargs)
+
+        for pipe in _ALL_PIPES_:
+            self.add_input(pipe, structure='dict')
+    
         self.all_queues = {}
         self._probe_path = self.probe_path
         
@@ -65,19 +72,19 @@ class OrtDisplayer(object):
 
     def _process(self):
 
-        data_packet = self.get_input('data').receive()
-        spikes_packet = self.get_input('spikes').receive()
-        templates_packet = self.get_input('templates').receive()
-        peaks_packet = self.get_input('peaks').receive()
-        thresholds_packet = self.get_input('thresholds').receive()
-
         self._measure_time(label='start', period=10)
-        self.all_queues['peaks'].put(peaks)
-        self.all_queues['data'].put(data_packet['payload'])
-        self.all_queues['thresholds'].put(mads)
-        self.all_queues['number'].put(data_packet['number'])
-        self.all_queues['templates'].put(templates)
-        self.all_queues['spikes'].put(spikes)
+
+        for pipe in _ALL_BLOCKING_PIPES:
+            if pipe in _ALL_PIPES_:
+                data_packet = self.get_input(pipe).receive()
+                self.all_queues[pipe].put(data_packet['payload'])
+
+        for pipe in _ALL_NONBLOCKING_PIPES:
+            if pipe in _ALL_PIPES_:
+                data_packet = self.get_input(pipe).receive(blocking=False)
+                if data_packet is not None:
+                    self.all_queues[pipe].put(data_packet['payload'])
+
         self._measure_time(label='end', period=10)
 
         return
