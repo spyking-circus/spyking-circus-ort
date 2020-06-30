@@ -405,9 +405,9 @@ class TraceCanvas(ViewCanvas):
 
     def on_reception(self, data):
 
-        raw_data = data['data']
-        mads = data['thresholds']
-        peaks = data['peaks']
+        raw_data = data['data'] if 'data' in data else None
+        mads = data['thresholds'] if 'thresholds' in data else None
+        peaks = data['peaks'] if 'peaks' in data else None
 
         # TODO find a better solution for the 2 following lines.
         if raw_data.shape[1] > self.nb_channels:
@@ -426,9 +426,10 @@ class TraceCanvas(ViewCanvas):
             self._mads_values[:, -2:] = np.transpose(np.tile(mads, reps=(2, 1)))
         else:
             self._mads_values[:, -2:] = self._mads_values[:, -4:-2]
+
         mads_values = self._mads_values.ravel().astype(np.float32)
 
-        self.programs['mads']['a_mads_value'].set_data(self.mad_factor * mads_values)
+        self.programs['mads']['a_mads_value'].set_data(mads_values)
 
         # if peaks is not None:
         #     peaks_channels = np.concatenate([i*np.ones(len(peaks[i]), dtype=np.float32) for i in peaks.keys()])

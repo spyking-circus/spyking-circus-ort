@@ -11,7 +11,7 @@ from circusort.io.spikes import load_spikes
 _ALL_BLOCKING_PIPES = ['data']
 _ALL_NONBLOCKING_PIPES = ['templates', 'spikes', 'peaks']
 
-_ALL_PIPES_ = ['params'] + _ALL_BLOCKING_PIPES #+ _ALL_NONBLOCKING_PIPES
+_ALL_PIPES_ = ['params', 'number'] + _ALL_BLOCKING_PIPES #+ _ALL_NONBLOCKING_PIPES
 
 __classname__ = "OrtDisplayer"
 
@@ -73,6 +73,7 @@ class OrtDisplayer(Block):
     def _process(self):
 
         self._measure_time(label='start', period=10)
+        number = 
 
         for pipe in _ALL_BLOCKING_PIPES:
             if pipe in _ALL_PIPES_:

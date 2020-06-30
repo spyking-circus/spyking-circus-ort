@@ -252,7 +252,6 @@ class GUIWindow(QMainWindow):
         
 
         templates = data['templates'] if 'templates' in data else None
-        spikes = data['spikes'] if 'spikes' in data else None
         self.time = self._nb_samples * (self._nb_buffer + 1) / self._sampling_rate
 
         if 'number' in data:
@@ -262,7 +261,6 @@ class GUIWindow(QMainWindow):
         
         if templates is not None:
             for i in range(len(templates)):
-                mask = spikes['templates'] == i
                 template = load_template_from_dict(templates[i], self.probe)
                 self.new_templates += [template]
 
@@ -293,7 +291,8 @@ class GUIWindow(QMainWindow):
             elif key == 'barycenters':
                 to_send[key] = [t.center_of_mass(self.probe) for t in self.new_templates]
             elif key in ['data', 'peaks', 'thresholds', 'templates', 'spikes']:
-                to_send[key] = data[key]
+                if key in data:
+                    to_send[key] = data[key]
             elif key == 'time':
                 to_send[key] = self.time
 
