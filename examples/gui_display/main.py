@@ -8,7 +8,7 @@ import circusort
 from logging import DEBUG
 
 
-directory = os.path.join("~", ".spyking-circus-ort", "examples", "read_n_qt_display")
+directory = os.path.join("~", ".spyking-circus-ort", "examples", "gui")
 directory = os.path.expanduser(directory)
 
 

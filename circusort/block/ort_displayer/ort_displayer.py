@@ -11,7 +11,7 @@ from circusort.io.spikes import load_spikes
 _ALL_BLOCKING_PIPES = ['data']
 _ALL_NONBLOCKING_PIPES = ['templates', 'spikes', 'peaks']
 
-_ALL_PIPES_ = ['params', 'number'] + _ALL_BLOCKING_PIPES #+ _ALL_NONBLOCKING_PIPES
+_ALL_PIPES_ = ['params', 'number'] + _ALL_BLOCKING_PIPES + _ALL_NONBLOCKING_PIPES
 
 __classname__ = "OrtDisplayer"
 
@@ -80,6 +80,7 @@ class OrtDisplayer(Block):
                 data_packet = self.get_input(pipe).receive()
                 self.all_queues[pipe].put(data_packet['payload'])
                 self._number = data_packet['number']
+                #self.log.info('Sending %s to pipe %s', data_packet, pipe)
 
         self.all_queues['number'].put(self._number)
 
@@ -88,6 +89,7 @@ class OrtDisplayer(Block):
                 data_packet = self.get_input(pipe).receive(blocking=False)
                 if data_packet is not None:
                     self.all_queues[pipe].put(data_packet['payload'])
+                    #self.log.info('Sending %s to pipe %s', data_packet, pipe)
 
         self._measure_time(label='end', period=10)
 

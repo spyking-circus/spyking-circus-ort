@@ -32,7 +32,7 @@ from circusort.obj.train import Train
 from circusort.obj.amplitude import Amplitude
 
 
-_all_views_ = [TraceCanvas]
+_all_views_ = [TraceCanvas, TemplateCanvas, RateCanvas, ISICanvas, MEACanvas]
 
 class InfoController(Controler):
 
@@ -258,21 +258,29 @@ class GUIWindow(QMainWindow):
             self._number_callback(data['number'])
 
         self.new_templates = []
-        
+
+
+
         if templates is not None:
-            for i in range(len(templates)):
-                template = load_template_from_dict(templates[i], self.probe)
-                self.new_templates += [template]
 
-                new_cell = Cell(template, Train([]), Amplitude([], []))
-                self.cells.append(new_cell)
-                self._selection_templates.insertRow(self.nb_templates)
+            for ind in templates.keys():
 
-                channel = template.channel
-                amplitude = template.peak_amplitude()
-                self._selection_templates.setItem(self.nb_templates, 0, QTableWidgetItem(str(self.nb_templates)))
-                self._selection_templates.setItem(self.nb_templates, 1, QTableWidgetItem(str(channel)))
-                self._selection_templates.setItem(self.nb_templates, 2, QTableWidgetItem(str(amplitude)))
+                for c in templates[ind].keys():
+
+                    for i in range(len(templates)):
+                        print(templates.keys(), templates)
+                        template = load_template_from_dict(templates[i], self.probe)
+                        self.new_templates += [template]
+
+                        new_cell = Cell(template, Train([]), Amplitude([], []))
+                        self.cells.append(new_cell)
+                        self._selection_templates.insertRow(self.nb_templates)
+
+                        channel = template.channel
+                        amplitude = template.peak_amplitude()
+                        self._selection_templates.setItem(self.nb_templates, 0, QTableWidgetItem(str(self.nb_templates)))
+                        self._selection_templates.setItem(self.nb_templates, 1, QTableWidgetItem(str(channel)))
+                        self._selection_templates.setItem(self.nb_templates, 2, QTableWidgetItem(str(amplitude)))
 
         for canvas in self.all_canvas.values():
             to_send = self.prepare_data(canvas, data)

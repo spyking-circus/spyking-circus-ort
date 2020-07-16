@@ -93,13 +93,15 @@ class Cells(object):
     def spikes(self):
         result = {}
         for count, c in enumerate(self):
-            result[c] = c.train.times
+            result[count] = c.train.times
+        return result
 
     @property
     def amplitudes(self):
         result = {}
         for count, c in enumerate(self):
-            result[c] = c.amplitude.amplitudes
+            result[count] = c.amplitude.amplitudes
+        return result
 
     def slice_by_ids(self, indices):
         

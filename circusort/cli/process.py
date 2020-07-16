@@ -286,7 +286,6 @@ class Process(object):
                 self.logger.debug("request of module")
                 name = options['name']
                 parts = name.split('.')
-                print(name, parts)
                 result = __import__(parts[0])
                 for part in parts[1:]:
                     result = getattr(result, part)

@@ -383,7 +383,10 @@ class DensityClustering(Block):
                                 if not online_manager.is_ready:
                                     self.raw_data[key][best_channel].add(waveforms)
                                 else:
-                                    online_manager.update(self.counter, waveforms)
+                                    if not online_manager.is_ready:
+                                        online_manager.update(self.counter, waveforms)
+                                    elif self.tracking:
+                                        online_manager.update(self.counter, waveforms)
 
                                 if self.debug_data is not None:
                                     self.times[key][best_channel] += [offset + peak_idx]
