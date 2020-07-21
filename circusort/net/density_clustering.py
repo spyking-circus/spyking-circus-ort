@@ -18,7 +18,7 @@ class DensityClustering(Network):
 
     params = {
         'degree': 4,
-        'nb_channels' : 252
+        'nb_channels' : 256
     }
 
     def __init__(self, *args, **kwargs):
@@ -52,24 +52,22 @@ class DensityClustering(Network):
         }
 
         cluster_kwargs = {k : self.params for k in range(self.degree)}
+        
+        # for k in range(0, self.degree):
+        #     channels = list(np.arange(k, self.nb_channels)[::self.degree])
+        #     cluster_kwargs[k].update({
+        #         'channels' : channels
+        #     })
 
-        for k in range(0, self.degree):
-            cluster_kwargs[k].update({
-                'channels' : list(np.arange(k, self.nb_channels)[::self.degree])
-            })
+        # print(cluster_kwargs)
 
         clusters = {
             k: self._create_block('density_clustering', **cluster_kwargs[k])
             for k in range(0, self.degree)
         }
 
-        clustering_dispatcher = self._create_block('clustering_dispatcher', **dispatcher_kwargs)
-
-        # Register network inputs, outputs and blocks.
-        for k in range(self.degree):
-            self._add_output('templates_%d' %k, clusters[k].get_output('templates'))
-        
-        grouper = self._create_block('clustering_grouper', **grouper_kwargs)
+        clustering_dispatcher = self._create_block('clustering_dispatcher', **dispatcher_kwargs)        
+        clustering_grouper = self._create_block('clustering_grouper', **grouper_kwargs)
 
         self._add_input('data', clustering_dispatcher.get_input('data'))
         self._add_input('mads', clustering_dispatcher.get_input('mads'))
@@ -80,7 +78,7 @@ class DensityClustering(Network):
 
         self._add_block('clustering_dispatcher', clustering_dispatcher)
         self._add_block('clusters', clusters)
-        self._add_block('clustering_grouper', grouper)
+        self._add_block('clustering_grouper', clustering_grouper)
 
         return
 
@@ -100,6 +98,13 @@ class DensityClustering(Network):
             self.manager.connect(
                 clustering_dispatcher.get_output(name),
                 [clusters[k].get_input(name) for k in range(self.degree)]
+            )
+
+        for k in range(self.degree):
+            self.manager.connect(
+                clusters[k].get_output('templates'),
+                clustering_grouper.get_input('templates_%d' %k),
+
             )
 
         return

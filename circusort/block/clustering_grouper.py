@@ -36,7 +36,7 @@ class ClusteringGrouper(Block):
 
         for k in range(0, self.nb_groups):
             self.add_input('templates_{}'.format(k), structure='dict')
-        self.add_output('templates_', structure='dict')
+        self.add_output('templates', structure='dict')
 
         self.dtype = None
         self.nb_samples = None
