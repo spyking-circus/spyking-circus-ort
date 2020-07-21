@@ -199,7 +199,7 @@ def sorting(configuration_name):
     director.connect_network(fitter)
     director.connect(fitter.get_output('spikes'), [
         writer.get_input('spikes'),
-        qt_displayer.get_input('spikes')
+        #qt_displayer.get_input('spikes')
     ])
 
     # Launch the network.
