@@ -380,6 +380,7 @@ class DensityClustering(Block):
                                                                    ref_channel=best_channel, sigma=((1.48*self.thresholds[0, best_channel])**2))
 
                                 online_manager = self.managers[key][best_channel]
+                
                                 if not online_manager.is_ready:
                                     self.raw_data[key][best_channel].add(waveforms)
                                 else:
