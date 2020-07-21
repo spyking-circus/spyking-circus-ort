@@ -71,6 +71,8 @@ class ClusteringGrouper(Block):
     def _get_output_parameters(self):
 
         params = {
+            'nb_samples': self.nb_samples,  # TODO uncomment?
+            'sampling_rate': self.sampling_rate,  # TODO uncomment?
         }
 
         return params

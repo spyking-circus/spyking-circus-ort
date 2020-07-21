@@ -17,7 +17,8 @@ class ChannelDispatcher(Block):
     name = "Channel dispatcher"
 
     params = {
-        'nb_groups': 1
+        'nb_groups': 1,
+        'nb_samples' : 1024
     }
 
     def __init__(self, **kwargs):

@@ -52,7 +52,7 @@ class DensityClustering(Network):
         }
 
         cluster_kwargs = {k : self.params for k in range(self.degree)}
-        
+
         # for k in range(0, self.degree):
         #     channels = list(np.arange(k, self.nb_channels)[::self.degree])
         #     cluster_kwargs[k].update({
@@ -70,7 +70,6 @@ class DensityClustering(Network):
         clustering_grouper = self._create_block('clustering_grouper', **grouper_kwargs)
 
         self._add_input('data', clustering_dispatcher.get_input('data'))
-        self._add_input('mads', clustering_dispatcher.get_input('mads'))
         self._add_input('peaks', clustering_dispatcher.get_input('peaks'))
         self._add_input('pcs', clustering_dispatcher.get_input('pcs'))
 
@@ -94,7 +93,7 @@ class DensityClustering(Network):
         clusters = self.get_block('clusters')
         clustering_dispatcher = self.get_block('clustering_dispatcher')
 
-        for name in ['data', 'peaks', 'mads', 'pcs']:
+        for name in ['data', 'peaks', 'pcs']:
             self.manager.connect(
                 clustering_dispatcher.get_output(name),
                 [clusters[k].get_input(name) for k in range(self.degree)]
