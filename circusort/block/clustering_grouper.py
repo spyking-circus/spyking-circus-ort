@@ -80,10 +80,10 @@ class ClusteringGrouper(Block):
     def _process(self):
 
         # Receive input packets.
-        packets = {}
+        input_packets = {}
         for k in range(0, self.nb_groups):
             input_name = 'templates_{}'.format(k)
-            packets[k] = self.get_input(input_name).receive(blocking=False)
+            input_packets[k] = self.get_input(input_name).receive(blocking=False)
 
         self._measure_time('start')
 

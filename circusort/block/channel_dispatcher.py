@@ -85,9 +85,12 @@ class ChannelDispatcher(Block):
 
         params = {
             'dtype': self.dtype,
+            'nb_channels': self.nb_channels // self.nb_groups,
             'nb_samples': self.nb_samples,
             'sampling_rate': self.sampling_rate,
         }
+
+        assert self.nb_channels % self.nb_groups == 0, (self.nb_channels, self.nb_groups)
 
         return params
 

@@ -8,9 +8,6 @@ class Network(object):
 
     name = "Network"
     params = {}
-    _inputs = {}
-    _outputs = {}
-    _blocks = {}
 
     def __init__(self, manager, name=None, log_address=None, log_level=None, **kwargs):
 
@@ -21,6 +18,10 @@ class Network(object):
 
         self.params.update(kwargs)
         self._configure(**self.params)
+
+        self._inputs = {}
+        self._outputs = {}
+        self._blocks = {}
 
         self._create_blocks()
 

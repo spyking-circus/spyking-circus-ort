@@ -90,6 +90,7 @@ class DensityClustering(Network):
 
         clusters = self.get_block('clusters')
         clustering_dispatcher = self.get_block('clustering_dispatcher')
+        clustering_grouper = self.get_block('clustering_grouper')
 
         for name in ['data', 'peaks', 'pcs']:
             self.manager.connect(
