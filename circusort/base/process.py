@@ -66,8 +66,8 @@ class Process(object):
         object.__init__(self)
 
         if log_address is None:
-            raise NotImplementedError()
-            # TODO remove
+            raise NotImplementedError("log_address is None")
+            # TODO require log_address?
         self.log_level = log_level
         self.logger = get_log(log_address, name=__name__, log_level=self.log_level)
 
@@ -148,7 +148,12 @@ class Process(object):
             has_exit_status = stdout.channel.exit_status_ready()
             if not has_exit_status:
                 # Seems to work.
-                stdout_line = stdout.readline()
+                try:
+                    stdout_line = stdout.readline()
+                except paramiko.buffered_pipe.PipeTimeout as e:
+                    self.logger.debug("child process was supposed to send a specific message (acknowledgment")
+                    self.logger.debug("(try to check the code of the child process)")
+                    raise e
                 assert stdout_line == "spawn process...\n", stdout_line
                 self.logger.debug("remote process spawned")
             else:
