@@ -51,15 +51,13 @@ class DensityClustering(Network):
             'log_level' : self.log_level
         }
 
-        cluster_kwargs = {k : self.params for k in range(self.degree)}
+        cluster_kwargs = {k : self.params.copy() for k in range(self.degree)}
 
-        # for k in range(0, self.degree):
-        #     channels = list(np.arange(k, self.nb_channels)[::self.degree])
-        #     cluster_kwargs[k].update({
-        #         'channels' : channels
-        #     })
-
-        # print(cluster_kwargs)
+        for k in range(0, self.degree):
+            channels = list(range(k, self.nb_channels, self.degree))
+            cluster_kwargs[k].update({
+                'channels' : channels
+            })
 
         clusters = {
             k: self._create_block('density_clustering', **cluster_kwargs[k])

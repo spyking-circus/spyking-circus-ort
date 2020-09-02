@@ -17,7 +17,7 @@ class ClusteringDispatcher(Block):
     name = "Clustering dispatcher"
 
     params = {
-        'nb_groups': 1,
+        'nb_samples' : 1024
     }
 
     def __init__(self, **kwargs):
@@ -52,12 +52,27 @@ class ClusteringDispatcher(Block):
 
     def _update_initialization(self):
 
+        output_name = 'data'
+        output_endpoint = self.get_output(output_name)
+        output_endpoint.configure_output_parameters(nb_channels=self.nb_channels)
+
         # Log debug message.
         string = "{} updated initialization"
         message = string.format(self.name_and_counter)
         self.log.debug(message)
 
         return
+
+    def _get_output_parameters(self):
+
+        params = {
+            'dtype': self.dtype,
+            'nb_samples': self.nb_samples,
+            'sampling_rate': self.sampling_rate,
+            'nb_channels' : self.nb_channels
+        }
+
+        return params
 
     def _process(self):
 
@@ -69,9 +84,13 @@ class ClusteringDispatcher(Block):
 
         # Send output packets.
         for output_name in self.outputs.keys():
-            self.get_output(output_name).send(data_packet)
-            self.get_output(output_name).send(peaks_paquet)
-            self.get_output(output_name).send(pcs_packet)
+            if output_name == 'data':
+                to_send = data_packet
+            elif output_name == 'peaks':
+                to_send = peaks_paquet
+            elif output_name == 'pcs':
+                to_send = pcs_packet
+            self.get_output(output_name).send(to_send)
 
         self._measure_time('end')
 

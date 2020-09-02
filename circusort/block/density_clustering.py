@@ -290,7 +290,10 @@ class DensityClustering(Block):
         for ind in templates.keys():
             template = templates[ind]
             template.compress(0.1, thresholds=self.thresholds)
-            template.smooth(self.smoothing_factor)
+            try:
+                template.smooth(self.smoothing_factor)
+            except Exception:
+                pass
             template.center(key)
             self.templates[key][str(channel)][str(ind)] = template.to_dict()
 
