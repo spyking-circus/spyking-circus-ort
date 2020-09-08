@@ -23,6 +23,8 @@ class Fitter(Block):
             Path to the location used to load the overlaps to initialize the
             overlap store.
             The default value is None.
+        with_updater: boolean (optional)
+            The default value is True.
         with_rejected_times: boolean (optional)
             The default value is False.
         sampling_rate: float (optional)
@@ -36,6 +38,7 @@ class Fitter(Block):
     params = {
         'templates_init_path': None,
         'overlaps_init_path': None,
+        'with_updater': True,
         'with_rejected_times': False,
         'sampling_rate': 20e+3,
         'discarding_eoc_from_updater': False,
@@ -49,6 +52,7 @@ class Fitter(Block):
         Arguments:
             templates_init_path: string (optional)
             overlaps_init_path: string (optional)
+            with_updater: boolean (optional)
             with_rejected_times: boolean (optional)
             sampling_rate: float (optional)
             discarding_eoc_from_updater: boolean (optional)
@@ -61,6 +65,7 @@ class Fitter(Block):
         # The following lines are useful to avoid some PyCharm's warnings.
         self.templates_init_path = self.templates_init_path
         self.overlaps_init_path = self.overlaps_init_path
+        self.with_updater = self.with_updater
         self.with_rejected_times = self.with_rejected_times
         self.sampling_rate = self.sampling_rate
         self.discarding_eoc_from_updater = self.discarding_eoc_from_updater
@@ -71,7 +76,8 @@ class Fitter(Block):
         self._template_store = None
         self._overlaps_store = None
 
-        self.add_input('updater', structure='dict')
+        if self.with_updater:
+            self.add_input('updater', structure='dict')
         self.add_input('data', structure='dict')
         self.add_input('peaks', structure='dict')
         self.add_output('spikes', structure='dict')
@@ -608,9 +614,14 @@ class Fitter(Block):
         self._collect_data(shift=0)
         self._collect_peaks(verbose=verbose)
         # # Collect current updater buffer.
-        updater_packet = self.get_input('updater').receive(blocking=False,
-                                                           discarding_eoc=self.discarding_eoc_from_updater)
-        updater = updater_packet['payload'] if updater_packet is not None else None
+        if self.with_updater:
+            updater_packet = self.get_input('updater').receive(
+                blocking=False,
+                discarding_eoc=self.discarding_eoc_from_updater
+            )
+            updater = updater_packet['payload'] if updater_packet is not None else None
+        else:
+            updater = None
 
         if timing:
             self._measure_time('preamble_end', period=10)

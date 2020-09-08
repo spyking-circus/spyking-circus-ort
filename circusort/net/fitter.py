@@ -12,6 +12,7 @@ class Fitter(Network):
         nb_samples: integer
         templates_init_path: none | string
         overlaps_init_path: none | string
+        with_updater: bool
     """
 
     name = "Fitter network"
@@ -21,6 +22,7 @@ class Fitter(Network):
         'nb_samples': 1024,
         'templates_init_path': None,
         'overlaps_init_path': None,
+        'with_updater': True,
     }
 
     def __init__(self, *args, **kwargs):
@@ -35,6 +37,8 @@ class Fitter(Network):
                 The default value is None.
             overlaps_init_pat: none | string (optional)
                 The default value is None.
+            with_updater: bool (optional)
+                The default value is True.
         """
 
         Network.__init__(self, *args, **kwargs)
@@ -44,29 +48,34 @@ class Fitter(Network):
         self.nb_samples = self.nb_samples
         self.templates_init_path = self.templates_init_path
         self.overlaps_init_path = self.overlaps_init_path
+        self.with_updater = self.with_updater
 
     def _create_blocks(self):
         """Create the blocks of the network."""
 
-        demultiplexer_kwargs = {
-            'name': 'demultiplexer',
-            'input_specs': [
-                {
-                    'name': "data",
-                    'structure': 'dict',
-                    'policy': 'hard_blocking',
-                },
-                {
-                    'name': "peaks",
-                    'structure': 'dict',
-                    'policy': 'soft_blocking',
-                },
+        demultiplexer_input_specs = [
+            {
+                'name': "data",
+                'structure': 'dict',
+                'policy': 'hard_blocking',
+            },
+            {
+                'name': "peaks",
+                'structure': 'dict',
+                'policy': 'soft_blocking',
+            }
+        ]
+        if self.with_updater:
+            demultiplexer_input_specs.append(
                 {
                     'name': "updater",
                     'structure': 'dict',
                     'policy': 'non_blocking_broadcast',
-                },
-            ],
+                }
+            )
+        demultiplexer_kwargs = {
+            'name': 'demultiplexer',
+            'input_specs': demultiplexer_input_specs,
             'degree': self.degree,
             'overlap': 1,
             'nb_samples': self.nb_samples,
@@ -82,6 +91,7 @@ class Fitter(Network):
                 'name': "{} fitter {}".format(self.name, k),
                 'templates_init_path': self.templates_init_path,
                 'overlap_init_path': self.overlaps_init_path,
+                'with_updater': self.with_updater,
                 '_nb_fitters': self.degree,
                 '_fitter_id': k,
                 'log_level': self.log_level,
@@ -121,7 +131,8 @@ class Fitter(Network):
         # Register the network inputs.
         self._add_input('data', demultiplexer.get_input('data'))
         self._add_input('peaks', demultiplexer.get_input('peaks'))
-        self._add_input('updater', demultiplexer.get_input('updater'))
+        if self.with_updater:
+            self._add_input('updater', demultiplexer.get_input('updater'))
         # Register the network outputs.
         self._add_output('spikes', multiplexer.get_output('spikes'))
         # Register the network blocks.
@@ -148,7 +159,10 @@ class Fitter(Network):
             # Extract k-th fitter.
             fitter = fitters[k]
             # Connect demultiplexer to k-th fitter.
-            for input_name in ['data', 'peaks', 'updater']:
+            input_names = ['data', 'peaks']
+            if self.with_updater:
+                input_names.append('updater')
+            for input_name in input_names:
                 output_name = self._get_name(input_name, k)
                 self.manager.connect(
                     demultiplexer.get_output(output_name),
