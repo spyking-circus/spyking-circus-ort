@@ -293,8 +293,8 @@ class Fitter(Block):
 
             # Verify amplitude constraint.
 
-            min_scalar_products = self._overlaps_store.amplitudes[best_template_index, 0][:, numpy.newaxis]
-            max_scalar_products = self._overlaps_store.amplitudes[best_template_index, 1][:, numpy.newaxis]
+            min_scalar_products = self._overlaps_store.amplitudes[:, 0][:, numpy.newaxis]
+            max_scalar_products = self._overlaps_store.amplitudes[:, 1][:, numpy.newaxis]
             min_sps = min_scalar_products * self._overlaps_store.norms['1'][:, numpy.newaxis]
             max_sps = max_scalar_products * self._overlaps_store.norms['1'][:, numpy.newaxis]
 
@@ -311,6 +311,7 @@ class Fitter(Block):
                     break
 
                 best_amplitude = data[is_valid].argmax()
+                best_template_index, peak_index = valid_indices[0][best_amplitude_idx], valid_indices[1][best_amplitude_idx]
 
                 # Compute the best normalized amplitude.
                 best_amplitude_ = best_amplitude / self._overlaps_store.norms['1'][best_template_index]
