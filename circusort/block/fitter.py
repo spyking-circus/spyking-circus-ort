@@ -310,8 +310,9 @@ class Fitter(Block):
                 if len(valid_indices[0]) == 0:
                     break
 
-                best_amplitude = data[is_valid].argmax()
+                best_amplitude_idx = data[is_valid].argmax()
                 best_template_index, peak_index = valid_indices[0][best_amplitude_idx], valid_indices[1][best_amplitude_idx]
+                best_amplitude = data[best_template_index, peak_index]
 
                 # Compute the best normalized amplitude.
                 best_amplitude_ = best_amplitude / self._overlaps_store.norms['1'][best_template_index]
