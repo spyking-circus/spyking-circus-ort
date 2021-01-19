@@ -293,10 +293,10 @@ class Fitter(Block):
 
             # Verify amplitude constraint.
 
-            min_scalar_products = self._overlaps_store.amplitudes[:, 0][:, numpy.newaxis]
-            max_scalar_products = self._overlaps_store.amplitudes[:, 1][:, numpy.newaxis]
-            min_sps = min_scalar_products * self._overlaps_store.norms['1'][:, numpy.newaxis]
-            max_sps = max_scalar_products * self._overlaps_store.norms['1'][:, numpy.newaxis]
+            min_scalar_products = self._overlaps_store.amplitudes[:, 0][:, np.newaxis]
+            max_scalar_products = self._overlaps_store.amplitudes[:, 1][:, np.newaxis]
+            min_sps = min_scalar_products * self._overlaps_store.norms['1'][:, np.newaxis]
+            max_sps = max_scalar_products * self._overlaps_store.norms['1'][:, np.newaxis]
 
 
             # Set scalar products of tested matches to zero.
@@ -305,7 +305,7 @@ class Fitter(Block):
             while True:
 
                 is_valid = (data > min_sps)*(data < max_sps)
-                valid_indices = numpy.where(is_valid)
+                valid_indices = np.where(is_valid)
 
                 if len(valid_indices[0]) == 0:
                     break
