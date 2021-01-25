@@ -13,6 +13,8 @@ def list_modules():
                 modules.append(module)
         elif filename[-4:] == '.pyc':
             pass
+        elif filename[0] == '.':
+            pass
         else:
             module = filename
             if module[:2] != '__' or module[-2:] != '__':

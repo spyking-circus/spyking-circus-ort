@@ -290,7 +290,10 @@ class DensityClustering(Block):
         for ind in templates.keys():
             template = templates[ind]
             template.compress(0.1, thresholds=self.thresholds)
-            template.smooth(self.smoothing_factor)
+            try:
+                template.smooth(self.smoothing_factor)
+            except Exception:
+                pass
             template.center(key)
             self.templates[key][str(channel)][str(ind)] = template.to_dict()
 
@@ -380,10 +383,14 @@ class DensityClustering(Block):
                                                                    ref_channel=best_channel, sigma=((1.48*self.thresholds[0, best_channel])**2))
 
                                 online_manager = self.managers[key][best_channel]
+                
                                 if not online_manager.is_ready:
                                     self.raw_data[key][best_channel].add(waveforms)
                                 else:
-                                    online_manager.update(self.counter, waveforms)
+                                    if not online_manager.is_ready:
+                                        online_manager.update(self.counter, waveforms)
+                                    elif self.tracking:
+                                        online_manager.update(self.counter, waveforms)
 
                                 if self.debug_data is not None:
                                     self.times[key][best_channel] += [offset + peak_idx]

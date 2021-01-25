@@ -98,8 +98,10 @@ class PeakDetector(Block):
         # TODO integrate the 2 following line properly.
         # TODO Should it be a default pattern to update the initialization of blocks?
         input_parameters = self.get_input('data').get_input_parameters()
+        print(input_parameters)
         self.configure_input_parameters(**input_parameters)
 
+        print(self._nb_samples, self._nb_channels)
         shape = (2 * self._nb_samples, self._nb_channels)
 
         self.X = np.zeros(shape, dtype=np.float)

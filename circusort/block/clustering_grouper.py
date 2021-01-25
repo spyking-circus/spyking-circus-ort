@@ -1,49 +1,49 @@
+
 import numpy as np
 
 from circusort.block.block import Block
 
 
-__classname__ = "ChannelDispatcher"
+__classname__ = "ClusteringGrouper"
 
 
-class ChannelDispatcher(Block):
-    """Channel dispatcher.
+class ClusteringGrouper(Block):
+    """Channel grouper.
 
     Attribute:
         nb_groups: integer
-            The default value is 1.
     """
 
-    name = "Channel dispatcher"
+    name = "Clustering grouper"
 
     params = {
         'nb_groups': 1,
-        'nb_samples' : 1024
     }
 
     def __init__(self, **kwargs):
-        """Initialize channel dispatcher.
+        """Initialize channel grouper.
 
         Argument:
             nb_groups: integer (optional)
-                The number of groups into which data will be dispatch.
+                The number of groups from which data will be gathered.
                 The default value is 1.
         """
 
         Block.__init__(self, **kwargs)
 
-        # The following line is useful to disable some PyCharm's warning.
+        # The following line is useful to avoid some PyCharm's warning.
         self.nb_groups = self.nb_groups
 
-        self.add_input('data', structure='dict')
         for k in range(0, self.nb_groups):
-            output_name = 'data_{}'.format(k)
-            self.add_output(output_name, structure='dict')
+            self.add_input('templates_{}'.format(k), structure='dict')
+        self.add_output('templates', structure='dict')
 
         self.dtype = None
         self.nb_samples = None
         self.nb_channels = None
         self.sampling_rate = None
+
+        self._result = None
 
     def _initialize(self):
 
@@ -66,60 +66,62 @@ class ChannelDispatcher(Block):
 
     def _update_initialization(self):
 
-        for k in range(0, self.nb_groups):
-            output_name = 'data_{}'.format(k)
-            output_endpoint = self.get_output(output_name)
-            nb_channels = self.nb_channels // self.nb_groups
-            if k < self.nb_channels % self.nb_groups:
-                nb_channels += 1
-            output_endpoint.configure_output_parameters(nb_channels=nb_channels)
-
-        # Log debug message.
-        string = "{} updated initialization"
-        message = string.format(self.name_and_counter)
-        self.log.debug(message)
-
         return
 
     def _get_output_parameters(self):
 
         params = {
-            'dtype': self.dtype,
-            'nb_channels': self.nb_channels // self.nb_groups,
-            'nb_samples': self.nb_samples,
-            'sampling_rate': self.sampling_rate,
+            'nb_samples': self.nb_samples,  # TODO uncomment?
+            'sampling_rate': self.sampling_rate,  # TODO uncomment?
         }
-
-        assert self.nb_channels % self.nb_groups == 0, (self.nb_channels, self.nb_groups)
 
         return params
 
     def _process(self):
 
-        input_packet = self.get_input('data').receive()
+        # Receive input packets.
+        input_packets = {}
+        for k in range(0, self.nb_groups):
+            input_name = 'templates_{}'.format(k)
+            input_packets[k] = self.get_input(input_name).receive(blocking=False)
 
         self._measure_time('start')
 
-        # Unpack input packet.
-        number = input_packet['number']
-        batch = input_packet['payload']
-
-        # Prepare output packets.
-        output_packets = {}
+        # Unpack input packets.
+        number = None
+        all_templates = {'templates_' : {}}
         for k in range(0, self.nb_groups):
-            output_packets[k] = {
-                'number': number,
-                'payload': batch[:, k::self.nb_groups]
-            }
+            number = input_packets[k]['number']
+            peaks = input_packets[k]['payload']['peaks']
+            offset = input_packets[k]['payload']['offset']
 
-        # Send output packets.
-        for k in range(0, self.nb_groups):
-            output_name = 'data_{}'.format(k)
-            self.get_output(output_name).send(output_packets[k])
+            for key, value in peaks.items():
+                if key in ['negative', 'positive']:
+                    # Remap channels correctly.
+                    value = {
+                        str(int(channel) * self.nb_groups + k): times
+                        for channel, times in value.items()
+                    }
+                    # Accumulate peaks.
+                    if key in grouped_peaks:
+                        grouped_peaks['peaks'][key].update(value)
+                    else:
+                        grouped_peaks['peaks'][key] = value
+                else:
+                    pass
+
+            all_templates['offset'] = offset
+
+        all_templates['thresholds'] = np.hstack([input_packets[k]['payload']['thresholds'] for k in range(self.nb_groups)])
+
+        # Send output packet.
+        output_packet = {
+            'number': number,
+            'payload': all_templates
+        }
+        self.output.send(output_packet)
 
         self._measure_time('end')
-
-        return
 
     def _introspect(self):
 

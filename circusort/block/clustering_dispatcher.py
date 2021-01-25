@@ -17,8 +17,7 @@ class ClusteringDispatcher(Block):
     name = "Clustering dispatcher"
 
     params = {
-        'sampling_rate': 20e+3,  # Hz
-        'nb_samples': 1024
+        'nb_samples' : 1024
     }
 
     def __init__(self, **kwargs):
@@ -27,7 +26,7 @@ class ClusteringDispatcher(Block):
 
         Block.__init__(self, **kwargs)
 
-        keys =  ['data', 'peaks', 'mads', 'pcs']
+        keys =  ['data', 'peaks', 'pcs']
 
         for key in keys:
             self.add_input(key, structure='dict')
@@ -39,7 +38,23 @@ class ClusteringDispatcher(Block):
 
         return
 
+
+    def _configure_input_parameters(self, dtype=None, nb_samples=None, nb_channels=None, sampling_rate=None, **kwargs):
+
+        if dtype is not None:
+            self.dtype = dtype
+        if nb_samples is not None:
+            self.nb_samples = nb_samples
+        if nb_channels is not None:
+            self.nb_channels = nb_channels
+        if sampling_rate is not None:
+            self.sampling_rate = sampling_rate
+
     def _update_initialization(self):
+
+        output_name = 'data'
+        output_endpoint = self.get_output(output_name)
+        output_endpoint.configure_output_parameters(nb_channels=self.nb_channels)
 
         # Log debug message.
         string = "{} updated initialization"
@@ -48,21 +63,34 @@ class ClusteringDispatcher(Block):
 
         return
 
+    def _get_output_parameters(self):
+
+        params = {
+            'dtype': self.dtype,
+            'nb_samples': self.nb_samples,
+            'sampling_rate': self.sampling_rate,
+            'nb_channels' : self.nb_channels
+        }
+
+        return params
+
     def _process(self):
 
         data_packet = self.get_input('data').receive()
         peaks_paquet = self.get_input('peaks').receive(blocking=False)
-        mads_packet = self.get_input('mads').receive(blocking=False)
         pcs_packet = self.get_input('pcs').receive(blocking=False)
 
         self._measure_time('start')
 
         # Send output packets.
         for output_name in self.outputs.keys():
-            self.get_output(output_name).send(data_packet)
-            self.get_output(output_name).send(peaks_paquet)
-            self.get_output(output_name).send(mads_packet)
-            self.get_output(output_name).send(pcs_packet)
+            if output_name == 'data':
+                to_send = data_packet
+            elif output_name == 'peaks':
+                to_send = peaks_paquet
+            elif output_name == 'pcs':
+                to_send = pcs_packet
+            self.get_output(output_name).send(to_send)
 
         self._measure_time('end')
 
